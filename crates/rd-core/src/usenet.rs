@@ -60,6 +60,10 @@ pub struct UsenetServer {
     /// (RD-1100-05).
     #[serde(default)]
     pub quota: Option<UsenetQuota>,
+    /// Connections carrying an article request right now, shared by every running Usenet
+    /// file (RD-1270-21). Filled in by the server list; `0` wherever nothing runs.
+    #[serde(default)]
+    pub busy_connections: u32,
 }
 
 /// What a Usenet server does once its quota is used up (RD-1100-05).

@@ -11,6 +11,7 @@ pub mod capture_click_and_load;
 pub mod capture_fetch;
 pub mod capture_file;
 pub mod capture_linkgrabber;
+mod capture_notice;
 pub mod collector_crawl_verdict;
 pub mod collector_enqueue;
 pub mod collector_handlers;

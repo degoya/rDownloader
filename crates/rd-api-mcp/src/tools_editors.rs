@@ -29,7 +29,7 @@ use crate::automation_handlers as automations;
 #[tool_router(router = editors_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Read what an automation may be built from: the triggers, the condition fields and operators, the action kinds, and the limits (actions per automation, condition depth). The words create_automation and update_automation accept."
+        description = "Read what an automation may be built from: the triggers, the condition fields and operators, the action kinds, and the limits (actions per automation, condition depth). The words create_automation and update_automation accept. The field `change` is the storage threshold's own: `blocked` when a storage root ran out of space, `released` when it has room again; `storage_target` is its too: the key of the storage target that blocked or was released, compared with `equals` -- the `target` get_storage_capacity lists for each entry, the storage root's id or `fallback` for the download directory."
     )]
     pub async fn get_automation_vocabulary(&self) -> McpToolResult {
         let Json(vocabulary) = automations::automation_vocabulary().await;

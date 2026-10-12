@@ -86,4 +86,18 @@ expect_status "a jobs input that is no JSON list fails" 1
 expect_output "saying so" "the jobs input is not a JSON list: docker"
 expect_true "the tree greens were never asked off main" '[[ ! -f "$FAKE/greens.args" ]]'
 
+# --- recovery.yml's gate: no image, its one job as ONCE (RD-1270-11) -------------------------------
+REQUESTED='[]' ONCE='["Kill and restart (axis B)"]' CALLED='[]' gate push refs/heads/ci/1.27.0
+expect "recovery off main: no platform" '[]' "$out_platforms"
+expect "and the job" '["Kill and restart (axis B)"]' "$out_jobs"
+printf '%s\n' '[]' '[]' > "$FAKE/greens"
+REQUESTED='[]' ONCE='["Kill and restart (axis B)"]' CALLED='[]' gate push refs/heads/main
+expect_status "recovery on main: the gate answers" 0
+expect "a tree green before: the job is left out" '[]' "$out_jobs"
+expect_true "the greens are asked for the job alone" \
+    'grep -qx -- "o/r [0-9a-f]* -- Kill and restart (axis B)" "$FAKE/greens.args"'
+printf '%s\n' '[]' '["Kill and restart (axis B)"]' > "$FAKE/greens"
+REQUESTED='[]' ONCE='["Kill and restart (axis B)"]' CALLED='[]' gate push refs/heads/main
+expect "a tree nobody checked: the job runs" '["Kill and restart (axis B)"]' "$out_jobs"
+
 finish_tests "ci-gate"

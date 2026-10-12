@@ -15,8 +15,8 @@ fn text<'a>(payload: &'a serde_json::Value, key: &str) -> Option<&'a str> {
 
 /// The outcome a `package.state` event announces: a package that just became completed or
 /// failed. The same state written again -- a repeated write, a package renamed while it stays
-/// finished -- is no new outcome.
-pub(super) fn package_outcome(payload: &serde_json::Value) -> Option<NotificationEvent> {
+/// finished -- is no new outcome. The automations' package triggers ask the same (RD-1270-03).
+pub(crate) fn package_outcome(payload: &serde_json::Value) -> Option<NotificationEvent> {
     let state = text(payload, "state")?;
     let kind = match state {
         "completed" => NotificationEvent::PackageCompleted,
@@ -125,6 +125,25 @@ pub(super) fn power_notice(
 /// not.
 pub(super) fn storage_blocked(payload: &serde_json::Value) -> bool {
     text(payload, "change") == Some("blocked")
+}
+
+/// Title and text of "Storage root out of space", naming the root that ran out (RD-1270-18);
+/// `None` for a release. An event without a name keeps the general wording.
+pub(super) fn storage_notice(payload: &serde_json::Value) -> Option<(String, String)> {
+    if !storage_blocked(payload) {
+        return None;
+    }
+    let Some(name) = text(payload, "name") else {
+        return Some((
+            "Storage root out of space".to_owned(),
+            "A storage root fell below its free-space threshold and takes no new work.".to_owned(),
+        ));
+    };
+    let place = text(payload, "path").map_or_else(String::new, |path| format!(" ({path})"));
+    Some((
+        format!("Storage root out of space: {name}"),
+        format!("{name}{place} fell below its free-space threshold and takes no new work."),
+    ))
 }
 
 #[cfg(test)]

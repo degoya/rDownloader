@@ -87,6 +87,11 @@ pub trait ExternalRunner: Send + Sync {
     fn range_source(&self) -> Option<Arc<dyn rd_http::RangeSource>> {
         None
     }
+    /// What this transport's connections are doing right now (RD-1270-21): Usenet answers
+    /// per running file and per server. `None` for a transport without a pool of its own.
+    fn live_connections(&self) -> Option<crate::LiveConnections> {
+        None
+    }
     async fn run(
         &self,
         file: &DownloadFile,
@@ -141,6 +146,11 @@ impl RunnerRegistry {
         self.runners.get(&kind).cloned()
     }
 
+    /// Every registered runner.
+    pub(crate) fn all(&self) -> impl Iterator<Item = &Arc<dyn ExternalRunner>> {
+        self.runners.values()
+    }
+
     /// Every registered runner's declaration.
     pub(crate) fn reuse(&self) -> Vec<(DownloadKind, rd_core::ReuseCapability)> {
         self.runners
@@ -186,7 +196,8 @@ impl SchedulerHandle {
     /// runner could state a size and the headroom policy applies.
     ///
     /// Returns `false` when the target was blocked instead. The caller marks the file
-    /// `Blocked`, and releasing the root requeues it — no retry is burned.
+    /// `Blocked` with the reason `capacity`, and releasing the root requeues it — no retry is
+    /// burned.
     pub(crate) async fn ensure_capacity(
         &self,
         destination: &str,
@@ -198,8 +209,9 @@ impl SchedulerHandle {
         let destination = std::path::Path::new(destination);
         let verdict = match self.capacity().check(destination, remaining).await {
             Ok(verdict) => verdict,
-            // A destination that cannot be probed yet (not created, network share down) is
-            // left to the runner's own error handling rather than blocking the whole root.
+            // A destination that cannot be probed (a network share down, no part of it
+            // existing) is left to the runner's own error handling rather than blocking the
+            // whole root. One not created yet is probed on its nearest existing ancestor.
             Err(error) => {
                 tracing::debug!(%error, "capacity check skipped for an unprobeable destination");
                 return Ok(true);
@@ -286,15 +298,15 @@ impl SchedulerHandle {
         }
         // Every non-HTTP transport passes through here, so one check covers Usenet,
         // torrent, media, gallery and stream instead of five separate ones.
-        let remaining = file
-            .total_bytes
-            .map(|total| total.get().saturating_sub(file.committed_bytes.get()));
+        let remaining = crate::capacity::remaining_bytes(file);
         if !self
             .ensure_capacity(&package.destination, remaining)
             .await?
         {
+            // With the cause the HTTP path records (RD-1270-08): releasing the root requeues
+            // only downloads blocked for `capacity`, so a bare `Blocked` stayed there for good.
             self.database
-                .transition_download(file.id, DownloadState::Blocked)
+                .block_download(file.id, crate::BlockReason::Capacity.as_str())
                 .await?;
             return Ok(());
         }

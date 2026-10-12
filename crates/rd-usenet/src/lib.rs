@@ -6,6 +6,7 @@ mod assembly_resume;
 mod bounds;
 mod checkpoints;
 mod config;
+mod connections;
 mod error;
 mod health;
 mod hopeless;
@@ -21,7 +22,11 @@ mod yenc;
 #[cfg(test)]
 mod assembly_resume_tests;
 #[cfg(test)]
+mod bandwidth_wait_tests;
+#[cfg(test)]
 mod bounds_tests;
+#[cfg(test)]
+mod connections_tests;
 #[cfg(all(test, feature = "failpoints"))]
 mod crash_restart_tests;
 #[cfg(test)]

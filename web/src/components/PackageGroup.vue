@@ -16,6 +16,7 @@ import { formatByteProgress, formatDuration, formatMoment, formatRate, hasExtrac
 import { pickableCategories } from '@/utils/pickableCategories'
 import { NO_SELECTION } from '@/utils/select'
 import { sourcePageUrl } from '@/utils/sourcePage'
+import { type PackageConnections, packageConnectionsTitle } from '@/utils/usenetConnections'
 
 const PRIORITY_ITEMS = computed(() => priorityItems())
 const { t } = useI18n()
@@ -55,6 +56,8 @@ const props = defineProps<{
   remoteTargets?: NzbHandOverTarget[]
   /** The provider the package's NZB was handed to, or `null`. */
   handedOverTo?: string | null
+  /** The NNTP connections its files hold right now (RD-1270-21); `null` while none. */
+  connections?: PackageConnections | null
 }>()
 const emit = defineEmits<{
   select: [id: string, selected: boolean]
@@ -143,6 +146,12 @@ const dismissedIds = computed(() => new Set(dismissed.value.map(item => item.id)
 const finished = computed(() =>
   props.downloads.filter(item => item.state === 'completed').length + dismissed.value.length)
 const activeCount = computed(() => props.downloads.filter(item => ['resolving', 'downloading', 'verifying', 'repairing', 'extracting'].includes(item.state)).length)
+/**
+ * A Usenet package counts its connections instead of its running files (RD-1270-21): two files
+ * hold all ten of a server's connections, and "2 active" said nothing of the other eight.
+ */
+const busyConnections = computed(() => usenet.value ? props.connections ?? null : null)
+const connectionsTitle = computed(() => busyConnections.value ? packageConnectionsTitle(busyConnections.value) : '')
 const errorCount = computed(() => props.downloads.filter(
   item => ['failed', 'blocked'].includes(item.state) && !dismissedIds.value.has(item.id)).length)
 /** What "reset failed and blocked" would take, recovery volumes nobody needs included (RD-1190-15). */
@@ -414,7 +423,8 @@ function controlPackage(): void {
         </div>
         <span class="queue-cell-state numeric truncate text-xs text-muted" :title="t('downloads.package.finished_title', { finished, total: props.downloads.length })">
           {{ finished }}/{{ props.downloads.length }}
-          <span v-if="activeCount" class="text-primary"> · {{ t('downloads.package.active_count', { count: activeCount }) }}</span>
+          <template v-if="busyConnections"><span class="text-primary"> · </span><UTooltip :text="connectionsTitle"><span class="inline-flex items-center gap-0.5 align-bottom text-primary" role="img" :aria-label="connectionsTitle" data-testid="package-connections"><UIcon name="i-lucide-cable" class="size-3 shrink-0" />{{ busyConnections.busy }}</span></UTooltip></template>
+          <span v-else-if="activeCount" class="text-primary"> · {{ t('downloads.package.active_count', { count: activeCount }) }}</span>
           <span v-if="errorCount" class="text-error"> · {{ t('downloads.package.error_count', { count: errorCount }, errorCount) }}</span>
         </span>
         <!-- A full bar already says 100%; the number beside it is the same statement twice. -->

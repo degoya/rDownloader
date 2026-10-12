@@ -264,7 +264,8 @@ fn full_frame(event: &EventEnvelope) -> Option<Event> {
 
 /// An intake as the web interface is sent it, saying whether a connected capture agent shows
 /// the desktop toast for it (`agent_toast`): one surface per event, so the tab leaves it to the
-/// agent while one runs (RD-1260-04).
+/// agent while one runs (RD-1260-04). One the extension announces itself carries
+/// `extension_notice` from the store, and both leave it alone (RD-1270-05).
 fn with_toast_owner(mut event: EventEnvelope, agent_connected: bool) -> EventEnvelope {
     if event.kind == EventKind::CollectorIntake
         && let Some(payload) = event.payload.as_object_mut()

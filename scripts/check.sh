@@ -33,7 +33,9 @@
 #   scripts/check.sh --full --again        # ... even when a --full green covers this content,
 #                                          # whole or per crate (RD-1150-06)
 #   scripts/check.sh --defer               # postpone a triviality; does NOT record a green
-#   scripts/check.sh --preflight           # what needs no build, minutes, no lock, no green
+#   scripts/check.sh --preflight           # what needs no build, minutes, no lock, no green;
+#                                          # seconds when a preflight green covers the tree
+#   scripts/check.sh --preflight --again   # ... all of it even then
 #   scripts/check.sh --rust                # skip the web half
 #   scripts/check.sh --web                 # skip the Rust half
 #   scripts/check.sh --windows             # only the Windows lint: cargo xwin clippy, every crate
@@ -42,6 +44,7 @@
 #                                          # whole workspace, --keep-going, every error in one run
 #   JOBS=2 scripts/check.sh                # lower parallelism further
 #   TEST_THREADS=16 scripts/check.sh       # run tests wider than the build (scripts/lib/jobs.sh)
+#   RD_VITEST_WORKERS=4 scripts/check.sh   # Vitest's workers beside the Rust half (likewise)
 #   RD_BASE=main scripts/check.sh          # compare against another base branch
 #   RD_CHECK_LOGS=/tmp/x scripts/check.sh  # where the stage logs and `failures` go
 #                                          # (default /tmp/claude-<uid>/check-<checkout>)
@@ -86,13 +89,19 @@ esac
 source "$ROOT/scripts/lib/verified.sh"
 # shellcheck source=lib/check-reuse.sh
 source "$ROOT/scripts/lib/check-reuse.sh"
-if rd_check_reuse_plan "$ROOT" "$@"; then
+rd_check_reuse_end() {
+    rd_check_reuse_plan "$ROOT" "$@" || return 0
     echo
     echo "==> all requested checks passed"
     exit 0
-fi
-
+}
+# Asked before the lock, so a covered run never queues, and once more by the run that holds it —
+# a green may have been recorded while it waited — whose tree (reuse_tree) is then the run's own.
+# Not by the lane stage between the two (lib/lock.sh), which only waits: the plan and its tree
+# were asked three times per run, and each tree hashes every file the stamp touched (RD-1270-13).
+if [[ "${RD_LOCK_HELD:-0}" != 1 && "${RD_LOCK_STAGE:-}" != lane ]]; then rd_check_reuse_end "$@"; fi
 rd_take_lock "$@"
+if [[ "${RD_LOCK_HELD:-0}" == 1 ]]; then rd_check_reuse_end "$@"; fi
 cd "$ROOT"
 
 # shellcheck source=lib/scope.sh
@@ -115,8 +124,9 @@ gate=0
 again=0
 preflight=0
 
-if [[ " $* " == *" --preflight "* && "$*" != --preflight ]]; then
-    echo "--preflight runs alone" >&2
+if [[ " $* " == *" --preflight "* && "$*" != --preflight && "$*" != "--preflight --again" \
+    && "$*" != "--again --preflight" ]]; then
+    echo "--preflight runs alone (--again aside)" >&2
     exit 2
 fi
 while [[ $# -gt 0 ]]; do
@@ -174,6 +184,8 @@ source "$ROOT/scripts/lib/script-checks.sh"
 source "$ROOT/scripts/lib/public.sh"
 # shellcheck source=lib/preflight.sh
 source "$ROOT/scripts/lib/preflight.sh"
+# shellcheck source=lib/check-record.sh
+source "$ROOT/scripts/lib/check-record.sh"
 
 # The Windows lint alone and the integration gate, each a run of its own (scripts/lib/lint.sh).
 if [[ "$windows" -eq 1 ]]; then rd_check_windows; fi
@@ -183,9 +195,22 @@ if [[ "$gate" -eq 1 ]]; then rd_check_gate; fi
 # minutes; a wave agent's before its report, integrate.sh's before the gate. It verifies no
 # revision; its green is recorded by tree as the half `preflight` (audit C2), and a --full of the
 # same content up to the generators' output skips the script lints and tests it ran.
+# Not twice (RD-1270-13): with a preflight green of this very tree, or of HEAD's before a version
+# bump (lib/preflight-reuse.sh), only the file checks run — seconds, and they read what a tree
+# does not hold: the job layout's environment, and the version copies a bump rewrote. --again
+# runs everything.
 if [[ "$preflight" -eq 1 ]]; then
     preflight_tree="$(rd_worktree_tree "$ROOT")"
-    rd_preflight "$(rd_scope_boundary "$BASE" "$ROOT")"
+    preflight_green=""
+    [[ "$again" -eq 1 ]] || preflight_green="$(rd_preflight_green "$ROOT" "$preflight_tree")"
+    if [[ -n "$preflight_green" ]]; then
+        rd_file_checks "$(rd_scope_boundary "$BASE" "$ROOT")"
+        skip "cargo fmt, the test maps, gitleaks, bash -n, shellcheck, actionlint and the script tests" \
+            "a recorded preflight green covers this tree ($([[ "$preflight_green" == "$preflight_tree" ]] \
+                && echo 'this very content' || echo "tree ${preflight_green:0:12} before a version bump")); --again runs them"
+    else
+        rd_preflight "$(rd_scope_boundary "$BASE" "$ROOT")"
+    fi
     rd_stages_report
     rd_stages_exit_if_failed
     [[ -z "$preflight_tree" ]] || rd_record_full "$ROOT" preflight "$preflight_tree"
@@ -225,7 +250,7 @@ command -v cargo-nextest > /dev/null || skip "nextest" "cargo-nextest is not ins
 boundary="$(rd_scope_boundary "$BASE" "$ROOT")"
 changed="$(rd_scope_changed "$boundary")"
 full_tree=""
-if [[ "$full" -eq 1 ]]; then full_tree="$(rd_worktree_tree "$ROOT")"; fi
+if [[ "$full" -eq 1 ]]; then full_tree="${reuse_tree:-$(rd_worktree_tree "$ROOT")}"; fi
 verified_before="$(rd_verified_revision "$ROOT")"
 
 touches() { [[ -n "$changed" ]] && grep -qE "$1" <<< "$changed"; }
@@ -294,14 +319,20 @@ else
     skip "gitleaks" "branch level; --full and --preflight scan the tree"
 fi
 
+# The web half beside the Rust half when it builds nothing rust-embed reads (lib/check-web.sh).
+rd_check_web_start
+
 # ---------------------------------------------------------------------------------------------
 # Rust
 # ---------------------------------------------------------------------------------------------
 
 if [[ "$run_rust" -eq 1 ]]; then
-    # Seconds, so it is not worth scoping: a stray .rs anywhere fails the run either way.
+    # Seconds, so it is not worth scoping: a stray .rs anywhere fails the run either way. The
+    # preflight runs it too, so its red is both halves' (lib/check-record.sh).
+    stage_half="rust preflight"
     step "cargo fmt --all --check"
     attempt cargo fmt --all --check
+    stage_half=rust
 
     # Feature worktrees share this checkout's target/ through CARGO_TARGET_DIR, and cargo
     # fingerprints a workspace crate per source path. The effect is a build that links *another*
@@ -416,7 +447,7 @@ fi
 # Web and extension
 # ---------------------------------------------------------------------------------------------
 
-rd_check_web
+rd_check_web_join
 
 # ---------------------------------------------------------------------------------------------
 # What this run did not do, and the green record
@@ -430,6 +461,11 @@ if [[ "$full" -eq 0 ]]; then
     echo "    development and in the release chain; a tag and a Windows package refuse a tree"
     echo "    without it."
 fi
+# The full green is recorded per half and by tree, for the tag, the Windows package and the next
+# --full; the tree was taken before the run, so a run that rewrote a tracked file records the
+# content it tested. A half whose own stages were green is recorded although another is red
+# (RD-1270-22, lib/check-record.sh); a --full also stands for the preflight of its tree (RD-1270-13).
+rd_check_record_halves
 rd_stages_exit_if_failed
 
 # The green record only moves for a run that covered both halves. Half a run says nothing about
@@ -447,18 +483,6 @@ if [[ "$((run_rust | covered_rust))" -eq 1 && "$((run_web | covered_web))" -eq 1
 else
     echo
     echo "==> green record not moved: a half run (--rust or --web) does not verify a revision."
-fi
-
-# The full green is recorded per half and by tree, for the tag and the Windows package; see
-# scripts/lib/verified.sh. The tree was taken before the run, so a run that rewrote a tracked
-# file records the content it tested, and the gates then refuse the rewritten one.
-# A --full that ran the script lints and tests also stands for the preflight of its tree.
-if [[ "$full" -eq 1 && -n "$full_tree" ]]; then
-    [[ "$((run_rust | covered_rust))" -eq 1 ]] && rd_record_full "$ROOT" rust "$full_tree"
-    [[ "$((run_web | covered_web))" -eq 1 ]] && rd_record_full "$ROOT" web "$full_tree"
-    [[ "$preflight_covered" -eq 1 ]] || rd_record_full "$ROOT" preflight "$full_tree"
-    echo "==> recorded a --full green for tree ${full_tree:0:12} in $(rd_full_marker "$ROOT")$([[ -z "${crate_reuse_base:-}" ]] \
-        || echo ", its Rust half per crate on the green of tree ${crate_reuse_base:0:12}")"
 fi
 
 echo

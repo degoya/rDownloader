@@ -147,7 +147,12 @@
     "waiting_for_parts": "Esperando archivos que faltan",
     "waiting_for_parts_title": "El posprocesamiento empieza solo cuando han llegado todos los archivos del paquete.",
     "reset_failed": "Restablecer fallidos y bloqueados",
-    "reset_failed_hint": "{count} archivo de este paquete | {count} archivos de este paquete"
+    "reset_failed_hint": "{count} archivo de este paquete | {count} archivos de este paquete",
+    "connections_count": "{count} conexión | {count} conexiones",
+    "connections_even": "{connections}: {files} archivo | {connections}: {files} archivos a la vez, {per} cada uno",
+    "connections_mixed": "{connections}: {files} archivos a la vez ({split})",
+    "connections_full": "Las {limit} conexiones que permiten los servidores están ocupadas.",
+    "connections_room": "Están ocupadas {busy} de las {limit} conexiones que permiten los servidores."
   },
   "transfer": {
     "actions_aria": "Acciones del archivo",
@@ -191,7 +196,8 @@
       "unsupported_hint": "Las fuentes cuyo protocolo este servicio no puede descargar se muestran, pero no se usan."
     },
     "next_attempt": "Siguiente intento a las {time}",
-    "waiting_for_host": "Esperando una conexión con {host}"
+    "waiting_for_host": "Esperando una conexión con {host}",
+    "connections_title": "{count} conexión trabaja para este archivo | {count} conexiones trabajan para este archivo"
   },
   "summary": {
     "eyebrow": "Estado de la cola",

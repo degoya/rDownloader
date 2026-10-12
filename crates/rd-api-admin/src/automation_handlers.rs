@@ -210,6 +210,10 @@ pub async fn automation_vocabulary() -> Json<AutomationVocabulary> {
             "failure_code",
             "size_bytes",
             "kind",
+            // RD-1270-04: `blocked` or `released`, carried by the storage threshold only.
+            "change",
+            // RD-1270-18: the storage target's key (root id or `fallback`), storage threshold only.
+            "storage_target",
         ],
         operators: vec![
             "equals",

@@ -106,7 +106,9 @@
     "state": "État",
     "failure_code": "Code d’erreur",
     "size_bytes": "Taille en octets",
-    "kind": "Type"
+    "kind": "Type",
+    "change": "Changement de stockage",
+    "storage_target": "Cible de stockage"
   },
   "operator": {
     "equals": "est égal à",
@@ -151,5 +153,7 @@
     "cron_help": "Minute heure jour mois jour de la semaine, par exemple « 0 6 * * 1-5 » pour les jours ouvrés à six heures.",
     "every_minutes": "toutes les {minutes} minutes",
     "no_package": "Une planification ne désigne aucun paquet : les actions de paquet ne sont pas disponibles ici."
-  }
+  },
+  "storage_threshold_help": "S’exécute lorsqu’un emplacement de stockage passe sous sa réserve d’espace libre. Pour l’exécuter quand la place revient, ajoutez la condition « Changement de stockage » égal à « released ». Pour un seul emplacement, choisissez-le sous « Cible de stockage ».",
+  "storage_target_fallback": "Répertoire de téléchargement"
 }

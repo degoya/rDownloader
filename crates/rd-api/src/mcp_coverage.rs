@@ -893,7 +893,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
         &[any("/api/v1/downloads/rates")],
         "A chart's data series, sampled per second. get_status_summary answers how fast the \
          queue is going in one number, and get_transfer_stats answers it over time; the \
-         queued files waiting for their host are list_downloads' waiting_for_host.",
+         queued files waiting for their host are list_downloads' waiting_for_host, and the \
+         Usenet connections at work (RD-1270-21) are list_downloads' connections and \
+         list_usenet_servers' busy_connections.",
     ),
     omitted(
         "Editing bandwidth profiles and the weekly schedule",
@@ -985,6 +987,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "the interface itself",
         &[any("/api/v1/plugins/i18n")],
     ),
+    // RD-1270-04: the vocabulary names the storage threshold's `change`; get_automation_vocabulary
+    // and create_automation say what it means, the routes are the same. RD-1270-18: likewise its
+    // `storage_target`, the key (root id or `fallback`) get_storage_capacity lists as `target`.
     covered(
         "Automation history, vocabulary and dry run",
         "Automation",

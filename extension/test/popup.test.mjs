@@ -5,7 +5,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { captchaListFailure, clipboardLinks, sendablePageUrl, versionLine } from '../src/popup.js'
+import { PICK_WAITING } from '../src/api.js'
+import { captchaListFailure, clipboardLinks, sendOutcome, sendablePageUrl, versionLine } from '../src/popup.js'
 
 test('a refused clipboard and an empty one are told apart', async () => {
   assert.deepEqual(
@@ -75,4 +76,25 @@ test('a manifest without a version leaves the line empty rather than half-writte
   assert.equal(versionLine(() => ({})), '')
   assert.equal(versionLine(() => null), '')
   assert.equal(versionLine(() => { throw new Error('no runtime') }), '')
+})
+
+test('a send is reported as it went, with the number of links, and a failure never as a success', () => {
+  // RD-1270-05: the popup said "sent" whatever the background answered.
+  assert.deepEqual(sendOutcome({ ok: true, links: 3 }), { key: 'sentLinks', substitutions: ['3'], ok: true })
+  assert.deepEqual(
+    sendOutcome({ ok: true, code: PICK_WAITING, entries: 2, links: 0 }),
+    { key: 'pickWaiting', substitutions: ['2'], ok: true }
+  )
+  assert.deepEqual(
+    sendOutcome({ ok: false, status: 500, code: 'http', message: 'server exploded' }),
+    { key: 'sendFailed', substitutions: ['server exploded'], ok: false }
+  )
+  assert.deepEqual(
+    sendOutcome({ ok: false, status: 401, code: 'auth.unauthorized' }, (key) => `[${key}]`),
+    { key: 'sendFailed', substitutions: ['[errorUnauthorized]'], ok: false }
+  )
+  assert.deepEqual(sendOutcome({ ok: false, code: 'unconfigured' }), { key: 'notConfigured', substitutions: [], ok: false })
+  assert.deepEqual(sendOutcome({ ok: false, status: 0, code: 'network' }), { key: 'sendFailed', substitutions: ['network'], ok: false })
+  // No answer at all -- the background was gone -- is a failure too.
+  assert.equal(sendOutcome(undefined).ok, false)
 })

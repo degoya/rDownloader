@@ -5,7 +5,8 @@
 # which members it tests, the rd-api binaries, crash runs and sqlx among them, and when the whole
 # half runs instead. The cases of the job: a test change in a leaf crate tests that crate only; a
 # change in a crate with dependants tests the whole reverse hull; Cargo.lock runs everything;
-# translation catalogues alone run Vitest alone; nothing changed ends at once; --again runs all.
+# translation catalogues alone run Vitest alone; nothing changed ends at once; --again runs all;
+# many greens, each wide, cost one green's paths (RD-1270-06).
 #
 # Pure git and bash, no cargo: the decisions are run, not the checks.
 #
@@ -294,5 +295,56 @@ reset
 # --- nothing changed --------------------------------------------------------------------------------
 plan_run
 expect "nothing changed since the green: the run ends before the lock, as before" "0" "$plan_status"
+
+# --- many greens, each with a wide reason (RD-1270-06) ------------------------------------------------
+# After a version bump every recorded green differs in a path that runs the whole half. The scope
+# reads the paths of the closest green once, stops at its wide path, and passes over every other
+# green that differs in the same path — counted in calls, not in time. The answer is the one before.
+calls="$SCRATCH/calls"
+count_calls() {
+    local name
+    for name in "$@"; do
+        eval "$(declare -f "$name" | sed "1s/^$name /uncounted_$name /")"
+        eval "$name() { echo $name >> \"\$calls\"; uncounted_$name \"\$@\"; }"
+    done
+}
+calls_of() { grep -cx "$1" "$calls" || true; }
+count_calls rd_reuse_paths rd_crate_demands rd_crate_test_only rd_crate_test_hunks
+work() { echo "paths $(calls_of rd_reuse_paths), demands $(calls_of rd_crate_demands), per path $(( $(calls_of rd_crate_test_only) + $(calls_of rd_crate_test_hunks) ))"; }
+
+git checkout -q -b bumped
+for k in $(seq 1 30); do echo "pub fn old() {}" > "crates/base/src/f$k.rs"; done
+git add -A
+git commit -qm "thirty files"
+for i in $(seq 1 12); do
+    echo "pub fn v$i() {}" > crates/rd-core/src/lib.rs
+    echo "pub fn new() {}" > "crates/base/src/f$i.rs"
+    git commit -qam "green $i"
+    rd_record_full "$SCRATCH/bump-$i" rust "$(git rev-parse 'HEAD^{tree}')"
+done
+closest="$(git rev-parse 'HEAD^{tree}')"
+for k in $(seq 1 30); do echo "pub fn new() {}" > "crates/base/src/f$k.rs"; done
+echo "pub fn bumped() {}" > crates/rd-core/src/lib.rs
+: > "$calls"
+plan_run
+expect "thirteen greens, each wide: the whole Rust half" "--full" "$wide_reason"
+expect_line "since the closest green, for its first wide path" \
+    "the whole half — since the green of tree ${closest:0:12}, crates/rd-core/src/lib.rs: rd-core" "$plan"
+expect "one green's paths read, no demands, no work per path" "paths 1, demands 0, per path 0" "$(work)"
+reset
+
+# A green that does not differ in that path is still weighed, and wins when nothing else is wide.
+for k in $(seq 1 12); do echo "pub fn old() {}" > "crates/base/src/f$k.rs"; done
+echo "pub fn bumped() {}" > crates/rd-core/src/lib.rs
+git commit -qam "rd-core bumped, base old"
+near="$(git rev-parse 'HEAD^{tree}')"
+rd_record_full "$SCRATCH/near" rust "$near"
+for k in $(seq 1 30); do echo "pub fn new() {}" > "crates/base/src/f$k.rs"; done
+: > "$calls"
+plan_run
+expect "a green without the wide path, further off: built on" "" "$wide_reason"
+expect_line "named in the plan" "builds on the --full green of tree ${near:0:12}" "$plan"
+expect "its paths read too, and only its demands" "paths 2, demands 1" "$(work | sed 's/, per path.*//')"
+reset
 
 finish_tests check-reuse-crates

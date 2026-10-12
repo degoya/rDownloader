@@ -50,6 +50,17 @@ describe('AutomationTriggerCard (RD-1240-10)', () => {
     expect(schedules).toEqual([{ kind: 'cron', expression: '0 6 * * *' }])
   })
 
+  it('says a storage rule runs on the block unless its condition names the change (RD-1270-04)', () => {
+    mount('storage_threshold', { kind: 'interval', minutes: 60 })
+    expect(screen.getByText(en.storage_threshold_help)).toBeTruthy()
+    expect(screen.queryByText(en.schedule.heading)).toBeNull()
+  })
+
+  it('keeps that hint to the storage threshold', () => {
+    mount('download_completed', { kind: 'interval', minutes: 60 })
+    expect(screen.queryByText(en.storage_threshold_help)).toBeNull()
+  })
+
   it('names a package action a schedule cannot run', () => {
     mount('schedule', { kind: 'cron', expression: '0 6 * * *' }, true)
     expect(screen.getByText(en.schedule.no_package)).toBeTruthy()

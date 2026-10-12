@@ -2,7 +2,8 @@
 /**
  * The trigger of the automation editor (`AutomationView.vue`), with the schedule a time trigger
  * runs on (RD-1240-10): an interval in minutes counted from midnight, or a cron line, both read in
- * the service's time zone.
+ * the service's time zone. The storage threshold says which of its two moments it runs on
+ * (RD-1270-04).
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -42,6 +43,8 @@ function changeKind(kind: string): void {
         @update:model-value="(value: AutomationTrigger) => (trigger = value)"
       />
     </UFormField>
+    <!-- A storage rule runs on the block unless its condition names the change (RD-1270-04). -->
+    <p v-if="trigger === 'storage_threshold'" class="text-xs text-muted">{{ t('automation.storage_threshold_help') }}</p>
     <template v-if="trigger === 'schedule'">
       <UFormField :label="t('automation.schedule.heading')" :description="t('automation.schedule.help')">
         <USelect

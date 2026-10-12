@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use super::{Intake, announce, summary};
+use super::{Intake, announce, locale::Lang, text::summary};
 
 /// Two intakes during quiet hours, the second after the toast window: no toast while they
 /// last, one when they end, counting both.
@@ -50,7 +50,7 @@ async fn intakes_during_quiet_hours_are_one_toast_when_they_end() {
     );
     assert_eq!(intake.candidate_count, 4);
     assert_eq!(
-        summary(&intake),
+        summary(&intake, Lang::En),
         "While it was quiet: 4 links in 2 packages added to the LinkGrabber"
     );
 }

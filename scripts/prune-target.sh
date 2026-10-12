@@ -55,6 +55,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Every exit other than 0 names its reason (RD-1270-13): integrate.sh recorded `prune=1` with an
+# empty log once, a helper's false test ending the run under errexit.
+rd_prune_failed() {
+    echo "prune-target: failed (exit $1) at line $2: ${3%%$'\n'*}" >&2
+}
+trap 'rd_prune_failed "$?" "$LINENO" "$BASH_COMMAND"' ERR
 # shellcheck source=lib/verified.sh
 source "$ROOT/scripts/lib/verified.sh"
 
@@ -101,6 +107,7 @@ if [[ -z "${RD_PRUNE_ONE:-}" ]]; then
         if [[ "$if_free" -eq 1 && "$one_status" -eq 199 ]]; then
             echo "$one: a build took its lock; not pruned (--if-free)"
         elif [[ "$one_status" -ne 0 ]]; then
+            echo "$one: not pruned (exit $one_status; the lines above say why)" >&2
             status="$one_status"
         fi
     done <<< "$targets"

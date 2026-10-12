@@ -1,0 +1,9 @@
+{
+  "links_none": "Links added to the LinkGrabber",
+  "links_one": "1 link added to the LinkGrabber",
+  "links_many": "{links} links added to the LinkGrabber",
+  "links_packages": "{links} links in {packages} packages added to the LinkGrabber",
+  "nzb_one": "NZB added to the LinkGrabber, 1 file",
+  "nzb_many": "NZB added to the LinkGrabber, {files} files",
+  "held": "While it was quiet: {text}"
+}

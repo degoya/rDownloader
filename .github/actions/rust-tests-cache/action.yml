@@ -2,10 +2,11 @@ name: Rust with the test cache
 description: >
   The Rust setup of every job that builds against `rust-tests`, the one Rust cache of the debug
   builds (RD-1120-07): ci.yml's `rust`, `s3-live` and `clamav-live`, ci-crash-matrix.yml,
-  ci-warm-cache.yml, recovery.yml, self-update.yml and installers.yml. It sets the linkers itself,
-  then installs the workspace toolchain, restores the cache and installs nextest. Swatinem/rust-cache
-  keys a cache by every CARGO*/RUST* variable, so a job with other linker variables restores
-  nothing; nine copies of them and of the mold setup stood in the workflows before. Saved only with
+  ci-warm-cache.yml, recovery.yml, self-update.yml, installers.yml and e2e.yml (RD-1270-11). It
+  sets the linkers itself, then installs the workspace toolchain, restores the cache and installs
+  nextest. Swatinem/rust-cache keys a cache by every CARGO*/RUST* variable, so a job with other
+  linker variables restores nothing; nine copies of them and of the mold setup stood in the
+  workflows before. Saved only with
   `save: true` and only on main and development (RD-1100-13): a ci/* branch's cache served that
   branch alone, which is deleted on green, and pushed main's out of the repository's 10 GB.
 inputs:

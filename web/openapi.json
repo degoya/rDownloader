@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.26.0"
+    "version": "1.27.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -28043,6 +28043,15 @@
             "format": "int64",
             "minimum": 0
           },
+          "connections": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "NNTP connections working for this Usenet file right now (RD-1270-21). Files share the\nservers' connections, and one shared by two files counts half for each, so the files\nnever add up to more than `usenet_servers` has busy. `None` for every other transport\nand for a file waiting for a free connection.",
+            "minimum": 0
+          },
           "eta_seconds": {
             "type": [
               "integer",
@@ -28063,7 +28072,8 @@
         "required": [
           "bytes_per_second",
           "downloads",
-          "waiting_for_host"
+          "waiting_for_host",
+          "usenet_servers"
         ],
         "properties": {
           "bytes_per_second": {
@@ -28096,6 +28106,13 @@
                 "type": "null"
               }
             ]
+          },
+          "usenet_servers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsenetServerConnections"
+            },
+            "description": "The Usenet servers of the connection pool in force, in the order they are asked, with\ntheir busy connections (RD-1270-21). Empty until the first Usenet file has run."
           },
           "waiting_for_host": {
             "type": "array",
@@ -29104,7 +29121,9 @@
           "state",
           "failure_code",
           "size_bytes",
-          "kind"
+          "kind",
+          "change",
+          "storage_target"
         ]
       },
       "FilterReason": {
@@ -40975,7 +40994,7 @@
           "nntp_connections_per_file": {
             "type": "integer",
             "format": "int32",
-            "description": "NNTP connections one NZB file may hold at once; `0` is as many as the enabled\nservers allow. A value below the servers' total caps the file (RD-108-25).",
+            "description": "NNTP connections per server that all running NZB files share; `0` is as many as the\nenabled servers allow. A lower value caps each server's share (RD-108-25, RD-1270-21);\nthe key keeps its historical name.",
             "default": 0,
             "minimum": 0
           },
@@ -46745,6 +46764,12 @@
           "enabled"
         ],
         "properties": {
+          "busy_connections": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Connections carrying an article request right now, shared by every running Usenet\nfile (RD-1270-21). Filled in by the server list; `0` wherever nothing runs.",
+            "minimum": 0
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -46803,6 +46828,32 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "UsenetServerConnections": {
+        "type": "object",
+        "description": "One Usenet server's connections right now.",
+        "required": [
+          "id",
+          "busy",
+          "limit"
+        ],
+        "properties": {
+          "busy": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Connections carrying an article request at this moment.",
+            "minimum": 0
+          },
+          "id": {
+            "$ref": "#/components/schemas/UsenetServerId"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The most the pool opens to this server: its own limit, lowered by\n`nntp_connections_per_file` when that is smaller. All running files share them.",
+            "minimum": 0
           }
         }
       },

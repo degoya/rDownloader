@@ -132,7 +132,16 @@ pub(crate) async fn download_file_counted(
     // the start-up recovery turns a leftover mark back into `Queued` anyway, and the one
     // thing it carried - the attempt count - now travels with the checkpoint.
     let fetches = futures_util::stream::iter(segments)
-        .map(|segment| fetch_segment(database, pool, shutdown, segment, single_segment))
+        .map(|segment| {
+            fetch_segment(
+                database,
+                pool,
+                shutdown,
+                segment,
+                single_segment,
+                open.lines(),
+            )
+        })
         // As many requests as the primary server's connections can carry at once, two each
         // (RD-108-25). Not the sum over every server: backups see only what the primary
         // refused, so anything beyond the primary's capacity would sit decoded in memory
@@ -168,6 +177,7 @@ pub(crate) async fn download_file_counted(
             nzb_file,
             open,
             limits,
+            shutdown,
         )
         .await?
         {
@@ -189,17 +199,19 @@ pub(crate) async fn download_file_counted(
     .await
 }
 
-/// One article asked of the pool, unless the shutdown comes first.
+/// One article asked of the pool, unless the shutdown comes first; the lines it is on count
+/// for the file `lines` belongs to (RD-1270-21).
 async fn fetch_segment(
     database: &Database,
     pool: &NntpPool,
     shutdown: &CancellationToken,
     segment: rd_core::NzbSegmentStatus,
     single_segment: bool,
+    lines: Option<&std::sync::Arc<crate::connections::FileGauge>>,
 ) -> Result<FetchedSegment> {
     tokio::select! {
         () = shutdown.cancelled() => Ok(FetchedSegment::Cancelled),
-        result = pool.fetch_decoded(&segment.message_id) => match result {
+        result = pool.fetch_decoded_for(&segment.message_id, lines) => match result {
             Ok(article) => Ok(FetchedSegment::Article(
                 Box::new(segment),
                 article.article,
@@ -229,6 +241,7 @@ async fn fetch_segment(
 /// Takes one answered article in: written into place and booked for the next checkpoint, or
 /// counted as a hole. `Break` when the file ends here, cancelled; an error ends it failed.
 /// Either way the articles written so far are confirmed and the ones in flight go back.
+#[allow(clippy::too_many_arguments)]
 async fn take_in(
     result: Result<FetchedSegment>,
     assembly: &mut Assembly,
@@ -237,6 +250,7 @@ async fn take_in(
     nzb_file: &NzbFileStatus,
     open: &OpenArticles,
     limits: &rd_scheduler::RunLimits,
+    shutdown: &CancellationToken,
 ) -> Result<ControlFlow<FileOutcome>> {
     let (segment, decoded, attempts) = match result {
         Ok(FetchedSegment::Article(segment, decoded, attempts)) => (*segment, decoded, attempts),
@@ -255,13 +269,7 @@ async fn take_in(
             );
             return Ok(ControlFlow::Continue(()));
         }
-        Ok(FetchedSegment::Cancelled) => {
-            pending
-                .flush_before_leaving(database, nzb_file.id, open)
-                .await;
-            reset_inflight_segments(database, nzb_file).await?;
-            return Ok(ControlFlow::Break(FileOutcome::Cancelled));
-        }
+        Ok(FetchedSegment::Cancelled) => return cancelled(pending, database, nzb_file, open).await,
         Err(error) => {
             pending
                 .flush_before_leaving(database, nzb_file.id, open)
@@ -270,9 +278,11 @@ async fn take_in(
             return Err(error);
         }
     };
-    let assembled = assembly.write(&decoded, nzb_file, limits).await;
+    let assembled = assembly.write(&decoded, nzb_file, limits, shutdown).await;
     match assembled {
-        Ok((part_begin, part_end)) => {
+        // Stopped while it waited for the bandwidth: the article is fetched again next time.
+        Ok(None) => return cancelled(pending, database, nzb_file, open).await,
+        Ok(Some((part_begin, part_end))) => {
             pending.push(
                 decoded.metadata.name.clone(),
                 decoded.metadata.declared_size,
@@ -303,6 +313,20 @@ async fn take_in(
         }
     }
     Ok(ControlFlow::Continue(()))
+}
+
+/// The file ends here, cancelled: what is written is confirmed, what is in flight goes back.
+async fn cancelled(
+    pending: &mut PendingCheckpoints,
+    database: &Database,
+    nzb_file: &NzbFileStatus,
+    open: &OpenArticles,
+) -> Result<ControlFlow<FileOutcome>> {
+    pending
+        .flush_before_leaving(database, nzb_file.id, open)
+        .await;
+    reset_inflight_segments(database, nzb_file).await?;
+    Ok(ControlFlow::Break(FileOutcome::Cancelled))
 }
 
 /// Completes the assembled file: checks its size, fills the holes of missing articles,

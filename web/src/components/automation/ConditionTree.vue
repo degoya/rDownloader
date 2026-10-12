@@ -8,6 +8,9 @@
  *
  * The component edits a copy and emits a whole node on every change, so the parent owns the
  * tree and undo stays a matter of not saving.
+ *
+ * The storage target (RD-1270-18) is picked, not typed: the condition compares the target's key
+ * (a root id, or `fallback` for the download directory), which nobody should have to copy.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -20,6 +23,8 @@ const props = defineProps<{
   depth: number
   /** Field names that hold a number, so the operator list can narrow itself. */
   numericFields: string[]
+  /** What the `storage_target` field offers: each target's key, shown by its name. */
+  storageTargets: { value: string; label: string }[]
 }>()
 const emit = defineEmits<{
   'update:modelValue': [value: AutomationCondition]
@@ -29,6 +34,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const NUMERIC_OPERATORS = ['greater_than', 'less_than']
+/** Compared by key, so `equals` is the one operator that means anything. */
+const STORAGE_TARGET = 'storage_target'
 
 const node = computed(() => props.modelValue)
 const isGroup = computed(() => node.value.type === 'all' || node.value.type === 'any')
@@ -75,12 +82,25 @@ const fieldOptions = computed(() =>
  * A size compared with `contains`, or a name with `>`, is refused by the server. Filtering
  * here means the author never builds one rather than being told afterwards.
  */
+/** Read as text: the field list is the server's vocabulary, not only the generated union. */
+const fieldName = computed<string>(() => predicate.value?.field ?? '')
+
 const operatorOptions = computed(() => {
-  const field = predicate.value?.field ?? ''
+  const field = fieldName.value
   const numeric = props.numericFields.includes(field)
   return (props.vocabulary?.operators ?? [])
     .filter(operator => NUMERIC_OPERATORS.includes(operator) === numeric)
+    .filter(operator => field !== STORAGE_TARGET || operator === 'equals')
     .map(operator => ({ value: operator, label: t(`automation.operator.${operator}`) }))
+})
+
+/** The targets to pick from; a stored key no target has any more stays visible as itself. */
+const storageTargetOptions = computed(() => {
+  const options = props.storageTargets
+  const current = predicate.value?.value ?? ''
+  return current && !options.some(option => option.value === current)
+    ? [...options, { value: current, label: current }]
+    : options
 })
 
 function changeType(type: string): void {
@@ -115,6 +135,10 @@ function updatePredicate(key: 'field' | 'operator' | 'value', value: string): vo
     const numeric = props.numericFields.includes(value)
     if (NUMERIC_OPERATORS.includes(next.operator ?? '') !== numeric) {
       next.operator = numeric ? 'greater_than' : 'contains'
+    }
+    if (value === STORAGE_TARGET) {
+      next.operator = 'equals'
+      next.value = ''
     }
   }
   emit('update:modelValue', { type: 'predicate', predicate: next } as AutomationCondition)
@@ -173,7 +197,18 @@ function removeChild(index: number): void {
           class="w-40"
           @update:model-value="(value: string) => updatePredicate('operator', value)"
         />
+        <USelectMenu
+          v-if="fieldName === STORAGE_TARGET"
+          :model-value="predicate.value"
+          :items="storageTargetOptions"
+          value-key="value"
+          :aria-label="t('automation.condition.value')"
+          :placeholder="t('automation.condition.value')"
+          class="w-48"
+          @update:model-value="(value: string) => updatePredicate('value', value)"
+        />
         <UInput
+          v-else
           :model-value="predicate.value"
           :aria-label="t('automation.condition.value')"
           :placeholder="t('automation.condition.value')"
@@ -209,6 +244,7 @@ function removeChild(index: number): void {
         :vocabulary="vocabulary"
         :depth="depth + 1"
         :numeric-fields="numericFields"
+        :storage-targets="storageTargets"
         @update:model-value="(value: AutomationCondition) => emit('update:modelValue', { type: 'not', node: value } as AutomationCondition)"
       />
     </div>
@@ -220,6 +256,7 @@ function removeChild(index: number): void {
         :vocabulary="vocabulary"
         :depth="depth + 1"
         :numeric-fields="numericFields"
+        :storage-targets="storageTargets"
         @update:model-value="(value: AutomationCondition) => updateChild(index, value)"
         @remove="removeChild(index)"
       />

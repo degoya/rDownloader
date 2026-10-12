@@ -9,7 +9,9 @@
 //   an installed plugin declares, and the background re-reads it from the service before it
 //   reads a single cookie. Nothing the popup or a page says about a domain is used for the read.
 // - Nothing is read without a click in the popup on that request, recorded before the browser's
-//   own permission prompt, and without the browser's grant for `cookies` and that one origin.
+//   own permission prompt, and without the browser's grant for `cookies` and that one origin —
+//   in Firefox also the `authenticationInfo` data consent, asked for in the same prompt and
+//   checked again before the read (RD-1270-02).
 //   Only our own extension pages can record a consent or ask for a delivery.
 // - Only cookies of the scope's host, or of a domain above it, leave the browser — the rule the
 //   service and the account's cookie jar apply — and only to the configured rDownloader, over
@@ -19,7 +21,8 @@
 
 import { fromOwnPage as isOwnPage } from './sender.js'
 import { declineHandover, deliverHandover, listHandovers } from './handover-api.js'
-import { holdsCookieConsent } from './files.js'
+import { holdsCookieConsent, releasedGrant } from './files.js'
+import { withCookieData } from './data-collection.js'
 
 /**
  * The service's refusals of a delivered session, each with a sentence of its own. Without this
@@ -175,14 +178,13 @@ export function createHandover({
   }
 
   /**
-   * Gives the grant back: `cookies` unless a site allowed to hand files over stands on it
-   * (RD-130-16), the origin only if this consent brought it.
+   * Gives the grant back: `cookies` (with Firefox's data consent) unless a site allowed to hand
+   * files over stands on it (RD-130-16), the origin only if this consent brought it.
    */
   async function release(consent) {
     const origins = consent?.hadOrigin || !consent?.origin ? [] : [consent.origin]
     try {
-      const permissions = (await holdsCookieConsent(api)) ? [] : ['cookies']
-      await api.permissions.remove({ permissions, origins })
+      await api.permissions.remove(releasedGrant(api, !(await holdsCookieConsent(api)), origins))
     } catch {
       // Chrome refuses to drop a permission another grant still needs; harmless here.
     }
@@ -239,7 +241,7 @@ export function createHandover({
       .catch(() => null)
     let request
     try {
-      request = Promise.resolve(api.permissions.request({ permissions: ['cookies'], origins: [origin] }))
+      request = Promise.resolve(api.permissions.request(withCookieData(api, { permissions: ['cookies'], origins: [origin] })))
     } catch {
       request = Promise.resolve(false)
     }
@@ -283,7 +285,7 @@ export function createHandover({
     if (!origin || origin !== consented.origin) return { ok: false, code: 'scope' }
     let granted = false
     try {
-      granted = await api.permissions.contains({ permissions: ['cookies'], origins: [origin] })
+      granted = await api.permissions.contains(withCookieData(api, { permissions: ['cookies'], origins: [origin] }))
     } catch {
       granted = false
     }

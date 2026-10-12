@@ -25,6 +25,11 @@
 //! Quiet hours hold the toasts back like every other notification (RD-1260-04): an intake that
 //! arrives while they last carries the moment they end (`quiet_until`), and the announcer keeps
 //! everything until then and shows it as one toast.
+//!
+//! One hand-over, one notice (RD-1270-05): what the browser extension handed over it announces
+//! itself, and the service says so on the intake (`extension_notice`); the agent leaves it alone.
+//! Its own hand-overs -- Click'n'Load on its port, the files the desktop opens with it -- and
+//! everything else that arrives keep the toast, in the desktop's language (`notify_text.rs`).
 
 use std::{future::Future, time::Duration};
 
@@ -37,6 +42,11 @@ use crate::{
     client::CaptureClient,
     sse::{Frame, MAX_PENDING_BYTES, Reconnect, find_frame_end, parse_frame},
 };
+
+#[path = "locale.rs"]
+mod locale;
+#[path = "notify_text.rs"]
+mod text;
 
 /// How long intakes are collected before one toast reports them.
 ///
@@ -75,6 +85,9 @@ pub(crate) struct Intake {
     /// Set while quiet hours hold notifications back: when they end.
     #[serde(default)]
     quiet_until: Option<chrono::DateTime<chrono::Utc>>,
+    /// The browser extension handed it over and announces it itself (RD-1270-05).
+    #[serde(default)]
+    extension_notice: bool,
     /// The toast reports what quiet hours held back.
     #[serde(skip)]
     held: bool,
@@ -87,6 +100,7 @@ fn merge(left: Intake, right: Intake) -> Intake {
         package_count: left.package_count.saturating_add(right.package_count),
         file_count: left.file_count.saturating_add(right.file_count),
         quiet_until: left.quiet_until.max(right.quiet_until),
+        extension_notice: false,
         held: left.held || right.held,
     }
 }
@@ -246,7 +260,8 @@ async fn collect_until(
 }
 
 /// The payload of one `collector.intake` frame, or `None` for anything else — comments, the
-/// keep-alive, and any event kind the stream may carry later.
+/// keep-alive, any event kind the stream may carry later, and an intake the browser extension
+/// announces itself.
 fn intake_of(frame: &Frame) -> Option<Intake> {
     if frame.event.as_deref() != Some("collector.intake") || frame.data.is_empty() {
         return None;
@@ -254,10 +269,11 @@ fn intake_of(frame: &Frame) -> Option<Intake> {
     serde_json::from_str::<Envelope>(&frame.data)
         .ok()
         .map(|envelope| envelope.payload)
+        .filter(|intake| !intake.extension_notice)
 }
 
 async fn show(intake: Intake) {
-    toast(summary(&intake)).await;
+    toast(text::summary(&intake, locale::current())).await;
 }
 
 /// Shows one toast with `body`; also the answer to "Hand over clipboard now" (RD-1180-03). A
@@ -283,37 +299,10 @@ pub(crate) async fn toast(body: String) {
         Err(error) => tracing::warn!(%error, "desktop notification task failed"),
     }
 }
-/// Deliberately English, like the tray menu: the agent carries no translation catalogue, and
-/// the four-language rule covers `web/src/locales`.
-fn summary(intake: &Intake) -> String {
-    let text = counts(intake);
-    if intake.held {
-        format!("While it was quiet: {text}")
-    } else {
-        text
-    }
-}
-
-fn counts(intake: &Intake) -> String {
-    if intake.file_count > 0 && intake.candidate_count == 0 {
-        return match intake.file_count {
-            1 => "NZB added to the LinkGrabber, 1 file".to_owned(),
-            files => format!("NZB added to the LinkGrabber, {files} files"),
-        };
-    }
-    match (intake.candidate_count, intake.package_count) {
-        (0, _) => "Links added to the LinkGrabber".to_owned(),
-        (1, _) => "1 link added to the LinkGrabber".to_owned(),
-        (links, packages) if packages > 1 => {
-            format!("{links} links in {packages} packages added to the LinkGrabber")
-        }
-        (links, _) => format!("{links} links added to the LinkGrabber"),
-    }
-}
 
 #[cfg(test)]
 mod tests {
-    use super::{Intake, TOAST_WINDOW, announce, intake_of, summary};
+    use super::{Intake, TOAST_WINDOW, announce, intake_of, locale::Lang, text::summary};
     use std::{
         sync::{Arc, Mutex},
         time::{Duration, Instant},
@@ -340,61 +329,25 @@ mod tests {
         );
     }
 
+    /// RD-1270-05: what the browser extension handed over, it announces itself. Counted over
+    /// the stream: of three intakes, one the extension's, two reach the announcer.
     #[test]
-    fn a_payload_the_agent_does_not_understand_still_notifies() {
-        let intake = parse_intake("event: collector.intake\ndata: {}\n\n").expect("intake");
-        assert_eq!(summary(&intake), "Links added to the LinkGrabber");
-    }
-
-    #[test]
-    fn the_wording_follows_the_number_of_links_and_packages() {
-        let one = Intake {
-            candidate_count: 1,
-            package_count: 1,
-            file_count: 0,
-            ..Intake::default()
-        };
-        let many = Intake {
-            candidate_count: 8,
-            package_count: 1,
-            file_count: 0,
-            ..Intake::default()
-        };
-        let split = Intake {
-            candidate_count: 8,
-            package_count: 2,
-            file_count: 0,
-            ..Intake::default()
-        };
-        assert_eq!(summary(&one), "1 link added to the LinkGrabber");
-        assert_eq!(summary(&many), "8 links added to the LinkGrabber");
+    fn an_intake_the_extension_announces_is_left_to_it() {
+        let extension = "event: collector.intake\ndata: {\"payload\":{\"candidate_count\":2,\"source\":\"browser_extension\",\"extension_notice\":true}}\n\n";
+        let own = "event: collector.intake\ndata: {\"payload\":{\"candidate_count\":3,\"source\":\"click_and_load\"}}\n\n";
+        let unmarked = "event: collector.intake\ndata: {\"payload\":{\"candidate_count\":1,\"extension_notice\":false}}\n\n";
+        assert!(parse_intake(extension).is_none());
+        let toasted: Vec<Intake> = [extension, own, unmarked]
+            .into_iter()
+            .filter_map(parse_intake)
+            .collect();
+        assert_eq!(toasted.len(), 2);
         assert_eq!(
-            summary(&split),
-            "8 links in 2 packages added to the LinkGrabber"
-        );
-    }
-
-    #[test]
-    fn an_nzb_that_arrived_on_its_own_reports_files_not_links() {
-        // The files inside one container are not links somebody added; wording them as such
-        // is what made a single drop read like several separate intakes.
-        assert_eq!(
-            summary(&Intake {
-                candidate_count: 0,
-                package_count: 1,
-                file_count: 5,
-                ..Intake::default()
-            }),
-            "NZB added to the LinkGrabber, 5 files"
-        );
-        assert_eq!(
-            summary(&Intake {
-                candidate_count: 0,
-                package_count: 1,
-                file_count: 1,
-                ..Intake::default()
-            }),
-            "NZB added to the LinkGrabber, 1 file"
+            toasted
+                .iter()
+                .map(|intake| intake.candidate_count)
+                .sum::<u32>(),
+            4
         );
     }
 
@@ -429,7 +382,7 @@ mod tests {
         assert_eq!(shown[0].candidate_count, 6);
         assert_eq!(shown[0].package_count, 3);
         assert_eq!(
-            summary(&shown[0]),
+            summary(&shown[0], Lang::En),
             "6 links in 3 packages added to the LinkGrabber"
         );
     }

@@ -9,8 +9,10 @@
 # failed look, its completion read twice (RD-1120-06); a green is recorded per platform, and a platform
 # already green for the tree is not dispatched again (RD-160-06), and with Linux and Windows green
 # ci.yml's once-per-run jobs neither (RD-1120-07); a job that fails is reported
-# the moment it is seen, while its run goes on, and what did not change is not printed again
-# (RD-1100-13) — not GitHub.
+# the moment it is seen and what did not change is not printed again (RD-1100-13); with
+# --release-workflows the release workflows are dispatched beside ci.yml, each only while no green
+# covers it, and recorded under their file names, and a red job or run ends the wait at once,
+# naming it, while the other runs go on (RD-1270-10) — not GitHub.
 #
 #   scripts/tests/public-ci.sh
 set -euo pipefail
@@ -34,7 +36,7 @@ mkdir -p "$FAKE" "$SCRATCH/bin"
 # A $FAKE/runs.next replaces $FAKE/runs after one look, so a run can finish while it is watched.
 # Lines as the --jq of scripts/lib/public-ci.sh prints them: `<id> <status> <conclusion|-> <url>
 # <name>`. `run view <id> --json jobs` prints the jobs in $FAKE/jobs-<id>, in the same shape
-# without the id; `run view <id>` otherwise answers with the first line of $FAKE/view-<id> and
+# without the id, and a $FAKE/jobs-<id>.next replaces it after one look; `run view <id>` otherwise answers with the first line of $FAKE/view-<id> and
 # drops it (`FAIL` fails, `EMPTY` prints nothing), and without one with the run's line in
 # $FAKE/runs, failing when there is none.
 cat > "$SCRATCH/bin/gh" <<'EOF'
@@ -49,7 +51,11 @@ case "$1 $2" in
         [[ ! -f "$FAKE/runs.next" ]] || mv "$FAKE/runs.next" "$FAKE/runs"
         ;;
     "run view")
-        if [[ "$*" == *"--json jobs"* ]]; then cat "$FAKE/jobs-$3" 2> /dev/null || true; exit 0; fi
+        if [[ "$*" == *"--json jobs"* ]]; then
+            cat "$FAKE/jobs-$3" 2> /dev/null || true
+            [[ ! -f "$FAKE/jobs-$3.next" ]] || mv "$FAKE/jobs-$3.next" "$FAKE/jobs-$3"
+            exit 0
+        fi
         if [[ -s "$FAKE/view-$3" ]]; then
             line="$(head -n 1 "$FAKE/view-$3")"
             sed -i 1d "$FAKE/view-$3"
@@ -178,6 +184,60 @@ expect_status "green on every platform" 0
 expect_true "ci.yml is dispatched for all three" \
     'grep -qF "platforms=[\"ubuntu-24.04\",\"windows-2025\",\"macos-15\"]" "$FAKE/gh.calls"'
 expect_true "with every once-per-run job, ci.yml's default" '! grep -q -- "-f jobs=" "$FAKE/gh.calls"'
+expect_true "and no release workflow without --release-workflows" '! grep -q "^workflow run e2e.yml" "$FAKE/gh.calls"'
+
+# --- the release workflows beside ci.yml (RD-1270-10) --------------------------------------------
+dispatched_workflows() {
+    sed -n 's|^workflow run \([a-z0-9-]*\.yml\) --repo owner/repo --ref ci/integration-1.4-w4$|\1|p' "$FAKE/gh.calls" \
+        | paste -sd'|' -
+}
+echo "11 completed success https://example.invalid/runs/11 CI" > "$FAKE/runs"
+public_ci integration/1.4-w4 --platforms linux,windows --release-workflows
+expect_status "ci.yml and the release workflows, green" 0
+expect_true "ci.yml for the named platforms" \
+    'grep -qF "workflow run ci.yml --repo owner/repo --ref ci/integration-1.4-w4 -f platforms=[\"ubuntu-24.04\",\"windows-2025\"]" "$FAKE/gh.calls"'
+expect "beside it each release workflow with its defaults, on the same branch" \
+    "e2e.yml|recovery.yml|self-update.yml|installers.yml" "$(dispatched_workflows)"
+expect "every green recorded, the workflows under their file names" \
+    "e2e.yml|installers.yml|recovery.yml|self-update.yml|ubuntu-24.04|windows-2025" \
+    "$(cut -d' ' -f1 "$RECORD" | sort | paste -sd'|' -)"
+
+KEEP=1 public_ci integration/1.4-w4 --release-workflows
+expect_status "the workflows green on record, macOS not" 0
+expect_true "macOS alone is dispatched" 'grep -qF "platforms=[\"macos-15\"]" "$FAKE/gh.calls"'
+expect "and no release workflow again" "" "$(dispatched_workflows)"
+expect_output "naming the green it relies on" "e2e.yml: green for this tree already"
+
+# The release candidate: the same content plus documentation and a version bump. Self-update
+# raises the tree's own version, so its green before the bump covers the candidate too.
+git -C "$TREE" checkout -q integration/1.4-w4
+printf '[workspace.package]\nversion = "1.4.0"\n' > "$TREE/Cargo.toml"
+echo "## [1.4.0]" > "$TREE/CHANGELOG.md"
+git -C "$TREE" add -A
+git -C "$TREE" commit -qm "chore(release): 1.4.0"
+git -C "$TREE" checkout -q development
+KEEP=1 public_ci integration/1.4-w4 --release-workflows
+expect_status "the candidate: every platform and workflow covered" 0
+expect_output "the workflows by the integration tree's greens" \
+    "self-update.yml: green already for tree $(git -C "$TREE" rev-parse 'integration/1.4-w4~1^{tree}' | cut -c1-12)"
+expect_true "nothing run" '[[ ! -f "$FAKE/export.args" ]]'
+git -C "$TREE" branch -q -f integration/1.4-w4 integration/1.4-w4~1
+
+grep -v '\.yml ' "$RECORD" > "$SCRATCH/record" && mv "$SCRATCH/record" "$RECORD"
+KEEP=1 public_ci integration/1.4-w4 --platforms linux,windows --release-workflows
+expect_status "the platforms on record, the workflows not" 0
+expect_true "ci.yml is not dispatched" '! grep -q "^workflow run ci.yml" "$FAKE/gh.calls"'
+expect "the workflows are" "e2e.yml|recovery.yml|self-update.yml|installers.yml" "$(dispatched_workflows)"
+
+printf '%s\n' "12 in_progress - https://example.invalid/runs/12 CI" \
+    "13 completed failure https://example.invalid/runs/13 E2E" > "$FAKE/runs"
+public_ci integration/1.4-w4 --platforms linux,windows --release-workflows
+expect_status "a red release workflow fails" 1
+expect_output "at once, naming it, while ci.yml still runs" \
+    "the public CI is red: run E2E: failure (https://example.invalid/runs/13); the wait ends here"
+expect "after one look" "1" "$(grep -c "^run list" "$FAKE/gh.calls")"
+expect_true "the public branch is kept" 'remote_has ci/integration-1.4-w4'
+expect_true "and nothing is recorded" '[[ ! -s "$RECORD" ]]'
 
 # --- red, and a run that never finishes ----------------------------------------------------------
 printf '%s\n' "2 completed success https://example.invalid/runs/2 web" \
@@ -205,21 +265,22 @@ expect_status "a run past the ceiling fails" 1
 expect_output "saying so" "did not finish within 0s"
 expect_true "the public branch is kept" 'remote_has ci/integration-1.4-w4'
 
-# --- a job that fails while its run goes on ------------------------------------------------------
+# --- a job that fails while its run goes on: the wait ends there (RD-1100-13, RD-1270-10) --------
 echo "7 in_progress - https://example.invalid/runs/7 CI" > "$FAKE/runs"
-echo "7 completed failure https://example.invalid/runs/7 CI" > "$FAKE/runs.next"
-printf '%s\n' "completed failure https://example.invalid/jobs/71 rust (windows-2025)" \
-    "in_progress - https://example.invalid/jobs/72 rust (ubuntu-24.04)" > "$FAKE/jobs-7"
+echo "in_progress - https://example.invalid/jobs/72 rust (ubuntu-24.04)" > "$FAKE/jobs-7"
+printf '%s\n' "in_progress - https://example.invalid/jobs/72 rust (ubuntu-24.04)" \
+    "completed failure https://example.invalid/jobs/71 rust (windows-2025)" > "$FAKE/jobs-7.next"
 public_ci integration/1.4-w4 --platforms linux,windows
 expect_status "a run with a failed job fails" 1
-expect_output "the failed job is named while its run still goes on" \
+expect_output "the failed job is named with how to read it" \
     "!! rust (windows-2025): failure — scripts/ci-log.sh https://example.invalid/jobs/71"
-expect "once, although the run was looked at twice" "1" \
-    "$(grep -c '^!! rust (windows-2025)' <<< "$output")"
+expect_output "and the wait ends with its name" \
+    "the public CI is red: rust (windows-2025): failure (https://example.invalid/jobs/71); the wait ends here"
+expect "at the look that saw it, while its run still goes on" "2" \
+    "$(grep -c '^run view 7 --repo owner/repo --json jobs' "$FAKE/gh.calls")"
 expect "a job that did not change is not printed again" "1" \
     "$(grep -c 'rust (ubuntu-24.04): started' <<< "$output")"
-expect_true "the jobs were asked per run" 'grep -q "^run view 7 --repo owner/repo --json jobs" "$FAKE/gh.calls"'
-expect_output "the run's change is printed" "run CI (https://example.invalid/runs/7): completed failure"
+expect_true "and nothing is recorded" '[[ ! -s "$RECORD" ]]'
 rm -f "$FAKE/jobs-7"
 
 # --- a run seen, then an empty list and failed looks, then finished (RD-1120-06, audit A3) --------

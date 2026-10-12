@@ -238,7 +238,7 @@ async fn add_links_hands_its_links_to_the_linkgrabber() {
     .await;
     harness.database.broadcast(EventEnvelope::new(
         EventKind::StorageCapacity,
-        json!({ "target": "root", "blocked": true }),
+        json!({ "blocked": 1, "change": "blocked" }),
     ));
     let router = &harness.router;
     let automation = &automation;
@@ -278,7 +278,7 @@ async fn an_automation_s_link_to_this_machine_is_held_like_a_proposed_one() {
     .await;
     harness.database.broadcast(EventEnvelope::new(
         EventKind::StorageCapacity,
-        json!({ "target": "root", "blocked": true }),
+        json!({ "blocked": 1, "change": "blocked" }),
     ));
     let database = &harness.database;
     let candidate = eventually(

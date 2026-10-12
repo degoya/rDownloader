@@ -10476,6 +10476,14 @@ export interface components {
             /** Format: int64 */
             bytes_per_second: number;
             /**
+             * Format: int32
+             * @description NNTP connections working for this Usenet file right now (RD-1270-21). Files share the
+             *     servers' connections, and one shared by two files counts half for each, so the files
+             *     never add up to more than `usenet_servers` has busy. `None` for every other transport
+             *     and for a file waiting for a free connection.
+             */
+            connections?: number | null;
+            /**
              * Format: int64
              * @description `None` when the size is unknown or the entry is not moving.
              */
@@ -10499,6 +10507,11 @@ export interface components {
              */
             eta_seconds?: number | null;
             transferring_remaining_bytes?: components["schemas"]["ByteCount"] | null;
+            /**
+             * @description The Usenet servers of the connection pool in force, in the order they are asked, with
+             *     their busy connections (RD-1270-21). Empty until the first Usenet file has run.
+             */
+            usenet_servers: components["schemas"]["UsenetServerConnections"][];
             /**
              * @description Queued entries held back because their host has no free connection (RD-1130-02).
              *     They take no place among the files running at once meanwhile.
@@ -10843,7 +10856,7 @@ export interface components {
          *     while a condition is being evaluated.
          * @enum {string}
          */
-        Field: "source" | "domain" | "extension" | "name" | "category" | "state" | "failure_code" | "size_bytes" | "kind";
+        Field: "source" | "domain" | "extension" | "name" | "category" | "state" | "failure_code" | "size_bytes" | "kind" | "change" | "storage_target";
         /**
          * @description Why an item was not accepted.
          *
@@ -15878,8 +15891,9 @@ export interface components {
             mirror_detection: boolean;
             /**
              * Format: int32
-             * @description NNTP connections one NZB file may hold at once; `0` is as many as the enabled
-             *     servers allow. A value below the servers' total caps the file (RD-108-25).
+             * @description NNTP connections per server that all running NZB files share; `0` is as many as the
+             *     enabled servers allow. A lower value caps each server's share (RD-108-25, RD-1270-21);
+             *     the key keeps its historical name.
              * @default 0
              */
             nntp_connections_per_file: number;
@@ -18628,6 +18642,12 @@ export interface components {
         UsenetQuotaAction: "backup" | "pause";
         /** @description Redaction-safe NNTP endpoint configuration. */
         UsenetServer: {
+            /**
+             * Format: int32
+             * @description Connections carrying an article request right now, shared by every running Usenet
+             *     file (RD-1270-21). Filled in by the server list; `0` wherever nothing runs.
+             */
+            busy_connections?: number;
             enabled: boolean;
             has_password: boolean;
             host: string;
@@ -18643,6 +18663,21 @@ export interface components {
             quota?: components["schemas"]["UsenetQuota"] | null;
             tls: boolean;
             username?: string | null;
+        };
+        /** @description One Usenet server's connections right now. */
+        UsenetServerConnections: {
+            /**
+             * Format: int32
+             * @description Connections carrying an article request at this moment.
+             */
+            busy: number;
+            id: components["schemas"]["UsenetServerId"];
+            /**
+             * Format: int32
+             * @description The most the pool opens to this server: its own limit, lowered by
+             *     `nntp_connections_per_file` when that is smaller. All running files share them.
+             */
+            limit: number;
         };
         /** Format: uuid */
         UsenetServerId: string;

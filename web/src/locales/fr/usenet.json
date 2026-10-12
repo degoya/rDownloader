@@ -23,7 +23,7 @@
     "proxy": "Proxy SOCKS5",
     "proxy_direct": "Connexion directe",
     "connections": "Connexions du fournisseur",
-    "connections_hint": "Nombre maximal de connexions à ce fournisseur NNTP, toutes requêtes confondues ; un fichier les utilise toutes sauf si les réglages généraux le plafonnent",
+    "connections_hint": "Nombre maximal de connexions à ce fournisseur NNTP, toutes requêtes confondues ; les fichiers Usenet téléchargés en même temps se les partagent, sauf si les réglages généraux réduisent le nombre par serveur",
     "enabled": "Serveur actif",
     "clear_password": "Supprimer le mot de passe enregistré",
     "save_changes": "Enregistrer les modifications",
@@ -46,7 +46,9 @@
     "edit": "Modifier le serveur",
     "delete": "Supprimer le serveur",
     "empty": "Aucun serveur NNTP configuré pour le moment.",
-    "disabled": "Désactivé"
+    "disabled": "Désactivé",
+    "busy": "{count} occupée | {count} occupées",
+    "busy_title": "Connexions en train de télécharger un article ; tous les fichiers en cours les partagent"
   },
   "delete": {
     "title": "Supprimer le serveur Usenet",

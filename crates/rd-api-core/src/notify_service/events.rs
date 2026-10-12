@@ -148,16 +148,9 @@ impl NotificationService {
     > {
         match event.kind {
             rd_core::EventKind::PackageState => self.package_finished(&event.payload).await,
-            rd_core::EventKind::StorageCapacity
-                if super::transitions::storage_blocked(&event.payload) =>
-            {
-                Ok(Some((
-                    NotificationEvent::StorageBlocked,
-                    None,
-                    "Storage root out of space".to_owned(),
-                    "A storage root fell below its free-space threshold and takes no new work."
-                        .to_owned(),
-                )))
+            rd_core::EventKind::StorageCapacity => {
+                Ok(super::transitions::storage_notice(&event.payload)
+                    .map(|(title, body)| (NotificationEvent::StorageBlocked, None, title, body)))
             }
             rd_core::EventKind::CaptchaChanged => {
                 Ok(super::transitions::captcha_notice(&event.payload)

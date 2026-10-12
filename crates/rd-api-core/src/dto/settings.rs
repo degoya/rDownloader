@@ -18,8 +18,9 @@ pub struct SettingsResponse {
     /// the limit entirely.
     #[serde(default = "default_connections_per_host")]
     pub max_connections_per_host: u32,
-    /// NNTP connections one NZB file may hold at once; `0` is as many as the enabled
-    /// servers allow. A value below the servers' total caps the file (RD-108-25).
+    /// NNTP connections per server that all running NZB files share; `0` is as many as the
+    /// enabled servers allow. A lower value caps each server's share (RD-108-25, RD-1270-21);
+    /// the key keeps its historical name.
     pub nntp_connections_per_file: u32,
     /// NZB files downloaded at once, 1 to 8; `0` is automatic - as many as keep every
     /// connection busy (RD-130-22). All of them together take one `max_active_files` slot.

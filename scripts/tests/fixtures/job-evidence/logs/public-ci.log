@@ -1,0 +1,9 @@
+==> integration/1.99-w1 (@COMMIT@, tree @TREE@) on GitHub
+  ubuntu-24.04: to run
+  windows-2025: to run
+starting ci.yml on ci/integration-1.99-w1 for ["ubuntu-24.04","windows-2025"]
+https://github.com/degoya/rDownloader/actions/runs/123456
+  13:17:51 run CI (https://github.com/degoya/rDownloader/actions/runs/123456): in_progress
+completed success CI https://github.com/degoya/rDownloader/actions/runs/123456
+==> integration/1.99-w1 (@COMMIT@) is green on GitHub (ubuntu-24.04 windows-2025); recorded for ubuntu-24.04 windows-2025
+REAL EXIT: 0

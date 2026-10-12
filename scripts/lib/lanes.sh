@@ -118,4 +118,7 @@ rd_all_target_dirs() {
         [[ -n "$path" && "$path" != "$main" && -d "$path/target" ]] || continue
         rd_has_own_target "$path" && printf '%s\n' "$path/target"
     done < <(git -C "$main" worktree list --porcelain 2> /dev/null | sed -n 's/^worktree //p')
+    # Not the last test's status: a last worktree whose target/ is shared ended a caller under
+    # errexit without a word (prune-target.sh --if-free, RD-1270-13).
+    return 0
 }

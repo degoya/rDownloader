@@ -1,0 +1,23 @@
+# RD-1299-01 — Alpha: ein Job mit offenen Kästchen
+
+- **Milestone:** 1.99
+- **Priority:** P2
+- **Status:** In progress (umgesetzt auf `feat/1299-01-alpha`, nicht kompiliert; Rust-Tests
+  beim Zusammenführen)
+- **Depends on:** —
+
+## Acceptance criteria
+
+- [x] Ein erledigter Punkt.
+  — `alpha_tests.rs`.
+- [ ] Ein offener Punkt in einer Zeile.
+- [ ] Ein offener Punkt über zwei Zeilen, der weiter
+  unten weitergeht.
+  — Teilweise belegt in `alpha_tests.rs`; offen: der Lauf unter Windows.
+- [ ] Ein Punkt, der schon nach RD-1120-24 zeigt.
+  → offen in RD-1120-24
+- [x] `CHANGELOG.md`.
+
+## Verification
+
+`alpha_tests.rs`.

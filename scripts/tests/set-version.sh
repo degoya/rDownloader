@@ -158,6 +158,38 @@ set_version --check
 expect_status "--check: a lagging SDK pin fails" 1
 expect_true "and is named" 'grep -qF "sdk/ci/repository.yml reports 1.5.2" <<< "$output"'
 
+# The one list (RD-1270-09): a bump writes exactly what RD_VERSION_FILES names — the list
+# lib/verified.sh takes for a version-only change — Cargo.lock aside, which the stub leaves alone.
+"$TREE/scripts/set-version.sh" 1.5.0-beta.1 > /dev/null 2>&1
+rm -rf "$SCRATCH/before" && cp -a "$TREE" "$SCRATCH/before"
+set_version 1.6.0
+expect_status "a bump for the list" 0
+written="$({ diff -rq "$SCRATCH/before" "$TREE" || true; } | sed -n "s|^Files $SCRATCH/before/\(.*\) and .* differ\$|\1|p" | sort)"
+listed="$(cd "$TREE" && source scripts/lib/workspace-version.sh \
+    && for entry in "${RD_VERSION_FILES[@]}"; do for path in $entry; do [[ "$path" == Cargo.lock ]] || echo "$path"; done; done | sort)"
+expect "the bump writes exactly the listed files" "$listed" "$written"
+cp "$TREE/scripts/lib/workspace-version.sh" "$SCRATCH/workspace-version.sh"
+sed -i 's|^RD_VERSION_COPIES=(|RD_VERSION_COPIES=(Cargo.toml.orig |' "$TREE/scripts/lib/workspace-version.sh"
+touch "$TREE/Cargo.toml.orig"
+set_version --check
+expect_status "--check: a listed copy without a rule fails" 1
+expect_output "and is named" "no rule for the copy Cargo.toml.orig"
+set_version 1.7.0
+expect_status "and so does the bump" 1
+cp "$SCRATCH/workspace-version.sh" "$TREE/scripts/lib/workspace-version.sh"
+rm "$TREE/Cargo.toml.orig"
+# Python under Git Bash on Windows globs with `\` (smoke windows-2025, 1.27): the rules still match.
+sed -i "s|'sdk/templates/\*/manifest.toml'|'sdk\\\\templates\\\\*\\\\manifest.toml'|" "$TREE/scripts/lib/workspace-version.sh"
+expect_true "the backslash entry is in place" 'grep -qF "sdk\\templates\\*\\manifest.toml" "$TREE/scripts/lib/workspace-version.sh"'
+set_version 1.6.1
+expect_status "a path with Windows separators finds its rule" 0
+expect "and its copy is written" "1.6.1" "$(template_minimum)"
+set_version --check
+expect_status "--check reads it too" 0
+expect_output "and finds it in agreement" "every copy reports 1.6.1"
+cp "$SCRATCH/workspace-version.sh" "$TREE/scripts/lib/workspace-version.sh"
+"$TREE/scripts/set-version.sh" 1.6.0 > /dev/null 2>&1
+
 before="$(cat "$TREE/Cargo.toml")"
 set_version 1.5
 expect_status "not a semantic version: refused" 2

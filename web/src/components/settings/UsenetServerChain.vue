@@ -17,6 +17,7 @@ import { useEditableList } from '@/composables/useEditableList'
 import { useFetchState } from '@/composables/useFetchState'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { useProxyProfiles } from '@/stores/proxyProfiles'
+import { useTransfersStore } from '@/stores/transfers'
 import { PLAIN, WHOLE } from '@/utils/numberInput'
 import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -46,6 +47,11 @@ const servers = ref<UsenetServer[]>([])
 const { proxies, fetchProxies } = useProxyProfiles()
 /** What each server delivered, by id (RD-1100-05); a server without figures shows none. */
 const traffic = ref<Record<string, UsenetServerTraffic>>({})
+const transfers = useTransfersStore()
+/** Connections each server has busy right now (RD-1270-21), from the queue's live rates. */
+function busyOf(id: string): number {
+  return transfers.usenetServers.find(server => server.id === id)?.busy ?? 0
+}
 /** The server chain's own fetch; the form's own `pending` comes from the list (RD-104-07). */
 const { loading, loadError, load } = useFetchState()
 const testingId = ref<string | null>(null)
@@ -379,7 +385,7 @@ function proxyName(id: string | null | undefined): string {
               <div class="min-w-0 flex-1 basis-40">
                 <div class="flex items-center gap-2"><UChip standalone color="success" :show="server.enabled" class="w-2" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ server.name }}</h4></div>
                 <p class="mt-1 truncate font-mono text-xs text-muted">{{ server.host }}:{{ server.port }}</p>
-                <p class="mt-2 text-xs text-muted">{{ t('usenet.summary.connections', { count: server.max_connections }, server.max_connections) }} · {{ proxyName(server.proxy_profile_id) }} · {{ t('usenet.chain.priority', { priority: server.priority }) }}</p>
+                <p class="mt-2 text-xs text-muted">{{ t('usenet.summary.connections', { count: server.max_connections }, server.max_connections) }}<span v-if="busyOf(server.id)" class="text-primary" :title="t('usenet.chain.busy_title')" data-testid="server-busy"> · {{ t('usenet.chain.busy', { count: busyOf(server.id) }, busyOf(server.id)) }}</span> · {{ proxyName(server.proxy_profile_id) }} · {{ t('usenet.chain.priority', { priority: server.priority }) }}</p>
               </div>
               <div class="flex flex-wrap items-center gap-2">
                 <UBadge v-if="editingId === server.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>

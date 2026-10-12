@@ -227,7 +227,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List the configured NNTP servers with their priority, connection limits and traffic quota (limit, action, used bytes, whether it is used up). Passwords are never included."
+        description = "List the configured NNTP servers with their priority, connection limits and traffic quota (limit, action, used bytes, whether it is used up), and busy_connections: the connections carrying an article request right now, shared by every running Usenet file (list_downloads has each file's share). Passwords are never included."
     )]
     pub async fn list_usenet_servers(&self) -> McpToolResult {
         respond(

@@ -9,6 +9,7 @@
 #   rd_crate_load_graph            # fills RD_CRATE_NAME, RD_CRATE_DIR, RD_CRATE_DEPENDANTS
 #   rd_crate_reverse_hull <pkg>... # those and every member that builds on one of them, sorted
 #   rd_crate_demands < paths       # what each changed path demands, one line per demand
+#   rd_crate_first_wide <<< paths  # only the first `wide` of those, in variables, without the work
 
 # The member directories of the workspace's root Cargo.toml, one per line, globs expanded; each
 # with a manifest of its own.
@@ -89,14 +90,20 @@ rd_crate_reverse_hull() {
 
 # The member directory path $1 lies in (the longest), or nothing. Needs rd_crate_load_graph.
 rd_crate_dir_of() {
-    local path="$1" prefix="" part found=""
+    rd_crate_set_dir_of "$1"
+    printf '%s\n' "$RD_CRATE_DIR_OF"
+}
+
+# rd_crate_dir_of's answer in RD_CRATE_DIR_OF, without a subshell.
+rd_crate_set_dir_of() {
+    local prefix="" part
     local -a parts
-    IFS=/ read -r -a parts <<< "$path"
+    RD_CRATE_DIR_OF=""
+    IFS=/ read -r -a parts <<< "$1"
     for part in "${parts[@]}"; do
         prefix="${prefix:+$prefix/}$part"
-        [[ -z "${RD_CRATE_NAME[$prefix]:-}" ]] || found="$prefix"
+        [[ -z "${RD_CRATE_NAME[$prefix]:-}" ]] || RD_CRATE_DIR_OF="$prefix"
     done
-    printf '%s\n' "$found"
 }
 
 # What a changed path cannot be placed in, as a reason; nothing when it can. These govern what
@@ -104,14 +111,59 @@ rd_crate_dir_of() {
 # cargo-deny's configuration, a build script), or reach every member anyway (rd-core and the
 # plugin types it re-exports, the migrations) — the whole Rust half runs, as the job says.
 rd_crate_wide_reason() {
+    rd_crate_set_wide_reason "$1"
+    [[ -z "$RD_CRATE_REASON" ]] || printf '%s\n' "$RD_CRATE_REASON"
+}
+
+# rd_crate_wide_reason's answer in RD_CRATE_REASON, empty for none, without a subshell.
+rd_crate_set_wide_reason() {
     case "$1" in
-        Cargo.toml|Cargo.lock|*/Cargo.toml|*/Cargo.lock) echo "$1: a manifest or the lock file decides what every member builds" ;;
-        rust-toolchain.toml|.cargo/*|.config/nextest.toml|deny.toml) echo "$1 governs the whole build" ;;
-        build.rs|*/build.rs) echo "$1: a build script" ;;
-        crates/rd-core/*) echo "$1: rd-core, which every member builds on" ;;
-        crates/rd-plugin-types/*) echo "$1: rd-plugin-types, which rd-core re-exports to every member" ;;
-        crates/rd-db/migrations/*|*.sql) echo "$1: a migration" ;;
+        Cargo.toml|Cargo.lock|*/Cargo.toml|*/Cargo.lock) RD_CRATE_REASON="$1: a manifest or the lock file decides what every member builds" ;;
+        rust-toolchain.toml|.cargo/*|.config/nextest.toml|deny.toml) RD_CRATE_REASON="$1 governs the whole build" ;;
+        build.rs|*/build.rs) RD_CRATE_REASON="$1: a build script" ;;
+        crates/rd-core/*) RD_CRATE_REASON="$1: rd-core, which every member builds on" ;;
+        crates/rd-plugin-types/*) RD_CRATE_REASON="$1: rd-plugin-types, which rd-core re-exports to every member" ;;
+        crates/rd-db/migrations/*|*.sql) RD_CRATE_REASON="$1: a migration" ;;
+        *) RD_CRATE_REASON="" ;;
     esac
+}
+
+# Places changed path $1 as far as it can be without reading a file: RD_CRATE_REASON why it runs
+# the whole Rust half on its own — rd_crate_wide_reason, or a path outside every member no crate is
+# known to read — empty when it does not; RD_CRATE_DIR_OF the member directory it lies in; and
+# RD_CRATE_READERS, for a path outside every member, the packages rust-test-inputs.map names for
+# it. A path inside a member costs no subshell. Needs rd_crate_load_graph and scope.sh.
+rd_crate_place() {
+    RD_CRATE_READERS=()
+    RD_CRATE_DIR_OF=""
+    rd_crate_set_wide_reason "$1"
+    [[ -z "$RD_CRATE_REASON" ]] || return 0
+    rd_crate_set_dir_of "$1"
+    [[ -z "$RD_CRATE_DIR_OF" ]] || return 0
+    mapfile -t RD_CRATE_READERS < <(rd_scope_input_packages <<< "$1")
+    [[ ${#RD_CRATE_READERS[@]} -gt 0 ]] || RD_CRATE_REASON="$1: read by the Rust half, but no crate is known to read it"
+}
+
+# The first `wide` reason rd_crate_demands would write for the changed paths on stdin, without its
+# work per path (RD-1270-06): RD_CRATE_FIRST_WIDE holds it, empty when no path is wide, and
+# RD_CRATE_FIRST_WIDE_PATH the path it is about — empty for RD_CRATE_WIDE, which holds whatever
+# changed. Reads up to the first wide path only. It answers in variables: call it with `<<<`, never
+# inside `$(…)`. Needs rd_crate_load_graph and scope.sh.
+# shellcheck disable=SC2034 # RD_CRATE_FIRST_WIDE_PATH is lib/check-reuse-crates.sh's
+rd_crate_first_wide() {
+    local path
+    RD_CRATE_FIRST_WIDE="${RD_CRATE_WIDE:-}"
+    RD_CRATE_FIRST_WIDE_PATH=""
+    [[ -z "$RD_CRATE_FIRST_WIDE" ]] || return 0
+    while read -r path; do
+        [[ -n "$path" ]] || continue
+        rd_crate_place "$path"
+        if [[ -n "$RD_CRATE_REASON" ]]; then
+            RD_CRATE_FIRST_WIDE="$RD_CRATE_REASON"
+            RD_CRATE_FIRST_WIDE_PATH="$path"
+            return 0
+        fi
+    done
 }
 
 # Whether path $2, under src/ of the member in directory $1, is compiled only for that member's
@@ -239,18 +291,16 @@ rd_crate_named_dir() {
 #     names, and is `wide` when it names none.
 # Needs rd_crate_load_graph and scope.sh's rd_scope_input_packages.
 rd_crate_demands() {
-    local path dir name relative package file needle reason
+    local path dir name relative package file needle
     local -a patterns=() members=()
     [[ -z "$RD_CRATE_WIDE" ]] || echo "wide $RD_CRATE_WIDE"
     while read -r path; do
         [[ -n "$path" ]] || continue
-        reason="$(rd_crate_wide_reason "$path")"
-        if [[ -n "$reason" ]]; then echo "wide $reason"; continue; fi
-        dir="$(rd_crate_dir_of "$path")"
+        rd_crate_place "$path"
+        if [[ -n "$RD_CRATE_REASON" ]]; then echo "wide $RD_CRATE_REASON"; continue; fi
+        dir="$RD_CRATE_DIR_OF"
         if [[ -z "$dir" ]]; then
-            mapfile -t members < <(rd_scope_input_packages <<< "$path")
-            [[ ${#members[@]} -gt 0 ]] || { echo "wide $path: read by the Rust half, but no crate is known to read it"; continue; }
-            for package in "${members[@]}"; do echo "hull $package $path"; done
+            for package in "${RD_CRATE_READERS[@]}"; do echo "hull $package $path"; done
             continue
         fi
         name="${RD_CRATE_NAME[$dir]}"

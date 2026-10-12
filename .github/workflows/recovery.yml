@@ -6,7 +6,9 @@ name: Recovery
 # else, because each spawns a service; this job is where they run. Linux only: SIGKILL is the
 # point, and the state machine behind it is the same on every system (axis A, ci.yml). The
 # release candidate dispatches it before the tag, and a red run holds the tag (owner, 2026-10-06;
-# the `public-ci` step, scripts/lib/release-steps-publish.sh).
+# the `public-ci` step, scripts/lib/release-steps-publish.sh). The push to `main` after the tag
+# carries that same tree: there the `gate` job leaves the cases out when a successful run of this
+# tree passed them (RD-1270-11).
 on:
   push:
     branches: ["**", "!dependabot/**"]
@@ -24,7 +26,35 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
+  # ci.yml's gate (scripts/ci-gate.sh) with no image and this workflow's one job as `ONCE`, by the
+  # name its check carries: every event runs it, except a push to `main` whose tree a successful
+  # run of recovery.yml passed already — or a tree that differs from it only in documentation and
+  # the version bump (CI_TREE_GREENS_UP_TO_VERSIONS: the green usually comes from the wave's
+  # integration branch, RD-1270-10). A GitHub that does not answer runs it.
+  gate:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 10
+    outputs:
+      jobs: ${{ steps.jobs.outputs.jobs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The jobs still to run
+        id: jobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: "[]"
+          ONCE: '["Kill and restart (axis B)"]'
+          CI_TREE_GREENS_WORKFLOW: recovery.yml
+          CI_TREE_GREENS_UP_TO_VERSIONS: "1"
+        run: scripts/ci-gate.sh
+
   axis-b:
+    needs: gate
+    if: needs.gate.outputs.jobs != '[]'
     name: Kill and restart (axis B)
     runs-on: ubuntu-24.04
     timeout-minutes: 60

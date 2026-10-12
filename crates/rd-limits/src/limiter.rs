@@ -13,6 +13,13 @@
 //! Uploads (RD-150-15) have a chain of their own: the hand-set upload limit and the active
 //! profile's, and nothing scoped — a protocol, host or category bucket describes where a
 //! download comes from, not where a finished package goes.
+//!
+//! A bucket hands its bytes out in pieces of at most [`PIECE_BYTES`], one piece per turn, and
+//! the turns go in the order they were asked for (RD-1270-25). A request as large as the
+//! bucket used to wait for the bucket to be full, which a stream of small requests beside it —
+//! HTTP pacing every network read — never let happen: a Usenet article of 700 KB waited for
+//! minutes at 0 B/s. Taken in pieces from a fair queue, a large request is served piece by
+//! piece between the small ones; the rate is still the bucket's, since every byte passes it.
 
 use std::{
     collections::HashMap,
@@ -26,10 +33,15 @@ use rd_core::PackageId;
 
 use crate::scope::{LimitScope, LimitSource, TransferScope};
 
+/// The most bytes one turn at a bucket hands out; never more than the bucket holds.
+const PIECE_BYTES: u32 = 64 * 1024;
+
 #[derive(Clone, Debug)]
 struct ActiveLimit {
     limiter: Arc<DefaultDirectRateLimiter>,
     capacity: u32,
+    /// The queue of turns: Tokio's mutex is fair, so whoever asked first is served first.
+    turns: Arc<tokio::sync::Mutex<()>>,
 }
 
 /// A cloneable limiter whose quota can be replaced while transfers are active.
@@ -58,6 +70,7 @@ impl BandwidthLimiter {
                 Some(ActiveLimit {
                     limiter: Arc::new(RateLimiter::direct(quota)),
                     capacity,
+                    turns: Arc::default(),
                 })
             });
         *self
@@ -84,20 +97,28 @@ impl BandwidthLimiter {
     }
 
     /// Waits until the requested number of bytes may be consumed.
+    ///
+    /// Piece by piece, each in its turn; the limit is read again for every piece, so one
+    /// changed or lifted meanwhile applies to the rest of the request.
     pub async fn acquire(&self, bytes: usize) -> Result<()> {
-        let Some(limit) = self.active_limit() else {
-            return Ok(());
-        };
         let mut remaining = bytes as u64;
         while remaining > 0 {
-            let batch = remaining.min(u64::from(limit.capacity)) as u32;
-            let batch = NonZeroU32::new(batch).context("zero bandwidth batch")?;
-            limit
-                .limiter
-                .until_n_ready(batch)
-                .await
-                .context("bandwidth quota capacity")?;
-            remaining -= u64::from(batch.get());
+            let Some(limit) = self.active_limit() else {
+                return Ok(());
+            };
+            let piece = remaining.min(u64::from(PIECE_BYTES.min(limit.capacity))) as u32;
+            let piece = NonZeroU32::new(piece).context("zero bandwidth piece")?;
+            {
+                // Held while the piece is waited for: a turn that only queued for the bucket
+                // and then raced the others for it would starve the large ones again.
+                let _turn = limit.turns.lock().await;
+                limit
+                    .limiter
+                    .until_n_ready(piece)
+                    .await
+                    .context("bandwidth quota capacity")?;
+            }
+            remaining -= u64::from(piece.get());
         }
         Ok(())
     }
@@ -466,3 +487,7 @@ mod upload_tests;
 #[cfg(test)]
 #[path = "package_tests.rs"]
 mod package_tests;
+
+#[cfg(test)]
+#[path = "fairness_tests.rs"]
+mod fairness_tests;

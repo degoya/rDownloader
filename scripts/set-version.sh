@@ -50,32 +50,46 @@ if [[ $# -eq 0 ]]; then
     exit 0
 fi
 
-# Every copy, as "file<TAB>version it reports". The manifest drops a pre-release suffix.
-# Python on Windows ends its lines with CRLF; the CR would make every copy disagree.
+# Every copy, as "file<TAB>version it reports", for each entry of RD_VERSION_COPIES
+# (lib/workspace-version.sh) — the list the bump writes and lib/verified.sh reads. The manifest
+# drops a pre-release suffix. Python on Windows ends its lines with CRLF; the CR would make every
+# copy disagree.
 copies() {
-    python3 - <<'PY' | tr -d '\r'
-import glob, json, re
-for path, read in (
-    ('web/package.json', lambda d: d['version']),
-    ('extension/manifest.base.json', lambda d: d['version']),
-    ('web/openapi.json', lambda d: d['info']['version']),
-):
-    with open(path) as handle:
-        print(f'{path}\t{read(json.load(handle))}')
-for path in ('sdk/ci/plugin.yml', 'sdk/ci/repository.yml'):
-    with open(path) as handle:
-        pins = re.findall(r'^  RDOWNLOADER_VERSION: (\S+)$', handle.read(), re.MULTILINE)
-    print(f'{path}\t{pins[0] if len(pins) == 1 else "no single RDOWNLOADER_VERSION"}')
-for path in sorted(glob.glob('sdk/templates/*/manifest.toml')):
-    with open(path) as handle:
-        minimums = re.findall(r'^min_app_version = "([^"]*)"$', handle.read(), re.MULTILINE)
-    print(f'{path}\t{minimums[0] if len(minimums) == 1 else "no single min_app_version"}')
+    python3 - "${RD_VERSION_COPIES[@]}" <<'PY' | tr -d '\r'
+import fnmatch, glob, json, re, sys
+
+def single(pattern, what):
+    def read(text):
+        found = re.findall(pattern, text, re.MULTILINE)
+        return found[0] if len(found) == 1 else f'no single {what}'
+    return read
+
+READERS = {
+    'web/package.json': lambda text: json.loads(text)['version'],
+    'extension/manifest.base.json': lambda text: json.loads(text)['version'],
+    'web/openapi.json': lambda text: json.loads(text)['info']['version'],
+    'sdk/ci/*.yml': single(r'^  RDOWNLOADER_VERSION: (\S+)$', 'RDOWNLOADER_VERSION'),
+    'sdk/templates/*/manifest.toml': single(r'^min_app_version = "([^"]*)"$', 'min_app_version'),
+}
+for entry in sys.argv[1:]:
+    # Python under Git Bash on Windows globs `sdk/templates\auth\manifest.toml`; the rules
+    # name paths with `/`, so the entry and every match are compared that way.
+    entry = entry.replace('\\', '/')
+    paths = sorted(glob.glob(entry)) if any(c in entry for c in "*?[") else [entry]
+    for path in (match.replace('\\', '/') for match in paths):
+        read = next((r for p, r in READERS.items() if fnmatch.fnmatchcase(path, p)), None)
+        if read is None:
+            raise SystemExit(f'set-version.sh has no rule for the copy {path}')
+        with open(path) as handle:
+            print(f'{path}\t{read(handle.read())}')
 PY
 }
 
 if [[ "$1" == "--check" ]]; then
     want="$(current)"
     bad=0
+    # Read whole first: a copy that cannot be read fails the check instead of dropping out of it.
+    reported="$(copies)" || exit 1
     while IFS=$'\t' read -r path found; do
         expected="$want"
         [[ "$path" == extension/manifest.base.json ]] && expected="${want%%[-+]*}"
@@ -83,7 +97,7 @@ if [[ "$1" == "--check" ]]; then
             echo "!! $path reports $found, Cargo.toml $want — run scripts/set-version.sh $want" >&2
             bad=1
         fi
-    done < <(copies)
+    done <<< "$reported"
     [[ "$bad" -eq 0 ]] && echo "    every copy reports $want"
     exit "$bad"
 fi
@@ -101,8 +115,8 @@ if [[ -z "$before" ]]; then
 fi
 echo "==> $before -> $version"
 
-python3 - "$version" <<'PY'
-import json, pathlib, re, sys
+python3 - "$version" "${RD_VERSION_COPIES[@]}" <<'PY'
+import fnmatch, glob, json, pathlib, re, sys
 
 version = sys.argv[1]
 
@@ -126,55 +140,63 @@ if count != 1:
     raise SystemExit('could not rewrite the workspace version in Cargo.toml')
 write(cargo, updated)
 
-package = pathlib.Path('web/package.json')
-data = json.loads(package.read_text())
-data['version'] = version
-# json.dumps drops the trailing newline npm writes; keep the file as npm would leave it.
-write(package, json.dumps(data, indent=2) + '\n')
-
-manifest = pathlib.Path('extension/manifest.base.json')
-base = json.loads(manifest.read_text())
-base['version'] = re.sub(r'[-+].*$', '', version)
-write(manifest, json.dumps(base, indent=2) + '\n')
+# A JSON file's top-level `version`; json.dumps drops the trailing newline npm writes, so it is
+# kept the way npm would leave the file.
+def json_version(value):
+    def rewrite(path):
+        data = json.loads(path.read_text())
+        data['version'] = value
+        write(path, json.dumps(data, indent=2) + '\n')
+    return rewrite
 
 # The generated contract: only info.version, in place, so the rest stays byte for byte.
-contract = pathlib.Path('web/openapi.json')
-text = contract.read_text()
-doc = json.loads(text)
-updated, count = re.subn(
-    # info.version is the last key of "info" (utoipa's order), at four spaces, before "paths".
-    r'(\n    "version": ")[^"]+("\n  \},\n  "paths")',
-    lambda match: f'{match.group(1)}{version}{match.group(2)}',
-    text,
-    count=1,
-)
-if count != 1 or json.loads(updated)['info']['version'] != version:
-    raise SystemExit('could not rewrite info.version in web/openapi.json')
-write(contract, updated)
-
-# The SDK workflows' release pin: one `RDOWNLOADER_VERSION:` under `env:` each.
-for workflow in (pathlib.Path('sdk/ci/plugin.yml'), pathlib.Path('sdk/ci/repository.yml')):
+def contract(path):
+    text = path.read_text()
     updated, count = re.subn(
-        r'^(  RDOWNLOADER_VERSION: )\S+$',
-        lambda match: f'{match.group(1)}{version}',
-        workflow.read_text(),
-        flags=re.MULTILINE,
-    )
-    if count != 1:
-        raise SystemExit(f'could not rewrite RDOWNLOADER_VERSION in {workflow}')
-    write(workflow, updated)
-
-# The SDK templates' `min_app_version`: one under `[metadata]` each.
-for template in sorted(pathlib.Path('sdk/templates').glob('*/manifest.toml')):
-    updated, count = re.subn(
-        r'^(min_app_version = ")[^"]*(")$',
+        # info.version is the last key of "info" (utoipa's order), at four spaces, before "paths".
+        r'(\n    "version": ")[^"]+("\n  \},\n  "paths")',
         lambda match: f'{match.group(1)}{version}{match.group(2)}',
-        template.read_text(),
-        flags=re.MULTILINE,
+        text,
+        count=1,
     )
-    if count != 1:
-        raise SystemExit(f'could not rewrite min_app_version in {template}')
-    write(template, updated)
+    if count != 1 or json.loads(updated)['info']['version'] != version:
+        raise SystemExit(f'could not rewrite info.version in {path}')
+    write(path, updated)
+
+# One line of the form `pattern`, whose first group is kept and whose version follows it.
+def single_line(pattern, suffix, what):
+    def rewrite(path):
+        updated, count = re.subn(
+            pattern,
+            lambda match: f'{match.group(1)}{version}{suffix}',
+            path.read_text(),
+            flags=re.MULTILINE,
+        )
+        if count != 1:
+            raise SystemExit(f'could not rewrite {what} in {path}')
+        write(path, updated)
+    return rewrite
+
+WRITERS = {
+    'web/package.json': json_version(version),
+    # A browser manifest version is dot-separated integers only.
+    'extension/manifest.base.json': json_version(re.sub(r'[-+].*$', '', version)),
+    'web/openapi.json': contract,
+    # The SDK workflows' release pin: one `RDOWNLOADER_VERSION:` under `env:` each.
+    'sdk/ci/*.yml': single_line(r'^(  RDOWNLOADER_VERSION: )\S+$', '', 'RDOWNLOADER_VERSION'),
+    # The SDK templates' `min_app_version`: one under `[metadata]` each.
+    'sdk/templates/*/manifest.toml': single_line(r'^(min_app_version = ")[^"]*"$', '"', 'min_app_version'),
+}
+for entry in sys.argv[2:]:
+    # Python under Git Bash on Windows globs `sdk/templates\auth\manifest.toml`; the rules
+    # name paths with `/`, so the entry and every match are compared that way.
+    entry = entry.replace('\\', '/')
+    paths = sorted(glob.glob(entry)) if any(c in entry for c in "*?[") else [entry]
+    for path in (match.replace('\\', '/') for match in paths):
+        rewrite = next((r for p, r in WRITERS.items() if fnmatch.fnmatchcase(path, p)), None)
+        if rewrite is None:
+            raise SystemExit(f'set-version.sh has no rule for the copy {path}')
+        rewrite(pathlib.Path(path))
 PY
 
 # Workspace members carry `version.workspace = true`, so only the lock needs rewriting.

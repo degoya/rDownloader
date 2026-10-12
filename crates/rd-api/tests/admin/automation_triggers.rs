@@ -6,6 +6,9 @@
 
 use crate::common;
 
+// The package and storage triggers decided on the event's payload (RD-1270-03, RD-1270-04).
+mod transitions;
+
 use common::{WAIT, eventually, get_json, parked_harness, post_json, test_harness};
 use rd_core::{EventEnvelope, EventKind};
 use serde_json::json;
@@ -195,7 +198,11 @@ async fn the_remaining_triggers_fire_on_their_own_event() {
         (
             "storage_threshold",
             EventKind::StorageCapacity,
-            json!({ "target": "root", "blocked": true }),
+            // What `persist_capacity_blocks` (rd-scheduler) broadcasts for a root running out.
+            json!({
+                "blocked": 1, "change": "blocked", "target": "fallback",
+                "name": "Downloads", "path": "/srv/downloads"
+            }),
         ),
         (
             "subscription_item",
@@ -283,6 +290,23 @@ async fn an_event_that_is_not_a_moment_fires_nothing() {
         (
             EventKind::SubscriptionChanged,
             json!({ "resource": "subscription", "poll": "finished", "accepted": 1, "error": "x" }),
+        ),
+        // A root with room again is no moment for a rule that does not ask for the release, and
+        // a reorder or the same outcome written again is no package moment (RD-1270-03/04).
+        (
+            EventKind::StorageCapacity,
+            json!({ "blocked": 0, "change": "released" }),
+        ),
+        (
+            EventKind::PackageState,
+            json!({ "package_id": rd_core::PackageId::new(), "reordered_downloads": 2 }),
+        ),
+        (
+            EventKind::PackageState,
+            json!({
+                "package_id": rd_core::PackageId::new(), "state": "completed",
+                "previous": "completed", "files": 1, "failed_files": 0
+            }),
         ),
     ] {
         harness

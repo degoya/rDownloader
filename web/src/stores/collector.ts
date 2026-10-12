@@ -106,16 +106,18 @@ export const useCollectorStore = defineStore('collector', () => {
    * The server emits `collector.intake` for every intake path (web UI, browser extension,
    * hotfolder, subscriptions), so this covers all of them. While a capture agent is connected it
    * shows the toast on the desktop, and the service says so on the event (`agent_toast`): one
-   * surface per intake, so the tab stays quiet then (RD-1260-04).
+   * surface per intake, so the tab stays quiet then (RD-1260-04). A hand-over the browser
+   * extension announces itself carries `extension_notice`, and the tab stays quiet for it too
+   * (RD-1270-05).
    */
   function announceIntake(event: MessageEvent<string>): void {
-    let payload: { candidate_count?: number, package_count?: number, agent_toast?: boolean }
+    let payload: { candidate_count?: number, package_count?: number, agent_toast?: boolean, extension_notice?: boolean }
     try {
       payload = (JSON.parse(event.data) as { payload?: typeof payload }).payload ?? {}
     } catch {
       return
     }
-    if (payload.agent_toast === true) return
+    if (payload.agent_toast === true || payload.extension_notice === true) return
     const links = payload.candidate_count ?? 0
     if (links <= 0) return
     notifications.notify(

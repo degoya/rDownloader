@@ -80,9 +80,6 @@
   "popupOptions": {
     "message": "Settings"
   },
-  "sentFromPopup": {
-    "message": "Sent to the LinkGrabber."
-  },
   "noPageUrl": {
     "message": "The current tab has no web address."
   },

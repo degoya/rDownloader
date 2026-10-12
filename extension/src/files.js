@@ -16,7 +16,7 @@
 //
 // - Nothing happens for a site without a consent: that is the whole of RD-120-63, unchanged. A
 //   consent is a click in the popup on that site, the browser's own grant for exactly that host
-//   and `cookies`, and a row in `storage.local` naming the host. The options page lists and
+//   and `cookies` (in Firefox with the `authenticationInfo` data consent), and a row in `storage.local` naming the host. The options page lists and
 //   revokes them.
 // - Only the cookies the browser would send to the download's own address are read
 //   (`cookies.getAll({ url })`), and they go only to the configured rDownloader, which sends them
@@ -27,6 +27,7 @@
 import { request } from './api.js'
 import { baseName, handOverName, headerValue, staysInBrowser } from './intercept.js'
 import { toNetscape } from './session.js'
+import { withCookieData } from './data-collection.js'
 
 /** The `storage.local` key holding the hosts a person allowed. */
 export const SITES_KEY = 'fileSites'
@@ -62,9 +63,12 @@ export function sitePattern(host) {
   return `*://${host}/*`
 }
 
-/** What the browser is asked for when a site is allowed. */
-export function sitePermissions(host) {
-  return { permissions: ['cookies'], origins: [sitePattern(host)] }
+/**
+ * What the browser is asked for when a site is allowed: `cookies`, the one host, and in Firefox
+ * the `authenticationInfo` data consent the cookies leave under (RD-1270-02).
+ */
+export function sitePermissions(host, api) {
+  return withCookieData(api, { permissions: ['cookies'], origins: [sitePattern(host)] })
 }
 
 /** The allowed hosts. A browser without `storage.local` has none. */
@@ -92,7 +96,7 @@ export async function allowSite(api, url) {
   if (!host) return { ok: false, code: 'scope', host: null }
   let granted = false
   try {
-    granted = await api.permissions.request(sitePermissions(host))
+    granted = await api.permissions.request(sitePermissions(host, api))
   } catch {
     granted = false
   }
@@ -101,16 +105,27 @@ export async function allowSite(api, url) {
   return { ok: true, code: null, host }
 }
 
-/** Takes a consent back: the row, the host's grant, and `cookies` once no site needs it. */
+/**
+ * Takes a consent back: the row, the host's grant, and `cookies` (with Firefox's data consent)
+ * once no site needs it.
+ */
 export async function revokeSite(api, host) {
   const sites = (await loadSites(api)).filter((site) => site !== host)
   await saveSites(api, sites)
   try {
-    await api.permissions.remove({ permissions: sites.length ? [] : ['cookies'], origins: [sitePattern(host)] })
+    await api.permissions.remove(releasedGrant(api, !sites.length, [sitePattern(host)]))
   } catch {
     // Chrome refuses to drop a permission another grant still needs; the row is gone either way.
   }
   return { ok: true, host }
+}
+
+/**
+ * What a flow gives back after its cookie read: the origins it brought, and `cookies` with
+ * Firefox's data consent unless a standing site consent still needs them.
+ */
+export function releasedGrant(api, dropCookies, origins) {
+  return dropCookies ? withCookieData(api, { permissions: ['cookies'], origins }) : { permissions: [], origins }
 }
 
 /**
@@ -135,14 +150,15 @@ export async function siteConsented(api, url) {
 
 /**
  * The cookies the browser would send to exactly this address, as the browser describes them;
- * null when the grant for them is gone. `getAll({ url })` answers for the address itself — its host, the
+ * null when the grant for them is gone — in Firefox also the `authenticationInfo` consent, so
+ * without it no cookie is read or sent (RD-1270-02). `getAll({ url })` answers for the address itself — its host, the
  * domains above it that set cookies for it, its path, its scheme — and nothing beside or below.
  */
 export async function readAddressCookies(api, url) {
   const host = siteHost(url)
   if (!host) return null
   try {
-    if (!(await api.permissions.contains(sitePermissions(host)))) return null
+    if (!(await api.permissions.contains(sitePermissions(host, api)))) return null
     const cookies = (await api.cookies.getAll({ url: String(url) })) ?? []
     return cookies.filter((cookie) => cookie?.name)
   } catch {

@@ -20,15 +20,19 @@ export const CHROME_MIN_VERSION = '153'
 /**
  * What the add-on sends off the device, as AMO asks every new add-on to declare it. Everything
  * goes only to the rDownloader the person configured, never to us, but Mozilla's categories
- * do not distinguish a self-hosted server, so the declaration names what travels:
- * - always: the addresses of links and downloads handed over (`browsingActivity`) and the
- *   downloads the add-on takes over (`websiteActivity`);
- * - only with the optional `cookies` grant: cookies and headers of a session handover or a
- *   protected download (`websiteContent`).
+ * do not distinguish a self-hosted server, so the declaration names what travels (RD-1270-02):
+ * - always: the addresses of links, pages and downloads handed over (`browsingActivity`); the
+ *   downloads the add-on takes over (`websiteActivity`); and what a page or the person hands
+ *   over with them (`websiteContent`) — selected text, Click'n'Load's encrypted links, key,
+ *   package name and archive passwords, container and NZB/torrent files with the download's
+ *   referrer and user agent;
+ * - only with the optional consent, asked for in the same click as the `cookies` grant for one
+ *   site (`src/data-collection.js`): the login cookies of a session share, a session handover
+ *   or a site's file hand-over (`authenticationInfo`). Without it no cookie leaves Firefox.
  */
 export const FIREFOX_DATA_COLLECTION = {
-  required: ['browsingActivity', 'websiteActivity'],
-  optional: ['websiteContent']
+  required: ['browsingActivity', 'websiteActivity', 'websiteContent'],
+  optional: ['authenticationInfo']
 }
 
 /** Permissions only the Firefox build carries: what copying a response takes (RD-130-16). */

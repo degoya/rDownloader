@@ -163,7 +163,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.26.0"
+version = "1.27.0"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.99"
@@ -245,6 +245,9 @@ openidconnect = { version = "4", default-features = false }
 # `arboard` and the tray link already, for the pasteboard types `arboard` does not read.
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSPasteboard"] }
+# The capture agent's language on macOS (RD-1270-19): `NSLocale`'s preferred languages, a safe
+# binding of the Foundation crate `objc2-app-kit` links already.
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSLocale", "NSString"] }
 object_store = { version = "0.14", default-features = false, features = ["aws"] }
 open = "5.4.2"
 percent-encoding = "2.3"
@@ -322,6 +325,10 @@ webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softtoken"] }
 # Windows only: the link count of an unpacked file (RD-190-05), through `GetFileInformationByHandle`
 # behind a safe call. Already in the tree through `walkdir`/`same-file`, so it adds no crate.
 winapi-util = "0.1.11"
+# Windows only: the display language of the capture agent's intake toast (RD-1270-05), read from
+# the user's registry hive through a safe API. Already in the tree as `embed-resource`'s build
+# dependency, so it adds no crate.
+winreg = "0.55"
 wit-bindgen = "0.62"
 # The capture agent's concealment mark under Wayland and X11 (RD-1200-03): the protocol clients
 # `arboard` reads the text with, asked for the `x-kde-passwordManagerHint` it does not read.

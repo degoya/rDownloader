@@ -2,11 +2,13 @@
 //
 // Cookies are the most sensitive thing this extension can touch, so the flow is deliberately
 // narrow: nothing is read until the user grants the `cookies` permission together with a host
-// permission for that one origin, and the browser itself renders that prompt. The profile the
+// permission for that one origin — in Firefox also the `authenticationInfo` data consent, asked
+// for in the same prompt (RD-1270-02) — and the browser itself renders that prompt. The profile the
 // server creates from the result arrives disabled and has to be approved in the web UI.
 
 import { request } from './api.js'
-import { holdsCookieConsent, loadSites } from './files.js'
+import { holdsCookieConsent, loadSites, releasedGrant } from './files.js'
+import { holdsCookieData, withCookieData } from './data-collection.js'
 
 /**
  * Match pattern for a scope, covering its subdomains unless the share says otherwise.
@@ -124,7 +126,7 @@ export function createSessionSharer({ api, loadConfig, submit = submitCookies, m
     }
 
     const pattern = originPattern(host, { includeSubdomains })
-    const permissions = { permissions: ['cookies'], origins: [pattern] }
+    const permissions = withCookieData(api, { permissions: ['cookies'], origins: [pattern] })
     let granted = false
     try {
       granted = await api.permissions.request(permissions)
@@ -132,6 +134,23 @@ export function createSessionSharer({ api, loadConfig, submit = submitCookies, m
       granted = false
     }
     if (!granted) return { ok: false, code: 'denied' }
+    // The permission is only needed for the read itself; holding it afterwards would be a
+    // standing grant the user never asked for — unless a site the person allowed to hand files
+    // over stands on it (RD-130-16): then `cookies` stays, and so does that site's own grant.
+    const giveBack = async () => {
+      try {
+        const standing = await holdsCookieConsent(api)
+        const origins = (await loadSites(api)).includes(host) ? [] : [pattern]
+        await api.permissions.remove(releasedGrant(api, !standing, origins))
+      } catch {
+        // Chrome refuses to drop a permission another grant still needs; harmless here.
+      }
+    }
+    // Firefox: without the `authenticationInfo` consent no cookie is read, let alone sent.
+    if (!(await holdsCookieData(api))) {
+      await giveBack()
+      return { ok: false, code: 'denied' }
+    }
 
     const cookies = await readCookies(url, includeSubdomains)
     const content = toNetscape(cookies, host)
@@ -141,16 +160,7 @@ export function createSessionSharer({ api, loadConfig, submit = submitCookies, m
     }
 
     const result = await submit(config, { host, includeSubdomains, cookies: content, name })
-    // The permission is only needed for the read itself; holding it afterwards would be a
-    // standing grant the user never asked for — unless a site the person allowed to hand files
-    // over stands on it (RD-130-16): then `cookies` stays, and so does that site's own grant.
-    try {
-      const standing = await holdsCookieConsent(api)
-      const origins = (await loadSites(api)).includes(host) ? [] : [pattern]
-      await api.permissions.remove({ permissions: standing ? [] : ['cookies'], origins })
-    } catch {
-      // Chrome refuses to drop a permission another grant still needs; harmless here.
-    }
+    await giveBack()
     if (!result.ok) {
       await notify?.(message('sessionFailed', [result.message ?? '']))
       return { ok: false, code: result.code ?? 'http' }

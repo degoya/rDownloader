@@ -30,6 +30,23 @@ pub enum StorageTarget {
     Fallback,
 }
 
+impl StorageTarget {
+    /// The key of the service download directory, which has no root id.
+    pub const FALLBACK_KEY: &'static str = "fallback";
+    /// What the service download directory is called where a root shows its name.
+    pub const FALLBACK_NAME: &'static str = "Downloads";
+
+    /// The target's key: the root id, or [`Self::FALLBACK_KEY`]. The REST path segment of the
+    /// manual release and the `target` of a `storage.capacity` event (RD-1270-18).
+    #[must_use]
+    pub fn key(self) -> String {
+        match self {
+            Self::Root(id) => id.to_string(),
+            Self::Fallback => Self::FALLBACK_KEY.to_owned(),
+        }
+    }
+}
+
 /// One configured storage root with its effective threshold.
 #[derive(Clone, Debug)]
 pub struct RootLimit {
@@ -77,6 +94,21 @@ struct State {
     roots: Vec<RootLimit>,
     fallback: Option<PathBuf>,
     blocked: HashMap<StorageTarget, CapacityShortfall>,
+}
+
+impl State {
+    /// The threshold and the unknown-size headroom that apply to a destination: the root's own
+    /// threshold, else the global one.
+    fn limits(&self, destination: &Path) -> (u64, u32) {
+        let minimum = self
+            .roots
+            .iter()
+            .filter(|root| destination.starts_with(&root.path))
+            .max_by_key(|root| root.path.as_os_str().len())
+            .and_then(|root| root.minimum_free_bytes)
+            .unwrap_or_else(|| self.settings.storage_minimum_free_bytes.get());
+        (minimum, self.settings.storage_unknown_size_headroom)
+    }
 }
 
 /// Cloneable handle shared by the scheduler, the runners and the REST layer.
@@ -144,38 +176,34 @@ impl CapacityService {
 
     /// Threshold that applies to a destination: the root's own value, else the global one.
     pub async fn minimum_free_bytes(&self, destination: &Path) -> u64 {
-        let state = self.state.read().await;
-        state
-            .roots
-            .iter()
-            .filter(|root| destination.starts_with(&root.path))
-            .max_by_key(|root| root.path.as_os_str().len())
-            .and_then(|root| root.minimum_free_bytes)
-            .unwrap_or_else(|| state.settings.storage_minimum_free_bytes.get())
+        self.state.read().await.limits(destination).0
     }
 
     /// Probes the filesystem behind `destination` and applies the threshold.
     ///
     /// `required` is the number of bytes still to be written; `None` means no runner could
-    /// state a size, which falls back to the documented headroom policy.
+    /// state a size, which falls back to the documented headroom policy. A destination not
+    /// created yet is probed on its nearest existing ancestor ([`space_for_destination`]).
     pub async fn check(
         &self,
         destination: &Path,
         required: Option<u64>,
     ) -> Result<CapacityVerdict> {
-        let (minimum, headroom) = {
-            let state = self.state.read().await;
-            let minimum = state
-                .roots
-                .iter()
-                .filter(|root| destination.starts_with(&root.path))
-                .max_by_key(|root| root.path.as_os_str().len())
-                .and_then(|root| root.minimum_free_bytes)
-                .unwrap_or_else(|| state.settings.storage_minimum_free_bytes.get());
-            (minimum, state.settings.storage_unknown_size_headroom)
-        };
-        let free = available_space(destination).await?;
-        Ok(evaluate_capacity(free, required, minimum, headroom))
+        let free = space_for_destination(destination).await?;
+        Ok(self.evaluate(destination, free, required).await)
+    }
+
+    /// Applies the start check to a free-space figure already probed: the rule
+    /// [`Self::check`] applies, for a caller that probes once and asks for several sizes. The
+    /// release of a blocked target asks it for each download waiting there (RD-1270-07).
+    pub async fn evaluate(
+        &self,
+        destination: &Path,
+        free_bytes: u64,
+        required: Option<u64>,
+    ) -> CapacityVerdict {
+        let (minimum, headroom) = self.state.read().await.limits(destination);
+        evaluate_capacity(free_bytes, required, minimum, headroom)
     }
 
     /// Free space on a target's filesystem, for the periodic growth check.
@@ -262,13 +290,63 @@ pub async fn available_space(path: &Path) -> Result<u64> {
     Ok(tokio::task::spawn_blocking(move || fs4::available_space(&path)).await??)
 }
 
+/// Free bytes on the filesystem `destination` will be created on: its own, or its nearest
+/// existing ancestor's while it does not exist yet (RD-1270-08).
+///
+/// A package's folder is created by its runner, after the start check: probed on the folder
+/// alone, a fresh external package failed the probe, and the check let every one through
+/// unchecked. An ancestor that cannot be read (a share that is down) or a path with no
+/// existing part stays an error, which the caller treats as "not probeable".
+async fn space_for_destination(destination: &Path) -> Result<u64> {
+    let destination = destination.to_path_buf();
+    tokio::task::spawn_blocking(move || -> Result<u64> {
+        for candidate in destination.ancestors() {
+            if candidate.as_os_str().is_empty() {
+                break;
+            }
+            if candidate.try_exists()? {
+                return Ok(fs4::available_space(candidate)?);
+            }
+        }
+        anyhow::bail!("no part of {} exists", destination.display())
+    })
+    .await?
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use rd_core::{StorageRootId, StorageSettings};
 
-    use super::{CapacityService, CapacityVerdict, RootLimit, StorageTarget, evaluate_capacity};
+    use super::{
+        CapacityService, CapacityVerdict, RootLimit, StorageTarget, evaluate_capacity,
+        space_for_destination,
+    };
+
+    /// RD-1270-08: a destination not created yet is checked on the disk it will land on.
+    #[tokio::test]
+    async fn a_missing_destination_is_probed_on_its_nearest_existing_ancestor() {
+        let directory = tempfile::tempdir().expect("temp");
+        let missing = directory.path().join("package").join("nested");
+        // On Unix the folder alone cannot be probed while it does not exist — the defect this
+        // fixes. Windows answers for any path on a mounted volume, so there the probe never failed.
+        #[cfg(unix)]
+        assert!(super::available_space(&missing).await.is_err());
+        assert!(space_for_destination(&missing).await.is_ok());
+        // More than any disk has free: the start check now refuses it instead of skipping it.
+        let verdict = CapacityService::new()
+            .check(&missing, Some(1_u64 << 60))
+            .await
+            .expect("probed on the ancestor");
+        assert!(verdict.shortfall().is_some());
+        // Nothing of a relative path exists: still "not probeable".
+        assert!(
+            space_for_destination(&PathBuf::from("rd-files-missing-1270-08/package"))
+                .await
+                .is_err()
+        );
+    }
 
     #[test]
     fn a_known_size_must_fit_and_leave_the_threshold_free() {
@@ -350,6 +428,37 @@ mod tests {
         assert!(service.is_blocked(target).await);
         assert!(service.set_blocked(target, None).await);
         assert!(!service.set_blocked(target, None).await);
+    }
+
+    #[tokio::test]
+    async fn evaluate_applies_the_start_check_to_a_probed_figure() {
+        let service = CapacityService::new();
+        let root = StorageRootId::new();
+        service
+            .apply(
+                StorageSettings::default(),
+                vec![RootLimit {
+                    id: root,
+                    path: PathBuf::from("/data"),
+                    minimum_free_bytes: Some(400),
+                }],
+                None,
+            )
+            .await;
+        let destination = PathBuf::from("/data/movies");
+        let headroom = StorageSettings::default().storage_unknown_size_headroom;
+        for (free, required) in [(1_399, Some(1_000)), (1_400, Some(1_000)), (1_599, None)] {
+            assert_eq!(
+                service.evaluate(&destination, free, required).await,
+                evaluate_capacity(free, required, 400, headroom)
+            );
+        }
+        assert!(
+            service
+                .evaluate(&destination, 400 * u64::from(headroom), None)
+                .await
+                .is_ok()
+        );
     }
 
     #[tokio::test]

@@ -1,6 +1,7 @@
 /**
  * One surface per intake (RD-1260-04): while a capture agent is connected it shows the desktop
  * toast, the service says so on the event, and the tab stays quiet; without one the tab shows it.
+ * A hand-over the browser extension announces itself is the extension's alone (RD-1270-05).
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -39,6 +40,14 @@ describe('collector store: intake toast', () => {
   it('leaves the toast to a connected agent', () => {
     intake({ candidate_count: 8, package_count: 1, agent_toast: true })
     expect(notify).not.toHaveBeenCalled()
+  })
+
+  it('leaves a hand-over of the browser extension to the extension, agent or not', () => {
+    intake({ candidate_count: 3, package_count: 1, agent_toast: false, extension_notice: true })
+    intake({ candidate_count: 3, package_count: 1, agent_toast: true, extension_notice: true })
+    expect(notify).not.toHaveBeenCalled()
+    intake({ candidate_count: 3, package_count: 1, agent_toast: false, extension_notice: false })
+    expect(notify).toHaveBeenCalledTimes(1)
   })
 
   it('shows one toast per intake without an agent, replacing the last one', () => {

@@ -7,6 +7,7 @@ import type { Download, DownloadBulkAction, DownloadBulkFilter, DownloadPackage,
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { serverMessageFrom } from '@/i18n/server'
 import { batchError, combinedMessage, inBatches } from '@/utils/bulkBatches'
+import type { UsenetServerLoad } from '@/utils/usenetConnections'
 import {
   appendTransferRateHistory,
   type TransferRateHistoryPoint
@@ -54,6 +55,9 @@ export const useTransfersStore = defineStore('transfers', () => {
   const downloadEtas = ref<Record<string, number>>({})
   /** Queued files the service holds back for a connection to their host, with that host (RD-1130-02). */
   const downloadHostWaits = ref<Record<string, string>>({})
+  /** NNTP connections working for each running Usenet file, and each server's busy ones (RD-1270-21). */
+  const downloadConnections = ref<Record<string, number>>({})
+  const usenetServers = ref<UsenetServerLoad[]>([])
   const globalRate = ref(0)
   /** Seconds until the queue is through at the current rate; `null` when no honest figure exists. */
   const queueEta = ref<number | null>(null)
@@ -81,15 +85,19 @@ export const useTransfersStore = defineStore('transfers', () => {
     if (!payload || typeof payload !== 'object' || !Array.isArray(payload.downloads)) return
     const rates: Record<string, number> = {}
     const etas: Record<string, number> = {}
+    const connections: Record<string, number> = {}
     for (const entry of payload.downloads) {
       rates[entry.id] = entry.bytes_per_second
       if (entry.eta_seconds !== null && entry.eta_seconds !== undefined) etas[entry.id] = entry.eta_seconds
+      if (entry.connections) connections[entry.id] = entry.connections
     }
     const hostWaits: Record<string, string> = {}
     for (const wait of payload.waiting_for_host ?? []) hostWaits[wait.id] = wait.host
     downloadRates.value = rates
     downloadEtas.value = etas
     downloadHostWaits.value = hostWaits
+    downloadConnections.value = connections
+    usenetServers.value = payload.usenet_servers ?? []
     globalRate.value = payload.bytes_per_second ?? 0
     queueEta.value = payload.eta_seconds ?? null
   }
@@ -410,6 +418,8 @@ export const useTransfersStore = defineStore('transfers', () => {
     downloadRates,
     downloadEtas,
     downloadHostWaits,
+    downloadConnections,
+    usenetServers,
     downloads,
     error,
     notice,

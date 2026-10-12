@@ -80,9 +80,6 @@
   "popupOptions": {
     "message": "Ajustes"
   },
-  "sentFromPopup": {
-    "message": "Enviado al LinkGrabber."
-  },
   "noPageUrl": {
     "message": "La pestaña actual no tiene dirección web."
   },

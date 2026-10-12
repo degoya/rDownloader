@@ -13,6 +13,7 @@ mod capacity;
 mod collision;
 #[cfg(test)]
 mod collision_tests;
+mod connections;
 mod content_index;
 mod control;
 mod dispatch;
@@ -72,6 +73,7 @@ use url::Url;
 use active::ActiveState;
 pub use bandwidth::{BandwidthService, BandwidthStatus};
 pub use block::BlockReason;
+pub use connections::{LiveConnections, ServerConnections};
 pub use content_index::ContentIndexCheck;
 pub use control::NzbDropped;
 pub use enqueue::{FileSpec, PackageSpec, ReplaySpec, SecretFragmentSpec};

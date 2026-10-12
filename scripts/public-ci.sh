@@ -14,12 +14,19 @@
 #   scripts/public-ci.sh integration/1.4-w4 --platforms linux,windows   # the wave's gate
 #   scripts/public-ci.sh integration/1.4-w4                             # all three platforms
 #   scripts/public-ci.sh fix/x --platforms windows-2025                 # a runner image by name
+#   scripts/public-ci.sh integration/1.4-w4 --platforms linux,windows --release-workflows
+#
+# --release-workflows (RD-1270-10) dispatches beside ci.yml the release workflows
+# (RD_PUBLIC_CI_RELEASE_WORKFLOWS: e2e, recovery, self-update, installers, each with its defaults)
+# that no green covers, waits for them with it and records their greens per file name and tree:
+# `integrate.sh --public-ci` passes it, so the release candidate finds them on record and runs
+# only what is left. A red job or run ends the wait at once, naming it.
 #
 # Not twice (RD-160-06): a platform already green for the branch's tree, or for a tree that
 # differs from it only in documentation and version lines, is not run again; with every named
 # platform green nothing is exported at all. The export's commit carries `[skip ci]` and ci.yml
-# is started by hand with its `platforms` input for the rest, so exactly one run is watched; its
-# green is recorded per platform. With Linux and Windows green on record its `jobs` input is `[]`:
+# is started by hand with its `platforms` input for the rest, so exactly one run is watched (and one
+# per release workflow with --release-workflows); its green is recorded per platform. With Linux and Windows green on record its `jobs` input is `[]`:
 # the once-per-run jobs passed with them (RD-1120-07). The plan, the export, the wait, the record and the deletion
 # are the ones the release pipeline's `public-ci` step uses (scripts/lib/public-ci.sh).
 #
@@ -35,14 +42,16 @@ source "$ROOT/scripts/lib/public-ci.sh"
 source "$ROOT/scripts/lib/workspace-version.sh"
 cd "$ROOT"
 
-usage() { echo "usage: scripts/public-ci.sh <branch> [--platforms linux,windows,macos]" >&2; exit 2; }
+usage() { echo "usage: scripts/public-ci.sh <branch> [--platforms linux,windows,macos] [--release-workflows]" >&2; exit 2; }
 
 branch=""
 platforms=""
+release_workflows=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --platforms) platforms="${2:?--platforms needs a list}"; shift 2 ;;
-        -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
+        --release-workflows) release_workflows=1; shift ;;
+        -h|--help) sed -n '2,35p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; usage ;;
         *) [[ -z "$branch" ]] || usage; branch="$1"; shift ;;
     esac
@@ -64,21 +73,37 @@ version="${version%%[-+]*}"
 [[ -n "$version" ]] || { echo "no workspace version in $branch:Cargo.toml" >&2; exit 1; }
 
 echo "==> $branch (${commit:0:12}, tree ${tree:0:12}) on GitHub"
+checked=("${images[@]}")
+workflows=()
+if [[ "$release_workflows" -eq 1 ]]; then
+    checked+=("${RD_PUBLIC_CI_RELEASE_WORKFLOWS[@]}")
+    rd_public_ci_plan "$ROOT" "$tree" "${RD_PUBLIC_CI_RELEASE_WORKFLOWS[@]}"
+    workflows=(${RD_PUBLIC_CI_MISSING[@]+"${RD_PUBLIC_CI_MISSING[@]}"})
+fi
 rd_public_ci_plan "$ROOT" "$tree" "${images[@]}"
-if [[ ${#RD_PUBLIC_CI_MISSING[@]} -eq 0 ]]; then
-    echo "==> $branch (${commit:0:12}) is green on GitHub (${images[*]}) already; nothing was run"
+missing=(${RD_PUBLIC_CI_MISSING[@]+"${RD_PUBLIC_CI_MISSING[@]}"} ${workflows[@]+"${workflows[@]}"})
+if [[ ${#missing[@]} -eq 0 ]]; then
+    echo "==> $branch (${commit:0:12}) is green on GitHub (${checked[*]}) already; nothing was run"
     exit 0
 fi
-platforms_json="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[*]}")")"
+platforms_json=""
+if [[ ${#RD_PUBLIC_CI_MISSING[@]} -gt 0 ]]; then
+    platforms_json="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[*]}")")"
+fi
 
 rd_public_ci_gh_ready
 scripts/export-public.sh "$version" --ref "$commit" --branch "$public_branch" --skip-push-ci
 sha="$(git -C "$PUBLIC_DIR" rev-parse "refs/heads/$public_branch")"
-rd_public_ci_dispatch "$public_branch" "$platforms_json" "$(rd_public_ci_once_jobs "$ROOT" "$tree")"
+if [[ -n "$platforms_json" ]]; then
+    rd_public_ci_dispatch "$public_branch" "$platforms_json" "$(rd_public_ci_once_jobs "$ROOT" "$tree")"
+fi
+for workflow in ${workflows[@]+"${workflows[@]}"}; do
+    rd_public_ci_dispatch_workflow "$public_branch" "$workflow"
+done
 if ! rd_public_ci_wait "$public_branch" "$sha" workflow_dispatch; then
     echo "!! $branch is not green on GitHub; it is not merged until it is." >&2
     exit 1
 fi
-rd_record_ci "$ROOT" "$tree" "${RD_PUBLIC_CI_MISSING[@]}"
+rd_record_ci "$ROOT" "$tree" "${missing[@]}"
 rd_public_ci_delete "$public_branch"
-echo "==> $branch (${commit:0:12}) is green on GitHub (${images[*]}); recorded for ${RD_PUBLIC_CI_MISSING[*]}"
+echo "==> $branch (${commit:0:12}) is green on GitHub (${checked[*]}); recorded for ${missing[*]}"

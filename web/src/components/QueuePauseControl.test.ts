@@ -98,6 +98,14 @@ describe('QueuePauseControl', () => {
     expect(queuePause.active).toBe(false)
   })
 
+  it('names its key for assistive technology as the other navbar actions do', async () => {
+    const { transfers } = mount()
+    transfers.downloads = [{ id: 'd1', package_id: 'p1', state: 'queued', committed_bytes: 0, total_bytes: null }] as never
+    const pause = await screen.findByRole('button', { name: 'Pause all' })
+    expect(pause.getAttribute('title')).toBe('Pause all (P)')
+    expect(pause.getAttribute('aria-keyshortcuts')).toBe('p')
+  })
+
   it('shows a refusal where the list shows its errors', async () => {
     vi.mocked(api.PUT).mockResolvedValue({ data: undefined } as never)
     const { transfers } = mount()

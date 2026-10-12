@@ -129,6 +129,17 @@ refused "prose" "Many things got better." "is not a list of points"
 refused "prose beside points" "$(printf 'An intro.\n\n- A point.')" "mixes points with other text"
 refused "an empty section" "" "has no points"
 
+# An empty draft — the next version's section as release-docs.sh --next-draft starts it — passes
+# until its release (RD-1270-15).
+printf '# Release notes\n\n## 3.1.0\n\n<!-- draft: the notes of the version in the making -->\n\n## 3.0.0\n\n- One.\n' \
+    > "$TREE/RELEASE-NOTES.md"
+run_status check
+expect_status "an empty draft passes" 0
+expect_output "an empty draft is named" "RELEASE-NOTES.md: 3.1.0 is a draft"
+run_status check --version 3.1.0
+expect_status "the release of an empty draft: exit 1" 1
+expect_output "an empty draft at its release is still a draft" "the section 3.1.0 is still a draft"
+
 # What passes: a version, a domain, "and/or", a time.
 printf '# Release notes\n\n## 3.0.0\n\n%s\n' \
     "- Version 3.0 checks example.com and/or its mirrors at 10:30." > "$TREE/RELEASE-NOTES.md"

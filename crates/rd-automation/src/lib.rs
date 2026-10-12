@@ -6,10 +6,12 @@
 
 #![warn(unreachable_pub)]
 
+mod admission;
 mod condition;
 mod model;
 mod schedule;
 
+pub use admission::admits;
 pub use condition::{ConditionError, ConditionNode, EventContext, Field, Operator, Predicate};
 pub use model::{
     Action, Automation, AutomationVersion, DefinitionError, LinkDestination, MAX_ACTION_LINKS,

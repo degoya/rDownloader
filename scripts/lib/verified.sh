@@ -86,11 +86,15 @@ rd_verified_gate() {
 # half; the gate wants both halves on the same tree.
 
 # The tree of the working state of checkout $1: HEAD plus every change, tracked or not, that
-# git does not ignore. Built in a copy of the index, so nothing the user staged is touched.
+# git does not ignore. Built in a copy of the index, so nothing the user staged is touched. The
+# copy keeps the index's modification time (cp -p): git takes a file whose stat data matches its
+# entry as unchanged unless the entry is as new as the index, so a copy dated now passed over a
+# same-size rewrite in the second of the last index write and named a tree that was not the
+# working state (RD-1270-06, check-reuse-crates.sh under load).
 rd_worktree_tree() {
     local root="$1" index status=0 tree
     index="$(mktemp)"
-    cp "$(git -C "$root" rev-parse --path-format=absolute --git-path index)" "$index" 2> /dev/null || rm -f "$index"
+    cp -p "$(git -C "$root" rev-parse --path-format=absolute --git-path index)" "$index" 2> /dev/null || rm -f "$index"
     tree="$(GIT_INDEX_FILE="$index" git -C "$root" add -A > /dev/null 2>&1 \
         && GIT_INDEX_FILE="$index" git -C "$root" write-tree)" || status=$?
     rm -f "$index"
@@ -100,7 +104,7 @@ rd_worktree_tree() {
 # The full-green marker file of checkout $1. It also keeps the Windows lint's green, as the half
 # `windows` (check.sh --windows, RD-160-06); the gates read only `rust` and `web`.
 rd_full_marker() {
-    printf '%s/.rd-verified-full/%s\n' "$(rd_target_dir "$1")" "$(printf '%s' "$1" | tr '/' '%')"
+    printf '%s/.rd-verified-full/%s\n' "$(rd_target_dir "$1")" "${1//\//%}"
 }
 
 # Records that a --full run covered half $2 (`rust` or `web`) of tree $3 in checkout $1.
@@ -128,10 +132,98 @@ rd_tree_docs_only() {
 # Whether tree $3 differs from tree $4 of checkout $1 only in paths half $2 does not read
 # (rd_paths_read_by, audit C1): the generated web files of integrate.sh's commit after the gate
 # are nothing the Windows lint reads, so its green of the gate's tree still covers the merged one.
+# One process, the diff: each path is weighed in bash (rd_path_read_by, RD-1270-06).
 rd_tree_unread_by() {
-    local changes
+    local changes path
     changes="$(git -C "$1" diff --no-renames --name-only "$3" "$4" 2> /dev/null)" || return 1
-    [[ -z "$(rd_paths_read_by "$2" <<< "$changes")" ]]
+    rd_read_patterns_load
+    while IFS= read -r path; do
+        ! rd_path_read_by "$2" "$path" || return 1
+    done <<< "$changes"
+}
+
+# --- the recorded greens rd_full_covering compares a tree with (RD-1270-06) -------------------
+#
+# One list per shell. Until 1.27 every call read every marker under <target>/.rd-verified-full/
+# again, sorted the trees by hash and walked all of them — on 2026-10-12 161 preflight and 61 Rust greens,
+# one `git diff` and six more processes each — and a check.sh run asks five times or more (each
+# half of the reuse plan, the preflight, rd_full_already_green, the gate's lints, the release
+# chain's three pre-bump questions).
+#
+#   * The list is read once per shell and read again only when a marker changed: every call reads
+#     the markers in bash, without a process, and compares them with what the list was built from;
+#     only a change costs the one `ls -t` that orders them. A caller that asks from command
+#     substitutions loads it first (rd_full_candidates_load), so they all share it.
+#   * Newest first, by the time its marker was last written (the checkout's latest green of any
+#     half): a tree never comes behind one whose marker was written before its own. Markers of
+#     the same time come by name, bytewise (ls -t's tie-break under LC_ALL=C), so one set of
+#     markers gives one order on every machine and locale.
+#   * Capped: rd_full_covering diffs at most RD_FULL_CANDIDATES_MAX trees of a half (default 32).
+#     A marker keeps one tree per half and checkout, and a green that covers a tree is in practice
+#     one of the last few — the integration branch's, the checkout's own, the tree before the
+#     bump. 32 is more than a wave's worktrees, its integration branch and the main checkout
+#     together: a green is passed over only after 32 other trees of its half were recorded in
+#     markers written since. The very tree is still found among all of them, without a diff.
+
+RD_FULL_CANDIDATES_MAX="${RD_FULL_CANDIDATES_MAX:-32}"
+
+# The list: the checkout and target it was asked for, the marker directory and the markers it was
+# built from, and per half the recorded trees, newest first, one per line, each once.
+RD_FULL_CANDIDATES_FOR=""
+RD_FULL_CANDIDATES_DIRECTORY=""
+RD_FULL_CANDIDATES_SIGNATURE=""
+declare -gA RD_FULL_CANDIDATES=()
+
+# Loads the list for the target directory of checkout $1, unless it is loaded and no marker changed
+# since; also builds the patterns rd_path_read_by reads. Without a process when nothing changed.
+rd_full_candidates_load() {
+    local marker directory file name content signature="" names line half tree
+    local -A marker_texts=() candidate_seen=() marker_placed=()
+    local -a markers_globbed=() markers_ordered=()
+    rd_read_patterns_load
+    # Where the markers lie costs git processes (rd_target_dir); asked once per checkout and target.
+    if [[ "$1|${CARGO_TARGET_DIR:-}" == "$RD_FULL_CANDIDATES_FOR" ]]; then
+        directory="$RD_FULL_CANDIDATES_DIRECTORY"
+    else
+        marker="$(rd_full_marker "$1")"
+        directory="${marker%/*}"
+    fi
+    if [[ -d "$directory" ]]; then
+        for file in "$directory"/*; do
+            [[ -f "$file" ]] || continue
+            name="${file##*/}" content=""
+            { IFS= read -r -d '' content < "$file"; } 2> /dev/null || true
+            marker_texts["$name"]="$content"
+            markers_globbed+=("$name")
+            signature+="$name"$'\n'"$content"$'\x1e'
+        done
+    fi
+    RD_FULL_CANDIDATES_FOR="$1|${CARGO_TARGET_DIR:-}"
+    [[ "$directory" != "$RD_FULL_CANDIDATES_DIRECTORY" || "$signature" != "$RD_FULL_CANDIDATES_SIGNATURE" ]] \
+        || return 0
+    RD_FULL_CANDIDATES=()
+    RD_FULL_CANDIDATES_DIRECTORY="$directory"
+    RD_FULL_CANDIDATES_SIGNATURE="$signature"
+    [[ ${#markers_globbed[@]} -gt 0 ]] || return 0
+    # shellcheck disable=SC2012  # the order by modification time is what is asked; the names are ours
+    names="$(LC_ALL=C ls -t -- "$directory" 2> /dev/null)" || true
+    while IFS= read -r name; do
+        [[ -n "$name" && -n "${marker_texts[$name]+x}" && -z "${marker_placed[$name]+x}" ]] || continue
+        markers_ordered+=("$name")
+        marker_placed["$name"]=1
+    done <<< "$names"
+    # A marker written between the glob and ls goes last rather than nowhere.
+    for name in "${markers_globbed[@]}"; do [[ -n "${marker_placed[$name]+x}" ]] || markers_ordered+=("$name"); done
+    for name in "${markers_ordered[@]}"; do
+        while IFS= read -r line; do
+            [[ "$line" == *' '* ]] || continue
+            half="${line%% *}" tree="${line#* }"
+            [[ -z "${candidate_seen["$half $tree"]+x}" ]] || continue
+            candidate_seen["$half $tree"]=1
+            RD_FULL_CANDIDATES["$half"]+="$tree"$'\n'
+        done <<< "${marker_texts[$name]}"
+    done
+    return 0
 }
 
 # The tree a green of half $2 was recorded for that covers tree $3 of checkout $1: that very tree,
@@ -139,31 +231,33 @@ rd_tree_unread_by() {
 # for every half; prints nothing when there is none. Every checkout that shares the target
 # directory counts, not only $1 (RD-160-06): a tree is content, and the integration worktree's
 # green is development's after the fast-forward merge — the release chain of 2026-09-28 ran
-# --full again for want of this and of the documentation rule.
+# --full again for want of this and of the documentation rule. The candidates come newest first
+# from the shell's one list, and at most RD_FULL_CANDIDATES_MAX of them are diffed, one git
+# process each; the very tree is looked up among all (rd_full_candidates_load, RD-1270-06).
 rd_full_covering() {
-    local root="$1" half="$2" tree="$3" recorded candidate
+    local root="$1" half="$2" tree="$3" candidate compared=0
     [[ -n "$tree" ]] || return 0
-    recorded="$(rd_full_recorded "$root" "$half")"
-    if grep -qxF "$tree" <<< "$recorded"; then
+    rd_full_candidates_load "$root"
+    if [[ $'\n'"${RD_FULL_CANDIDATES[$half]-}" == *$'\n'"$tree"$'\n'* ]]; then
         printf '%s\n' "$tree"
         return 0
     fi
-    while read -r candidate; do
+    while IFS= read -r candidate; do
         [[ -n "$candidate" ]] || continue
+        [[ "$compared" -lt "$RD_FULL_CANDIDATES_MAX" ]] || return 0
+        compared=$((compared + 1))
         if rd_tree_unread_by "$root" "$half" "$candidate" "$tree"; then
             printf '%s\n' "$candidate"
             return 0
         fi
-    done <<< "$recorded"
+    done <<< "${RD_FULL_CANDIDATES[$half]-}"
 }
 
 # Every tree a green of half $2 was recorded for by any checkout sharing the target directory of
-# checkout $1, one per line, sorted.
+# checkout $1, one per line, each once, newest first (rd_full_candidates_load).
 rd_full_recorded() {
-    local directory
-    directory="$(dirname "$(rd_full_marker "$1")")"
-    [[ -d "$directory" ]] || return 0
-    cat "$directory"/* 2> /dev/null | sed -n "s/^$2 //p" | sort -u || true
+    rd_full_candidates_load "$1"
+    printf '%s' "${RD_FULL_CANDIDATES[$2]-}"
 }
 
 # How recorded tree $3 of half $2 relates to tree $4 in checkout $1, for a message.
@@ -185,6 +279,7 @@ rd_covering_note() {
 rd_full_gate() {
     local root="$1" label="$2" tree half recorded missing=() docs=0
     tree="$(rd_worktree_tree "$root")"
+    rd_full_candidates_load "$root"
     for half in rust web; do
         recorded="$(rd_full_covering "$root" "$half" "$tree")"
         if [[ -z "$recorded" ]]; then
@@ -216,6 +311,7 @@ rd_full_already_green() {
     [[ $# -gt 0 ]] || return 1
     tree="$(rd_worktree_tree "$root")"
     [[ -n "$tree" ]] || return 1
+    rd_full_candidates_load "$root"
     for half in "$@"; do
         recorded="$(rd_full_covering "$root" "$half" "$tree")"
         [[ -n "$recorded" ]] || return 1
@@ -232,15 +328,25 @@ rd_full_already_green() {
 #
 # The release chain bumps the version and then ran the whole Rust suite again, ~20 minutes, on a
 # tree that differs from one a `check.sh --full` had just passed only in the version strings.
-# The version files are what scripts/set-version.sh writes; a bump counts as version-only when
-# every line it changed in them is a `version` line, so an edit that rode along in Cargo.toml or
-# Cargo.lock still gets its full run.
-RD_VERSION_FILES=(Cargo.toml Cargo.lock web/package.json extension/manifest.base.json web/openapi.json
-    sdk/ci/plugin.yml sdk/ci/repository.yml)
+# The version files are what scripts/set-version.sh writes, RD_VERSION_FILES — paths and globs,
+# the one list both read (lib/workspace-version.sh, RD-1270-09); a bump counts as version-only
+# when every line it changed in them is a `version` line, so an edit that rode along in
+# Cargo.toml or Cargo.lock still gets its full run.
 
-# rd_workspace_version: the workspace version in the Cargo.toml text on stdin.
+# rd_workspace_version: the workspace version in the Cargo.toml text on stdin; RD_VERSION_FILES.
 # shellcheck source=workspace-version.sh
 source "$(dirname "${BASH_SOURCE[0]}")/workspace-version.sh"
+
+# Whether path $1 is one of RD_VERSION_FILES, a glob entry matched as a pattern; a Windows `\`
+# separator counts as `/`.
+rd_is_version_file() {
+    local file path="${1//\\//}"
+    for file in "${RD_VERSION_FILES[@]}"; do
+        # shellcheck disable=SC2053  # the entry is a glob on purpose
+        [[ "$path" == $file ]] && return 0
+    done
+    return 1
+}
 
 # Whether the working tree of checkout $1 differs from $2 (default HEAD) only by a version bump:
 # nothing untracked, no path but the version files, and in them no line but one that carried
@@ -248,13 +354,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/workspace-version.sh"
 # Cargo.lock looks the same and is exactly what must not pass, so the versions are compared, not
 # just the key.
 rd_version_bump_only() {
-    local root="$1" base="${2:-HEAD}" changed old new path file allowed
+    local root="$1" base="${2:-HEAD}" changed old new path
     changed="$({ git -C "$root" diff --no-renames --name-only "$base"; git -C "$root" ls-files --others --exclude-standard; } | sed '/^$/d' | sort -u)"
     [[ -n "$changed" ]] || return 1
     while read -r path; do
-        allowed=0
-        for file in "${RD_VERSION_FILES[@]}"; do [[ "$path" == "$file" ]] && allowed=1; done
-        [[ "$allowed" -eq 1 ]] || return 1
+        rd_is_version_file "$path" || return 1
     done <<< "$changed"
     old="$(git -C "$root" show "$base:Cargo.toml" 2> /dev/null | rd_workspace_version)"
     new="$(rd_workspace_version < "$root/Cargo.toml")"
@@ -266,15 +370,16 @@ rd_version_bump_only() {
 # it added carries $2. A JSON line may carry the version without its pre-release suffix, as
 # extension/manifest.base.json does (a browser takes integers only; scripts/set-version.sh), so
 # 1.7.0 -> 1.8.0-beta.1 writes `"version": "1.8.0"` there. The TOML form stays exact: a
-# dependency in Cargo.lock that happens to sit at the base version must not pass. So does the
-# SDK workflows' `RDOWNLOADER_VERSION:` pin, which names the release tag, suffix included.
+# dependency in Cargo.lock that happens to sit at the base version must not pass. So do the
+# SDK workflows' `RDOWNLOADER_VERSION:` pin, which names the release tag, suffix included, and
+# the SDK templates' `min_app_version` (RD-1270-09).
 rd_version_lines_only() {
     local old new old_base new_base lines
     old="$(rd_version_pattern "$1")" new="$(rd_version_pattern "$2")"
     old_base="$(rd_version_pattern "${1%%[-+]*}")" new_base="$(rd_version_pattern "${2%%[-+]*}")"
     lines="$(grep -E '^[-+]' | grep -vE '^(\+\+\+|---) ' || true)"
-    ! grep -vE "^-[[:space:]]*(\"version\": \"($old|$old_base)\",?|version = \"$old\"|RDOWNLOADER_VERSION: $old)\$" <<< "$lines" \
-        | grep -qvE "^\+[[:space:]]*(\"version\": \"($new|$new_base)\",?|version = \"$new\"|RDOWNLOADER_VERSION: $new)\$"
+    ! grep -vE "^-[[:space:]]*(\"version\": \"($old|$old_base)\",?|(min_app_)?version = \"$old\"|RDOWNLOADER_VERSION: $old)\$" <<< "$lines" \
+        | grep -qvE "^\+[[:space:]]*(\"version\": \"($new|$new_base)\",?|(min_app_)?version = \"$new\"|RDOWNLOADER_VERSION: $new)\$"
 }
 
 # Version $1 as an extended regular expression matching exactly it.
@@ -324,13 +429,11 @@ rd_ci_record_file() {
 # version files every changed line carried the workspace version of $2 and carries the one of $3.
 # The version files as a whole are compared, so a dependency moved in Cargo.lock does not pass.
 rd_tree_same_but_versions() {
-    local root="$1" from="$2" to="$3" changes path file allowed version_files=0 old new
+    local root="$1" from="$2" to="$3" changes path version_files=0 old new
     changes="$(git -C "$root" diff --name-only "$from" "$to" 2> /dev/null)" || return 1
     while read -r path; do
         [[ -n "$path" ]] || continue
-        allowed=0
-        for file in "${RD_VERSION_FILES[@]}"; do [[ "$path" == "$file" ]] && allowed=1; done
-        [[ "$allowed" -eq 1 ]] || return 1
+        rd_is_version_file "$path" || return 1
         version_files=1
     done < <(rd_non_doc_paths <<< "$changes")
     [[ "$version_files" -eq 1 ]] || return 0

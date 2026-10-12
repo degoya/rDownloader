@@ -18,7 +18,8 @@ import type {
   AutomationCondition,
   AutomationDryRun,
   DownloadPackage,
-  NotificationTarget
+  NotificationTarget,
+  StorageRoot
 } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
@@ -53,6 +54,12 @@ const versionsModal = useOverlay().create(AutomationVersionsModal)
 const { categories, fetchCategories } = useCategories()
 const packages = ref<DownloadPackage[]>([])
 const targets = ref<NotificationTarget[]>([])
+const storageRoots = ref<StorageRoot[]>([])
+/** The storage threshold's targets by key (RD-1270-18): every root, then the download directory. */
+const storageTargets = computed(() => [
+  ...storageRoots.value.map(root => ({ value: root.id, label: root.name })),
+  { value: 'fallback', label: t('automation.storage_target_fallback') }
+])
 const editing = ref<string | null>(null)
 const creating = ref(false)
 const formElement = ref<HTMLElement | null>(null)
@@ -104,13 +111,15 @@ onMounted(() => store.connectEvents())
 onUnmounted(() => store.disconnectEvents())
 
 async function loadReferences(): Promise<void> {
-  const [, packageResponse, targetResponse] = await Promise.all([
+  const [, packageResponse, targetResponse, rootResponse] = await Promise.all([
     fetchCategories(),
     api.GET('/api/v1/packages'),
-    api.GET('/api/v1/notifications/targets')
+    api.GET('/api/v1/notifications/targets'),
+    api.GET('/api/v1/storage-roots')
   ])
   if (packageResponse.data) packages.value = packageResponse.data
   if (targetResponse.data) targets.value = targetResponse.data
+  if (rootResponse.data) storageRoots.value = rootResponse.data
 }
 
 function startCreate(): void {
@@ -277,6 +286,7 @@ function runsOf(id: string) {
                 :vocabulary="store.vocabulary"
                 :depth="0"
                 :numeric-fields="NUMERIC_FIELDS"
+                :storage-targets="storageTargets"
               />
 
               <h3 class="mt-5 mb-2 text-sm font-medium text-highlighted">

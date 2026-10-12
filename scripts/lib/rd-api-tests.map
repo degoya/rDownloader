@@ -103,7 +103,7 @@
 ^crates/rd-api(-[a-z]+)?/src/(diagnostics_[a-z_]+|routes/diagnostics)(\.rs$|/)                diagnostics data_reset log_level
 # The log level and a debug window (RD-1260-12).
 ^crates/rd-api(-[a-z]+)?/src/log_level_handlers(\.rs$|/)                                      log_level diagnostics mcp scope_matrix
-^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)(\.rs$|/)                        api_tokens audit auto_remove bulk_filter bulk_pause category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets download_list address_rule
+^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)(\.rs$|/)                        api_tokens audit auto_remove bulk_filter bulk_pause category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets download_list address_rule usenet_connections
 ^crates/rd-api(-[a-z]+)?/src/download_sources(\.rs$|/)                                        source_sets scope_matrix mcp
 ^crates/rd-api(-[a-z]+)?/src/hotfolder_service(\.rs$|/)                                       hotfolder_poll
 ^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)(\.rs$|/)                 media_cookie_profile media_manifest indexer_search torznab_search
@@ -155,7 +155,7 @@
 ^crates/rd-api(-[a-z]+)?/src/(restart_service|restart_auto|restart_state|restart_handlers)(\.rs$|/)   restart capture_server_update scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/capture_agents(\.rs$|/)                                         updates
 ^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)(\.rs$|/)                        torrent compat_qbittorrent compat_arr container_json service_switches capture_file
-^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)(\.rs$|/)                         nzb_paused nzb_remote_job container_json indexers compat_sabnzbd unique_names unreadable_secrets
+^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)(\.rs$|/)                         nzb_paused nzb_remote_job container_json indexers compat_sabnzbd unique_names unreadable_secrets usenet_connections
 ^crates/rd-api(-[a-z]+)?/src/nzb_remote_job_handlers(\.rs$|/)                                nzb_remote_job
 
 # The modules no row named until RD-1120-08 (35 sources fell back to every suite), from the routes
@@ -179,7 +179,7 @@
 # Added to whatever the rows above select; they still decide the rest of each path.
 ^crates/rd-api(-[a-z]+)?/src/(config_handlers|config_fields|remote_handlers|object_storage_(handlers|fields)|notify_(handlers|service)|backup_[a-z_]+|settings_backup[a-z_]*|diagnostics_[a-z_]+|captcha_handlers|api_tokens|auth_profile_handlers|usenet_handlers|login_handlers|password_handlers|password_reset_handlers|event_stream|oidc_handlers|oidc_settings_handlers|oidc_client)(\.rs$|/)   + canaries
 ^crates/(rd-secrets|rd-diagnostics|rd-backup|rd-notify|rd-object-storage|rd-ftp)/src/        + canaries
-^crates/(rd-secrets|rd-usenet)/src/                                                       + unreadable_secrets
+^crates/(rd-secrets|rd-usenet)/src/                                                       + unreadable_secrets usenet_connections
 
 # --- rd-core, by domain module ----------------------------------------------------------------
 # failpoint.rs compiles to nothing without its feature; the crash matrix is its test.

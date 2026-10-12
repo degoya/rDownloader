@@ -78,7 +78,9 @@ pub enum Trigger {
     ScriptFinished,
     /// An upload step finished.
     UploadFinished,
-    /// A storage root started or stopped blocking on its free-space threshold.
+    /// A storage root started or stopped blocking on its free-space threshold. The condition
+    /// field `change` says which (`blocked`, `released`); a rule whose condition does not name
+    /// it runs on the block only (RD-1270-04, [`crate::admits`]).
     StorageThreshold,
     /// A subscription accepted a new item.
     SubscriptionItem,

@@ -7,9 +7,6 @@ use utoipa::ToSchema;
 
 use crate::{AppState, error::ApiError};
 
-/// Path segment addressing the service download directory, which has no root id.
-const FALLBACK_SEGMENT: &str = "fallback";
-
 /// Why a target is holding back work; all four numbers are shown verbatim in the UI.
 #[derive(Serialize, ToSchema)]
 pub struct CapacityShortfallResponse {
@@ -74,10 +71,10 @@ pub async fn storage_capacity(
                 StorageTarget::Root(id) => Some(id),
                 StorageTarget::Fallback => None,
             },
-            target: segment_of(target),
+            target: target.key(),
             name: match target {
                 StorageTarget::Root(id) => names.get(&id).cloned().unwrap_or_default(),
-                StorageTarget::Fallback => "Downloads".to_owned(),
+                StorageTarget::Fallback => StorageTarget::FALLBACK_NAME.to_owned(),
             },
             path: path.to_string_lossy().into_owned(),
             free_bytes: free.and_then(|value| rd_core::ByteCount::new(value).ok()),
@@ -145,15 +142,8 @@ pub async fn ensure_intake_allowed(
     .with_param("minimum_free_bytes", shortfall.minimum_free_bytes))
 }
 
-fn segment_of(target: StorageTarget) -> String {
-    match target {
-        StorageTarget::Root(id) => id.to_string(),
-        StorageTarget::Fallback => FALLBACK_SEGMENT.to_owned(),
-    }
-}
-
 fn parse_target(value: &str) -> Result<StorageTarget, ApiError> {
-    if value == FALLBACK_SEGMENT {
+    if value == StorageTarget::FALLBACK_KEY {
         return Ok(StorageTarget::Fallback);
     }
     value.parse::<rd_core::StorageRootId>().map_or_else(
@@ -171,17 +161,17 @@ fn parse_target(value: &str) -> Result<StorageTarget, ApiError> {
 mod tests {
     use rd_files::StorageTarget;
 
-    use super::{parse_target, segment_of};
+    use super::parse_target;
 
     #[test]
     fn a_target_survives_the_round_trip_through_its_path_segment() {
         let id = rd_core::StorageRootId::new();
         assert_eq!(
-            parse_target(&segment_of(StorageTarget::Root(id))).expect("root"),
+            parse_target(&StorageTarget::Root(id).key()).expect("root"),
             StorageTarget::Root(id)
         );
         assert_eq!(
-            parse_target(&segment_of(StorageTarget::Fallback)).expect("fallback"),
+            parse_target(&StorageTarget::Fallback.key()).expect("fallback"),
             StorageTarget::Fallback
         );
         assert!(parse_target("not-a-target").is_err());

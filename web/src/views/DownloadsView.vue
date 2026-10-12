@@ -50,6 +50,7 @@ import { usePublishedSelection } from '@/stores/selection'
 import { RESETTABLE_STATES, useTransfersStore } from '@/stores/transfers'
 import { DOWNLOADS_NAV_TITLE, DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
 import { hasExtractable } from '@/utils/format'
+import { packageConnections } from '@/utils/usenetConnections'
 
 const { t } = useI18n()
 const transfers = useTransfersStore()
@@ -397,6 +398,7 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
                 :control-busy="packageControlBusy[row.group.package.id] ?? null"
                 :remote-targets="nzbHandOver.targets.value"
                 :handed-over-to="nzbHandOver.packageHandedOverTo(row.group.package)"
+                :connections="packageConnections(row.group.downloads, transfers.downloadConnections, transfers.usenetServers)"
                 @select="selection.pickPackage"
                 @toggle="openPackages.toggle"
                 @open-all="openPackages.openAll"
@@ -427,6 +429,7 @@ async function addDownload(payload: DirectAddPayload): Promise<void> {
                 :bytes-per-second="transfers.downloadRates[row.download.id] ?? 0"
                 :eta-seconds="transfers.downloadEtas[row.download.id] ?? null"
                 :waiting-for-host="transfers.downloadHostWaits[row.download.id] ?? null"
+                :connections="transfers.downloadConnections[row.download.id] ?? null"
                 :destination="row.group.package.destination"
                 :account-label="accountLabel(row.download.account_id)"
                 :selected="selection.selectedFiles.value.has(row.download.id)"

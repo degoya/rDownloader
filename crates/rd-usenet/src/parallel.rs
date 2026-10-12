@@ -94,6 +94,7 @@ impl FileLoad {
         OpenArticles {
             load: Some(Arc::clone(self)),
             left: AtomicUsize::new(articles),
+            lines: None,
         }
     }
 
@@ -118,6 +119,8 @@ pub(crate) struct OpenArticles {
     /// `None` for a file nobody counts - a direct call outside the runner.
     load: Option<Arc<FileLoad>>,
     left: AtomicUsize,
+    /// Where the lines carrying the file's requests are counted (RD-1270-21).
+    lines: Option<Arc<crate::connections::FileGauge>>,
 }
 
 impl OpenArticles {
@@ -127,7 +130,19 @@ impl OpenArticles {
         Self {
             load: None,
             left: AtomicUsize::new(0),
+            lines: None,
         }
+    }
+
+    /// The same handle, counting the lines the file's requests are on into `gauge`.
+    pub(crate) fn counting_lines(mut self, gauge: Arc<crate::connections::FileGauge>) -> Self {
+        self.lines = Some(gauge);
+        self
+    }
+
+    /// Where the file's lines are counted, if anywhere.
+    pub(crate) fn lines(&self) -> Option<&Arc<crate::connections::FileGauge>> {
+        self.lines.as_ref()
     }
 
     /// One article answered - delivered, missing or failed - so it is no longer open.

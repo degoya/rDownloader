@@ -120,11 +120,13 @@
     "description": "Se aplica conjuntamente a todas las descargas del mismo host; 0 elimina el límite"
   },
   "nntp_connections": {
-    "label": "Conexiones NNTP por archivo",
-    "description": "0 = tantas como permitan los servidores; un valor menor limita cada archivo",
-    "follows_servers": "Cada archivo usa todas las conexiones de cada servidor activo, actualmente {largest} en el mayor.",
-    "capped": "El mayor servidor activo permite {largest} conexiones; un archivo recibe como máximo {cap} por servidor. Con 0 las usa todas.",
-    "not_binding": "No se aplica: ningún servidor activo permite más de {largest} conexiones."
+    "label": "Conexiones NNTP por servidor",
+    "description": "0 = tantas como permitan los servidores; un valor menor reduce las conexiones por servidor que comparten todos los archivos de Usenet que se descargan a la vez",
+    "follows_servers": "Los archivos simultáneos comparten las conexiones de los proveedores ({largest} en el mayor).",
+    "capped": "El mayor servidor activo permite {largest} conexiones; los archivos simultáneos reciben juntos como máximo {cap} por servidor. Con 0 las usan todas.",
+    "not_binding": "No se aplica: ningún servidor activo permite más de {largest} conexiones.",
+    "live_even": "Ahora {files} archivo con {per} de {limit} conexiones. | Ahora {files} archivos con {per} de {limit} conexiones cada uno.",
+    "live_mixed": "Ahora {files} archivos con {busy} de {limit} conexiones en total ({split})."
   },
   "speed_limit": {
     "label": "Límite de velocidad",
@@ -1141,9 +1143,9 @@
     "description": "Se aplican siempre, sea cual sea el horario. Un perfil activo se superpone a ellos: rige el más estricto de los dos límites."
   },
   "nntp_limits": {
-    "eyebrow": "Por archivo",
+    "eyebrow": "Por servidor",
     "title": "Conexiones NNTP y archivos",
-    "description": "Las conexiones de cada proveedor, arriba, son el techo: un archivo usa como máximo las conexiones que permite cada proveedor, y el límite de aquí puede dejarlo por debajo. Los archivos de Usenet que se ejecutan a la vez comparten las conexiones de los proveedores."
+    "description": "Las conexiones de cada proveedor, arriba, son el techo. Los archivos de Usenet que se ejecutan a la vez las comparten, y el valor de aquí puede bajar las conexiones por servidor por debajo de ese techo."
   },
   "cross_link": {
     "see_also": "Ver también",

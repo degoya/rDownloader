@@ -9,6 +9,11 @@ also answers Click'n'Load 2 when no desktop agent runs (below). The capture agen
 option for clipboard monitoring and `.nzb` file association, and keeps Click'n'Load whenever it
 runs.
 
+Every hand-over is announced once, by the extension: a notification for the context menu, an
+intercepted download, a file and Click'n'Load, the popup's own status line — with the number of
+links, or why rDownloader refused them — for what the popup sends. The service marks these intakes,
+so neither the web interface nor the desktop agent announces them a second time (RD-1270-05).
+
 ## Download interception
 
 A regular browser download is paused, handed to the LinkGrabber together with the metadata
@@ -290,6 +295,26 @@ which copying a response and answering Click'n'Load take; neither reaches a site
 grant above. Chrome's build has neither, and carries `declarativeNetRequestWithHostAccess`
 instead: its session rules answer Click'n'Load, show no install warning, and act only where a
 host grant exists.
+
+### Firefox's data declaration
+
+Firefox asks every add-on to declare what it sends off the device
+(`browser_specific_settings.gecko.data_collection_permissions`, `build.mjs`). Everything goes only
+to the rDownloader you configured, but Mozilla's categories do not distinguish a self-hosted
+server, so the declaration names what travels:
+
+- **required** — `browsingActivity` (addresses of links, pages and downloads, with referrer and
+  user agent), `websiteActivity` (downloads taken over), `websiteContent` (selected text,
+  Click'n'Load's encrypted links, key, package name and archive passwords, NZB, torrent and
+  container files handed over);
+- **optional** — `authenticationInfo`: the login cookies of a session share, a session handover or
+  a site's file hand-over. It is asked for in the same click and the same browser prompt as
+  `cookies` and the site (`permissions.request({ permissions, origins, data_collection:
+  ['authenticationInfo'] })`, `src/data-collection.js`), checked again before every cookie read,
+  and given back together with `cookies`. **Without it no cookie leaves Firefox**: the share and
+  the handover end as refused, a file hand-over says its consent is incomplete. You can take it
+  back in `about:addons` → *Permissions and data*. Chrome has no such category and refuses the
+  key, so its build never sends it.
 
 The manifest's `optional_host_permissions` carries `http://*/*` and `https://*/*`. Neither is
 granted at install time and neither shows a warning; they are what makes the three per-origin

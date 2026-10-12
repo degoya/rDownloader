@@ -4,7 +4,7 @@
 # version, two plugins with a manifest and a library without one, the WIT package line, a
 # two-tool MCP policy table, every repository anchor and a four-page wiki. It moves each source in
 # turn — the version, the plugin count, the contract, the MCP tool count — and wants --check to name the stale places and the write to fix exactly
-# those; a reworded sentence has to be a refusal, not a pass.
+# those; a reworded sentence has to be a refusal, not a pass. --wiki-only writes the wiki alone.
 #
 # Pure python3 and bash: it runs in a second. check.sh runs it when scripts/lib/ or scripts/tests/
 # change, and under --full.
@@ -124,6 +124,23 @@ sed -i 's/It exposes \*\*3 tools\*\*/It offers **3 tools**/' "$WIKI/integrations
 run --check --wiki "$WIKI"
 expect_true "a reworded MCP sentence is a refusal naming the wiki page" '[[ $status -eq 2 ]] && has "$SCRATCH/out" "$WIKI/integrations/mcp-server.md: no match for the anchor"'
 sed -i 's/It offers/It exposes/' "$WIKI/integrations/mcp-server.md"
+
+# --wiki-only (RD-1270-16): the facts come from the tree, but only the wiki is written or read.
+printf 'package rdownloader:plugin@0.11.0;\n' > "$TREE/crates/rd-plugin-api/wit/rdownloader.wit"
+cp "$TREE/README.md" "$SCRATCH/readme.before"
+run --check --wiki-only "$WIKI"
+expect_true "--wiki-only --check names the stale wiki and leaves the tree out" '[[ $status -eq 1 ]] && has "$SCRATCH/out" "$WIKI/plugins/overview.md" && ! has "$SCRATCH/out" "README.md:"'
+run --wiki-only "$WIKI"
+expect_true "--wiki-only writes the wiki" '[[ $status -eq 0 ]] && has "$WIKI/plugins/overview.md" "@0.11.0"'
+expect_true "and no file of the tree" 'cmp -s "$TREE/README.md" "$SCRATCH/readme.before" && has "$TREE/README.md" "@0.10.0"'
+run --check --wiki-only "$WIKI"
+expect_true "the wiki alone is current although the tree is stale" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "(the wiki only)"'
+run --check --wiki "$WIKI" --wiki-only "$WIKI"
+expect_true "--wiki and --wiki-only together are refused" '[[ $status -eq 2 ]]'
+run --check --wiki-only
+expect_true "--wiki-only without its directory is refused" '[[ $status -eq 2 ]]'
+run --wiki "$WIKI"
+expect_true "the tree is written again" '[[ $status -eq 0 ]] && has "$TREE/README.md" "@0.11.0"'
 
 sed -i 's/the versioned contract/the contract/' "$TREE/README.md"
 run --check

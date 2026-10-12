@@ -10,6 +10,7 @@ use tokio::{
     fs::File,
     io::{AsyncSeekExt, AsyncWriteExt},
 };
+use tokio_util::sync::CancellationToken;
 
 use crate::segments::NameDeviations;
 
@@ -48,16 +49,25 @@ impl Assembly {
     }
 
     /// Writes one decoded article where its byte range says it belongs, once it is shown to
-    /// fit the file; the range it took.
+    /// fit the file; the range it took, or `None` when `shutdown` came first and nothing was
+    /// written.
     pub(super) async fn write(
         &mut self,
         decoded: &crate::DecodedArticle,
         nzb_file: &NzbFileStatus,
         limits: &rd_scheduler::RunLimits,
-    ) -> Result<(u64, u64)> {
+        shutdown: &CancellationToken,
+    ) -> Result<Option<(u64, u64)>> {
         // Paces the assembly, which back-pressures the bounded fetch stream behind it —
-        // so the NNTP transport honours the same limits as every other transport.
-        limits.bandwidth.acquire(decoded.data.len()).await?;
+        // so the NNTP transport honours the same limits as every other transport. A pause or
+        // a removal ends the wait (RD-1270-25): under a tight limit it lasts as long as the
+        // article takes at that rate, and the queue gives a removal five seconds. The quota
+        // first: a stop ends a wait, it does not throw away an article that needs none.
+        tokio::select! {
+            biased;
+            acquired = limits.bandwidth.acquire(decoded.data.len()) => acquired?,
+            () = shutdown.cancelled() => return Ok(None),
+        }
         self.deviations
             .observe(self.name.as_deref(), &decoded.metadata.name);
         validate_metadata(decoded, &mut self.name, &mut self.declared_size, nzb_file)?;
@@ -81,7 +91,7 @@ impl Assembly {
         rd_core::failpoint!("usenet.after_article_write", || {
             anyhow::anyhow!("crash point: usenet.after_article_write")
         });
-        Ok((part_begin, part_end))
+        Ok(Some((part_begin, part_end)))
     }
 }
 

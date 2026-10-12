@@ -106,7 +106,9 @@
     "state": "Status",
     "failure_code": "Fehlercode",
     "size_bytes": "Größe in Bytes",
-    "kind": "Art"
+    "kind": "Art",
+    "change": "Speicheränderung",
+    "storage_target": "Speicherziel"
   },
   "operator": {
     "equals": "ist gleich",
@@ -151,5 +153,7 @@
     "cron_help": "Minute Stunde Tag Monat Wochentag, etwa „0 6 * * 1-5“ für werktags um sechs.",
     "every_minutes": "alle {minutes} Minuten",
     "no_package": "Ein Zeitplan nennt kein Paket: Paket-Aktionen sind hier nicht wählbar."
-  }
+  },
+  "storage_threshold_help": "Läuft, wenn ein Speicherort unter seine Mindestreserve fällt. Damit die Automation läuft, wenn wieder Platz frei ist, setze die Bedingung „Speicheränderung“ gleich „released“. Für nur einen Speicherort wähle ihn unter „Speicherziel“.",
+  "storage_target_fallback": "Downloadverzeichnis"
 }

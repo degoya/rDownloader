@@ -57,6 +57,7 @@ pub struct Options {
     local_capture_fetches: bool,
     tokens: Vec<(&'static str, &'static str)>,
     stream_recheck: Option<std::time::Duration>,
+    runners: Vec<std::sync::Arc<dyn rd_scheduler::ExternalRunner>>,
 }
 
 impl Options {
@@ -99,6 +100,12 @@ impl Options {
     /// One more bearer, holding `scope` alone, besides the three every harness has.
     pub fn token(mut self, bearer: &'static str, scope: &'static str) -> Self {
         self.tokens.push((bearer, scope));
+        self
+    }
+
+    /// A runner the scheduler starts with; the harness starts with none.
+    pub fn runner(mut self, runner: std::sync::Arc<dyn rd_scheduler::ExternalRunner>) -> Self {
+        self.runners.push(runner);
         self
     }
 }
@@ -192,7 +199,7 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
         scheduler_config,
         secrets.clone(),
         None,
-        Vec::new(),
+        options.runners,
     )
     .await
     .expect("scheduler");

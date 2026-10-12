@@ -147,7 +147,12 @@
     "waiting_for_parts": "Wartet auf fehlende Dateien",
     "waiting_for_parts_title": "Die Nachbearbeitung beginnt erst, wenn alle Dateien des Pakets da sind.",
     "reset_failed": "Fehlgeschlagene und blockierte zurücksetzen",
-    "reset_failed_hint": "{count} Datei dieses Pakets | {count} Dateien dieses Pakets"
+    "reset_failed_hint": "{count} Datei dieses Pakets | {count} Dateien dieses Pakets",
+    "connections_count": "{count} Verbindung | {count} Verbindungen",
+    "connections_even": "{connections}: {files} Datei | {connections}: {files} Dateien gleichzeitig, je {per}",
+    "connections_mixed": "{connections}: {files} Dateien gleichzeitig ({split})",
+    "connections_full": "Alle {limit} Verbindungen, die die Server erlauben, sind belegt.",
+    "connections_room": "Belegt sind {busy} der {limit} Verbindungen, die die Server erlauben."
   },
   "transfer": {
     "actions_aria": "Dateiaktionen",
@@ -191,7 +196,8 @@
       "unsupported_hint": "Quellen, deren Protokoll dieser Dienst nicht abrufen kann, werden angezeigt, aber nicht genutzt."
     },
     "next_attempt": "Nächster Versuch um {time}",
-    "waiting_for_host": "Wartet auf eine Verbindung zu {host}"
+    "waiting_for_host": "Wartet auf eine Verbindung zu {host}",
+    "connections_title": "{count} Verbindung arbeitet für diese Datei | {count} Verbindungen arbeiten für diese Datei"
   },
   "summary": {
     "eyebrow": "Warteschlangen-Status",

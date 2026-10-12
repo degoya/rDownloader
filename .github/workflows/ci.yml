@@ -352,11 +352,16 @@ jobs:
         run: docker logs "${{ job.services.clamav.id }}" || true
 
   # The image the release publishes, minus the push, one leg per architecture on its own native
-  # runner: an optimised binary built here with the cache, copied into docker/Dockerfile's
-  # `prebuilt` target and smoke-tested (owner, 2026-09-26). Nothing compiles inside Docker. The
-  # profile is `release-test`, as in e2e.yml — the same optimisation without LTO and the single
-  # code unit, which cost 15-19 minutes per leg (RD-191-09); release.yml still builds and ships
-  # `release`.
+  # runner: an optimised binary built here, copied into docker/Dockerfile's `prebuilt` target and
+  # smoke-tested (owner, 2026-09-26). Nothing compiles inside Docker. The profile is
+  # `release-test` — the release's optimisation without LTO and the single code unit, which cost
+  # 15-19 minutes per leg (RD-191-09); release.yml still builds and ships `release`.
+  #
+  # No Rust cache (RD-1270-11): a cache is saved on main only, and on main this job runs only for
+  # a tree no branch checked — a release pushes one its candidate passed — so the one it restored
+  # was never there (`gh cache list`, 2026-10-12: no `v0-rust-docker-*`). Saving one elsewhere
+  # would put two legs of ~1 GB beside `rust-tests`' 5 GB in the repository's 10 GB, for a job
+  # that runs beside `rust` and ends before it (amd64 19, arm64 14 minutes, run 38230317485).
   #
   # Both legs start the binary through the portable launchers before the image is built; the arm64
   # leg is the only run that starts a Linux aarch64 binary (RD-190-12).
@@ -387,10 +392,6 @@ jobs:
           name: web-dist
           path: web/dist
       - uses: ./.github/actions/setup-rust
-      # Saved from main only, as in `rust`; one cache per architecture.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development' }}
       - name: Build the optimised binary
         run: cargo build --locked --profile release-test -p rdownloader
       - name: Smoke-test the portable Linux launchers

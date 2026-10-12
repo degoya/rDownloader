@@ -233,7 +233,9 @@ impl AutomationService {
             if !matched.triggers.contains(&version.trigger) {
                 continue;
             }
-            if !version.condition.matches(&matched.context) {
+            // The trigger's own default first: a storage rule that names no change hears the
+            // block only (RD-1270-04).
+            if !rd_automation::admits(version.trigger, &version.condition, &matched.context) {
                 continue;
             }
             database

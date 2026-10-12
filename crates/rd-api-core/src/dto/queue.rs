@@ -81,6 +81,11 @@ pub struct DownloadRateEntry {
     pub bytes_per_second: u64,
     /// `None` when the size is unknown or the entry is not moving.
     pub eta_seconds: Option<u64>,
+    /// NNTP connections working for this Usenet file right now (RD-1270-21). Files share the
+    /// servers' connections, and one shared by two files counts half for each, so the files
+    /// never add up to more than `usenet_servers` has busy. `None` for every other transport
+    /// and for a file waiting for a free connection.
+    pub connections: Option<u32>,
 }
 
 /// Live transfer rates: the queue as a whole, every entry that is moving, and every queued
@@ -100,6 +105,20 @@ pub struct DownloadRatesResponse {
     /// Queued entries held back because their host has no free connection (RD-1130-02).
     /// They take no place among the files running at once meanwhile.
     pub waiting_for_host: Vec<DownloadHostWait>,
+    /// The Usenet servers of the connection pool in force, in the order they are asked, with
+    /// their busy connections (RD-1270-21). Empty until the first Usenet file has run.
+    pub usenet_servers: Vec<UsenetServerConnections>,
+}
+
+/// One Usenet server's connections right now.
+#[derive(Serialize, ToSchema)]
+pub struct UsenetServerConnections {
+    pub id: rd_core::UsenetServerId,
+    /// Connections carrying an article request at this moment.
+    pub busy: u32,
+    /// The most the pool opens to this server: its own limit, lowered by
+    /// `nntp_connections_per_file` when that is smaller. All running files share them.
+    pub limit: u32,
 }
 
 /// A queued entry waiting for a connection to its host.

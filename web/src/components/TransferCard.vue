@@ -24,7 +24,8 @@ import { translateServerMessage } from '@/i18n/server'
 import { formatByteProgress, formatBytes, formatDuration, formatPauseEnd, formatRate, progressOf, stateColor, stateLabel } from '@/utils/format'
 import { sourcePageUrl } from '@/utils/sourcePage'
 
-const props = defineProps<{ download: Download, bytesPerSecond?: number, etaSeconds?: number | null, destination?: string, accountLabel?: string | null, selected?: boolean, waitingForHost?: string | null }>()
+/** `connections`: the NNTP connections working for a running Usenet file (RD-1270-21). */
+const props = defineProps<{ download: Download, bytesPerSecond?: number, etaSeconds?: number | null, destination?: string, accountLabel?: string | null, selected?: boolean, waitingForHost?: string | null, connections?: number | null }>()
 const emit = defineEmits<{
   pause: [id: string]
   resume: [id: string]
@@ -338,7 +339,12 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
           <span class="numeric block truncate text-xs text-muted">{{ sizeLabel }}</span>
           <span v-if="props.download.state === 'downloading'" class="numeric block truncate text-2xs font-medium text-primary" :aria-label="t('downloads.transfer.rate_aria', { rate: formatRate(props.bytesPerSecond) })">{{ formatRate(props.bytesPerSecond) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.transfer.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
         </span>
-        <span class="queue-cell-meta min-w-0 truncate text-xs text-muted" :title="props.accountLabel ?? undefined">{{ props.accountLabel ?? '' }}</span>
+        <span v-if="props.download.kind === 'usenet' && props.connections" class="queue-cell-meta min-w-0 text-xs">
+          <UTooltip :text="t('downloads.transfer.connections_title', { count: props.connections }, props.connections)">
+            <span class="numeric inline-flex items-center gap-1 text-primary" role="img" :aria-label="t('downloads.transfer.connections_title', { count: props.connections }, props.connections)" data-testid="file-connections"><UIcon name="i-lucide-cable" class="size-3.5 shrink-0" />{{ props.connections }}</span>
+          </UTooltip>
+        </span>
+        <span v-else class="queue-cell-meta min-w-0 truncate text-xs text-muted" :title="props.accountLabel ?? undefined">{{ props.accountLabel ?? '' }}</span>
         <div class="queue-cell-actions flex items-center justify-end opacity-70 transition group-hover:opacity-100">
           <UDropdownMenu v-if="actions.length" :items="actions" :content="{ align: 'end' }">
             <UButton icon="i-lucide-ellipsis" size="xs" color="neutral" variant="ghost" :aria-label="t('downloads.transfer.actions_aria')" :title="t('downloads.transfer.actions_aria')" />

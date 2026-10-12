@@ -50,6 +50,7 @@ pub(crate) async fn create(
         max_connections: input.max_connections,
         enabled: input.enabled,
         quota: None,
+        busy_connections: 0,
     };
     let now = Utc::now();
     let event = EventEnvelope::new(
@@ -101,6 +102,7 @@ pub(crate) async fn update(
         max_connections: input.max_connections,
         enabled: input.enabled,
         quota: None,
+        busy_connections: 0,
     };
     let event = EventEnvelope::new(
         EventKind::UsenetChanged,
@@ -345,6 +347,7 @@ impl ConnectionRow {
             max_connections: u16::try_from(self.max_connections)?,
             enabled: self.enabled,
             quota: self.quota.quota(today),
+            busy_connections: 0,
         };
         Ok(UsenetConnectionConfig {
             server,
@@ -385,6 +388,7 @@ impl ServerRow {
             max_connections: u16::try_from(self.max_connections)?,
             enabled: self.enabled,
             quota: self.quota.quota(today),
+            busy_connections: 0,
         })
     }
 }

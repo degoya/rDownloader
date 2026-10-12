@@ -106,6 +106,39 @@ fn too_many_requests_waits_longer() {
     );
 }
 
+/// RD-1270-01: Bilibili's bot check answers 412 without its fingerprint cookies; that is a
+/// case for the site's cookies, not a network failure retried every two minutes.
+#[test]
+fn a_precondition_failed_asks_for_the_sites_cookies() {
+    let line = "ERROR: [BiliBili] 1GJ411x7h7: Unable to download webpage: HTTP Error 412: \
+                Precondition Failed (caused by <HTTPError 412: Precondition Failed>)";
+    let failure = map_tool_error(line, Some(1));
+    assert_eq!(failure.category, FailureKind::AuthRequired);
+    assert_eq!(
+        failure.code.as_deref(),
+        Some("media.ytdlp_cookies_required")
+    );
+    assert_eq!(failure.params.get("detail").map(String::as_str), Some(line));
+    // The wording alone, without the number, says the same.
+    assert_eq!(
+        category("ERROR: [generic] Unable to download webpage: Precondition Failed"),
+        FailureKind::AuthRequired
+    );
+    // 412 inside another number is not the status.
+    let other = map_tool_error(
+        "ERROR: [generic] Unable to download webpage: HTTP Error 503: Service Unavailable \
+         after 4120 bytes",
+        Some(1),
+    );
+    assert_eq!(other.code.as_deref(), Some("media.ytdlp_failed"));
+    assert_eq!(
+        other.category,
+        FailureKind::Transient {
+            retry_after_seconds: Some(120)
+        }
+    );
+}
+
 #[test]
 fn words_match_whole_and_only_whole() {
     assert!(contains_words("confirm your age.", "age"));

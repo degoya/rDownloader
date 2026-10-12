@@ -17,6 +17,7 @@ impl Database {
         let password = import.password.clone();
         let mut added = writer::request(&self.writer, |reply| NzbCommand::AddNzbImport {
             import,
+            by_extension: crate::intake_notice::by_extension(),
             reply,
         })
         .await?;

@@ -4,7 +4,10 @@
 use rd_notify::NotificationEvent;
 use serde_json::json;
 
-use super::{captcha_notice, package_failed_body, package_outcome, power_notice, storage_blocked};
+use super::{
+    captcha_notice, package_failed_body, package_outcome, power_notice, storage_blocked,
+    storage_notice,
+};
 
 fn package(previous: Option<&str>, state: &str) -> serde_json::Value {
     json!({ "package_id": "p", "state": state, "previous": previous })
@@ -130,4 +133,28 @@ fn a_storage_root_released_is_no_out_of_space() {
         &json!({ "blocked": 0, "change": "released" })
     ));
     assert!(!storage_blocked(&json!({ "blocked": 1 })));
+}
+
+/// RD-1270-18: "Storage root out of space" names the root, as the event does.
+#[test]
+fn out_of_space_names_its_storage_root() {
+    let (title, body) = storage_notice(&json!({
+        "blocked": 1, "change": "blocked", "target": "fallback",
+        "name": "Downloads", "path": "/srv/downloads"
+    }))
+    .expect("a block is notified");
+    assert_eq!(title, "Storage root out of space: Downloads");
+    assert_eq!(
+        body,
+        "Downloads (/srv/downloads) fell below its free-space threshold and takes no new work."
+    );
+    // A root no longer configured has no name: the general wording.
+    let (title, _) =
+        storage_notice(&json!({ "blocked": 1, "change": "blocked", "target": "x", "name": null }))
+            .expect("still notified");
+    assert_eq!(title, "Storage root out of space");
+    assert!(
+        storage_notice(&json!({ "blocked": 0, "change": "released", "name": "Downloads" }))
+            .is_none()
+    );
 }

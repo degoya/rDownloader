@@ -35,7 +35,9 @@ every file in archive/ whose status is open again (`Open`, `In progress`, `Parti
 a job back is left to a person, with its row), every row listed twice or in the wrong index, every
 Job Inventory row whose numbers the catalogs do not bear out and every job file, here or in
 archive/, whose status line is missing or starts with a word that is not one of STATUS_WORDS
-(RD-120-14: `Done` is not one), and exits 1 when there is any of the five. With --due-ok a
+(RD-120-14: `Done` is not one), and every counted status line (`gezählt: <n> offen, <m>
+abgehakt`, archive_jobs_counts.py, RD-1270-17) its file's checkboxes do not bear out - which a
+plain run rewrites - and exits 1 when there is any of the six. With --due-ok a
 due file is named but does not count: the release chain's checks before its archive-jobs step
 run that way (RD_RELEASE_VERSION, scripts/lib/preflight.sh), because that step moves them. A working file `<NNN>-00-*.md` and README.md
 need no status line; one that has a line is checked all the same. scripts/check.sh runs it that
@@ -54,6 +56,7 @@ import sys
 
 # The two modules beside this one would otherwise leave a __pycache__ in the checkout.
 sys.dont_write_bytecode = True
+from archive_jobs_counts import stale_counts  # noqa: E402
 from archive_jobs_links import rewrite_references  # noqa: E402
 from archive_jobs_rows import row_problems, row_target  # noqa: E402
 from archive_jobs_status import (  # noqa: E402
@@ -315,6 +318,14 @@ def main(argv):
             print(problem + ("; mended" if mended else "; left for a person"),
                   file=sys.stdout if mended else sys.stderr)
     stale = stale_inventory(repo)
+    # A status line that counts its file's checkboxes (RD-1270-17): a run writes it, --check names it.
+    counts = stale_counts(repo, write=not check)
+    for path, written, fresh in counts:
+        if check:
+            print(f"miscounted: {path} status says `{written}`, its checkboxes `{fresh}` "
+                  "— run scripts/archive-jobs.sh")
+        else:
+            print(f"recounted: {path} status `{written}` -> `{fresh}`")
     if check:
         bad = bad_status_files(repo)
         for path, problem in bad:
@@ -326,7 +337,7 @@ def main(argv):
             print(f"miscounted: {JOBS}/README.md Job Inventory has `{line[0]}`, the catalogs say "
                   f"`{line[1]}` — run scripts/archive-jobs.sh")
         print(f"{len(due)} job file(s) due for {ARCHIVE}/" if due else "nothing to archive")
-        return 1 if (due and not due_ok) or misplaced or stale or bad or listed else 0
+        return 1 if (due and not due_ok) or misplaced or stale or bad or listed or counts else 0
     if not due:
         if stale:
             index_path = os.path.join(repo, JOBS, "README.md")

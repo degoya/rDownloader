@@ -246,7 +246,7 @@ describe('SettingsUsenetTab NNTP limits', () => {
   it('shows the limits beside the servers, measured against the largest enabled one', async () => {
     mountWith({ ...defaultSettings(), nntp_connections_per_file: 4 })
 
-    await waitFor(() => expect(screen.getByTestId('nntp-cap-hint').textContent).toContain('allows 8 connections; one file gets at most 4 per server'))
+    await waitFor(() => expect(screen.getByTestId('nntp-cap-hint').textContent).toContain('allows 8 connections; files running at once get at most 4 per server together'))
     expect(screen.getByText(settingsMessages.nntp_parallel_files.label)).toBeTruthy()
     expect(document.querySelector('[data-settings-anchor="usenet.nntp_connections"]')).not.toBeNull()
   })

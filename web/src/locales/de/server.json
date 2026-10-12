@@ -407,7 +407,7 @@
     "settings.byte_display_invalid": "Datengrößen-Anzeige muss binär oder dezimal sein",
     "settings.byte_unit_invalid": "Die Einheit für Datengrößen muss automatisch oder eine feste Größenordnung sein",
     "settings.cleanup_extension_invalid": "Die Cleanup-Endung „{value}“ muss aus 1–10 alphanumerischen Zeichen bestehen",
-    "settings.concurrency_invalid": "Die Parallelitätswerte müssen gültig sein; NNTP-Verbindungen je Datei zwischen 0 und 32, Usenet-Dateien gleichzeitig zwischen 0 und 8",
+    "settings.concurrency_invalid": "Die Parallelitätswerte müssen gültig sein; NNTP-Verbindungen je Server zwischen 0 und 32, Usenet-Dateien gleichzeitig zwischen 0 und 8",
     "settings.excluded_domains_file_invalid": "Die Domain-Sperrliste muss ein absoluter Pfad mit höchstens {max} Zeichen sein",
     "settings.hotfolder_poll_invalid": "Das Abfrageintervall der Hotfolder muss zwischen {min} und {max} Sekunden liegen.",
     "settings.invalid": "Die Einstellungen sind ungültig",
@@ -1320,7 +1320,8 @@
     "cnl.rate_limited": "Zu viele Click'n'Load-Übergaben in kurzer Zeit. Versuch es in einer Minute erneut.",
     "diagnostics.log_level_locked": "RUST_LOG={rust_log} legt das Protokoll fest; die Stufe gilt erst, wenn der Dienst ohne RUST_LOG startet.",
     "diagnostics.debug_minutes_invalid": "Debug für eine Weile dauert 15, 30 oder 60 Minuten.",
-    "diagnostics.debug_plugin_invalid": "Nur der Bereich Plugin nimmt ein Plugin, und nur ein installiertes."
+    "diagnostics.debug_plugin_invalid": "Nur der Bereich Plugin nimmt ein Plugin, und nur ein installiertes.",
+    "media.ytdlp_cookies_required": "Die Seite weist yt-dlp ohne ihre Cookies ab (HTTP 412). Hinterlege die Browser-Cookies der Seite in einem Authentifizierungsprofil (Konten → Authentifizierungsprofile) oder übergib sie mit „Sitzung dieser Seite an rDownloader senden“ in der Browser-Erweiterung. {detail}"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

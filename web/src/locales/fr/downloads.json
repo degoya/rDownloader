@@ -147,7 +147,12 @@
     "waiting_for_parts": "En attente des fichiers manquants",
     "waiting_for_parts_title": "Le post-traitement ne commence qu’une fois tous les fichiers du paquet arrivés.",
     "reset_failed": "Réinitialiser les échecs et les blocages",
-    "reset_failed_hint": "{count} fichier de ce paquet | {count} fichiers de ce paquet"
+    "reset_failed_hint": "{count} fichier de ce paquet | {count} fichiers de ce paquet",
+    "connections_count": "{count} connexion | {count} connexions",
+    "connections_even": "{connections} : {files} fichier | {connections} : {files} fichiers en même temps, {per} chacun",
+    "connections_mixed": "{connections} : {files} fichiers en même temps ({split})",
+    "connections_full": "Les {limit} connexions autorisées par les serveurs sont toutes occupées.",
+    "connections_room": "{busy} des {limit} connexions autorisées par les serveurs sont occupées."
   },
   "transfer": {
     "actions_aria": "Actions du fichier",
@@ -191,7 +196,8 @@
       "unsupported_hint": "Les sources dont ce service ne sait pas récupérer le protocole sont affichées mais pas utilisées."
     },
     "next_attempt": "Prochaine tentative à {time}",
-    "waiting_for_host": "En attente d'une connexion à {host}"
+    "waiting_for_host": "En attente d'une connexion à {host}",
+    "connections_title": "{count} connexion travaille pour ce fichier | {count} connexions travaillent pour ce fichier"
   },
   "summary": {
     "eyebrow": "État de la file",

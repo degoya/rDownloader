@@ -39,3 +39,4 @@ mod storage_clear;
 mod storage_roots;
 mod unique_names;
 mod unreadable_secrets;
+mod usenet_connections;

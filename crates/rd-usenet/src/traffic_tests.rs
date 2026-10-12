@@ -194,6 +194,7 @@ fn server(name: &str, enabled: bool, quota: Option<(UsenetQuotaAction, bool)>) -
             used_bytes: if reached { 1_000 } else { 10 },
             reached_at: reached.then(Utc::now),
         }),
+        busy_connections: 0,
     }
 }
 

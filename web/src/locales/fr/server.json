@@ -407,7 +407,7 @@
     "settings.byte_display_invalid": "L'affichage des tailles doit être binaire ou décimal",
     "settings.byte_unit_invalid": "L'unité des tailles doit être automatique ou un ordre de grandeur fixe",
     "settings.cleanup_extension_invalid": "L'extension de nettoyage « {value} » doit comporter 1 à 10 caractères alphanumériques",
-    "settings.concurrency_invalid": "Les valeurs de parallélisme doivent être valides ; les connexions NNTP par fichier doivent être comprises entre 0 et 32, et les fichiers Usenet simultanés entre 0 et 8",
+    "settings.concurrency_invalid": "Les valeurs de parallélisme doivent être valides ; les connexions NNTP par serveur doivent être comprises entre 0 et 32, et les fichiers Usenet simultanés entre 0 et 8",
     "settings.excluded_domains_file_invalid": "La liste de blocage de domaines doit être un chemin absolu d'au plus {max} caractères",
     "settings.hotfolder_poll_invalid": "L'intervalle d'interrogation des dossiers surveillés doit être compris entre {min} et {max} secondes.",
     "settings.invalid": "Les paramètres sont invalides",
@@ -1320,7 +1320,8 @@
     "cnl.rate_limited": "Trop de transmissions Click'n'Load en peu de temps. Réessayez dans une minute.",
     "diagnostics.log_level_locked": "RUST_LOG={rust_log} décide de ce qui est journalisé ; le niveau s’applique quand le service démarre sans RUST_LOG.",
     "diagnostics.debug_minutes_invalid": "Le débogage temporaire dure 15, 30 ou 60 minutes.",
-    "diagnostics.debug_plugin_invalid": "Seule la zone Plugin accepte un plugin, et seulement un plugin installé."
+    "diagnostics.debug_plugin_invalid": "Seule la zone Plugin accepte un plugin, et seulement un plugin installé.",
+    "media.ytdlp_cookies_required": "Le site refuse yt-dlp sans ses cookies (HTTP 412). Ajoutez les cookies du navigateur pour ce site dans un profil d’authentification (Comptes → Profils d’authentification) ou transmettez-les avec « Envoyer la session de ce site à rDownloader » dans l’extension du navigateur. {detail}"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

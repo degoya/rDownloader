@@ -392,6 +392,17 @@ pub(crate) fn map_tool_error(stderr: &str, exit_code: Option<i32>) -> Failure {
     } else {
         tail
     };
+    // A site's bot check refusing a request without its fingerprint cookies (Bilibili's 412
+    // without `buvid3`/`buvid4`): retrying every two minutes only provokes it further, the
+    // site's cookies through an authentication profile are what helps (RD-1270-01).
+    if says(&["412", "precondition failed"]) {
+        return Failure::coded(
+            FailureKind::AuthRequired,
+            "media.ytdlp_cookies_required",
+            format!("The site refused yt-dlp without its cookies (HTTP 412): {tail}"),
+        )
+        .with_param("detail", tail);
+    }
     let category = if says(&[
         "unsupported url",
         "video unavailable",

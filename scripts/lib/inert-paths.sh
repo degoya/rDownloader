@@ -19,7 +19,8 @@
 #     C1): the lints and the Rust tests read the Rust inputs, the web half web/ and extension/,
 #     the preflight everything but the generators' output, plus the documentation its checks read.
 #
-# Sourced by verified.sh, scope.sh and lib/integrate.sh; defines functions and constants only.
+# Sourced by verified.sh, scope.sh and lib/integrate.sh; defines functions, constants and the
+# memo of the Rust inputs' pattern (rd_read_patterns_load).
 
 RD_INERT_PATTERN='^docs/|\.md$|^\.github/readme/|^private/'
 RD_NOT_INERT_PATTERN='^crates/rd-core/recovery-matrix\.md$|^crates/rd-api/mcp-coverage\.md$'
@@ -106,4 +107,41 @@ rd_paths_read_by() {
         preflight) grep -vxF -f <(printf '%s\n' "${RD_GENERATED_FILES[@]}") <<< "$paths" || true ;;
         *) printf '%s\n' "$paths" ;;
     esac
+}
+
+# rd_paths_read_by for one path $2 and half $1, in bash alone: no process, so rd_full_covering can
+# ask it of every path that differs from every recorded green it compares (RD-1270-06; the
+# pipeline above costs six processes and a read of the map per question). The same rule —
+# scripts/tests/full-covering.sh holds the two against each other. Needs rd_read_patterns_load.
+rd_path_read_by() {
+    local half="$1" path="$2" generated
+    [[ -n "$path" ]] || return 1
+    if [[ "$path" =~ $RD_INERT_PATTERN && ! "$path" =~ $RD_NOT_INERT_PATTERN ]]; then
+        [[ "$half" == preflight && "$path" =~ $RD_PREFLIGHT_DOCS_PATTERN ]] || return 1
+    fi
+    case "$half" in
+        clippy|windows|rust) [[ "$path" =~ $RD_RUST_INPUT_RE ]] ;;
+        web) [[ "$path" =~ $RD_WEB_INPUT_PATTERN ]] ;;
+        preflight)
+            for generated in "${RD_GENERATED_FILES[@]}"; do [[ "$path" != "$generated" ]] || return 1; done ;;
+        *) return 0 ;;
+    esac
+}
+
+# Builds the Rust inputs' pattern (rd_rust_input_pattern) into RD_RUST_INPUT_RE once per map file
+# and shell, without a process; rd_path_read_by reads it.
+RD_RUST_INPUT_RE=""
+RD_RUST_INPUT_RE_MAP=""
+RD_RUST_INPUTS_MAP_DEFAULT="$(dirname "${BASH_SOURCE[0]}")/rust-test-inputs.map"
+rd_read_patterns_load() {
+    local map="${RD_RUST_INPUTS_MAP_FILE:-$RD_RUST_INPUTS_MAP_DEFAULT}" pattern names
+    [[ -z "$RD_RUST_INPUT_RE" || "$map" != "$RD_RUST_INPUT_RE_MAP" ]] || return 0
+    RD_RUST_INPUT_RE="$RD_RUST_INPUT_PATTERN"
+    if [[ -f "$map" ]]; then
+        while read -r pattern names; do
+            [[ -n "$pattern" && "$pattern" != \#* && "$names" != - ]] || continue
+            RD_RUST_INPUT_RE+="|$pattern"
+        done < "$map"
+    fi
+    RD_RUST_INPUT_RE_MAP="$map"
 }

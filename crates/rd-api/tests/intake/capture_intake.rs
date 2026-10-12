@@ -386,3 +386,54 @@ async fn an_address_that_does_not_parse_comes_back_in_no_answer_and_no_log_line(
     // it just sent; what it cannot know is which one of n the service would not take.
     assert_eq!(payload["params"]["position"], "2", "{payload}");
 }
+
+/// The `collector.intake` a capture hand-over causes, as the bus carries it.
+async fn intake_payload(
+    events: &mut tokio::sync::broadcast::Receiver<rd_core::EventEnvelope>,
+) -> serde_json::Value {
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let event = events.recv().await.expect("the bus stays open");
+            if event.kind == rd_core::EventKind::CollectorIntake {
+                return event.payload;
+            }
+        }
+    })
+    .await
+    .expect("the intake is announced")
+}
+
+/// RD-1270-05: one hand-over, one notice. What the extension hands over it announces itself, so
+/// its intake says so and the tab and the agent stay quiet; the agent's own hand-over does not,
+/// and keeps the agent's toast. Counted over both, exactly one of the two is the extension's.
+#[tokio::test]
+async fn an_intake_the_extension_handed_over_is_left_to_the_extension_to_announce() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let mut events = harness.database.subscribe();
+    let mut marked = 0;
+    for (source, label, by_extension) in [
+        ("browser_extension", "Browser", true),
+        ("clipboard", "Capture-Agent", false),
+    ] {
+        let (status, payload) = post_capture(
+            &harness.router,
+            serde_json::json!({
+                "source": source,
+                "source_label": label,
+                "text": format!("https://files.example.com/{source}.zip"),
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{payload}");
+        let intake = intake_payload(&mut events).await;
+        assert_eq!(intake["source"], source);
+        assert_eq!(
+            intake.get(rd_db::intake_notice::PAYLOAD_KEY) == Some(&serde_json::json!(true)),
+            by_extension,
+            "{source}: {intake}"
+        );
+        marked += usize::from(by_extension);
+    }
+    assert_eq!(marked, 1);
+}

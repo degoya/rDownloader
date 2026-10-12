@@ -123,6 +123,58 @@ run_step_case "printf '##RD-STEP id=smoke nonce=%s version=9.9.9 exit=0 bytes=5 
     RESUME=1; resume_tree_check > /dev/null; step_is_green smoke || echo RUNS-AGAIN"
 expect_output "a marker without a tree counts as changed" "RUNS-AGAIN"
 
+# Per step (RD-1270-12): a green stands across a change of the tree when the diff from the tree it
+# recorded misses everything the step reads. Every required step is green, then $1 changes the
+# tree, the resume decides, the steps not carried run again, and the gate judges the log.
+reuse_case() {
+    run_step_case "for id in \"\${GATE_REQUIRES[@]}\"; do run_step \"\$id\" echo fine > /dev/null; done
+        mkdir -p \"\$(dirname '$TREE/$1')\"; echo change > '$TREE/$1'; RESUME=1; resume_tree_check
+        for id in sign-plugins build-linux build-windows clippy web test smoke; do
+            step_is_green \"\$id\" && echo \"KEPT \$id\" || echo \"AGAIN \$id\"
+        done
+        $2"
+    rm -rf "$TREE/web" "$TREE/crates" "$TREE/README.md"
+}
+reuse_case web/e2e/extension.e2e.mjs "for id in \"\${GATE_REQUIRES[@]}\"; do
+        step_is_green \"\$id\" || run_step \"\$id\" echo again > /dev/null; done
+    step_evidence_gate; grep '^##RD-STEP id=build-linux .* reused=' \"\$LOG\""
+expect_status "a change under web/e2e/: the resumed run passes the gate" 0
+for id in sign-plugins build-linux build-windows clippy; do
+    expect_output "web/e2e/ leaves $id green" "KEPT $id"
+done
+for id in web test smoke; do
+    expect_output "web/e2e/ runs $id again" "AGAIN $id"
+done
+expect_output "saying which and why" "[build-linux] stands: the change touches nothing it reads"
+expect_output "and why the others run" "[web] runs again: the change touches web/e2e/extension.e2e.mjs"
+expect_true "the carried marker names the tree it was recorded for and the tree it was carried to" \
+    '[[ "$output" =~ build-linux\ .*\ tree=[0-9a-f]{40}\ reused=[0-9a-f]{40} ]]'
+expect_output "the gate counts the carried records" "build-linux        exit=0"
+
+reuse_case crates/rd-core/src/lib.rs ""
+for id in sign-plugins build-linux build-windows clippy test; do
+    expect_output "a change under crates/ runs $id again" "AGAIN $id"
+done
+
+reuse_case README.md ""
+expect_output "README.md, which the packages carry, runs them again" "AGAIN build-windows"
+expect_output "but not the Rust or the web half" "KEPT clippy"
+
+# The gate as strict as before: a carried record whose diff touches what the step reads is no
+# evidence, whoever wrote it; one whose trees git cannot compare neither.
+reuse_case web/e2e/extension.e2e.mjs "echo touch > '$TREE/web/main.ts'
+    sed -i '/ reused=/s/ tree=[^ ]*/ tree='\"\$(rd_worktree_tree '$TREE')\"'/' \"\$LOG\"
+    step_is_green build-linux || echo FORGED-CARRY-REFUSED
+    for id in \"\${GATE_REQUIRES[@]}\"; do
+        [[ \$id == build-* ]] || step_is_green \"\$id\" || run_step \"\$id\" echo again > /dev/null; done
+    step_evidence_gate"
+expect_status "a carried record whose diff touches the step's inputs: the gate refuses" 1
+expect_output "step_is_green does not take it" "FORGED-CARRY-REFUSED"
+expect_output "and the gate names the step" "build-linux        NO EVIDENCE"
+reuse_case web/e2e/extension.e2e.mjs "sed -i '/ reused=/s/ reused=[^ ]*/ reused=none/' \"\$LOG\"
+    step_is_green sign-plugins || echo NO-TREE-REFUSED"
+expect_output "a carried record without a comparable tree: refused" "NO-TREE-REFUSED"
+
 # The public CI with every platform green on record for this content: no run (RD-160-06). The gh
 # here refuses everything, so a step that wanted GitHub fails.
 mkdir -p "$SCRATCH/bin"

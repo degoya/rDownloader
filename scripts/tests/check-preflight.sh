@@ -5,7 +5,8 @@
 # fmt, both test maps, gitleaks, shellcheck, a script test — after every stage ran, and records no
 # green, a green one its tree as the half `preflight` and no revision; cargo is asked to format and nothing else; gitleaks sees the new files of the working tree
 # and .gitleaks.toml, not what scripts/public-exclude.txt leaves out; RD_SKIP_JOB_LAYOUT=1 skips the
-# job layout with its reason; --preflight runs alone.
+# job layout with its reason; a green of the same tree, or of HEAD's before a version bump, leaves
+# only the file checks to run (RD-1270-13), --again all of it; --preflight runs alone.
 #
 #   scripts/tests/check-preflight.sh
 set -euo pipefail
@@ -60,6 +61,7 @@ stand_in "$TREE/scripts/tests/b.sh" b.sh
 echo "internal" > "$TREE/docs/notes.md"
 echo 'title = "scratch"' > "$TREE/.gitleaks.toml"
 echo "text" > "$TREE/text.txt"
+printf '[workspace.package]\nversion = "1.0.0"\n' > "$TREE/Cargo.toml"
 git -C "$TREE" add -A
 git -C "$TREE" commit -qm base
 
@@ -114,9 +116,47 @@ expect_status "with RD_SKIP_JOB_LAYOUT=1" 0
 expect_true "the job layout is not checked" '! grep -q "^archive-jobs.sh" "$FAKE/calls"'
 expect_output "and listed as skipped, with the reason" "- the job layout — RD_SKIP_JOB_LAYOUT=1"
 
+# --- not twice (RD-1270-13): a preflight green of the tree, or of HEAD's before a version bump --
+reused="cargo fmt, the test maps, gitleaks, bash -n, shellcheck, actionlint and the script tests"
+expect_true "that run was the green's: no script test ran again" '! grep -q "^a.sh" "$FAKE/calls"'
+expect_output "it names the green it stands on" "$reused — a recorded preflight green covers this tree (this very content)"
+expect_output "and still ends on the closing line" "==> all requested checks passed"
+
+rm -f "$FAKE/calls"
+preflight
+expect_status "the same tree again" 0
+expect_true "the file checks run, they read the environment and the version copies" \
+    'grep -qx "archive-jobs.sh --check" "$FAKE/calls" && grep -qx "set-version.sh --check" "$FAKE/calls"'
+expect_true "nothing else: no cargo fmt, no shellcheck, no script test" \
+    '! grep -qE "^(cargo|shellcheck|gitleaks|a\.sh|b\.sh)" "$FAKE/calls"'
+
+rm -f "$FAKE/calls"
+run_status env -u RD_LOCK_HELD RD_LOCK_FILE="$SCRATCH/lock" RD_LOCK_WAIT=0 \
+    RD_CHECK_LOGS="$SCRATCH/logs" "$TREE/scripts/check.sh" --preflight --again
+expect_status "--again" 0
+expect_true "runs everything anyway" 'grep -q "^cargo fmt" "$FAKE/calls" && grep -q "^a.sh" "$FAKE/calls"'
+
+rm -f "$FAKE/calls"
+sed -i 's/^version = "1.0.0"/version = "1.1.0"/' "$TREE/Cargo.toml"
+preflight
+expect_status "after a version bump of HEAD's tree" 0
+expect_output "the green is carried" "(tree $(git -C "$TREE" rev-parse --short=12 'HEAD^{tree}') before a version bump)"
+expect_true "with the file checks only" '! grep -q "^a.sh" "$FAKE/calls" && grep -qx "set-version.sh --check" "$FAKE/calls"'
+cp "$TREE/.git/index" "$SCRATCH/index"
+GIT_INDEX_FILE="$SCRATCH/index" git -C "$TREE" add -A
+bumped="$(GIT_INDEX_FILE="$SCRATCH/index" git -C "$TREE" write-tree)"
+expect_true "and recorded for the bumped tree" "grep -qx 'preflight $bumped' '$SCRATCH/target/.rd-verified-full/'*"
+
+rm -f "$FAKE/calls"
+echo "more" >> "$TREE/text.txt"
+preflight
+expect_status "a bump with anything else in it" 0
+expect_true "runs everything" 'grep -q "^a.sh" "$FAKE/calls"'
+git -C "$TREE" checkout -q -- text.txt Cargo.toml
+
 run_status env -u RD_LOCK_HELD RD_LOCK_FILE="$SCRATCH/lock" RD_LOCK_WAIT=0 \
     "$TREE/scripts/check.sh" --preflight --full
 expect_status "--preflight with another flag is a usage error" 2
-expect_output "saying it runs alone" "--preflight runs alone"
+expect_output "saying it runs alone" "--preflight runs alone (--again aside)"
 
 finish_tests check-preflight

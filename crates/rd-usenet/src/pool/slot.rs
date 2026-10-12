@@ -6,7 +6,7 @@ use std::sync::{Arc, atomic::Ordering};
 use anyhow::Result;
 
 use super::{ServerPool, line::Line};
-use crate::NntpClient;
+use crate::{NntpClient, connections::FileGauge};
 
 impl ServerPool {
     /// A line with room for one more request, opened if need be.
@@ -19,8 +19,13 @@ impl ServerPool {
     ///
     /// The place on a line is taken under the same lock that chose it. Taken afterwards,
     /// two callers could choose the same idle line and both believe they had it alone -
-    /// which is what a refusal's confirmation read exists to rule out.
-    pub(super) async fn slot(&self, alone: bool) -> Result<Slot<'_>> {
+    /// which is what a refusal's confirmation read exists to rule out. `file` is the running
+    /// file the request is for, whose connections are counted (RD-1270-21).
+    pub(super) async fn slot(
+        &self,
+        alone: bool,
+        file: Option<&Arc<FileGauge>>,
+    ) -> Result<Slot<'_>> {
         loop {
             let notified = self.changed.notified();
             tokio::pin!(notified);
@@ -37,7 +42,7 @@ impl ServerPool {
                     .filter(open)
                     .find(|line| line.in_flight.load(Ordering::Acquire) == 0);
                 match (idle, room) {
-                    (Some(line), _) => Choice::Use(self.take(line, alone)),
+                    (Some(line), _) => Choice::Use(self.take(line, alone, file)),
                     // Reserved under the lock, so two callers cannot both see the same room.
                     (None, true) => Choice::Connect(Connecting::reserve(self)),
                     (None, false) if alone => Choice::Wait,
@@ -46,7 +51,9 @@ impl ServerPool {
                         .filter(open)
                         .filter(|line| line.in_flight.load(Ordering::Acquire) < depth)
                         .min_by_key(|line| line.in_flight.load(Ordering::Acquire))
-                        .map_or(Choice::Wait, |line| Choice::Use(self.take(line, false))),
+                        .map_or(Choice::Wait, |line| {
+                            Choice::Use(self.take(line, false, file))
+                        }),
                 }
             };
             match choice {
@@ -55,7 +62,7 @@ impl ServerPool {
                     let client = NntpClient::connect(&self.config).await?;
                     let line = Arc::new(Line::new(client));
                     // Taken before the line is visible to anyone else.
-                    let slot = self.take(&line, alone);
+                    let slot = self.take(&line, alone, file);
                     self.lines.lock().await.push(line);
                     drop(reservation);
                     return Ok(slot);
@@ -65,16 +72,26 @@ impl ServerPool {
         }
     }
 
-    /// One place on `line`, counted at once; `exclusive` keeps everyone else off it.
-    fn take(&self, line: &Arc<Line>, exclusive: bool) -> Slot<'_> {
-        line.in_flight.fetch_add(1, Ordering::AcqRel);
+    /// One place on `line`, counted at once; `exclusive` keeps everyone else off it. The
+    /// line counts as busy for its server from its first request, and for `file` from the
+    /// first of that file's.
+    fn take(&self, line: &Arc<Line>, exclusive: bool, file: Option<&Arc<FileGauge>>) -> Slot<'_> {
+        if line.in_flight.fetch_add(1, Ordering::AcqRel) == 0
+            && let Some(gauge) = &self.gauge
+        {
+            gauge.line_busy();
+        }
         if exclusive {
             line.reserved.store(true, Ordering::Release);
+        }
+        if let Some(file) = file {
+            line.files.enter(file);
         }
         Slot {
             pool: self,
             line: Arc::clone(line),
             exclusive,
+            file: file.cloned(),
         }
     }
 
@@ -124,6 +141,7 @@ pub(super) struct Slot<'a> {
     pool: &'a ServerPool,
     pub(super) line: Arc<Line>,
     exclusive: bool,
+    file: Option<Arc<FileGauge>>,
 }
 
 impl Drop for Slot<'_> {
@@ -131,7 +149,14 @@ impl Drop for Slot<'_> {
         if self.exclusive {
             self.line.reserved.store(false, Ordering::Release);
         }
-        self.line.in_flight.fetch_sub(1, Ordering::AcqRel);
+        if let Some(file) = &self.file {
+            self.line.files.leave(file);
+        }
+        if self.line.in_flight.fetch_sub(1, Ordering::AcqRel) == 1
+            && let Some(gauge) = &self.pool.gauge
+        {
+            gauge.line_idle();
+        }
         self.pool.changed.notify_waiters();
     }
 }

@@ -308,27 +308,48 @@ test('a send is answered only for our own pages', async () => {
 
 test('a send reports the count, the token and a plain failure apart', async () => {
   const sendMessage = handlerFor('runtime.onMessage')
+  const clicked = handlerFor('contextMenus.onClicked')
+  const notices = () => calls.filter(([name]) => name === 'notify').map(([, , body]) => body)
 
+  // RD-1270-05: the popup is answered with what really happened, and shows it itself -- one
+  // notice per hand-over, so the background raises none for it.
   calls.length = 0
   let answer = null
   assert.equal(sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, (value) => { answer = value }), true)
   await settle()
-  assert.deepEqual(answer, { ok: true })
-  assert.ok(calls.some(([name, , body]) => name === 'notify' && body === 'sentLinks:2'))
+  assert.deepEqual(answer, { ok: true, status: 201, code: null, message: null, links: 2 })
+  assert.deepEqual(notices(), [], 'the popup shows the outcome; no second notice')
   assert.deepEqual(calls.filter(([name]) => name === 'badge'), [], 'a success does not repaint a badge nobody changed')
+
+  // The context menu has no status line: exactly one desktop notification says it.
+  calls.length = 0
+  clicked({ menuItemId: 'rdownloader-link', linkUrl: 'https://hoster.test/a' }, {})
+  await settle()
+  assert.deepEqual(notices(), ['sentLinks:2'])
 
   calls.length = 0
   state.respond = async () => ({ ok: false, status: 401, json: async () => ({ error: 'no', code: 'capture.token_required' }) })
-  sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, () => {})
+  sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, (value) => { answer = value })
   await settle()
-  assert.ok(calls.some(([name, , body]) => name === 'notify' && body === 'sendFailed:errorUnauthorized'))
+  assert.equal(answer.ok, false, 'a refusal is never answered as a success')
+  assert.equal(answer.status, 401)
+  assert.equal(answer.code, 'capture.token_required')
+  assert.deepEqual(notices(), [])
   assert.deepEqual(calls.filter(([name]) => name === 'badge'), [['badge', '!']])
+  calls.length = 0
+  clicked({ menuItemId: 'rdownloader-link', linkUrl: 'https://hoster.test/a' }, {})
+  await settle()
+  assert.deepEqual(notices(), ['sendFailed:errorUnauthorized'])
 
   calls.length = 0
   state.respond = async () => ({ ok: false, status: 500, json: async () => ({ error: 'server exploded' }) })
-  sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, () => {})
+  sendMessage({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, (value) => { answer = value })
   await settle()
-  assert.ok(calls.some(([name, , body]) => name === 'notify' && body === 'sendFailed:server exploded'))
+  assert.equal(answer.ok, false)
+  assert.equal(answer.message, 'server exploded')
+  clicked({ menuItemId: 'rdownloader-link', linkUrl: 'https://hoster.test/a' }, {})
+  await settle()
+  assert.deepEqual(notices(), ['sendFailed:server exploded'])
 
   // Back to success: the badge gives the "!" up again rather than keeping it for good.
   calls.length = 0
@@ -341,11 +362,17 @@ test('a send reports the count, the token and a plain failure apart', async () =
 test('an unpaired extension opens its options instead of sending', async () => {
   calls.length = 0
   state.config = { ...state.config, token: '' }
-  handlerFor('runtime.onMessage')({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, () => {})
+  let answer = null
+  handlerFor('runtime.onMessage')({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, (value) => { answer = value })
   await settle()
   assert.ok(!calls.some(([name]) => name === 'fetch'), 'nothing is posted without a token')
-  assert.ok(calls.some(([name, , body]) => name === 'notify' && body === 'notConfigured'))
+  assert.equal(answer.ok, false)
+  assert.equal(answer.code, 'unconfigured')
   assert.ok(calls.some(([name]) => name === 'openOptionsPage'))
+  calls.length = 0
+  handlerFor('contextMenus.onClicked')({ menuItemId: 'rdownloader-link', linkUrl: 'https://hoster.test/a' }, {})
+  await settle()
+  assert.ok(calls.some(([name, , body]) => name === 'notify' && body === 'notConfigured'))
   state.config = { ...state.config, token: 'capture-token' }
 })
 

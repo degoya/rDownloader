@@ -77,6 +77,8 @@ regex.workspace = true
 secrecy.workspace = true
 sqlx.workspace = true
 tempfile.workspace = true
+# The cancellation token in a fake runner's signature (RD-1270-21).
+tokio-util.workspace = true
 tracing-subscriber.workspace = true
 url.workspace = true
 webauthn-authenticator-rs.workspace = true

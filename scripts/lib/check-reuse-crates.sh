@@ -57,22 +57,52 @@ rd_reuse_paths() {
     git diff --no-renames --name-only "$2" "$full_tree" | rd_paths_read_by "$1"
 }
 
+# Which of the recorded trees $3... path $2 differs in from tree $1 — added, removed or another
+# content — one per line; one git call for all of them. A difference in mode alone is not named.
+rd_reuse_differing_in() {
+    local tree="$1" path="$2" own index
+    local -a objects=()
+    shift 2
+    [[ $# -gt 0 ]] || return 0
+    mapfile -t objects < <(for own in "$tree" "$@"; do printf '%s:%s\n' "$own" "$path"; done \
+        | git cat-file --batch-check='%(objectname)' 2> /dev/null)
+    [[ ${#objects[@]} -eq $(($# + 1)) ]] || return 0
+    own="${objects[0]##* }"
+    for (( index = 1; index <= $#; index++ )); do
+        [[ "${objects[index]##* }" == "$own" ]] || printf '%s\n' "${!index}"
+    done
+}
+
+# The green the Rust half builds on: the closest recorded one against which no changed path is
+# wide. Only the first wide reason of a green is looked for (rd_crate_first_wide), and one that
+# lies in a path holds against every further green that differs in the same path, which is then
+# passed over unread (RD-1270-06: after a version bump Cargo.lock differs from every green).
 rd_reuse_rust_scope() {
-    local count candidate paths demands wide="" kind package path name total
-    local -a demanded_hull=() hull=() members=() own=() binaries=() suites=()
+    local candidate paths demands wide="" kind package path name total index other
+    local -a demanded_hull=() hull=() members=() own=() binaries=() suites=() candidates=() further=()
+    local -A passed_over=()
     echo
     rd_crate_load_graph
-    while read -r count candidate; do
-        [[ -n "$candidate" ]] || continue
+    mapfile -t candidates < <(rd_reuse_candidates rust | awk '{ print $2 }')
+    for (( index = 0; index < ${#candidates[@]}; index++ )); do
+        candidate="${candidates[index]}"
+        [[ -n "$candidate" && -z "${passed_over[$candidate]:-}" ]] || continue
         paths="$(rd_reuse_paths rust "$candidate")"
-        demands="$(RD_CRATE_FROM="$candidate" RD_CRATE_TO="$full_tree" rd_crate_demands <<< "$paths")"
-        if grep -q '^wide ' <<< "$demands"; then
-            [[ -n "$wide" ]] || wide="since the green of tree ${candidate:0:12}, $(sed -n 's/^wide //p' <<< "$demands" | head -1)"
+        rd_crate_first_wide <<< "$paths"
+        if [[ -n "$RD_CRATE_FIRST_WIDE" ]]; then
+            [[ -n "$wide" ]] || wide="since the green of tree ${candidate:0:12}, $RD_CRATE_FIRST_WIDE"
+            # The root manifest's path dependency holds against every green.
+            [[ -n "$RD_CRATE_FIRST_WIDE_PATH" ]] || break
+            further=("${candidates[@]:index+1}")
+            while read -r other; do
+                [[ -z "$other" ]] || passed_over[$other]=1
+            done < <(rd_reuse_differing_in "$full_tree" "$RD_CRATE_FIRST_WIDE_PATH" "${further[@]+"${further[@]}"}")
             continue
         fi
+        demands="$(RD_CRATE_FROM="$candidate" RD_CRATE_TO="$full_tree" rd_crate_demands <<< "$paths")"
         crate_reuse_base="$candidate"
         break
-    done < <(rd_reuse_candidates rust)
+    done
     if [[ -z "$crate_reuse_base" ]]; then
         echo "==> the Rust half per crate (RD-1150-06): the whole half — ${wide:-no --full green of it on this target}"
         return 0

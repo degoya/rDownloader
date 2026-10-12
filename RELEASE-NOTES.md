@@ -12,6 +12,21 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.28.0
+
+<!-- draft: the notes of the version in the making -->
+
+## 1.27.0
+
+- Usenet downloads show how many connections are in use, per package, file and server, and no longer stall under a speed limit beside other downloads; cancelling them takes effect at once.
+- Storage notifications name the storage location that ran out of space, and automations can be limited to one storage location.
+- Package automations run once per finished or failed package; storage automations run when space runs low and can be set to run when it is free again.
+- Downloads paused for low disk space resume once there is room for them instead of pausing over and over, and Usenet, torrent and media downloads now resume by themselves too.
+- Each hand-over from the browser shows one notice, the extension popup says whether sending worked, and the desktop agent's notice speaks your language.
+- The desktop agent on macOS uses your language even when it starts at login.
+- In Firefox the extension declares the data it sends to rDownloader and asks for your consent before it hands over a site's cookies.
+- Fixed: a media site that refuses downloads without its cookies, such as Bilibili, is no longer retried endlessly; the download says to hand over the site's cookies.
+
 ## 1.26.0
 
 - Click'n'Load buttons on hoster pages now work through the browser extension, even without the desktop agent, for example when rDownloader runs on a NAS.

@@ -106,7 +106,9 @@
     "state": "Estado",
     "failure_code": "Código de error",
     "size_bytes": "Tamaño en bytes",
-    "kind": "Tipo"
+    "kind": "Tipo",
+    "change": "Cambio de almacenamiento",
+    "storage_target": "Destino de almacenamiento"
   },
   "operator": {
     "equals": "es igual a",
@@ -151,5 +153,7 @@
     "cron_help": "Minuto hora día mes día de la semana, por ejemplo «0 6 * * 1-5» para los días laborables a las seis.",
     "every_minutes": "cada {minutes} minutos",
     "no_package": "Una programación no indica ningún paquete: las acciones de paquete no están disponibles aquí."
-  }
+  },
+  "storage_threshold_help": "Se ejecuta cuando una ubicación de almacenamiento baja de su reserva de espacio libre. Para ejecutarla cuando vuelva a haber espacio, añade la condición «Cambio de almacenamiento» igual a «released». Para una sola ubicación, elígela en «Destino de almacenamiento».",
+  "storage_target_fallback": "Directorio de descargas"
 }

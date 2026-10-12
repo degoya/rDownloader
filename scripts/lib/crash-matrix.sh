@@ -27,6 +27,15 @@ rd_crash_matrix_rows() {
 # space and no quote: the callers split the line on blanks.
 RD_CRASH_MATRIX_FILTER='binary(/crash/)|test(/crash|failpoint/)'
 
+# Three feature sets, three builds, on purpose (RD-1270-13, measured with `cargo tree -e features`
+# on 2026-10-12). An unarmed crash point is inert — `failpoint!` returns only for a point a test
+# armed in its own process (rd_core::failpoint) — so one union of the features would be sound, but
+# it buys nothing: cargo refuses `<pkg>/failpoints` for a package that is neither selected nor a
+# direct dependency (`rd-db` does not contain `rd-http/failpoints`), and what rebuilds the crates
+# is the selection itself — the rd-api run unifies 14 third-party crates differently from the
+# shared one (tokio, serde_json, time, …) and `test-support` on rd-api-core, rd-authn and
+# rd-plugin-host, the rd-db run 49 (libc, hyper, …). One run over all packages would build every
+# rd-api integration binary.
 # shellcheck disable=SC2120 # lib/check-tests.sh names the packages, ci.yml and the tests none
 rd_crash_matrix_runs() {
     local package selection features="" packages="" alone=() only=" $* "

@@ -7,18 +7,28 @@ import { mountComponent } from '@/test/mount'
 
 import ConditionTree from './ConditionTree.vue'
 
-/** The menu as a `<select>` that answers with the chosen item, the way the real one hands it back. */
+/**
+ * The menu as a `<select>` that answers with the chosen item, the way the real one hands it back:
+ * the item's `value-key` field when one is named, the item itself otherwise.
+ */
 const USelectMenu = {
-  props: ['modelValue', 'items'],
+  props: ['modelValue', 'items', 'valueKey'],
   emits: ['update:modelValue'],
+  methods: {
+    pick(index: number) {
+      const self = this as unknown as { items: Record<string, unknown>[]; valueKey?: string }
+      const item = self.items[index]
+      return self.valueKey && item ? item[self.valueKey] : item
+    }
+  },
   template:
-    '<select v-bind="$attrs" @change="$emit(\'update:modelValue\', items[$event.target.selectedIndex])">' +
+    '<select v-bind="$attrs" @change="$emit(\'update:modelValue\', pick($event.target.selectedIndex))">' +
     '<option v-for="item in items" :key="item.value ?? item.id">{{ item.label ?? item.name }}</option></select>'
 }
 
 const vocabulary = {
   triggers: [],
-  fields: ['name', 'domain', 'size_bytes'],
+  fields: ['name', 'domain', 'size_bytes', 'storage_target'],
   operators: [
     'equals',
     'contains',
@@ -33,6 +43,12 @@ const vocabulary = {
   max_condition_depth: 6
 } as unknown as AutomationVocabulary
 
+const STORAGE_TARGETS = [
+  { value: 'root-media', label: 'Media' },
+  { value: 'root-named-downloads', label: 'Downloads' },
+  { value: 'fallback', label: 'Download directory' }
+]
+
 /** Records what the component emits, which is the whole node every time. */
 function mount(modelValue: AutomationCondition, depth = 0) {
   // Named `changes` rather than `emitted`: testing-library's render result already has an
@@ -45,6 +61,7 @@ function mount(modelValue: AutomationCondition, depth = 0) {
       vocabulary,
       depth,
       numericFields: ['size_bytes'],
+      storageTargets: STORAGE_TARGETS,
       'onUpdate:modelValue': (value: AutomationCondition) => changes.push(value)
     },
     stubs: { USelectMenu }
@@ -133,5 +150,51 @@ describe('ConditionTree', () => {
     // Rendering alone must not rewrite the tree: an editor that normalises on open turns
     // "look at this rule" into "change this rule".
     expect(changes).toEqual([])
+  })
+
+  describe('the storage target (RD-1270-18)', () => {
+    const onTarget = (value: string) =>
+      ({
+        type: 'predicate',
+        predicate: { field: 'storage_target', operator: 'equals', value }
+      }) as unknown as AutomationCondition
+
+    it('is picked by name from the targets and stored by key', async () => {
+      const { changes } = mount(onTarget('root-media'))
+      const value = screen.getByLabelText('Value') as HTMLSelectElement
+      expect(value.tagName).toBe('SELECT')
+      const labels = Array.from(value.options).map(option => option.textContent?.trim())
+      expect(labels).toEqual(['Media', 'Downloads', 'Download directory'])
+      value.selectedIndex = 2
+      value.dispatchEvent(new Event('change'))
+      await vi.waitFor(() => expect(changes.length).toBe(1))
+      expect(changes[0]).toEqual(onTarget('fallback'))
+    })
+
+    it('compares with equals only', () => {
+      mount(onTarget('fallback'))
+      const operators = screen.getByLabelText('Operator') as HTMLSelectElement
+      const labels = Array.from(operators.options).map(option => option.textContent?.trim())
+      expect(labels).toEqual(['equals'])
+    })
+
+    it('keeps a key no target has any more visible as itself', () => {
+      mount(onTarget('root-removed'))
+      const value = screen.getByLabelText('Value') as HTMLSelectElement
+      const labels = Array.from(value.options).map(option => option.textContent?.trim())
+      expect(labels).toContain('root-removed')
+    })
+
+    it('starts a comparison switched to it on equals with nothing picked', async () => {
+      const { changes } = mount({
+        type: 'predicate',
+        predicate: { field: 'name', operator: 'contains', value: 'S01' }
+      } as AutomationCondition)
+      const field = screen.getByLabelText('Field') as HTMLSelectElement
+      field.selectedIndex = 3
+      field.dispatchEvent(new Event('change'))
+      await vi.waitFor(() => expect(changes.length).toBe(1))
+      expect(changes[0]).toEqual(onTarget(''))
+    })
   })
 })

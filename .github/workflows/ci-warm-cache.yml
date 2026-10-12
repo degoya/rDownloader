@@ -9,11 +9,11 @@ name: CI warm cache
 # macOS is checked at a release candidate and keeps no cache.
 #
 # Sizes against the repository's 10 GB (RD-1120-07, measured 2026-10-06 at 10.6 GB): the
-# `rust-tests` cache 2.4 GB on Linux and 2.0 GB on Windows, `components` and the two `docker` legs
-# ~1 GB each, the component and Docker layer caches a few hundred MB. Only jobs whose cache a
-# later run reads save one; E2E, Recovery, Self-update and Installers saved 5.3 GB more until 1.12
-# and now read `rust-tests` (E2E on Linux `docker`'s) and save none. The table is in
-# docs/roadmap/jobs/archive/1120-07-pipeline-github-workflows.md.
+# `rust-tests` cache 2.4 GB on Linux and 2.0 GB on Windows, `components` ~1 GB, the component and
+# Docker layer caches a few hundred MB. Only jobs whose cache a later run reads save one; E2E,
+# Recovery, Self-update and Installers saved 5.3 GB more until 1.12 and now read `rust-tests` and
+# save none (E2E since RD-1270-11; it read `docker`'s before, which no run saved, and `docker`
+# keeps none since). The table is in docs/roadmap/jobs/archive/1120-07-pipeline-github-workflows.md.
 #
 # Called by ci.yml's `warm-cache` job once per image the gate left out (RD-1101-07 split it off;
 # the job is unchanged).

@@ -7,7 +7,8 @@
 # be a no-op, and every relative link in the tree has to resolve after the first. Then --check has
 # to refuse a miscounted Job Inventory row that a plain run recounts (RD-140-24), a job that is
 # open again but still lies in the archive, and last every status line that is missing or not one
-# of the five words (RD-120-14, moved here from a Rust test by RD-191-09).
+# of the five words (RD-120-14, moved here from a Rust test by RD-191-09), and a status line that
+# counts its file's checkboxes (RD-1270-17).
 #
 # Pure python3, bash and git: it runs in a second. check.sh runs it when scripts/lib/ or
 # scripts/tests/ change, and under --full.
@@ -184,5 +185,23 @@ done
 printf -- '- **Status:** Done\n' > "$JOBS/140-00-release-koordination.md"
 run --check
 expect_true "a working file that grows a status line is checked like any other" 'has "$SCRATCH/out" "140-00-release-koordination.md: status word \`Done\`"'
+
+# A counted status line (RD-1270-17): the numbers come from the file's own checkboxes.
+rm -f "$JOBS/140-07-word.md"
+git -C "$TREE" checkout -q -- docs/roadmap/jobs
+printf -- '- **Status:** Open (gezählt: 1 offen, 0 abgehakt)\n\n- [ ] a\n  - [x] b\n- [X] c\n- [ ] d\n* [ ] e\n' \
+    > "$JOBS/140-08-live.md"
+printf -- '- **Status:** Open (Stand: 3 offen)\n\n- [ ] a\n' > "$JOBS/140-09-plain.md"
+git -C "$TREE" add -A && git -C "$TREE" -c user.name=t -c user.email=t@t commit -qm counted
+run --check
+expect_true "check refuses a counted status line its checkboxes do not bear out" '[[ $status -eq 1 ]] && has "$SCRATCH/out" "miscounted: docs/roadmap/jobs/140-08-live.md status says \`gezählt: 1 offen, 0 abgehakt\`, its checkboxes \`gezählt: 3 offen, 2 abgehakt\`"'
+expect_true "a status line without the counted form is left alone" '! has "$SCRATCH/out" 140-09-plain.md'
+run
+expect_true "a run writes the count" '[[ $status -eq 0 ]] && has "$JOBS/140-08-live.md" "- **Status:** Open (gezählt: 3 offen, 2 abgehakt)" && has "$JOBS/140-09-plain.md" "(Stand: 3 offen)"'
+run --check
+expect_true "check after the count exits 0" '[[ $status -eq 0 ]]'
+git -C "$TREE" -c user.name=t -c user.email=t@t commit -qam recounted-status
+run
+expect_true "a second run leaves the count as it is" '[[ $status -eq 0 ]] && [[ -z "$(git -C "$TREE" status --porcelain)" ]]'
 
 finish_tests archive-jobs

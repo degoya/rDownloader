@@ -35,8 +35,13 @@ impl Writer {
                     crate::nzb_queue::defer_par2_verdict(&mut self.connection, id, missing).await;
                 send(reply, result);
             }
-            NzbCommand::AddNzbImport { import, reply } => {
-                let result = crate::nzb_store::add_import(&mut self.connection, import).await;
+            NzbCommand::AddNzbImport {
+                import,
+                by_extension,
+                reply,
+            } => {
+                let result =
+                    crate::nzb_store::add_import(&mut self.connection, import, by_extension).await;
                 if let Ok((_, events)) = &result {
                     for event in events {
                         let _ = self.events.send(event.clone());

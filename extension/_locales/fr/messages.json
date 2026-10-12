@@ -80,9 +80,6 @@
   "popupOptions": {
     "message": "Paramètres"
   },
-  "sentFromPopup": {
-    "message": "Envoyé au LinkGrabber."
-  },
   "noPageUrl": {
     "message": "L'onglet actuel n'a pas d'adresse web."
   },

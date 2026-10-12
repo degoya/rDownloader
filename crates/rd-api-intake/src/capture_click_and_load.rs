@@ -110,7 +110,13 @@ pub async fn capture_click_and_load(
             anyhow::anyhow!("more Click'n'Load hand-overs than the service accepts per minute"),
         )));
     }
-    crate::collector_handlers::capture_intake(state, audit, Json(intake)).await
+    // The extension's route: it tells the person itself (RD-1270-05).
+    rd_db::intake_notice::announced_by_extension(crate::collector_handlers::capture_intake(
+        state,
+        audit,
+        Json(intake),
+    ))
+    .await
 }
 
 /// Checks every field against its limit, reads the links and builds the intake.

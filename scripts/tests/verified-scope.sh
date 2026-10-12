@@ -68,7 +68,7 @@ expect "on development itself: the last green" "$c1" "$(rd_scope_boundary develo
 
 # --- the release chain's pre-bump green ---------------------------------------------------------
 git checkout -q -b release
-mkdir -p web extension sdk/ci
+mkdir -p web extension sdk/ci sdk/templates/demo
 cat > Cargo.toml <<'EOF'
 [workspace]
 members = ["crates/*"]
@@ -92,6 +92,8 @@ printf '{\n  "info": {\n    "title": "rd-api",\n    "version": "1.0.0"\n  },\n  
 for workflow in plugin repository; do
     printf 'env:\n  RDOWNLOADER_VERSION: 1.0.0\n' > "sdk/ci/$workflow.yml"
 done
+# An SDK template: its minimum is a copy of the release (RD-1270-09), its own version is not.
+printf 'version = "0.1.0"\n\n[metadata]\nmin_app_version = "1.0.0"\n' > sdk/templates/demo/manifest.toml
 git add -A
 git commit -qm "release base"
 tree="$(git rev-parse 'HEAD^{tree}')"
@@ -99,6 +101,7 @@ bump() {
     sed -i 's/^version = "1\.0\.0"/version = "1.1.0"/' Cargo.toml Cargo.lock
     sed -i 's/"version": "1\.0\.0"/"version": "1.1.0"/' web/package.json extension/manifest.base.json web/openapi.json
     sed -i 's/RDOWNLOADER_VERSION: 1\.0\.0/RDOWNLOADER_VERSION: 1.1.0/' sdk/ci/plugin.yml sdk/ci/repository.yml
+    sed -i 's/^min_app_version = "1\.0\.0"/min_app_version = "1.1.0"/' sdk/templates/demo/manifest.toml
 }
 reset() { git checkout -q -- . && git clean -qfd; }
 
@@ -106,7 +109,7 @@ rm -rf "$CARGO_TARGET_DIR"
 bump
 expect "a bump without any --full green: run" "" "$(rd_prebump_full_green "$repo")"
 rd_record_full "$repo" rust "$tree"
-expect "a bump of a tree with a --full green: skip, naming the green" "$tree" "$(rd_prebump_full_green "$repo")"
+expect "a bump of a tree with a --full green, the SDK templates' minimum included: skip, naming the green" "$tree" "$(rd_prebump_full_green "$repo")"
 reset
 expect "no bump at all: run" "" "$(rd_prebump_full_green "$repo")"
 bump
@@ -131,6 +134,7 @@ beta_bump() {
     sed -i 's/"version": "1\.0\.0"/"version": "1.1.0-beta.1"/' web/package.json web/openapi.json
     sed -i 's/"version": "1\.0\.0"/"version": "1.1.0"/' extension/manifest.base.json
     sed -i 's/RDOWNLOADER_VERSION: 1\.0\.0/RDOWNLOADER_VERSION: 1.1.0-beta.1/' sdk/ci/plugin.yml sdk/ci/repository.yml
+    sed -i 's/^min_app_version = "1\.0\.0"/min_app_version = "1.1.0-beta.1"/' sdk/templates/demo/manifest.toml
 }
 beta_bump
 expect "a bump to a beta, the browser manifest without the suffix: skip" "$tree" "$(rd_prebump_full_green "$repo")"
@@ -138,6 +142,14 @@ reset
 bump
 sed -i 's/RDOWNLOADER_VERSION: 1\.1\.0/RDOWNLOADER_VERSION: 1.5.2/' sdk/ci/plugin.yml
 expect "a bump with an SDK pin at another version: run" "" "$(rd_prebump_full_green "$repo")"
+reset
+bump
+sed -i 's/^min_app_version = "1\.1\.0"/min_app_version = "1.0.5"/' sdk/templates/demo/manifest.toml
+expect "a bump with a template's minimum at another version: run" "" "$(rd_prebump_full_green "$repo")"
+reset
+bump
+sed -i 's/^version = "0\.1\.0"/version = "0.2.0"/' sdk/templates/demo/manifest.toml
+expect "a bump with another line of a template: run" "" "$(rd_prebump_full_green "$repo")"
 reset
 beta_bump
 sed -i 's/^version = "1\.1\.0-beta\.1"/version = "1.1.0"/' Cargo.lock
@@ -344,7 +356,7 @@ mkdir -p docs && echo "moved" > docs/archived-job.md
 git add -A
 git commit -qm "chore(release): 1.1.0"
 candidate="$(git rev-parse 'HEAD^{tree}')"
-expect "the release candidate: bump and documentation count as the same content" "$green" "$(rd_ci_covering "$repo" "$candidate" ubuntu-24.04)"
+expect "the release candidate: bump (SDK templates' minimum included) and documentation count as the same content" "$green" "$(rd_ci_covering "$repo" "$candidate" ubuntu-24.04)"
 expect "but macOS still has to run" "" "$(rd_ci_covering "$repo" "$candidate" macos-15)"
 sed -i 's/version = "1\.0\.200"/version = "1.0.201"/' Cargo.lock
 git commit -qam "a dependency moved"
@@ -358,6 +370,14 @@ sed -i 's/^edition = "2024"/edition = "2021"/' Cargo.toml
 git commit -qam "another Cargo.toml line"
 expect "another line of a version file: not the same content" "" "$(rd_ci_covering "$repo" "$(git rev-parse 'HEAD^{tree}')" ubuntu-24.04)"
 git reset -q --hard HEAD~1
+sed -i 's/^version = "0\.1\.0"/version = "0.2.0"/' sdk/templates/demo/manifest.toml
+git commit -qam "another line of a template"
+expect "another line of an SDK template: not the same content" "" "$(rd_ci_covering "$repo" "$(git rev-parse 'HEAD^{tree}')" ubuntu-24.04)"
+git reset -q --hard HEAD~1
+if rd_is_version_file 'sdk\templates\demo\manifest.toml'; then windows=version; else windows=other; fi
+expect "a template path with Windows separators is a version file" version "$windows"
+if rd_is_version_file 'sdk\templates\demo\README.md'; then windows=version; else windows=other; fi
+expect "another file beside it is not" other "$windows"
 echo "verification note" > docs/note.md
 git add -A
 git commit -qm "docs: the verification note"
@@ -379,5 +399,21 @@ if rd_tree_docs_only "$repo" "$before" "$after"; then moved='docs-only'; else mo
 expect "a source file moved into docs/ is not documentation only" code "$moved"
 if rd_tree_unread_by "$repo" rust "$before" "$after"; then moved='unread'; else moved='read'; fi
 expect "and the Rust half reads the file it lost" read "$moved"
+
+# The working tree of a same-size rewrite in the second of the last index write (RD-1270-06): the
+# entry is racily clean, and only an index copy of the same time makes git read the file. Every
+# time is set, and ctime is out of the comparison, so the clock's resolution decides nothing.
+racy="$SCRATCH/racy"
+git init -q -b development "$racy"
+git -C "$racy" config core.trustctime false
+echo "pub fn old() {}" > "$racy/f.rs"
+touch -d "@1700000000" "$racy/f.rs"
+git -C "$racy" add f.rs
+git -C "$racy" commit -qm "old"
+touch -d "@1700000000" "$racy/.git/index"
+echo "pub fn new() {}" > "$racy/f.rs"
+touch -d "@1700000000" "$racy/f.rs"
+expect "a same-size rewrite in the index's second is in the working tree" \
+    "$(git -C "$racy" hash-object f.rs)" "$(git -C "$racy" rev-parse "$(rd_worktree_tree "$racy"):f.rs")"
 
 finish_tests verified-scope

@@ -238,7 +238,9 @@ Files use `queued`, `resolving`, `downloading`, `paused`, `retry_wait`, `verifyi
 allowed transitions; direct transitions such as `completed → downloading` are forbidden. A queued
 HTTP file the dispatcher holds back because its host has no free connection stays `queued`; the
 host it waits for is runtime state, not a state of its own (`waiting_for_host` in the rates read
-and in MCP's `list_downloads`, RD-1130-02).
+and in MCP's `list_downloads`, RD-1130-02). The connections a running Usenet file holds are
+runtime state the same way (`connections` in the rates read and in `list_downloads`,
+RD-1270-21).
 
 Packages summarize file state as `queued`, `downloading`, `postprocessing`, `completed`, or
 `failed`. LinkGrabber candidates use `resolving`, `checking`, `online`, `offline`, `unsupported`,
@@ -632,7 +634,10 @@ prevent columns from shifting during live updates.
   languages; an unfinished one has to be picked (RD-1100-09).
 - **German says "du", French "vous", Spanish "tú"** — as the website does (owner, 2026-09-27):
   an open-source tool, not a business form. German is lower-case *du*, *dein*, imperatives in the
-  du form (*Klicke*, *Prüfe*), never *Sie*/*Ihnen*/*Ihr*; "sie" in the third person stays. Tests
+  du form (*Klicke*, *Prüfe*), never *Sie*/*Ihnen*/*Ihr*; "sie" in the third person stays. One
+  exception: the website's German privacy page (`app/components/legal/privacy/De.vue` in the
+  website repository) is a legal text and keeps *Sie*, and a section added to it is written with
+  *Sie* too (owner, 2026-10-08 and 2026-10-12) — a brief that touches it says so. Tests
   over the web, extension and plugin catalogues fail on a formal address, with a short list of
   third-person sentence starts ("Sie laufen …"). French and Spanish hold to theirs throughout
   (owner, 2026-10-02): French *Saisissez*, *votre*, never *Saisis*, *ton*; Spanish *Introduce*,
@@ -930,7 +935,9 @@ the empty picker for as long as the server took to compile every plugin.
 
 A desktop notification is an interruption, and the same news on two surfaces is two (RD-1260-04).
 Each moment has one surface: what push sends to this browser stays with push, links arriving
-stay with a running desktop agent and come from the tab only without one, and of several open
+stay with a running desktop agent and come from the tab only without one — except what the
+browser extension handed over, which the extension announces itself and neither the agent nor the
+tab repeats (RD-1270-05) — and of several open
 tabs only the one holding the leader lock (`navigator.locks`) notifies. A message names a `tag`
 — per package, per status such as "queue finished" — so a later one replaces it rather than
 stacking. A notification reports a transition, not a state: a package that failed, once its files
@@ -1915,6 +1922,18 @@ underneath, or from a glyph. Concretely (RD-109-30):
   schedule's pause itself sits beside the queue's pause control as a warning badge, *Paused by
   schedule until <time>*, as the used-up account traffic does.
   Only a state whose value changes while you watch (`Post-processing 40%`) keeps its text.
+- **A running count says what is scarce** (RD-1270-21). An HTTP package counts its running files
+  (`· 2 active`), because a file is what takes a place there. A Usenet package's files share the
+  servers' connections, and `2 active` beside two files holding all ten of them, five each, read
+  as if eight were idle: its count is the connections busy for its files, an `i-lucide-cable`
+  glyph and the number in the same cell and the same width, `role="img"` with the sentence as its
+  name and its `UTooltip` — *10 connections: 2 files at once, 5 each*, the split `(6 + 4)` when it
+  is uneven, then whether the servers' limit is reached (*All 10 connections the servers allow
+  are busy* / *8 of the 20 … are busy*). While no connection is busy (verifying, repairing) the
+  package falls back to `N active`. Each running Usenet file shows its own share the same way in
+  its row's meta cell, each server of the chain `· N busy` beside its connection limit, and the
+  hint under *NNTP connections per server* says the live split while files run. The figures are
+  the rates read's (`connections` per entry, `usenet_servers`), never a second poll.
 - **An ordered set of three or fewer levels is a glyph too.** Priority is an arrow up, a dash and
   an arrow down on a `size="xs" variant="ghost"` button whose name reads `Priority: <level>`; the
   levels live in a dropdown beside it and each keeps its own label. A select that spells out

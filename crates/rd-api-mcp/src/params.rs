@@ -293,6 +293,9 @@ pub(crate) struct DownloadItem {
     /// A queued file held back because this host has no free connection (RD-1130-02).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub waiting_for_host: Option<String>,
+    /// NNTP connections working for a running Usenet file right now (RD-1270-21).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connections: Option<u32>,
 }
 
 impl From<rd_core::DownloadFile> for DownloadItem {
@@ -316,6 +319,7 @@ impl From<rd_core::DownloadFile> for DownloadItem {
             error: file.last_error.map(|failure| failure.message),
             updated_at: file.updated_at,
             waiting_for_host: None,
+            connections: None,
         }
     }
 }

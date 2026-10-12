@@ -13,7 +13,9 @@
 # (RD-1110-15), a red gate stops it before any generator with every error shown,
 # a green one lets the generators run and archive-jobs' rewrite into the generated commit, and
 # the detached check runs --windows first and --full only after a green Windows lint, and with
-# --public-ci the public CI beside them (RD-1120-06).
+# --public-ci the public CI and the release workflows beside them (RD-1120-06, RD-1270-10); a
+# run.sh in the log directory that integrate.sh did not write is moved aside with a warning
+# (RD-1270-17).
 #
 #   scripts/tests/integrate.sh
 set -euo pipefail
@@ -235,18 +237,30 @@ rm -f "$FAKE/calls"
 run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --public-ci
 expect_status "--public-ci: the detached check starts" 0
 expect "GitHub's exit beside the local ones" "full=0 windows=0 prune=0 public-ci=0" "$(wait_status)"
-expect_true "on the integration branch, Linux and Windows" 'grep -qx "public-ci.sh integration/w3 --platforms linux,windows" "$FAKE/calls"'
+expect_true "on the integration branch, Linux and Windows and the release workflows" 'grep -qx "public-ci.sh integration/w3 --platforms linux,windows --release-workflows" "$FAKE/calls"'
 expect "after the gate and the generators: the run starts it before --windows and --full" \
     "public-ci.sh|check.sh --windows|check.sh --full" \
     "$(grep -oE 'scripts/(public-ci\.sh|check\.sh --(windows|full))' "$RD_INTEGRATE_LOGS/run.sh" | sed 's|^scripts/||' | paste -sd'|' -)"
 expect_true "the gate and every generator ran before the detached run" \
     '[[ "$(grep -nE "^(check.sh --gate|archive-jobs.sh)" "$FAKE/calls" | tail -1 | cut -d: -f1)" -lt "$(grep -n "^public-ci.sh" "$FAKE/calls" | cut -d: -f1)" ]]'
-expect_output "the output names it" "and beside them scripts/public-ci.sh integration/w3 --platforms linux,windows"
+expect_output "the output names it" "and beside them scripts/public-ci.sh integration/w3 --platforms linux,windows --release-workflows"
 expect_true "its log ends with the real exit" '[[ "$(tail -1 "$RD_INTEGRATE_LOGS/public-ci.log")" == "REAL EXIT: 0" ]]'
 touch "$FAKE/public-ci-red"
 run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --public-ci
 expect "a red GitHub run is in the status, the local check unaffected" "full=0 windows=0 prune=0 public-ci=1" "$(wait_status)"
 rm -f "$FAKE/public-ci-red"
+
+# run.sh is integrate.sh's (RD-1270-17): a coordinator's wrapper there is moved aside, not lost.
+printf '#!/usr/bin/env bash\necho mine\n' > "$RD_INTEGRATE_LOGS/run.sh"
+run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --no-gate
+expect "the run goes on" "full=0 windows=0 prune=0 public-ci=skipped" "$(wait_status)"
+expect_output "with a warning" "was not written by integrate.sh; moved to $RD_INTEGRATE_LOGS/run.sh.foreign-"
+expect_true "the wrapper kept beside it" 'grep -qx "echo mine" "$RD_INTEGRATE_LOGS"/run.sh.foreign-*'
+expect_true "and run.sh is integrate.sh's again" 'sed -n 2p "$RD_INTEGRATE_LOGS/run.sh" | grep -q "written by scripts/integrate.sh"'
+run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --no-gate
+expect "its own run.sh is replaced" "full=0 windows=0 prune=0 public-ci=skipped" "$(wait_status)"
+expect_true "without a warning" '! grep -q "was not written by integrate.sh" <<< "$output"'
+expect "and without a second copy" "1" "$(find "$RD_INTEGRATE_LOGS" -name 'run.sh.foreign-*' | wc -l)"
 unset RD_INTEGRATE_LOGS
 
 integrate integration/w1 feat/nope

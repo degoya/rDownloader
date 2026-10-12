@@ -13,6 +13,7 @@ use tokio::sync::{Mutex, oneshot};
 
 use crate::{
     NntpClient,
+    connections::LineFiles,
     nntp::{BodyError, NntpReader, NntpWriter},
 };
 
@@ -38,6 +39,8 @@ pub(super) struct Line {
     pub(super) broken: AtomicBool,
     /// Held by a request that must not share the line: a refusal being confirmed.
     pub(super) reserved: AtomicBool,
+    /// The running files with a request on this line (RD-1270-21).
+    pub(super) files: LineFiles,
     /// The last few message-ids sent on this line, in send order.
     ///
     /// Not only the ones whose answers are still owed: a request that took a refusal meant
@@ -96,6 +99,7 @@ impl Line {
             in_flight: AtomicUsize::new(0),
             broken: AtomicBool::new(false),
             reserved: AtomicBool::new(false),
+            files: LineFiles::default(),
             sent: StdMutex::new(VecDeque::new()),
         }
     }

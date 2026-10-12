@@ -30,8 +30,9 @@
 # one to eight points, or the maintenance sentence alone; each point at most 200 characters,
 # ending a sentence, English (no umlauts), and naming no job (`RD-…`, `CR-…`, `PL-…`), no path and
 # no code identifier (code spans, `::`, snake_case). A section with an HTML comment saying `draft`
-# is named as a draft and passes — the notes of the version in the making are written during its
-# wave and finished at the release. With --version (the release chain's docs-gate) that version's
+# is named as a draft and passes, empty too — the notes of the version in the making are written
+# during its wave and finished at the release; `scripts/release-docs.sh --next-draft` starts the
+# section empty after the previous release (RD-1270-15). With --version (the release chain's docs-gate) that version's
 # section must exist and must not be a draft. Every finding is printed; exit 1 while any is left.
 # Run by check.sh's file checks (so the preflight too) and the docs-gate.
 set -euo pipefail
@@ -125,9 +126,10 @@ def point_problems(point):
         yield "names a code identifier"
 
 
-def problems(points, paragraph):
+def problems(points, paragraph, draft=False):
     if paragraph is None and not points:
-        yield "has no points"
+        if not draft:
+            yield "has no points"
     elif paragraph is not None and not points:
         if paragraph != MAINTENANCE:
             yield f"is not a list of points; a version without visible change says \"{MAINTENANCE}\""
@@ -186,7 +188,7 @@ def check(path, version):
         points, paragraph, draft = parse(lines)
         if draft:
             drafts.append(name)
-        findings.extend(f"{where} {problem}" for problem in problems(points, paragraph))
+        findings.extend(f"{where} {problem}" for problem in problems(points, paragraph, draft))
     if version:
         names = [candidate for candidate in candidates(version) if candidate in seen]
         if not names:

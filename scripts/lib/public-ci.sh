@@ -30,7 +30,16 @@
 # The release candidate also dispatches the workflows of RD_PUBLIC_CI_RELEASE_WORKFLOWS beside
 # ci.yml (owner, 2026-10-06): the export's push carries `[skip ci]`, so until 1.12 they first ran
 # on the push to `main` after the tag. They are waited for with ci.yml's run, a red one holds the
-# tag, and a green is recorded under the workflow's file name, like an image.
+# tag, and a green is recorded under the workflow's file name, like an image. Since RD-1270-10 a
+# wave's integration branch runs them too (`scripts/public-ci.sh --release-workflows`, which
+# `integrate.sh --public-ci` passes), so their greens are on record before the candidate exists
+# and its step dispatches only what is left — as a rule macOS alone. Self-update builds the tree
+# twice, the second time with its own patch version raised, so the version a tree carries does not
+# matter to it: a green before the release's version bump covers the candidate like the others.
+#
+# A red job or run ends the wait at once, naming it (RD-1270-10): until 1.27 a job red after ten
+# minutes was printed and then waited past for the rest of the hour. The other runs go on on
+# GitHub, so what they find is there to read, but nothing waits for them.
 
 # shellcheck source=verified.sh
 source "$(dirname "${BASH_SOURCE[0]}")/verified.sh"
@@ -142,7 +151,9 @@ rd_public_ci_dispatch_workflow() {
 # The jobs of run $1 that changed since the last look, one line each, and every job that failed
 # the moment it is seen failed (RD-1100-13): a Windows job that is red 50 minutes before the run
 # ends is worth those 50 minutes. Keeps what it saw in the caller's associative array
-# RD_PUBLIC_CI_JOBS ("<run>/<job>" → "<status> <conclusion>"). A job still queued says nothing.
+# RD_PUBLIC_CI_JOBS ("<run>/<job>" → "<status> <conclusion>"), and the first failed job as
+# "<name>: <conclusion> (<url>)" in the caller's RD_PUBLIC_CI_RED, which ends rd_public_ci_wait
+# (RD-1270-10). A job still queued says nothing.
 rd_public_ci_jobs() {
     local run="$1" jobs status conclusion url name key
     jobs="$(gh run view "$run" --repo "$PUBLIC_REPO" --json jobs \
@@ -157,8 +168,9 @@ rd_public_ci_jobs() {
             "completed success"|"completed skipped"|"completed neutral")
                 echo "  $(date +%H:%M:%S) $name: $conclusion" ;;
             completed\ *)
-                echo "  $(date +%H:%M:%S) $name: $conclusion — failed, while the run goes on"
-                echo "!! $name: $conclusion — scripts/ci-log.sh $url" >&2 ;;
+                echo "  $(date +%H:%M:%S) $name: $conclusion — failed"
+                echo "!! $name: $conclusion — scripts/ci-log.sh $url" >&2
+                [[ -n "${RD_PUBLIC_CI_RED:-}" ]] || RD_PUBLIC_CI_RED="$name: $conclusion ($url)" ;;
             in_progress\ *) echo "  $(date +%H:%M:%S) $name: started" ;;
         esac
     done <<< "$jobs"
@@ -185,10 +197,10 @@ rd_public_ci_note() {
 }
 
 # Waits for every run on branch $1 at commit $2 — only those of event $3 when given — to
-# finish, and prints them. Returns 0 when all of them succeeded (or were skipped), 1 when one
-# did not, when no run appeared within RD_PUBLIC_CI_TIMEOUT, or when one was still going at
-# RD_PUBLIC_CI_CEILING. While it waits it prints only what changed: a job that started, finished
-# or failed (rd_public_ci_jobs), a run that appeared or finished.
+# finish, and prints them. Returns 0 when all of them succeeded (or were skipped), 1 at once when
+# a job or a run failed (RD-1270-10), when no run appeared within RD_PUBLIC_CI_TIMEOUT, or when one
+# was still going at RD_PUBLIC_CI_CEILING. While it waits it prints only what changed: a job that
+# started, finished or failed (rd_public_ci_jobs), a run that appeared or finished.
 #
 # How it looks (RD-1120-06, audit A3). `gh run list` finds the runs; the start deadline holds only
 # until it has found one. From then on each run is asked for by its id (`gh run view`), and a
@@ -198,12 +210,13 @@ rd_public_ci_note() {
 # second look lists again, so a run of another workflow that appeared meanwhile is waited for too,
 # and asks every known run again by its id.
 rd_public_ci_wait() {
-    local branch="$1" sha="$2" event="${3:-}" listed line failed deadline ceiling id rest runs
+    local branch="$1" sha="$2" event="${3:-}" listed line deadline ceiling id rest runs
     local waiting_said=0 confirming=0 seen=0 found unread
     local -a filter=()
     # Read by rd_public_ci_note and rd_public_ci_jobs, which bash's dynamic scope lets see them.
     # shellcheck disable=SC2034
     local -A RD_PUBLIC_CI_RUNS=() RD_PUBLIC_CI_JOBS=()
+    local RD_PUBLIC_CI_RED=""
     [[ -z "$event" ]] || filter=(--event "$event")
     echo "waiting for the CI of $PUBLIC_REPO on $branch at ${sha:0:12} (for as long as it runs)"
     deadline=$(( SECONDS + PUBLIC_CI_TIMEOUT ))
@@ -232,6 +245,17 @@ rd_public_ci_wait() {
         done
         for id in "${!RD_PUBLIC_CI_RUNS[@]}"; do rd_public_ci_jobs "$id"; done
         runs="$(printf '%s\n' "${RD_PUBLIC_CI_RUNS[@]}" | sed '/^$/d' | sort -n)"
+        # A failed job, or a run that ended other than green without one (a startup failure, a
+        # cancellation), ends the wait: the tag or the merge is held either way.
+        [[ -n "$RD_PUBLIC_CI_RED" ]] || RD_PUBLIC_CI_RED="$(awk '$2 == "completed" && $3 !~ /^(success|skipped|neutral)$/ {
+            conclusion = $3; url = $4; $1 = $2 = $3 = $4 = ""; sub(/^ +/, "")
+            print "run " $0 ": " conclusion " (" url ")"; exit }' <<< "$runs")"
+        if [[ -n "$RD_PUBLIC_CI_RED" ]]; then
+            rd_public_ci_runs_text <<< "$runs"
+            echo "the public CI is red: $RD_PUBLIC_CI_RED; the wait ends here, the other runs go on, $branch is kept for inspection" >&2
+            echo "read the failures with: scripts/ci-log.sh <run or job url>" >&2
+            return 1
+        fi
         if [[ -n "$runs" ]] && ! awk '$2 != "completed" { found = 1 } END { exit !found }' <<< "$runs"; then
             [[ "$confirming" -eq 0 || "$found" -eq 1 || "$unread" -eq 1 ]] || break
             # Every run completed for the first time: read once more, at once.
@@ -255,15 +279,8 @@ rd_public_ci_wait() {
         sleep "$PUBLIC_CI_POLL"
     done
 
-    runs="$(rd_public_ci_runs_text <<< "$runs")"
-    echo "$runs"
-    failed="$(grep -vE '^completed (success|skipped|neutral) ' <<< "$runs" || true)"
-    if [[ -n "$failed" ]]; then
-        echo "the public CI is red; $branch is kept for inspection:" >&2
-        echo "$failed" >&2
-        echo "read the failures with: scripts/ci-log.sh <run url>" >&2
-        return 1
-    fi
+    # Every run completed, none red: a red one ended the wait above.
+    rd_public_ci_runs_text <<< "$runs"
     echo "the public CI is green on ${sha:0:12}"
 }
 

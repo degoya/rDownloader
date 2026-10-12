@@ -5,7 +5,7 @@ use anyhow::Result;
 use rd_core::{Failure, FailureKind};
 
 use super::UsenetRunner;
-use crate::NntpPool;
+use crate::{NntpPool, pool::PoolServer};
 
 /// How long a download waits before it asks again when every enabled server is paused by its
 /// quota (RD-1100-05). A wait for a limit, not an attempt: a quota is raised or reset by a
@@ -53,12 +53,19 @@ impl UsenetRunner {
             .with_param("servers", ordered.paused)
             .into());
         }
+        let ids: Vec<_> = ordered.servers.iter().map(|(id, _)| *id).collect();
+        let gauges = self.connections.servers(&ids);
         let servers = ordered
             .servers
             .into_iter()
-            .map(|(id, config)| (config, Some(self.traffic.counter(id))))
+            .zip(gauges)
+            .map(|((id, config), gauge)| PoolServer {
+                config,
+                traffic: Some(self.traffic.counter(id)),
+                gauge: Some(gauge),
+            })
             .collect();
-        let pool = NntpPool::metered(servers, cap)?;
+        let pool = NntpPool::gauged(servers, cap)?;
         *cached = Some(CachedPool {
             fingerprint,
             cap,

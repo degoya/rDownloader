@@ -11,8 +11,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCRATCH="$(mktemp -d)"
 holder=""
+release_holder() {
+    pkill -P "$holder" 2> /dev/null || true
+    kill "$holder" 2> /dev/null || true
+    wait "$holder" 2> /dev/null || true
+    holder=""
+}
 cleanup() {
-    [[ -z "$holder" ]] || kill "$holder" 2> /dev/null || true
+    [[ -z "$holder" ]] || release_holder
     rm -rf "$SCRATCH"
 }
 trap cleanup EXIT
@@ -45,7 +51,9 @@ touch -d '2 hours ago' "$old"
 source "$ROOT/scripts/lib/lanes.sh"
 lockfile="$(rd_target_lock_file "$CARGO_TARGET_DIR" "$TREE")"
 # -o: the lock stays with flock itself, so killing it frees the lock (sleep would inherit it).
-flock -o "$lockfile" sleep 60 &
+# The holder writes nowhere: an inherited stdout kept `check.sh`'s `| tee` of this stage open
+# until the orphaned sleep ended, 60 s per run (RD-1270-13; lock-lanes.sh does the same).
+flock -o "$lockfile" sleep 60 > /dev/null 2>&1 < /dev/null &
 holder=$!
 for _ in $(seq 1 50); do
     flock -n "$lockfile" true 2> /dev/null || break
@@ -57,9 +65,7 @@ expect_status "the lock held by a build: --if-free exits 0" 0
 expect_output "saying why" "a build holds its lock; not pruned (--if-free)"
 expect_true "nothing was removed" '[[ -f "$old" && -f "$new" ]]'
 
-kill "$holder" 2> /dev/null || true
-wait "$holder" 2> /dev/null || true
-holder=""
+release_holder
 
 run_status "$TREE/scripts/prune-target.sh" --if-free
 expect_status "the lock free: --if-free prunes" 0
@@ -89,5 +95,24 @@ expect_true "the check's .d stays" '[[ -f "$checked" ]]'
 expect_true "the build's .rlib stays beside a newer check's .rmeta" '[[ -f "$rlib" && -f "$rmeta" ]]'
 expect_true "the older test binary goes" '[[ ! -e "$binary_old" && ! -e "$binary_old.d" ]]'
 expect_output "and only it" "removed 2 files"
+
+# --if-free never fails without a reason (RD-1270-13). integrate.sh recorded `prune=1` with an
+# empty log: the target list ended in a linked worktree with a `target/` that is not its own,
+# rd_all_target_dirs returned that test's 1, and errexit ended the run without a word.
+git -C "$TREE" worktree add -q "$SCRATCH/linked"
+mkdir -p "$SCRATCH/linked/target"
+run_status "$TREE/scripts/prune-target.sh" --if-free
+expect_status "a linked worktree sharing the target is listed last: --if-free still prunes" 0
+expect_output "and reports its own target" "$deps: removed"
+
+# A step that fails without a word is still named, with its exit code, by the run and its parent.
+shim="$SCRATCH/shim"
+mkdir -p "$shim"
+printf '#!/usr/bin/env bash\nexit 3\n' > "$shim/python3"
+chmod +x "$shim/python3"
+run_status env PATH="$shim:$PATH" "$TREE/scripts/prune-target.sh" --if-free
+expect_true "a silent failure fails the run" '[[ $status -ne 0 ]]'
+expect_output "naming the command that failed" "prune-target: failed (exit 3) at"
+expect_output "and the target it gave up on" "$CARGO_TARGET_DIR: not pruned (exit 3"
 
 finish_tests prune-target

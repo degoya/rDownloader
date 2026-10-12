@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes or checks the release facts the documentation repeats (RD-140-24).
 
-    doc-facts.py <repo> [--check] [--wiki DIR] [--date YYYY-MM-DD]
+    doc-facts.py <repo> [--check] [--wiki DIR | --wiki-only DIR] [--date YYYY-MM-DD]
 
 Four facts move with a release and are read from their source, never from a document:
 
@@ -27,6 +27,9 @@ second run changes nothing.
 
 --wiki DIR takes the user wiki in as well (`~/projects/rdownloader.wiki`). The wiki describes the
 current release only, so there every `rdownloader:plugin@X.Y.Z` on any page is the contract.
+--wiki-only DIR does the same for the wiki alone: the facts are still read from <repo>, but no
+file of <repo> is written or checked, so the wiki pass of a release can run from any checkout
+without touching that checkout's documents (RD-1270-16).
 
 Writes by default and prints what it changed. --check writes nothing, prints every stale value
 with its place, and exits 1 when there is one. The release pipeline runs the first as its
@@ -144,7 +147,12 @@ class Run:
 def main(argv):
     args = argv[1:]
     check = "--check" in args
-    wiki = args[args.index("--wiki") + 1] if "--wiki" in args else None
+    wiki_only = "--wiki-only" in args
+    flag = "--wiki-only" if wiki_only else "--wiki"
+    wiki = args[args.index(flag) + 1] if flag in args and args.index(flag) + 1 < len(args) else None
+    if ("--wiki" in args and wiki_only) or (flag in args and (wiki is None or wiki.startswith("--"))):
+        print("--wiki DIR or --wiki-only DIR, one of them, with its directory", file=sys.stderr)
+        return 2
     date = args[args.index("--date") + 1] if "--date" in args else datetime.date.today().isoformat()
     repo = next((a for a in args if not a.startswith("--") and a not in (wiki, date)), None)
     if repo is None:
@@ -153,8 +161,9 @@ def main(argv):
 
     facts = read_facts(repo)
     run = Run(repo, facts, check, date)
-    for rel, pattern in REPO_ANCHORS:
-        run.apply(repo, rel, pattern)
+    if not wiki_only:
+        for rel, pattern in REPO_ANCHORS:
+            run.apply(repo, rel, pattern)
     if wiki:
         for rel, pattern in WIKI_ANCHORS:
             run.apply(wiki, rel, pattern)
@@ -174,9 +183,10 @@ def main(argv):
             print(f"stale: {line}")
         if run.stale:
             print(f"{len(run.stale)} stale value(s) — run scripts/doc-facts.sh"
-                  + (f" --wiki {wiki}" if wiki else ""))
+                  + (f" {flag} {wiki}" if wiki else ""))
         elif not run.missing:
-            print(f"doc facts current: {summary}" + (" (with the wiki)" if wiki else ""))
+            print(f"doc facts current: {summary}"
+                  + (" (the wiki only)" if wiki_only else " (with the wiki)" if wiki else ""))
     else:
         for line in run.stale:
             print(f"updated: {line}")

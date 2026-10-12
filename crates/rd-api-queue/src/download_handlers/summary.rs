@@ -182,19 +182,22 @@ pub async fn download_rates(
     let downloads = state.database.list_downloads().await?;
     let rates = moving_rates(state.scheduler.transfer_rates(), &downloads);
     let queue = queue_rate(&rates, &downloads);
+    let live = state.scheduler.live_connections();
     let entries = downloads
         .iter()
         .filter_map(|download| {
             let bytes_per_second = rates.get(&download.id).copied().unwrap_or_default();
-            // Only what is moving. A rate of zero carries no estimate either, so a row for it
-            // would say nothing the absence does not already say.
-            (bytes_per_second > 0).then(|| DownloadRateEntry {
+            let connections = live.files.get(&download.id).copied();
+            // Only what is moving or holds a connection. A rate of zero carries no estimate
+            // either, so a row for it would say nothing the absence does not already say.
+            (bytes_per_second > 0 || connections.is_some()).then(|| DownloadRateEntry {
                 id: download.id,
                 bytes_per_second,
                 eta_seconds: rd_scheduler::estimate_seconds(
                     remaining_of(download),
                     bytes_per_second,
                 ),
+                connections,
             })
         })
         .collect();
@@ -217,5 +220,14 @@ pub async fn download_rates(
         eta_seconds: queue.eta_seconds,
         downloads: entries,
         waiting_for_host,
+        usenet_servers: live
+            .servers
+            .iter()
+            .map(|server| UsenetServerConnections {
+                id: server.server,
+                busy: server.busy,
+                limit: server.limit,
+            })
+            .collect(),
     }))
 }

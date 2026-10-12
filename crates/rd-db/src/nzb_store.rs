@@ -88,6 +88,7 @@ pub struct NewNzbSegment {
 pub(crate) async fn add_import(
     connection: &mut SqliteConnection,
     new: NewNzbImport,
+    by_extension: bool,
 ) -> Result<(NzbImport, Vec<EventEnvelope>)> {
     let announce_arrival = new.announce_arrival;
     let category_id = resolve_category(connection, &new).await?;
@@ -125,7 +126,8 @@ pub(crate) async fn add_import(
     };
     insert_import_row(&mut transaction, &import).await?;
     insert_import_files(&mut transaction, &import, new.files).await?;
-    let events = record_arrival_events(&mut transaction, &import, announce_arrival).await?;
+    let events =
+        record_arrival_events(&mut transaction, &import, announce_arrival, by_extension).await?;
     transaction.commit().await?;
     Ok((import, events))
 }
@@ -254,11 +256,13 @@ async fn insert_import_files(
 }
 
 /// Records the `collector.changed` event of a new import and, for an NZB that arrived on its
-/// own, the `collector.intake` one; returns them in that order.
+/// own, the `collector.intake` one -- marked when the browser extension announces it itself
+/// (RD-1270-05); returns them in that order.
 async fn record_arrival_events(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     import: &NzbImport,
     announce_arrival: bool,
+    by_extension: bool,
 ) -> Result<Vec<EventEnvelope>> {
     let event = EventEnvelope::new(
         EventKind::CollectorChanged,
@@ -271,15 +275,14 @@ async fn record_arrival_events(
     // announced, and the count here is files inside the NZB, not links anybody added.
     let mut events = vec![event];
     if announce_arrival {
-        let intake = EventEnvelope::new(
-            EventKind::CollectorIntake,
-            serde_json::json!({
-                "nzb_import_id": import.id,
-                "file_count": import.file_count,
-                "package_count": 1,
-                "source": rd_core::IngressSource::Nzb,
-            }),
-        );
+        let mut payload = serde_json::json!({
+            "nzb_import_id": import.id,
+            "file_count": import.file_count,
+            "package_count": 1,
+            "source": rd_core::IngressSource::Nzb,
+        });
+        crate::intake_notice::mark(&mut payload, by_extension);
+        let intake = EventEnvelope::new(EventKind::CollectorIntake, payload);
         insert_event(transaction, &intake).await?;
         events.push(intake);
     }

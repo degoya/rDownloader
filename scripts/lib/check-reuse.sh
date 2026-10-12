@@ -19,6 +19,10 @@
 # --again, or any argument but --full, --rust and --web, --windows and --gate alone, reuses
 # nothing.
 
+# rd_preflight_covered: a preflight green, carried across a version bump too (RD-1270-13).
+# shellcheck source=preflight-reuse.sh
+source "$(dirname "${BASH_SOURCE[0]}")/preflight-reuse.sh"
+
 # Decides for checkout $1 and check.sh's arguments $2...; sets reuse (1 when the run may reuse),
 # reuse_halves, covered_halves, covered_notes (half → note), preflight_covered and reuse_tree.
 # Returns 0 when the whole run is covered, after recording it; 1 otherwise.
@@ -45,13 +49,15 @@ rd_check_reuse_plan() {
     [[ "$reuse" -eq 1 ]] || return 1
     reuse_tree="$(rd_worktree_tree "$root")"
     [[ -n "$reuse_tree" ]] || return 1
+    # One list of recorded greens for every question below and the run's later ones (RD-1270-06).
+    rd_full_candidates_load "$root"
     for half in "${reuse_halves[@]}"; do
         recorded="$(rd_full_covering "$root" "$half" "$reuse_tree")"
         [[ -n "$recorded" ]] || continue
         covered_halves+=("$half")
         covered_notes[$half]="tree ${recorded:0:12}, $(rd_covering_note "$root" "$half" "$recorded" "$reuse_tree")"
     done
-    [[ -z "$(rd_full_covering "$root" preflight "$reuse_tree")" ]] || preflight_covered=1
+    if rd_preflight_covered "$root" "$reuse_tree"; then preflight_covered=1; fi
     [[ ${#covered_halves[@]} -eq ${#reuse_halves[@]} ]] || return 1
     # --windows and --gate run no preflight stage; --full and its halves do.
     [[ "${reuse_halves[*]}" == windows || "${reuse_halves[*]}" == "clippy windows" || "$preflight_covered" -eq 1 ]] \

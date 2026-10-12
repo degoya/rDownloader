@@ -120,11 +120,13 @@
     "description": "Gilt für alle Downloads desselben Hosts zusammen; 0 hebt die Grenze auf"
   },
   "nntp_connections": {
-    "label": "NNTP-Verbindungen je Datei",
-    "description": "0 = so viele, wie die Server erlauben; ein kleinerer Wert deckelt eine einzelne Datei",
-    "follows_servers": "Jede Datei nutzt alle Verbindungen jedes aktiven Servers, beim größten derzeit {largest}.",
-    "capped": "Der größte aktive Server erlaubt {largest} Verbindungen, eine Datei bekommt je Server höchstens {cap}. Mit 0 nutzt sie alle.",
-    "not_binding": "Greift nicht: kein aktiver Server erlaubt mehr als {largest} Verbindungen."
+    "label": "NNTP-Verbindungen je Server",
+    "description": "0 = so viele, wie die Server erlauben; ein kleinerer Wert senkt die Verbindungen je Server, die sich alle gleichzeitig laufenden Usenet-Dateien teilen",
+    "follows_servers": "Gleichzeitige Dateien teilen sich die Verbindungen der Anbieter (beim größten {largest}).",
+    "capped": "Der größte aktive Server erlaubt {largest} Verbindungen; gleichzeitige Dateien bekommen zusammen höchstens {cap} je Server. Mit 0 nutzen sie alle.",
+    "not_binding": "Greift nicht: kein aktiver Server erlaubt mehr als {largest} Verbindungen.",
+    "live_even": "Derzeit {files} Datei mit {per} von {limit} Verbindungen. | Derzeit {files} Dateien mit je {per} von {limit} Verbindungen.",
+    "live_mixed": "Derzeit {files} Dateien mit zusammen {busy} von {limit} Verbindungen ({split})."
   },
   "speed_limit": {
     "label": "Geschwindigkeitslimit",
@@ -1141,9 +1143,9 @@
     "description": "Gelten immer, unabhängig vom Zeitplan. Ein aktives Profil überlagert sie: dann gilt jeweils das strengere der beiden Limits."
   },
   "nntp_limits": {
-    "eyebrow": "Je Datei",
+    "eyebrow": "Je Server",
     "title": "NNTP-Verbindungen und Dateien",
-    "description": "Die Verbindungen je Anbieter oben sind die Obergrenze: Eine Datei nutzt höchstens so viele Verbindungen, wie jeder Anbieter erlaubt, und der Wert hier kann sie darunter deckeln. Usenet-Dateien, die gleichzeitig laufen, teilen sich die Verbindungen der Anbieter."
+    "description": "Die Verbindungen je Anbieter oben sind die Obergrenze. Usenet-Dateien, die gleichzeitig laufen, teilen sie sich, und der Wert hier kann die Verbindungen je Server darunter senken."
   },
   "cross_link": {
     "see_also": "Siehe auch",

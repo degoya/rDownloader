@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import AccountTrafficNotice from '@/components/AccountTrafficNotice.vue'
 import SchedulePauseNotice from '@/components/SchedulePauseNotice.vue'
-import { withShortcut } from '@/composables/shortcutDefinitions'
+import { shortcutKeys, withShortcut } from '@/composables/shortcutDefinitions'
 import { nextOccurrence, PAUSE_DURATIONS, useQueuePauseStore } from '@/stores/queuePause'
 import { useTransfersStore } from '@/stores/transfers'
 import { DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
@@ -34,6 +34,8 @@ const size = computed(() => compact.value ? 'xs' as const : 'md' as const)
 // Icons in both places (RD-1260-06), the key `p` in the tooltip. Until when a pause holds is a
 // state, not an action, and stays text beside the button; a narrow navbar leaves it to the rail.
 const TOGGLE_KEY = 'common.shortcuts.toggle_transfers'
+// The same key for assistive technology, as every other navbar action carries it (RD-1270-05).
+const toggleKeys = computed(() => shortcutKeys(TOGGLE_KEY).join('+') || undefined)
 
 const untilOpen = ref(false)
 const untilClock = ref('')
@@ -107,6 +109,7 @@ async function resumeNow(): Promise<void> {
         :variant="compact ? 'ghost' : 'soft'"
         :aria-label="t('downloads.pause.resume_now')"
         :title="withShortcut(remainingTitle, TOGGLE_KEY)"
+        :aria-keyshortcuts="toggleKeys"
         :loading="queuePause.busy"
         data-testid="queue-pause-resume"
         @click="resumeNow"
@@ -124,6 +127,7 @@ async function resumeNow(): Promise<void> {
         :variant="compact ? 'ghost' : transfers.globalControl === 'pause' ? 'outline' : 'soft'"
         :aria-label="globalLabel"
         :title="withShortcut(globalLabel, TOGGLE_KEY)"
+        :aria-keyshortcuts="toggleKeys"
         :loading="transfers.controlsBusy"
         @click="transfers.controlAll(transfers.globalControl)"
       />

@@ -120,11 +120,13 @@
     "description": "Applies to all downloads of the same host together; 0 lifts the limit"
   },
   "nntp_connections": {
-    "label": "NNTP connections per file",
-    "description": "0 = as many as the servers allow; a lower number caps one file",
-    "follows_servers": "Every file uses every connection of each enabled server, currently {largest} on the largest.",
-    "capped": "The largest enabled server allows {largest} connections; one file gets at most {cap} per server. 0 uses them all.",
-    "not_binding": "Not binding: no enabled server allows more than {largest} connections."
+    "label": "NNTP connections per server",
+    "description": "0 = as many as the servers allow; a lower number lowers the connections per server that all Usenet files running at once share",
+    "follows_servers": "Files running at once share the providers' connections ({largest} on the largest).",
+    "capped": "The largest enabled server allows {largest} connections; files running at once get at most {cap} per server together. 0 uses them all.",
+    "not_binding": "Not binding: no enabled server allows more than {largest} connections.",
+    "live_even": "Right now {files} file with {per} of {limit} connections. | Right now {files} files with {per} of {limit} connections each.",
+    "live_mixed": "Right now {files} files with {busy} of {limit} connections together ({split})."
   },
   "speed_limit": {
     "label": "Speed limit",
@@ -1141,9 +1143,9 @@
     "description": "Apply at all times, whatever the schedule. An active profile overlays them: the stricter of the two limits applies."
   },
   "nntp_limits": {
-    "eyebrow": "Per file",
+    "eyebrow": "Per server",
     "title": "NNTP connections and files",
-    "description": "The connections set per provider above are the ceiling: one file uses at most as many connections as each provider allows, and the cap here can hold it below that. Usenet files running at once share the providers’ connections."
+    "description": "The connections set per provider above are the ceiling. Usenet files running at once share them, and the value here can lower the connections per server below that."
   },
   "cross_link": {
     "see_also": "See also",

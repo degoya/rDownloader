@@ -1,3 +1,4 @@
+import { PICK_WAITING } from './api.js'
 import { api, loadConfig, message, openSendFilePage } from './browser.js'
 import { DECLINE_MESSAGE, createCaptchaAnswerer, hostOf } from './captcha.js'
 import { allowSite, revokeSite, siteConsented, siteHost } from './files.js'
@@ -90,6 +91,19 @@ export function filesOutcome(result) {
   return { key: 'filesDenied', substitutions: [result?.host ?? ''], ok: false }
 }
 
+/**
+ * What the popup says after a send, as a message key and its substitutions: the background's real
+ * answer, the number of links with it (RD-1270-05). It used to say "sent" whatever happened.
+ * `translate` words the reason of a refused token.
+ */
+export function sendOutcome(response, translate = message) {
+  if (response?.ok && response.code === PICK_WAITING) return { key: 'pickWaiting', substitutions: [String(response.entries ?? 0)], ok: true }
+  if (response?.ok) return { key: 'sentLinks', substitutions: [String(response.links ?? 0)], ok: true }
+  if (response?.code === 'unconfigured') return { key: 'notConfigured', substitutions: [], ok: false }
+  if (response?.status === 401) return { key: 'sendFailed', substitutions: [translate('errorUnauthorized')], ok: false }
+  return { key: 'sendFailed', substitutions: [response?.message || response?.code || ''], ok: false }
+}
+
 function setStatus(text, ok) {
   const status = document.getElementById('status')
   status.textContent = text
@@ -97,8 +111,8 @@ function setStatus(text, ok) {
 }
 
 async function sendToBackground(payload) {
-  const response = await api.runtime.sendMessage({ type: 'rdownloader:send', ...payload })
-  setStatus(response?.ok ? message('sentFromPopup') : message('sendFailed', [response?.message ?? '']), Boolean(response?.ok))
+  const outcome = sendOutcome(await api.runtime.sendMessage({ type: 'rdownloader:send', ...payload }))
+  setStatus(message(outcome.key, outcome.substitutions), outcome.ok)
 }
 
 function captchaButton(label, onClick, secondary = false) {

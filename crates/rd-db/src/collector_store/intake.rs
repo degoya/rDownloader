@@ -29,6 +29,7 @@ pub(crate) async fn add_batch(
     connection: &mut SqliteConnection,
     mut intake: NewCollectorBatch,
     secret_fragment_refs: Vec<Option<String>>,
+    by_extension: bool,
 ) -> Result<(
     CollectorBatch,
     Vec<rd_core::CollectorPackage>,
@@ -89,7 +90,7 @@ pub(crate) async fn add_batch(
     // relative to the others, so there is nothing to decide until the package is complete.
     crate::collector_mirrors::assign(&mut transaction, &packages).await?;
     let candidates = reread_candidates(&mut transaction, candidates).await?;
-    let events = intake_events(&batch, candidates.len(), packages.len());
+    let events = intake_events(&batch, candidates.len(), packages.len(), by_extension);
     for event in &events {
         insert_event(&mut transaction, event).await?;
     }
@@ -436,11 +437,13 @@ impl BatchWrite<'_> {
     }
 }
 
-/// `collector.changed` and the narrower `collector.intake` of one batch, in that order.
+/// `collector.changed` and the narrower `collector.intake` of one batch, in that order; the
+/// intake marked when the browser extension announces it itself (RD-1270-05).
 fn intake_events(
     batch: &CollectorBatch,
     candidate_count: usize,
     package_count: usize,
+    by_extension: bool,
 ) -> Vec<EventEnvelope> {
     let event = EventEnvelope::new(
         EventKind::CollectorChanged,
@@ -449,16 +452,17 @@ fn intake_events(
     // A second, narrower event for one import arriving. `collector.changed` also fires for
     // every later edit of a candidate, so it cannot tell an intake apart from an edit — which
     // is exactly what a desktop notification has to distinguish.
-    let intake = EventEnvelope::new(
-        EventKind::CollectorIntake,
-        serde_json::json!({
-            "batch_id": batch.id,
-            "candidate_count": candidate_count,
-            "package_count": package_count,
-            "source": batch.source,
-        }),
-    );
-    vec![event, intake]
+    let mut payload = serde_json::json!({
+        "batch_id": batch.id,
+        "candidate_count": candidate_count,
+        "package_count": package_count,
+        "source": batch.source,
+    });
+    crate::intake_notice::mark(&mut payload, by_extension);
+    vec![
+        event,
+        EventEnvelope::new(EventKind::CollectorIntake, payload),
+    ]
 }
 
 async fn created_packages(

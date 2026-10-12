@@ -86,7 +86,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List downloads with optional state/package/name filters, paginated. name_contains matches the file name or the package name, like the web UI's search. Poll this or get_status_summary to observe progress. A failed row's error says why; get_download has its stable code and params. A queued row with waiting_for_host is held back because that host has no free connection (per-host connection limit, max_connections_per_host); it takes no parallel-download place meanwhile, and a file of another host starts instead."
+        description = "List downloads with optional state/package/name filters, paginated. name_contains matches the file name or the package name, like the web UI's search. Poll this or get_status_summary to observe progress. A failed row's error says why; get_download has its stable code and params. A queued row with waiting_for_host is held back because that host has no free connection (per-host connection limit, max_connections_per_host); it takes no parallel-download place meanwhile, and a file of another host starts instead. A running Usenet row carries connections: the NNTP connections working for that file right now. Files share the servers' connections (list_usenet_servers has each server's busy_connections), so two files on a server with 10 typically hold about 5 each."
     )]
     pub async fn list_downloads(
         &self,
@@ -125,6 +125,7 @@ impl RdMcpServer {
                 });
             }
             let host_waits = self.state.scheduler.host_waits().await;
+            let live = self.state.scheduler.live_connections();
             Ok(paginate(rows, params.limit, params.offset, |file| {
                 // The last dispatch pass's word, for a row that is still queued.
                 let waiting_for_host = (file.state == rd_core::DownloadState::Queued)
@@ -132,6 +133,7 @@ impl RdMcpServer {
                     .flatten();
                 DownloadItem {
                     waiting_for_host,
+                    connections: live.files.get(&file.id).copied(),
                     ..DownloadItem::from(file)
                 }
             }))

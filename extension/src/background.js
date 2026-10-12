@@ -78,26 +78,38 @@ export async function offerNotification(notificationId, owners) {
   return false
 }
 
-async function send({ text, packageName, sourceLabel }) {
+/**
+ * Hands links to the service and answers how it went: `{ ok, status, code, message, links }`,
+ * with `entries` for a page whose releases wait for a choice, `code` `unconfigured` without a
+ * token. A failure is never answered as a success: the popup used to be told `{ ok: true }`
+ * whatever happened, and said "sent" beside a desktop notice saying "sending failed" (RD-1270-05).
+ *
+ * `announce` raises the desktop notification. The popup shows the outcome in its own status line
+ * instead, so a hand-over from there is one notice, not two; the service leaves the intake to the
+ * extension, so neither the web tab nor the desktop agent adds a third.
+ */
+async function send({ text, packageName, sourceLabel }, { announce = true } = {}) {
+  const say = announce ? (body) => notify(message('extName'), body) : async () => null
   const config = await loadConfig()
   if (!config.token) {
     await captchas.setSendFailure(true)
-    await notify(message('extName'), message('notConfigured'))
+    await say(message('notConfigured'))
     api.runtime.openOptionsPage()
-    return
+    return { ok: false, status: 0, code: 'unconfigured', message: null, links: 0 }
   }
   const result = await submitLinks(config, { text, packageName, sourceLabel })
   // The badge belongs to the captcha answerer, which composes this with the number of waiting
   // widgets. Painting it here cleared that number and left it cleared (RD-109-24).
   await captchas.setSendFailure(!result.ok)
   if (result.ok && result.code === PICK_WAITING) {
-    await notify(message('extName'), message('pickWaiting', [String(result.entries)]))
+    await say(message('pickWaiting', [String(result.entries)]))
   } else if (result.ok) {
-    await notify(message('extName'), message('sentLinks', [String(result.links)]))
+    await say(message('sentLinks', [String(result.links)]))
   } else {
     const reason = result.status === 401 ? message('errorUnauthorized') : result.message
-    await notify(message('extName'), message('sendFailed', [reason]))
+    await say(message('sendFailed', [reason]))
   }
+  return result
 }
 
 api.contextMenus.onClicked.addListener((info, tab) => {
@@ -267,9 +279,9 @@ api.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Only the popup sends links; a content script or another extension must not be able to
     // push links into the service under this extension's token.
     if (!fromOwnPage(api.runtime, sender)) return false
-    send({ text: request.text, packageName: request.packageName, sourceLabel: request.sourceLabel ?? 'Browser' })
-      .then(() => sendResponse({ ok: true }))
-      .catch((error) => sendResponse({ ok: false, message: String(error) }))
+    send({ text: request.text, packageName: request.packageName, sourceLabel: request.sourceLabel ?? 'Browser' }, { announce: false })
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({ ok: false, code: 'error', message: String(error) }))
     return true
   }
   // The popup announces a grant, asks for the tab, polls and declines here, because it may be

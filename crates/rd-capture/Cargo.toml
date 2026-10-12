@@ -56,10 +56,14 @@ tray-icon.workspace = true
 # crates `arboard` already links there, asked for what it does not read.
 [target.'cfg(windows)'.dependencies]
 clipboard-win.workspace = true
+# The display language the intake toast speaks (RD-1270-05, `src/locale.rs`).
+winreg.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2.workspace = true
 objc2-app-kit.workspace = true
+# The language the intake toast speaks when launchd sets no POSIX variable (RD-1270-19).
+objc2-foundation.workspace = true
 
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
 wl-clipboard-rs.workspace = true

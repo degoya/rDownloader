@@ -13,6 +13,7 @@ use crate::{
         CreateDownloadRequest, DownloadBulkAction, DownloadBulkRequest, DownloadBulkResponse,
         DownloadExtractRequest, DownloadHostWait, DownloadRateEntry, DownloadRatesResponse,
         DownloadRenameRequest, DownloadSummaryResponse, MessageResponse, PageQuery, StorageSpace,
+        UsenetServerConnections,
     },
     error_codes::parse_id,
 };

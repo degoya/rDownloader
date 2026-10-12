@@ -54,6 +54,9 @@ pub(crate) enum CollectorCommand {
         /// `vault://` reference per link, parallel to `intake.urls` (RD-110-38). Filled by
         /// `Database::add_collector_batch`, which is the only place that holds the vault.
         secret_fragment_refs: Vec<Option<String>>,
+        /// Whether the browser extension announces this intake itself (RD-1270-05), read by
+        /// `Database::add_collector_batch` from the request's task.
+        by_extension: bool,
         reply: Reply<(
             rd_core::CollectorBatch,
             Vec<rd_core::CollectorPackage>,

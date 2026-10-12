@@ -407,7 +407,7 @@
     "settings.byte_display_invalid": "Byte display must be binary or decimal",
     "settings.byte_unit_invalid": "The byte unit must be automatic or one fixed magnitude",
     "settings.cleanup_extension_invalid": "Cleanup extension '{value}' must be 1-10 alphanumeric characters",
-    "settings.concurrency_invalid": "Concurrency values must be valid; NNTP connections per file must be between 0 and 32, Usenet files at once between 0 and 8",
+    "settings.concurrency_invalid": "Concurrency values must be valid; NNTP connections per server must be between 0 and 32, Usenet files at once between 0 and 8",
     "settings.excluded_domains_file_invalid": "Domain blocklist must be an absolute path of at most {max} characters",
     "settings.hotfolder_poll_invalid": "The hotfolder poll interval must be between {min} and {max} seconds.",
     "settings.invalid": "Settings are invalid",
@@ -1320,7 +1320,8 @@
     "cnl.rate_limited": "Too many Click'n'Load hand-overs in a short time. Try again in a minute.",
     "diagnostics.log_level_locked": "RUST_LOG={rust_log} decides what is logged; the level applies once the service starts without RUST_LOG.",
     "diagnostics.debug_minutes_invalid": "Debug for a while lasts 15, 30 or 60 minutes.",
-    "diagnostics.debug_plugin_invalid": "Only the plugin area takes a plugin, and only an installed one."
+    "diagnostics.debug_plugin_invalid": "Only the plugin area takes a plugin, and only an installed one.",
+    "media.ytdlp_cookies_required": "The site refuses yt-dlp without its cookies (HTTP 412). Add the site’s browser cookies in an authentication profile (Accounts → Authentication profiles), or hand them over with “Share session for this site with rDownloader” in the browser extension. {detail}"
   },
   "capabilities": {
     "media_download": "media downloads",

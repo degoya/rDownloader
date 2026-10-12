@@ -9,7 +9,9 @@ import { useI18n } from 'vue-i18n'
 
 import type { Settings, UsenetServer } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
+import { useTransfersStore } from '@/stores/transfers'
 import { WHOLE } from '@/utils/numberInput'
+import { liveConnectionsHint } from '@/utils/usenetConnections'
 
 const settings = defineModel<Settings>({ required: true })
 /**
@@ -18,6 +20,7 @@ const settings = defineModel<Settings>({ required: true })
  */
 const props = defineProps<{ servers: UsenetServer[] | null }>()
 const { t } = useI18n()
+const transfers = useTransfersStore()
 
 /**
  * The cap applies per server, so it is measured against the largest enabled one, not the
@@ -29,14 +32,21 @@ const largestServer = computed(() => {
   return Math.max(...enabled.map(server => server.max_connections))
 })
 
+/**
+ * While files run, how they share the connections right now (RD-1270-21): "every file uses every
+ * connection" read as if each of two files had ten, where the two together had ten.
+ */
+const live = computed(() => liveConnectionsHint(transfers.downloadConnections, transfers.usenetServers))
+
 /** The two connection numbers used to contradict each other silently (RD-108-25); this says which one applies. */
 const nntpCapHint = computed(() => {
   const largest = largestServer.value
   if (largest === null) return null
   const cap = settings.value.nntp_connections_per_file
-  if (cap === 0) return { text: t('settings.nntp_connections.follows_servers', { largest }), binding: false }
-  if (cap < largest) return { text: t('settings.nntp_connections.capped', { cap, largest }), binding: true }
-  return { text: t('settings.nntp_connections.not_binding', { largest }), binding: false }
+  if (cap === 0) return { text: live.value ?? t('settings.nntp_connections.follows_servers', { largest }), binding: false }
+  const now = live.value ? ` ${live.value}` : ''
+  if (cap < largest) return { text: t('settings.nntp_connections.capped', { cap, largest }) + now, binding: true }
+  return { text: t('settings.nntp_connections.not_binding', { largest }) + now, binding: false }
 })
 </script>
 

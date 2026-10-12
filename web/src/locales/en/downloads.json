@@ -147,7 +147,12 @@
     "waiting_for_parts": "Waiting for missing files",
     "waiting_for_parts_title": "Post-processing starts only once every file of the package has arrived.",
     "reset_failed": "Reset failed and blocked files",
-    "reset_failed_hint": "{count} file of this package | {count} files of this package"
+    "reset_failed_hint": "{count} file of this package | {count} files of this package",
+    "connections_count": "{count} connection | {count} connections",
+    "connections_even": "{connections}: {files} file | {connections}: {files} files at once, {per} each",
+    "connections_mixed": "{connections}: {files} files at once ({split})",
+    "connections_full": "All {limit} connections the servers allow are busy.",
+    "connections_room": "{busy} of the {limit} connections the servers allow are busy."
   },
   "transfer": {
     "actions_aria": "File actions",
@@ -191,7 +196,8 @@
       "unsupported_hint": "Sources whose protocol this service cannot fetch are shown but not used."
     },
     "next_attempt": "Next attempt at {time}",
-    "waiting_for_host": "Waiting for a connection to {host}"
+    "waiting_for_host": "Waiting for a connection to {host}",
+    "connections_title": "{count} connection is working for this file | {count} connections are working for this file"
   },
   "summary": {
     "eyebrow": "Queue status",

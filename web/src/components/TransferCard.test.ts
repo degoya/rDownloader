@@ -374,3 +374,35 @@ describe('a row being resolved now', () => {
     }
   })
 })
+
+/** RD-1270-21: an expanded Usenet package shows each running file's connections. */
+describe('TransferCard connections', () => {
+  function renderFile(kind: 'usenet' | 'http', connections: number | null) {
+    return mountComponent(TransferCard, {
+      messages: { downloads, torrent, common },
+      props: {
+        download: {
+          id: 'd1', kind, state: 'downloading', file_name: 'release.part01.rar',
+          source: 'nzb://release', committed_bytes: '0', total_bytes: '100'
+        } as unknown as Download,
+        connections
+      },
+      stubs: { UDropdownMenu: { template: '<div><slot /></div>' } }
+    })
+  }
+
+  it('shows the connections a running Usenet file holds, named in full', () => {
+    renderFile('usenet', 5)
+    const glyph = screen.getByTestId('file-connections')
+    expect(glyph.textContent?.trim()).toBe('5')
+    expect(glyph.getAttribute('aria-label')).toBe('5 connections are working for this file')
+    expect(glyph.closest('.queue-cell-meta')).toBeTruthy()
+  })
+
+  it('shows nothing for a file without connections or of another transport', () => {
+    renderFile('usenet', null)
+    expect(screen.queryByTestId('file-connections')).toBeNull()
+    renderFile('http', 3)
+    expect(screen.queryByTestId('file-connections')).toBeNull()
+  })
+})

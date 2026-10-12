@@ -15,6 +15,9 @@
 #   scripts/doc-facts.sh                               # write what is stale, name each change
 #   scripts/doc-facts.sh --check                       # write nothing; exit 1 on a stale value
 #   scripts/doc-facts.sh --wiki ~/projects/rdownloader.wiki [--check]   # the user wiki as well
+#   scripts/doc-facts.sh --wiki-only ~/projects/rdownloader.wiki-1.27 [--check]
+#                                     # the wiki alone: facts read from this checkout, none of its
+#                                     # files written — the wiki pass of a release (RD-1270-16)
 #
 set -euo pipefail
 

@@ -7,7 +7,8 @@
 //! one and leaving the other trigger permanently dead.
 
 use rd_automation::{EventContext, Field, Trigger};
-use rd_core::{EventEnvelope, EventKind, PackageId, PackageState};
+use rd_core::{EventEnvelope, EventKind, PackageId};
+use rd_notify::NotificationEvent;
 
 /// What an event means to the automation engine.
 pub(crate) struct EventMatch {
@@ -42,11 +43,7 @@ pub(crate) async fn classify(
         EventKind::DownloadState => download(database, event).await,
         EventKind::PackageState => package(database, event).await,
         EventKind::PostprocessProgress => Ok(postprocess(event)),
-        EventKind::StorageCapacity => Ok(Some(EventMatch {
-            triggers: vec![Trigger::StorageThreshold],
-            context: EventContext::default(),
-            package_id: None,
-        })),
+        EventKind::StorageCapacity => Ok(storage(event)),
         EventKind::SubscriptionChanged => subscription(database, event).await,
         EventKind::UsenetChanged => usenet_job_hopeless(database, event).await,
         _ => Ok(None),
@@ -128,40 +125,63 @@ async fn download(
     }))
 }
 
+/// A package that just finished or failed, decided on the event's payload exactly as the
+/// notification hub decides it (RD-1270-03, `notify_service::transitions::package_outcome`): a
+/// reorder, a rename, a stage or the same outcome written again is no new moment, and an outcome
+/// read after the package was restarted or removed is still the outcome its event announced. The
+/// row gives only what the payload does not carry -- name, kind, size and category -- and a
+/// package removed in the meantime has none of them.
 async fn package(
     database: &rd_db::Database,
     event: &EventEnvelope,
 ) -> anyhow::Result<Option<EventMatch>> {
+    let trigger = match crate::notify_service::transitions::package_outcome(&event.payload) {
+        Some(NotificationEvent::PackageCompleted) => Trigger::PackageCompleted,
+        Some(NotificationEvent::PackageFailed) => Trigger::PackageFailed,
+        _ => return Ok(None),
+    };
     let Some(id) = text(event, "package_id").and_then(|id| id.parse().ok()) else {
         return Ok(None);
     };
-    let Some(package) = database.get_package(id).await? else {
-        return Ok(None);
-    };
-    let trigger = match package.state {
-        PackageState::Completed => Trigger::PackageCompleted,
-        PackageState::Failed => Trigger::PackageFailed,
-        _ => return Ok(None),
-    };
     let mut context = EventContext::default();
-    context.set(Field::Name, package.name.clone());
-    context.set(Field::State, package.state.to_string());
-    context.set(Field::Kind, format!("{:?}", package.kind).to_lowercase());
-    let total: u64 = database
-        .downloads_for_package(package.id)
-        .await?
-        .iter()
-        .map(|file| file.total_bytes.map_or(0, rd_core::ByteCount::get))
-        .sum();
-    if total > 0 {
-        context.set_number(Field::SizeBytes, total);
+    context.set(Field::State, text(event, "state").unwrap_or_default());
+    if let Some(package) = database.get_package(id).await? {
+        context.set(Field::Name, package.name.clone());
+        context.set(Field::Kind, format!("{:?}", package.kind).to_lowercase());
+        let total: u64 = database
+            .downloads_for_package(package.id)
+            .await?
+            .iter()
+            .map(|file| file.total_bytes.map_or(0, rd_core::ByteCount::get))
+            .sum();
+        if total > 0 {
+            context.set_number(Field::SizeBytes, total);
+        }
+        add_category(database, &mut context, Some(package.id)).await?;
     }
-    add_category(database, &mut context, Some(package.id)).await?;
     Ok(Some(EventMatch {
         triggers: vec![trigger],
         context,
-        package_id: Some(package.id),
+        package_id: Some(id),
     }))
+}
+
+/// A storage root blocked or released (RD-1270-04). The change is the context, so a condition
+/// can tell the two apart; a rule that names none hears the block only (`rd_automation::admits`).
+/// An event that names no change is no transition.
+fn storage(event: &EventEnvelope) -> Option<EventMatch> {
+    let mut context = EventContext::default();
+    context.set(Field::Change, text(event, "change")?);
+    // The target's key (RD-1270-18): the root id or `fallback`, never its name, so a root named
+    // like the download directory cannot pass for it. Name and path stay in the payload.
+    if let Some(target) = text(event, "target") {
+        context.set(Field::StorageTarget, target);
+    }
+    Some(EventMatch {
+        triggers: vec![Trigger::StorageThreshold],
+        context,
+        package_id: None,
+    })
 }
 
 fn postprocess(event: &EventEnvelope) -> Option<EventMatch> {

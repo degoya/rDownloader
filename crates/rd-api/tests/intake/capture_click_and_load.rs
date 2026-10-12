@@ -198,3 +198,32 @@ async fn the_route_needs_the_capture_token() {
         assert_eq!(status, StatusCode::UNAUTHORIZED, "{bearer}");
     }
 }
+
+/// RD-1270-05: the extension tells the person about a Click'n'Load it took, so the intake says
+/// so and neither the tab nor the agent announces it a second time.
+#[tokio::test]
+async fn a_hand_over_through_this_route_is_left_to_the_extension_to_announce() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let mut events = harness.database.subscribe();
+    let (status, body) = post_with_bearer(
+        &harness.router,
+        ROUTE,
+        CAPTURE_BEARER,
+        json!({ "urls": LINKS.join("\n") }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    let intake = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            let event = events.recv().await.expect("the bus stays open");
+            if event.kind == rd_core::EventKind::CollectorIntake {
+                return event.payload;
+            }
+        }
+    })
+    .await
+    .expect("the intake is announced");
+    assert_eq!(intake["source"], "click_and_load");
+    assert_eq!(intake[rd_db::intake_notice::PAYLOAD_KEY], true, "{intake}");
+}

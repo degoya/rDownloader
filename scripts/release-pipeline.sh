@@ -23,8 +23,8 @@
 #                                                     # publishes main, the branch, the tag and
 #                                                     # the public export
 #   scripts/release-pipeline.sh 1.0.1 --resume        # continue the run this log already started;
-#                                                     # a tree changed since then runs every step
-#                                                     # after preflight again (PIPE-09)
+#                                                     # after a change of the tree a step runs
+#                                                     # again if it reads what changed (RD-1270-12)
 #   scripts/release-pipeline.sh 1.0.1 --plan          # print the steps and exit
 #   scripts/release-pipeline.sh 1.8.0-beta.1 --push   # a pre-release (see below)
 #
@@ -239,7 +239,8 @@ if [[ -n "${RELEASE_PIPELINE_LIB:-}" ]]; then
     return 0 2> /dev/null || exit 0
 fi
 
-# A green step stands on a --resume only while the tree is the one the run left (PIPE-09).
+# A green step stands on a --resume while the tree is the one the run left (PIPE-09), or while what
+# changed since its own tree is nothing it reads (RD-1270-12, resume_tree_check).
 [[ "$RESUME" -eq 0 ]] || resume_tree_check | tee -a "$LOG"
 
 for id in "${STEP_IDS[@]}"; do

@@ -15,8 +15,11 @@
 #   changes their bytes. The component cache keys and the documents that name it agree.
 #
 # - The GitHub cache stays under its 10 GB (RD-1120-07): every Swatinem/rust-cache step says
-#   whether it saves (`save-if`), and the linker variables its key depends on are set in one place,
+#   whether it saves (`save-if`), only ci.yml's `rust` and `warm-cache` save `rust-tests`
+#   (`save: true`), and the linker variables its key depends on are set in one place,
 #   .github/actions/rust-tests-cache, not copied into the jobs that restore `rust-tests`.
+# - e2e.yml's and recovery.yml's gates (RD-1270-11) ask for their own workflow's runs and match
+#   jobs of their own: the matrix job `CI_TREE_GREENS_LEG`, the job names of `ONCE`.
 # - The Scoop installer is fetched at a commit and checked against its SHA-256 (PIPE-06), with the
 #   same pins in channels.yml and scripts/ci-platform-smoke.ps1; nothing runs get.scoop.sh.
 # - channels.yml's `homebrew` job takes scripts/ci-brew-serve.sh's 3, the keychain refusal on
@@ -108,6 +111,35 @@ for job in rust $once; do
         ' "$ci")"
 done
 
+# The other workflows that gate a push to `main` on their own tree greens (RD-1270-11, e2e.yml and
+# recovery.yml): the gate asks for its own workflow's runs, and the matrix job (`LEG`) and the
+# named jobs (`ONCE`) it matches are that workflow's own jobs — a renamed job would leave the gate
+# never finding a green, and every push to `main` running it all again.
+gated=0
+for workflow in "$WORKFLOWS"/*.yml; do
+    asked="$(sed -n 's/^ *CI_TREE_GREENS_WORKFLOW: *//p' "$workflow")"
+    [[ -n "$asked" ]] || continue
+    gated=$((gated + 1))
+    name="$(basename "$workflow")"
+    expect "$name: its gate asks for its own runs" "$name" "$asked"
+    leg="$(sed -n 's/^ *CI_TREE_GREENS_LEG: *//p' "$workflow")"
+    if [[ -n "$leg" ]]; then
+        expect "$name: the gate's matrix job \`$leg\` is a job of its own" "yes" \
+            "$(grep -qx "  $leg:" "$workflow" && ! awk -v job="$leg" '
+                $0 == "  " job ":" { inside = 1; next }
+                inside && /^  [^[:space:]]/ { inside = 0 }
+                inside && /^    uses: / { found = 1 }
+                END { exit !found }
+            ' "$workflow" && echo yes || echo no)"
+    fi
+    while IFS= read -r job; do
+        [[ -n "$job" ]] || continue
+        expect "$name: the gate's job \"$job\" is the name of a job of its own" "yes" \
+            "$(grep -qxF "    name: $job" "$workflow" && echo yes || echo no)"
+    done < <(sed -n "s/^ *ONCE: '\(.*\)'$/\1/p" "$workflow" | grep -o '"[^"]*"' | tr -d '"')
+done
+expect "e2e.yml and recovery.yml gate a push to main" "2" "$gated"
+
 # One wasm-tools: WASM_TOOLS_VERSION in scripts/lib/plugin-stamp.sh.
 pinned="$(sed -n 's/^WASM_TOOLS_VERSION="\(.*\)"$/\1/p' "$ROOT/scripts/lib/plugin-stamp.sh")"
 expect "scripts/lib/plugin-stamp.sh pins a wasm-tools version" "yes" "$([[ -n "$pinned" ]] && echo yes || echo no)"
@@ -155,6 +187,10 @@ while IFS=$'\t' read -r where found; do
     expect "$where: the rust-cache step says whether it saves" "save-if" "$found"
 done < <(cd "$ROOT" && rust_cache_steps .github/workflows/*.yml .github/actions/*/action.yml)
 expect "there are rust-cache steps to check" "yes" "$([[ "$caches" -gt 0 ]] && echo yes || echo no)"
+# `rust-tests` is saved by ci.yml's `rust` and its `warm-cache` alone; every other job reads it.
+expect "only ci.yml and ci-warm-cache.yml save the rust-tests cache" \
+    ".github/workflows/ci-warm-cache.yml .github/workflows/ci.yml" \
+    "$(cd "$ROOT" && grep -rlE '^ +save: true' .github | sort | paste -sd' ')"
 expect "the linker variables are set in .github/actions/rust-tests-cache alone" \
     ".github/actions/rust-tests-cache/action.yml" \
     "$(cd "$ROOT" && grep -rlE 'fuse-ld=mold|WINDOWS_MSVC_LINKER' .github | sort -u | paste -sd' ')"

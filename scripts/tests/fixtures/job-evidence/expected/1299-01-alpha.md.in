@@ -1,0 +1,26 @@
+# RD-1299-01 — Alpha: ein Job mit offenen Kästchen
+
+- **Milestone:** 1.99
+- **Priority:** P2
+- **Status:** Implemented
+- **Depends on:** —
+
+## Acceptance criteria
+
+- [x] Ein erledigter Punkt.
+  — `alpha_tests.rs`.
+- [ ] Ein offener Punkt in einer Zeile.
+  → offen in RD-1120-24
+- [ ] Ein offener Punkt über zwei Zeilen, der weiter
+  unten weitergeht.
+  — Teilweise belegt in `alpha_tests.rs`; offen: der Lauf unter Windows.
+  → offen in RD-1120-24
+- [ ] Ein Punkt, der schon nach RD-1120-24 zeigt.
+  → offen in RD-1120-24
+- [x] `CHANGELOG.md`.
+
+## Verification
+
+`alpha_tests.rs`.
+
+— Nachweis der Welle (Koordinator 2026-10-12, `integration/1.99-w1` @ @COMMIT@): `scripts/check.sh --full` grün (Rust 10 bestanden + 1 übersprungen; rd-api-Bibliothek 4; rd-api-Integration 6 + 2; Crash-Matrix 3 + 1; Vitest 27; Erweiterung 13; `typecheck:full`), `scripts/check.sh --windows` grün, GitHub CI 123456 grün auf ubuntu-24.04 und windows-2025 (dazu e2e.yml); Generatoren nach dem Merge (@GENERATORS@: `api-contract.sh`, `mcp-coverage.sh`, Web-Deklarationen); `alpha_tests.rs` ist darin.

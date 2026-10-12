@@ -122,12 +122,14 @@ impl Writer {
             CollectorCommand::AddCollectorBatch {
                 intake,
                 secret_fragment_refs,
+                by_extension,
                 reply,
             } => {
                 let result = crate::collector_store::add_batch(
                     &mut self.connection,
                     intake,
                     secret_fragment_refs,
+                    by_extension,
                 )
                 .await
                 .map(|(batch, packages, candidates, passwords, events)| {

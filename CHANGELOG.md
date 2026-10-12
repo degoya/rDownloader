@@ -5,6 +5,285 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.27.0] - 2026-10-12
+
+### Added
+
+- **Usenet shows the connections at work, not only the running files (RD-1270-21, owner
+  2026-10-12).** The pool counts a line busy for its server from its first request and for a
+  running file from the first of that file's (`connections.rs`; a line two files share is split,
+  largest remainder, so the files never exceed the busy lines); `ExternalRunner::live_connections`
+  hands the reading to `SchedulerHandle::live_connections`. `/api/v1/downloads/rates` carries
+  `connections` per entry and `usenet_servers` (`busy`, `limit`), the server list
+  `busy_connections`, MCP `list_downloads` `connections` and both tool descriptions. The package
+  row of a Usenet package shows an `i-lucide-cable` glyph with the count instead of "N active"
+  (tooltip: files × per file and whether the servers' limit is reached), each running file its
+  own, each server card "N busy"; the setting is now labelled *NNTP connections per server* (it
+  caps the connections per server all running files share), and its hint says so, live while
+  files run, as does the card above it ("Per server") (de/en/es/fr). The screenshot tool's
+  `usenet-on` waits until the running files receive bytes, and `usenet-off` cancels them before it
+  removes the package.
+
+- **The screenshot tool photographs a running Usenet download (RD-1270-24).**
+  `scripts/screenshots/nntp_mock.py`, started by `mock.py` on `RD_SHOTS_NNTP_PORT` (18792),
+  answers a SOCKS5 greeting or waits and speaks NNTP (`AUTHINFO`, `GROUP`, `STAT`, `BODY`, `QUIT`)
+  with yEnc parts and their `pcrc32`, throttled per connection (`RD_SHOTS_NNTP_RATE`, 48 KiB/s);
+  the mock serves its NZB of three files. `seed.mjs usenet-on`/`usenet-off` point the demo server
+  through the SOCKS5 profile *Lab news tunnel* (rd-usenet has no loopback block; the profile keeps
+  `news.example.com` on the card), ten connections, two files at once, one more queue slot, and
+  put it all back; group `usenet` (last in `capture`) takes `37`, new `72` and `73`; `74` (storage
+  threshold rule on *Media library*, seeded in `base`) is in `main`. Tested by
+  `scripts/tests/screenshots-nntp.sh`. `shots.sh` ends a run at its first failed step (a later
+  `stop` still runs after the run's own `start`; `steps.sh`), `usenet-off` waits until the
+  cancelled files let go, retries the removal and exits 1 naming each step that failed, and the
+  LinkGrabber enqueue in `seed.mjs` waits out `collector.package_busy` instead of a silent 20 s.
+
+### Changed
+
+- **The release workflows run in the wave's public CI, and a red job ends the wait (RD-1270-10).**
+  `integrate.sh --public-ci` starts `public-ci.sh <integration> --platforms linux,windows
+  --release-workflows`, which dispatches `e2e.yml`, `recovery.yml`, `self-update.yml` and
+  `installers.yml` beside `ci.yml` — each only while no green of the tree up to documentation and
+  version lines covers it — and records their greens per file name and tree; the candidate's
+  `public-ci` step finds them on record and as a rule dispatches macOS alone (Self-update raises
+  the tree's own version, so the release's bump does not stale its green). `rd_public_ci_wait`
+  returns at the first failed job or run, naming it, instead of waiting out the rest. A `run.sh` in
+  the integration log directory that `integrate.sh` did not write is moved aside with a warning,
+  and its own is replaced by a rename (RD-1270-17's guard).
+
+- **E2E builds against the test cache, and E2E and Recovery skip a tree already green
+  (RD-1270-11).** `e2e.yml`'s legs build `rdownloader` and `rd-capture` in debug against
+  `rust-tests` (`.github/actions/rust-tests-cache`, read only, as `installers.yml`) instead of
+  `release-test` against `docker`'s cache, which no run ever saved: every leg built cold, Windows
+  for 40 minutes. The budgets hold for a debug build (service start under a second against 45 s).
+  `docker` drops its Rust cache for the same reason. `e2e.yml` and `recovery.yml` get a `gate` job
+  (`scripts/ci-gate.sh`): on a push to `main` they run only the legs and the axis B job no
+  successful run of their own workflow passed over the same tree, or over one that differs only in
+  documentation and the version bump (the integration branch's), so the push after a tag repeats
+  neither. `scripts/ci-tree-greens.sh` takes the workflow and matrix job
+  (`CI_TREE_GREENS_WORKFLOW`, `CI_TREE_GREENS_LEG`), jobs without images and
+  `CI_TREE_GREENS_UP_TO_VERSIONS` (`rd_tree_same_but_versions` on the run's fetched commit);
+  `scripts/tests/workflow-shape.sh` holds the gates to their own jobs and `save: true` to `rust`
+  and `warm-cache`.
+
+- **A resumed release chain runs again only the steps a fix touches (RD-1270-12).** After a
+  change of the tree, `--resume` no longer discards every green after `preflight`: each step names
+  what it reads (`step_reads` in `scripts/lib/release-evidence.sh`, on `rd_paths_read_by`), and a
+  green whose inputs the diff from its marker's tree misses is carried by a marker naming both
+  trees (`tree=`, `reused=`), which every read — the evidence gate's included — checks again. A
+  fix under `web/e2e/` keeps `sign-plugins` and both packages; one under `crates/` does not.
+
+- **`check.sh` loses its small time sinks (RD-1270-13).** The prune-target test's lock holder no
+  longer keeps a script stage's `| tee` open for 60 s; `prune-target.sh --if-free` names the reason
+  of every non-zero exit (`rd_all_target_dirs` returned its last test's 1, an empty log with
+  `prune=1`). `--preflight` over a tree a preflight green covers — that tree, or HEAD's before a
+  version bump (`lib/preflight-reuse.sh`) — runs only the file checks (`--again` all), and a
+  `--full` skips its script checks across the bump too: one preflight per release, not three. The
+  gate runs the Linux and the Windows lint side by side (`rd_stages_parallel`, own stage logs,
+  every finding listed; `RD_GATE_SERIAL=1` serial), the Windows lint, `--windows` too, in
+  `target/lanes/windows-lint` (cargo's build-directory lock serialised them in one target). The
+  web half runs beside the Rust half when it builds no `web/dist` (`RD_WEB_SERIAL=1` serial);
+  shellcheck runs in `xargs -P` batches; the reuse plan and its tree are asked once before the
+  lock and once inside it. The crash matrix keeps three feature sets: unarmed crash points are
+  inert, but the selections unify third-party features differently anyway (`cargo tree`).
+
+- **A wave's jobs are closed by a script (RD-1270-14).** `scripts/job-evidence.sh
+  <integration-logdir> <job-id>[=<note>]...` sets each job `Implemented`, writes the evidence
+  line of the wave from the run itself — the Summary counts of `check.log`, the `--windows` green
+  of `status`, the GitHub greens covering the tree in `.git/rd-verified-ci` with the run id of
+  `public-ci.log`, the generators' commit — and routes every open box, marked "→ offen in
+  RD-1120-24", word for word into a section of its own there with a link into the archive. It
+  refuses a red or unfinished run and a tree without a Linux and Windows green on record, and a
+  second run writes nothing (`scripts/tests/job-evidence.sh`, fixtures in
+  `scripts/tests/fixtures/job-evidence/`).
+
+- **The release documents by script (RD-1270-15).** `scripts/release-docs.sh X.Y.Z` cuts
+  `[Unreleased]` into `## [X.Y.Z] - <date>`, ends the section's `### Changed` with one point
+  "**Plugin versions.** The versions this release raises: …" — every plugin whose `manifest.toml`
+  version moved since the previous tag, grouped by version, wrapped at 100 columns; for 1.26.0 it
+  is the hand-made list word for word — and removes the version's `draft` comment in
+  `RELEASE-NOTES.md`; `--plugins` prints the sentence alone. `--next-draft X.Y.Z` starts the next
+  minor's empty `<!-- draft -->` section, and `release-notes.sh --check` now lets an empty draft
+  pass. Tested by `scripts/tests/release-docs.sh` on a scratch repository.
+
+- **The release branches of the wiki and the website, the screenshot tool and the wiki-only facts
+  by script (RD-1270-16).** `scripts/release-branches.sh new|ff|status X.Y` makes the worktrees
+  `<checkout>-X.Y` on `release-X.Y` and moves `main` to them by fast-forward only, refusing a
+  diverged `main` or a dirty worktree before either repository moves; `release-start.sh` warns
+  when a `release-X.Y` is ahead of `main`. The screenshot tool moved from a session directory into
+  `scripts/screenshots/` — every view named as its wiki image, a target manifest (wiki PNG
+  1440x900, website WebP at scale 2, README), `--views`, paths and ports from the environment, a
+  generated password, sizes checked before delivery, alt texts without numbers (`alts.py --lint`).
+  `doc-facts.sh --wiki-only DIR` writes or checks the wiki alone. Tests:
+  `scripts/tests/release-branches.sh`, `screenshots.sh`, `doc-facts.sh`.
+
+- The working rules in one place each (RD-1270-17): `.claude/agents/wave-worker.md` carries every
+  standing rule of a wave (an agent ticks its own job file and sets `In progress`, writes no
+  `RELEASE-NOTES.md`, reports in at most 30 lines; the coordinator makes the worktrees, sets
+  `Implemented` and writes the release-note points), a wave's own rules file shrinks to the
+  15-line template in the `wave` skill, and `AGENTS.md` points to the skills for coordinator and
+  release details (337 to 301 lines). The hand-kept crash-matrix counts leave `AGENTS.md` for the
+  rule that each crate lists more tests with its feature, held by `scripts/tests/crash-matrix.sh`;
+  `design.md` names the German privacy page's "Sie" exception; `docs/architecture.md` no longer
+  calls the CHANGELOG merge git's `union`.
+
+- `scripts/archive-jobs.sh` counts a collecting job's status line (`gezählt: <n> offen, <m>
+  abgehakt`) from the file's checkboxes, and `--check` names a stale one (RD-1270-17); RD-1120-24
+  and the four older live-check jobs carry it.
+
+- **`collector_handlers.rs` split below the 500-line limit (RD-1270-20).** The package handlers
+  (list, edit, order, regroup, remove, enqueue) moved to `collector_handlers/packages.rs`, the
+  link handlers (move, order, check, rename) to `collector_handlers/candidates.rs`; both are
+  re-exported, so handler names, OpenAPI operation ids and router paths are unchanged.
+
+- `scripts/check.sh --full`: the reuse scope per crate looks for only the first wide reason against
+  a recorded green, without the work per path (`rd_crate_first_wide`), and passes over every further
+  green that differs in the same wide path, found by one `git cat-file` for all of them — after a
+  version bump the scope cost one bash pass per path for each of 356 greens, over 12 minutes; the
+  scope and the messages are unchanged, a script test counts the calls (RD-1270-06). Whether a
+  recorded green covers a tree at all (`rd_full_covering`, asked per half, by the gates, the lints
+  and the release chain's pre-bump steps) reads the records once per shell and again only when a
+  marker changed, walks them newest first, diffs at most 32 (`RD_FULL_CANDIDATES_MAX`; the very tree
+  is still found among all) with one `git` process each and weighs the paths in bash
+  (`rd_path_read_by`) — the preflight half against 161 records went from 4.2 s to 0.2 s, the verdicts
+  unchanged; `scripts/tests/full-covering.sh` counts the calls. The tree of the working state
+  (`rd_worktree_tree`) copies the index with its time: a copy dated now made git take a same-size
+  rewrite in the second of the last index write as unchanged, and a check named a tree that was not
+  the working state.
+
+### Fixed
+
+- **yt-dlp's HTTP 412 is a case for the site's cookies, not an endless retry (RD-1270-01, owner
+  2026-10-12).** Bilibili's bot check answers `HTTP Error 412: Precondition Failed` when the
+  fingerprint cookies `buvid3`/`buvid4` are missing; `map_tool_error` (`rd-media`, probe and
+  download alike) put that line under `Transient` and retried it every 120 s, which only provokes
+  the check further. A `412` (whole number, `contains_words`) or "precondition failed" in the
+  error line is now `AuthRequired` with the code `media.ytdlp_cookies_required` (the download goes
+  to `Blocked`), its `detail` param unchanged; the message, in de/en/es/fr, names the way: the
+  site's browser cookies in an authentication profile (Accounts → Authentication profiles) or the
+  extension's *Share session for this site with rDownloader*. Lifting the tools manifest to the
+  first yt-dlp with the upstream fix (PR #16889) stays open until it is released.
+
+- **Firefox's data declaration matches what the extension sends (RD-1270-02).** `websiteContent`
+  is required now (selected text, Click'n'Load's `crypted`/`jk`/package/`passwords`, handed-over
+  files and containers leave without a further consent), beside `browsingActivity` and
+  `websiteActivity`; the optional category is `authenticationInfo`, asked for with
+  `permissions.request({ data_collection })` in the same click as a site's `cookies` grant (session
+  share, session handover, a site's file hand-over; `extension/src/data-collection.js`), checked
+  before every cookie read and given back with `cookies` — without it no cookie leaves Firefox.
+  Chrome's build never names the key. `docs/extension-store.md` (Chrome form, AMO text, Data use)
+  and the extension README name the same list.
+
+- **Package automations run once per outcome, decided on the event (RD-1270-03).**
+  `package_completed`/`package_failed` ask the payload's `state` and `previous` with the
+  notification hub's own rule (`notify_service::transitions::package_outcome`, now `pub(crate)`)
+  instead of the package row read later: a reorder, a rename, a stage or the same state written
+  again runs nothing, and an outcome read after its package was restarted or removed still runs;
+  the row only adds name, kind, size and category. The dry run is unchanged.
+
+- **The storage threshold tells a block from a release (RD-1270-04).** The automation context
+  carries the payload's `change` as the new condition field `change` (`blocked`/`released`, in the
+  vocabulary, the editor and the MCP tool descriptions); a storage rule whose condition does not
+  name it runs on the block only (`rd_automation::admits`), so stored rules keep meaning "storage
+  low". The editor says so under the trigger. Found while checking: between the threshold and the
+  threshold plus a queued file's size a root still alternates between block and release every
+  supervision cycle (release at `free >= minimum`, re-block on the start's size check) -- named
+  in the job, not changed here.
+
+- **One notice per hand-over of the browser extension; the popup shows the real outcome
+  (RD-1270-05).** The capture routes the extension uses (`capture/batches` with
+  `browser_extension`/`browser_download`, `capture/click-and-load`, `capture/file` from anything
+  but the agent's `User-Agent`) run their intake inside `rd_db::intake_notice`, and
+  `collector.intake` (links and NZB) carries `extension_notice: true`; the web tab and the
+  capture agent skip their toast for it, the agent's own Click'n'Load and files keep theirs.
+  `background.js` answered the popup `{ ok: true }` whatever `send()` met; it now answers the
+  submit result and raises no second notification for a popup send, and the popup words success
+  (with the number of links), a waiting pick and failure (`sendOutcome`; `sentFromPopup` gone).
+  The agent's intake toast speaks de/en/es/fr (`crates/rd-capture/locales/`, `src/locale.rs`:
+  `LANGUAGE`/`LC_ALL`/`LC_MESSAGES`/`LANG`, on Windows the registry's display language through
+  `winreg`). “Pause all” carries `aria-keyshortcuts` from the shortcut catalogue.
+
+- **A storage root is released only when a download can start on it (RD-1270-07).** Capacity
+  supervision released a blocked root as soon as its free space was back at the threshold; the
+  start check asks for threshold plus remaining size, so with the free space in between the root
+  swung between blocked and released about every 2 s, one `storage.capacity` event (notification,
+  automation) per swing, while nothing downloaded. A blocked root is now released only when at
+  least one download waiting on it — blocked by the capacity stop, queued or waiting for a retry — passes the start
+  check against the probed space (`rd_files::CapacityService::evaluate`, the rule `check` applies;
+  an unknown size needs the threshold times the unknown-size headroom). A root nothing waits on is
+  released at its threshold as before; the event payload is unchanged.
+
+- RD-1270-09: a release bump counts as version-only again — `lib/verified.sh` missed the SDK templates' `min_app_version` that `set-version.sh` writes since RD-1250-01, so every release from 1.25.0 on ran test, clippy and web again (about 30 minutes) and the candidate ran Linux and Windows on GitHub besides macOS. The version files are one list now (`RD_VERSION_FILES` in `scripts/lib/workspace-version.sh`), from which `set-version.sh` writes and checks and `verified.sh` judges; `min_app_version = "<new>"` is a version line; `scripts/tests/set-version.sh` holds the bump to exactly that list, `verified-scope.sh` has the template cases.
+
+- The Bash guard (`.claude/hooks/guard-bash.sh`) refuses `pkill -f`, `flock` around a
+  self-locking script, a test run piped into a filter, a commit trailer and a key read only where
+  the word stands in command position, so `grep -n x scripts/check.sh | head` or a commit message
+  naming `pgrep -f` passes (RD-1270-17, `scripts/tests/guard-bash.sh`).
+
+- **The storage event names its storage root; automations filter on it (RD-1270-18).**
+  `storage.capacity` carried only `blocked` and `change`; it now also names the target the
+  transition is about: `target` (root id or `fallback`, `rd_files::StorageTarget::key`, shared with
+  the manual-release route), `name` (`Downloads` for the download directory) and the probed root
+  `path` -- no credential. One event per target, as before: a block or release is one target's
+  transition, so two roots full in one round are two events, not a list. The automation context
+  carries the key (not the name, owner 2026-10-12: a root named `Downloads` must not pass for the
+  download directory) as the new condition field `storage_target`, compared with `equals`; the
+  editor offers the storage roots and the download directory as a select by name and stores the
+  key (label and help in de/en/es/fr), the vocabulary and MCP descriptions point to
+  `get_storage_capacity`'s `target`. The default "block only" of a storage rule is unchanged. The
+  "Storage root out of space" notification names the root and its path.
+
+- **The macOS capture agent finds its language without `LANG` (RD-1270-19).** An agent started
+  by launchd sees no POSIX locale variable and spoke English; when no variable names one of the
+  four languages, `src/locale.rs` now asks the system — on macOS `NSLocale`'s preferred languages
+  (`AppleLanguages`) and the region (`AppleLocale`) through the safe `objc2-foundation` bindings,
+  on Windows the registry as before — and only then falls back to English.
+
+- **External downloads blocked for storage are requeued by the release (RD-1270-08).** An
+  external download (Usenet, torrent, media, gallery, stream, FTP/SFTP, buckets, plugins) the
+  start check stopped was set `Blocked` without a cause, and the storage release, automatic or
+  manual, requeues only downloads blocked for `capacity` — so it stayed blocked until resumed by
+  hand. `run_external` now records `capacity` through `block_download`, as the HTTP path does.
+  The check itself never applied to a fresh external package either: its folder is created by
+  the runner, the probe of the missing folder failed and the check let it through.
+  `CapacityService::check` now probes a destination not created yet on its nearest existing
+  ancestor; only a path with no existing part or an unreadable one is still skipped.
+
+- **A red `check.sh --full` still records the halves that were green (RD-1270-22, owner
+  2026-10-12).** Round 2 of `integration/1.27-w1` was red only in Vitest under load, yet nothing
+  was recorded, because `rd_stages_exit_if_failed` ended the run before `rd_record_full`, and the
+  next `--full` tested the green Rust half again (about 17 minutes). Now
+  `rd_check_record_halves` (`scripts/lib/check-record.sh`, called before the exit) records every
+  half — `rust`, `web`, `preflight` — whose own stages ended with 0 for the tree taken before the
+  run and names it (`==> recorded the rust and preflight halves … although the web half failed`);
+  the run still ends non-zero, and the revision is recorded only with both halves green. Each
+  failed stage records its half in `failed_halves` (`lib/stages.sh`), taken from `stage_half` where
+  the stages run — check.sh's Rust section, `rd_check_web` — and `preflight` for every stage
+  without one; `cargo fmt` is both the Rust half's and the preflight's. The next `--full` over the
+  tree reuses the recorded halves (`lib/check-reuse.sh`); `scripts/tests/check-record.sh`.
+
+- **Vitest no longer runs past its time limits beside the Rust half (RD-1270-23).** Since
+  RD-1270-13 `check.sh` runs the web half beside the Rust half, and Vitest's default of the cores
+  less one next to nextest's `TEST_THREADS` ran seven tests past their 20 s limit without one of
+  them being wrong. Beside it Vitest now gets `--maxWorkers` from `RD_VITEST_WORKERS`
+  (`scripts/lib/jobs.sh`: the cores `TEST_THREADS` leaves, at most `TEST_THREADS`, at least 2 —
+  8 on 32 cores, which alone took 19 s as the default did), named in the run's start line and the
+  stage; alone and in CI Vitest keeps its default, `RD_WEB_SERIAL=1` still runs the web half after
+  the Rust half. No retries, no higher timeouts (`scripts/tests/jobs.sh`,
+  `scripts/tests/check-web-beside.sh`).
+
+- **Usenet no longer starves under a speed limit beside HTTP downloads (RD-1270-25, owner
+  2026-10-12).** `BandwidthLimiter::acquire` asked governor for batches as large as the bucket,
+  so a 700 KB article waited for a full bucket that HTTP, pacing every network read in small
+  pieces, never let fill: Usenet files sat at 0 B/s with every connection busy. A bucket now hands
+  out at most 64 KiB (never more than its capacity) per turn, and the turns queue in a fair Tokio
+  mutex held while the piece is waited for, so a large request is served piece by piece between
+  the small ones; every byte still passes the same GCRA bucket, so the rate stays the limit's
+  (`rd-limits/src/fairness_tests.rs`). The limit is read again per piece, so one lifted meanwhile
+  applies to the rest. The Usenet writer's wait for an article's quota now ends on the attempt's
+  cancellation (`worker_assembly.rs`), so pausing or removing a running Usenet package takes
+  effect at once instead of after the article's quota (`bandwidth_wait_tests.rs`).
+
 ## [1.26.0] - 2026-10-12
 
 ### Added

@@ -106,7 +106,9 @@
     "state": "State",
     "failure_code": "Failure code",
     "size_bytes": "Size in bytes",
-    "kind": "Kind"
+    "kind": "Kind",
+    "change": "Storage change",
+    "storage_target": "Storage target"
   },
   "operator": {
     "equals": "equals",
@@ -151,5 +153,7 @@
     "cron_help": "Minute hour day month weekday, for example “0 6 * * 1-5” for weekdays at six.",
     "every_minutes": "every {minutes} minutes",
     "no_package": "A schedule names no package: package actions are not available here."
-  }
+  },
+  "storage_threshold_help": "Runs when a storage root falls below its free-space reserve. To run when there is room again, add the condition “Storage change” equals “released”. To run for one storage root only, pick it under “Storage target”.",
+  "storage_target_fallback": "Download directory"
 }

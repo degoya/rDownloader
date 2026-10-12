@@ -109,7 +109,11 @@ step_docs_gate() {
 # commit-guard, whose `git add -A` takes the moves into the release commit. --release makes the
 # working file of this release count as tagged, because the tag comes later. With nothing due it
 # prints so and passes. A resumed run skips it once green; run again it would find nothing due.
-step_archive_jobs() { scripts/archive-jobs.sh --release "$VERSION"; }
+# Then RELEASE-NOTES.md gets the next version's draft section (RD-1270-15), so the release commit
+# carries it and the next wave's points have their place; idempotent, a beta adds none.
+step_archive_jobs() {
+    scripts/archive-jobs.sh --release "$VERSION" && scripts/release-docs.sh --next-draft "$VERSION"
+}
 
 # Requirement: nothing linked, nothing generated, nothing built may enter the release commit.
 # Runs against the staged index, before the commit exists and long before the merge.
@@ -255,7 +259,10 @@ step_push() {
 # Beside ci.yml the release workflows — E2E, Recovery, Self-update, Installers — run on the same
 # branch, each not yet green for this content (owner, 2026-10-06, RD-1120-07): they ran on the
 # push to `main` after the tag before, where a red one could hold nothing. They run beside the
-# macOS run, not after it; one red run holds the tag.
+# macOS run, not after it; one red job ends the wait and holds the tag. Since RD-1270-10 the wave's
+# `integrate.sh --public-ci` runs them on the integration branch and records their greens, which
+# cover the candidate the same way the Linux and Windows greens do (Self-update included: it raises
+# the tree's own version, whichever that is), so as a rule none of them is dispatched here.
 step_public_ci() {
     local branch="ci/$VERSION" sha tree platforms="" workflow
     local -a images workflows

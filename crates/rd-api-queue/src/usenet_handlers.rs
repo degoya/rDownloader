@@ -22,7 +22,18 @@ const SERVER_NAME_TAKEN_MESSAGE: &str = "An NNTP server with this name already e
 pub async fn list_usenet_servers(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<rd_core::UsenetServer>>, ApiError> {
-    Ok(Json(state.database.list_usenet_servers().await?))
+    let mut servers = state.database.list_usenet_servers().await?;
+    // What the running files hold right now (RD-1270-21); a server outside the pool in
+    // force holds nothing.
+    let live = state.scheduler.live_connections();
+    for server in &mut servers {
+        server.busy_connections = live
+            .servers
+            .iter()
+            .find(|load| load.server == server.id)
+            .map_or(0, |load| load.busy);
+    }
+    Ok(Json(servers))
 }
 
 #[utoipa::path(put, path = "/api/v1/usenet/servers/{id}", tag = "usenet", params(("id" = rd_core::UsenetServerId, Path)), request_body = UpdateUsenetServerRequest, responses((status = 200, body = rd_core::UsenetServer), (status = 404), (status = 409)))]

@@ -24,10 +24,12 @@ test('chrome uses a service worker, firefox background scripts with a gecko id',
   const firefox = manifestFor('firefox', base)
   assert.deepEqual(firefox.background.scripts, ['src/background.js'])
   assert.equal(firefox.browser_specific_settings.gecko.id, 'rdownloader@degoya.de')
-  // AMO refuses a new add-on without it (2026-09-27).
+  // AMO refuses a new add-on without it (2026-09-27). Selected text, Click'n'Load's fields and
+  // handed-over files leave without a further consent, so `websiteContent` is required; the
+  // cookies only with the optional `authenticationInfo` the cookie grant asks for (RD-1270-02).
   assert.deepEqual(firefox.browser_specific_settings.gecko.data_collection_permissions, {
-    required: ['browsingActivity', 'websiteActivity'],
-    optional: ['websiteContent']
+    required: ['browsingActivity', 'websiteActivity', 'websiteContent'],
+    optional: ['authenticationInfo']
   })
   assert.equal(chrome.browser_specific_settings, undefined)
   assert.equal(base.background, undefined, 'base manifest must stay browser-neutral')

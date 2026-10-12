@@ -1,0 +1,57 @@
+{
+  "comment": "Where each screenshot goes (RD-1270-16): deliver.py reads this, capture.mjs the capture settings. A view is a name from views.mjs; every target names the scale its file is taken at. Captions and alt texts name no numbers (alts.json).",
+  "capture": {
+    "width": 1440,
+    "height": 900,
+    "color_scheme": "dark",
+    "locale": "en",
+    "browser_locale": "en-US",
+    "timezone": "Europe/Berlin"
+  },
+  "targets": {
+    "wiki": {
+      "root": "wiki",
+      "dir": "images/screenshots",
+      "format": "png",
+      "scale": 1,
+      "views": "*"
+    },
+    "website": {
+      "root": "website",
+      "dir": "public/screenshots",
+      "format": "webp",
+      "quality": 85,
+      "scale": 2,
+      "views": {
+        "05-downloads": "05-downloads",
+        "08-linkgrabber": "08-linkgrabber",
+        "17-automation": "17-automation",
+        "42-settings-plugins": "42-settings-plugins"
+      }
+    },
+    "readme": {
+      "root": "repo",
+      "dir": ".github/readme",
+      "format": "png",
+      "scale": 1,
+      "views": {
+        "05-downloads": "downloads"
+      }
+    }
+  },
+  "by_hand": {
+    "50-grafana-dashboard": "Grafana, not rDownloader; the website's 50-grafana-dashboard.webp is the same view at scale 2",
+    "51-prometheus-targets": "Prometheus, not rDownloader; also the website's 51-prometheus-targets.webp",
+    "52-prometheus-graph": "Prometheus, not rDownloader; also the website's 52-prometheus-graph.webp",
+    "53-jellyfin-api-key": "Jellyfin, not rDownloader",
+    "54-notification-target-jellyfin": "needs a reachable Jellyfin server for the destination",
+    "55-notification-deliveries-media": "needs deliveries to real media servers",
+    "56-jellyfin-library-new-item": "Jellyfin, not rDownloader",
+    "57-jellyfin-big-buck-bunny": "Jellyfin, not rDownloader",
+    "58-color-palettes": "a grid composed from every colour theme; the website's 58-color-themes.webp is the same grid at scale 2",
+    "59-palette-ocean-dark": "a colour theme switched by hand",
+    "60-palette-rose-light": "a colour theme switched by hand",
+    "61-palette-forest-dark": "a colour theme switched by hand",
+    "71-settings-notifications-path-mapping": "needs the Plex destination with a reachable Plex server"
+  }
+}

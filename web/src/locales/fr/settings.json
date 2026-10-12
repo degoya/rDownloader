@@ -120,11 +120,13 @@
     "description": "S'applique à tous les téléchargements du même hôte ; 0 supprime la limite"
   },
   "nntp_connections": {
-    "label": "Connexions NNTP par fichier",
-    "description": "0 = autant que les serveurs le permettent ; une valeur inférieure plafonne chaque fichier",
-    "follows_servers": "Chaque fichier utilise toutes les connexions de chaque serveur actif, actuellement {largest} sur le plus grand.",
-    "capped": "Le plus grand serveur actif autorise {largest} connexions ; un fichier n’en reçoit au plus que {cap} par serveur. Avec 0, il les utilise toutes.",
-    "not_binding": "Sans effet : aucun serveur actif n’autorise plus de {largest} connexions."
+    "label": "Connexions NNTP par serveur",
+    "description": "0 = autant que les serveurs le permettent ; une valeur inférieure réduit les connexions par serveur que se partagent tous les fichiers Usenet téléchargés en même temps",
+    "follows_servers": "Les fichiers simultanés se partagent les connexions des fournisseurs ({largest} sur le plus grand).",
+    "capped": "Le plus grand serveur actif autorise {largest} connexions ; les fichiers simultanés en reçoivent ensemble au plus {cap} par serveur. Avec 0, ils les utilisent toutes.",
+    "not_binding": "Sans effet : aucun serveur actif n’autorise plus de {largest} connexions.",
+    "live_even": "En ce moment {files} fichier avec {per} des {limit} connexions. | En ce moment {files} fichiers avec {per} des {limit} connexions chacun.",
+    "live_mixed": "En ce moment {files} fichiers avec {busy} des {limit} connexions au total ({split})."
   },
   "speed_limit": {
     "label": "Limite de vitesse",
@@ -1141,9 +1143,9 @@
     "description": "S’appliquent en permanence, quelle que soit la planification. Un profil actif s’y superpose : la plus stricte des deux limites s’applique."
   },
   "nntp_limits": {
-    "eyebrow": "Par fichier",
+    "eyebrow": "Par serveur",
     "title": "Connexions NNTP et fichiers",
-    "description": "Les connexions de chaque fournisseur, ci-dessus, sont le plafond : un fichier utilise au plus les connexions que chaque fournisseur autorise, et le plafond ici peut le maintenir en dessous. Les fichiers Usenet simultanés se partagent les connexions des fournisseurs."
+    "description": "Les connexions de chaque fournisseur, ci-dessus, sont le plafond. Les fichiers Usenet simultanés se les partagent, et la valeur ici peut abaisser les connexions par serveur en dessous."
   },
   "cross_link": {
     "see_also": "Voir aussi",

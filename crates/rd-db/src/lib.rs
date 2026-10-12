@@ -64,6 +64,7 @@ mod full_backup_store;
 mod helpers;
 mod history_store;
 mod indexer_store;
+pub mod intake_notice;
 mod json_column;
 mod link_filter_apply;
 mod link_filter_store;

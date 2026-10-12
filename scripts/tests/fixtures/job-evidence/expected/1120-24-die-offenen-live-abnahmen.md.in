@@ -1,0 +1,26 @@
+# RD-1120-24 — Die offenen Live-Abnahmen nach 1.12
+
+- **Milestone:** 1.12
+- **Status:** Open
+
+## Live-Abnahmen
+
+### Aus RD-1298-01 — Ein älterer Job
+
+[Job](./archive/1298-01-aelter.md)
+
+- [ ] RD-1298-01: Ein Punkt, der schon hier steht.
+
+### Aus RD-1299-01 — Alpha: ein Job mit offenen Kästchen
+
+[Job](./archive/1299-01-alpha.md)
+
+- [ ] RD-1299-01: Ein offener Punkt in einer Zeile.
+- [ ] RD-1299-01: Ein offener Punkt über zwei Zeilen, der weiter
+      unten weitergeht.
+  — Teilweise belegt in `alpha_tests.rs`; offen: der Lauf unter Windows.
+- [ ] RD-1299-01: Ein Punkt, der schon nach RD-1120-24 zeigt.
+
+## In scope
+
+- Die Punkte oben.

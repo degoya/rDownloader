@@ -28,6 +28,8 @@ pub(crate) enum NzbCommand {
     },
     AddNzbImport {
         import: NewNzbImport,
+        /// Whether the browser extension announces this import itself (RD-1270-05).
+        by_extension: bool,
         reply: Reply<rd_core::NzbImport>,
     },
     RecordNzbImportFailure {

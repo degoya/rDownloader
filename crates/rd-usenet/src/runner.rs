@@ -22,6 +22,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     NntpPool, UsenetTraffic,
+    connections::UsenetConnections,
     hopeless::{Ending, Verdicts},
     parallel::{FileLoad, MAX_PARALLEL_FILES},
     worker::{FileOutcome, download_file_counted, recovered_file_path},
@@ -71,6 +72,8 @@ pub struct UsenetRunner {
     verdicts: Verdicts,
     /// The bytes each server delivered since the last flush (RD-1100-05).
     traffic: UsenetTraffic,
+    /// What the connections are doing right now, per server and per file (RD-1270-21).
+    connections: UsenetConnections,
 }
 
 impl UsenetRunner {
@@ -85,6 +88,7 @@ impl UsenetRunner {
             load: Arc::new(FileLoad::default()),
             verdicts: Verdicts::default(),
             traffic: UsenetTraffic::default(),
+            connections: UsenetConnections::default(),
         }
     }
 
@@ -142,6 +146,11 @@ impl ExternalRunner for UsenetRunner {
         true
     }
 
+    /// The busy lines of every server of the pool in force, and the files they work for.
+    fn live_connections(&self) -> Option<rd_scheduler::LiveConnections> {
+        Some(self.connections.reading())
+    }
+
     async fn run(
         &self,
         file: &DownloadFile,
@@ -164,6 +173,7 @@ impl ExternalRunner for UsenetRunner {
             )));
         };
         // On the books from here to the end of the attempt, whichever way it ends.
+        let tracked = self.connections.track(file.id);
         let open = self.load.start(
             nzb_file
                 .segments
@@ -171,6 +181,7 @@ impl ExternalRunner for UsenetRunner {
                 .filter(|segment| segment.state != rd_core::NzbSegmentState::Completed)
                 .count(),
         );
+        let open = open.counting_lines(Arc::clone(tracked.gauge()));
         if nzb_file.total_bytes.get() > self.config.max_file_bytes {
             return Ok(RunOutcome::Failed(
                 Failure::coded(
@@ -214,6 +225,7 @@ impl ExternalRunner for UsenetRunner {
         .await;
         link.abort();
         drop(open);
+        drop(tracked);
         self.log_writer_totals(file);
         self.conclude(outcome, file, package, import_id, &cancellation, &staging)
             .await

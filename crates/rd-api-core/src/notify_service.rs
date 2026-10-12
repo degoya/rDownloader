@@ -21,7 +21,8 @@ use tokio_util::sync::CancellationToken;
 mod bursts;
 mod delivery;
 mod events;
-mod transitions;
+// The package rule is the automations' too (RD-1270-03).
+pub(crate) mod transitions;
 mod web_push;
 
 /// How often the delivery queue is swept.

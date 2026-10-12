@@ -39,6 +39,13 @@ pub enum Field {
     SizeBytes,
     /// Download kind: `http`, `usenet`, `torrent`, `media`, …
     Kind,
+    /// What a storage root did (RD-1270-04): `blocked` when it fell below its free-space
+    /// threshold, `released` when it has room again. Only the storage threshold carries it.
+    Change,
+    /// Which storage target blocked or was released (RD-1270-18): its key, the storage root's id
+    /// or `fallback` for the service's download directory (`rd_files::StorageTarget::key`). Only
+    /// the storage threshold carries it.
+    StorageTarget,
 }
 
 impl Field {
@@ -149,6 +156,19 @@ impl ConditionNode {
                 nodes.iter().try_for_each(Self::validate)
             }
             Self::Predicate { predicate } => predicate.validate(),
+        }
+    }
+
+    /// Whether a comparison anywhere in the tree looks at `field`, negated or not.
+    #[must_use]
+    pub fn mentions(&self, field: Field) -> bool {
+        match self {
+            Self::Always => false,
+            Self::Not { node } => node.mentions(field),
+            Self::All { nodes } | Self::Any { nodes } => {
+                nodes.iter().any(|node| node.mentions(field))
+            }
+            Self::Predicate { predicate } => predicate.field == field,
         }
     }
 

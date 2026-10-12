@@ -51,6 +51,7 @@ if ! rd_release_version "$version"; then
     echo "usage: scripts/release-start.sh <X.Y.Z | X.Y.Z-beta.N> [--push]" >&2
     exit 2
 fi
+[[ "$chain" -eq 1 ]] || "$ROOT/scripts/release-branches.sh" status "$version" --quiet >&2 || true  # RD-1270-16: wiki/site work left on release-X.Y
 
 run_dir="${RD_RELEASE_RUN_DIR:-/tmp/claude-$(id -u)/release-$version}"
 log="$run_dir/chain.log"

@@ -79,8 +79,19 @@ rd_bash_parse() {
     echo "    every one parses"
 }
 
+# Side by side in batches of 16 (RD-1270-13; 192 files one after the other before), each batch's
+# findings written to a file of its own and printed whole once all ended, so the output does not
+# mix. A file's findings do not depend on its batch: shellcheck reads each script on its own and
+# follows its `source` lines either way.
 rd_shellcheck() {
-    shellcheck --severity=warning "$@" || return 1
+    local out status=0 file
+    out="$(mktemp -d)"
+    printf '%s\0' "$@" | xargs -0 -n 16 -P "$(nproc 2> /dev/null || echo 4)" \
+        bash -c 'shellcheck --severity=warning "$@" > "$(mktemp "$0/batch.XXXXXX")" 2>&1' "$out" \
+        || status=$?
+    for file in "$out"/batch.*; do [[ ! -s "$file" ]] || cat "$file"; done
+    rm -rf "$out"
+    [[ "$status" -eq 0 ]] || return 1
     echo "    clean"
 }
 

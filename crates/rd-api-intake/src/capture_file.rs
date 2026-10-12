@@ -21,7 +21,7 @@
 use axum::{
     Json,
     extract::{Multipart, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
 };
 use rd_api_core::input_checks::optional_text;
 use serde::{Deserialize, Serialize};
@@ -113,6 +113,7 @@ pub type CaptureFileBody = JsonOrMultipart<CaptureFileRequest>;
 )]
 pub async fn capture_file(
     State(state): State<AppState>,
+    headers: HeaderMap,
     body: CaptureFileBody,
 ) -> Result<(StatusCode, Json<CaptureFileResponse>), ApiError> {
     let (bytes, file_name) = match body {
@@ -123,7 +124,14 @@ pub async fn capture_file(
             read_json(request, guard.as_ref()).await?
         }
     };
-    let response = import(&state, bytes, file_name).await?;
+    // The extension tells the person itself; the agent's file associations keep the agent's
+    // notice (RD-1270-05).
+    let imported = import(&state, bytes, file_name);
+    let response = if crate::capture_notice::from_agent(&headers) {
+        imported.await?
+    } else {
+        rd_db::intake_notice::announced_by_extension(imported).await?
+    };
     Ok((StatusCode::CREATED, Json(response)))
 }
 

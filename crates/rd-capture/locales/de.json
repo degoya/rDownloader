@@ -1,0 +1,9 @@
+{
+  "links_none": "Links zum LinkGrabber hinzugefügt",
+  "links_one": "1 Link zum LinkGrabber hinzugefügt",
+  "links_many": "{links} Links zum LinkGrabber hinzugefügt",
+  "links_packages": "{links} Links in {packages} Paketen zum LinkGrabber hinzugefügt",
+  "nzb_one": "NZB zum LinkGrabber hinzugefügt, 1 Datei",
+  "nzb_many": "NZB zum LinkGrabber hinzugefügt, {files} Dateien",
+  "held": "Während der Ruhezeit: {text}"
+}

@@ -13,7 +13,9 @@ name: E2E
 # Each step has a time budget (web/e2e/lib/service.mjs, BUDGET_MS); a step over it fails the run.
 #
 # The release candidate dispatches it before the tag, beside ci.yml, and a red run holds the tag
-# (owner, 2026-10-06; the `public-ci` step, scripts/lib/release-steps-publish.sh).
+# (owner, 2026-10-06; the `public-ci` step, scripts/lib/release-steps-publish.sh). The push to
+# `main` after the tag carries that same tree: there the `gate` job runs only the legs no
+# successful run of this tree passed (RD-1270-11).
 
 on:
   push:
@@ -72,7 +74,38 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
+  # What this run has to check, as ci.yml's `gate` decides it (scripts/ci-gate.sh): every image,
+  # except on a push to `main`, where only the images no successful run of e2e.yml passed as a
+  # `smoke (<image>)` leg over this tree, or over one that differs from it only in documentation
+  # and the version bump (CI_TREE_GREENS_UP_TO_VERSIONS: the green usually comes from the wave's
+  # integration branch, RD-1270-10) — after a release, usually none. A tree nobody checked, or a
+  # GitHub that does not answer, gets every image.
+  gate:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 10
+    outputs:
+      platforms: ${{ steps.platforms.outputs.platforms }}
+      check: ${{ steps.platforms.outputs.check }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The runner images still to check
+        id: platforms
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED: ${{ inputs.platforms || '["ubuntu-24.04","windows-2025","macos-15"]' }}
+          ONCE: "[]"
+          CI_TREE_GREENS_WORKFLOW: e2e.yml
+          CI_TREE_GREENS_LEG: smoke
+          CI_TREE_GREENS_UP_TO_VERSIONS: "1"
+        run: scripts/ci-gate.sh
+
   web:
+    needs: gate
+    if: needs.gate.outputs.check == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -99,17 +132,19 @@ jobs:
           retention-days: 1
 
   smoke:
-    needs: web
+    needs: [gate, web]
+    # Skipped, not an empty matrix, when the gate leaves no image.
+    if: needs.gate.outputs.check == 'true'
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.platforms || '["ubuntu-24.04","windows-2025","macos-15"]') }}
+        os: ${{ fromJSON(needs.gate.outputs.platforms) }}
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    # A keychain call that waits for ever is cut off here, not after six hours. 75 minutes since
-    # the Windows and macOS legs build without a cache (RD-1120-07).
-    timeout-minutes: 75
+    # A keychain call that waits for ever is cut off here, not after six hours. The Linux and
+    # Windows legs build in about five minutes with the cache; macOS has none and builds cold.
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash
@@ -121,20 +156,22 @@ jobs:
         with:
           name: e2e-web-dist
           path: web/dist
-      - uses: ./.github/actions/setup-rust
-      # Read, never saved (RD-1120-07): this job's own caches, 2.5 GB over three systems, held the
-      # component and Docker caches out of the repository's 10 GB and served only its next run on
-      # main. The Linux leg reads what ci.yml's `docker` job (amd64) saves on main — the same
-      # profile and environment, and `shared-key: docker` is the key that job's id gives it;
-      # Windows and macOS find none and build without.
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      # ci.yml's `rust-tests` cache, read only (RD-1270-11), as installers.yml builds the same two
+      # packages against it: a debug build whose dependencies, linkers and environment are those
+      # of the `rust` job's test build, which `rust` and `warm-cache` save on main for Linux and
+      # Windows. Until 1.27 this leg built `release-test` and read `docker`'s cache, which no run
+      # ever saved — `docker` runs on main only for a tree no branch checked — so every leg built
+      # cold: Windows 40 minutes for a smoke of seconds, Linux 21, macOS 24 (run 38230320849).
+      # macOS keeps no `rust-tests` cache and builds cold, in debug a fraction of that. A debug
+      # build is well inside the budgets (BUDGET_MS): its service answers in under a second
+      # against 45 s, its agent in a fraction of 20 s. Both packages in one build: rd-capture
+      # alone resolves features no cached build has and rebuilds about 160 dependencies, the two
+      # together 25 to 40 (`cargo tree` against the test build's resolution, 2026-10-12).
+      - uses: ./.github/actions/rust-tests-cache
         with:
-          shared-key: docker
-          save-if: false
-      # `release-test`: the release profile without its single codegen unit and LTO, so the run
-      # tests release code in a fraction of the release build's time.
+          nextest: false
       - name: Build the service and the capture agent
-        run: cargo build --locked --profile release-test -p rdownloader -p rd-capture
+        run: cargo build --locked -p rdownloader -p rd-capture
       - uses: ./.github/actions/setup-web
         with:
           pnpm: false
@@ -166,8 +203,8 @@ jobs:
 
       - name: Capture agent smoke
         env:
-          RD_E2E_SERVER: ${{ github.workspace }}/target/release-test/rdownloader${{ env.EXE }}
-          RD_E2E_CAPTURE: ${{ github.workspace }}/target/release-test/rdownloader-capture${{ env.EXE }}
+          RD_E2E_SERVER: ${{ github.workspace }}/target/debug/rdownloader${{ env.EXE }}
+          RD_E2E_CAPTURE: ${{ github.workspace }}/target/debug/rdownloader-capture${{ env.EXE }}
           RD_E2E_OS_INTEGRATION: "1"
           RD_E2E_WORK: ${{ runner.temp }}/e2e-capture
         run: node --test --test-reporter=spec web/e2e/capture.e2e.mjs
@@ -190,7 +227,7 @@ jobs:
       - name: Chrome extension end to end
         if: runner.os == 'Linux'
         env:
-          RD_E2E_SERVER: ${{ github.workspace }}/target/release-test/rdownloader
+          RD_E2E_SERVER: ${{ github.workspace }}/target/debug/rdownloader
           RD_E2E_EXTENSION: ${{ runner.temp }}/chrome-extension
           RD_E2E_WORK: ${{ runner.temp }}/e2e-extension
         run: node --test --test-reporter=spec web/e2e/extension.e2e.mjs
@@ -198,7 +235,7 @@ jobs:
       - name: Click'n'Load through the Chrome extension
         if: runner.os == 'Linux'
         env:
-          RD_E2E_SERVER: ${{ github.workspace }}/target/release-test/rdownloader
+          RD_E2E_SERVER: ${{ github.workspace }}/target/debug/rdownloader
           RD_E2E_EXTENSION: ${{ runner.temp }}/chrome-extension
           RD_E2E_WORK: ${{ runner.temp }}/e2e-click-and-load
         run: node --test --test-reporter=spec web/e2e/click-and-load.e2e.mjs

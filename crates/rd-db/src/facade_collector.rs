@@ -37,6 +37,7 @@ impl Database {
             writer::request(&self.writer, |reply| CollectorCommand::AddCollectorBatch {
                 intake,
                 secret_fragment_refs,
+                by_extension: crate::intake_notice::by_extension(),
                 reply,
             })
             .await?;

@@ -1,0 +1,36 @@
+==> git diff --check
+==> tests (everything except rd-api) — --full
+    Starting 10 tests across 2 binaries (1 test skipped)
+        PASS [   0.010s] rd-core tests::one
+     Summary [   1.000s] 10 tests run: 10 passed, 1 skipped
+
+==> tests (rd-api library)
+    Starting 4 tests across 1 binary (1 test skipped)
+     Summary [   0.245s] 4 tests run: 4 passed, 1 skipped
+
+==> rd-api integration: 2 of 2 suites in 1 binary — --full
+==> tests (rd-api integration, batch 1 of 2: access admin)
+     Summary [  41.815s] 6 tests run: 6 passed, 0 skipped
+
+==> tests (rd-api integration, batch 2 of 2: queue)
+     Summary [  15.737s] 2 tests run: 2 passed, 0 skipped
+
+==> crash and restart matrix
+     Summary [   5.271s] 3 tests run: 3 passed, 20 skipped
+     Summary [   0.547s] 1 test run: 1 passed, 2 skipped
+==> sqlx offline data
+==> pnpm run typecheck:full
+==> pnpm run test
+ Test Files  3 passed (3)
+      Tests  27 passed (27)
+==> browser extension
+==> testing the browser extension
+✔ a test (0.5ms)
+ℹ tests 13
+ℹ pass 13
+ℹ fail 0
+==> recorded green at @COMMIT@ in /x/target/.rd-verified/%x%integration-1.99-w1
+==> recorded a --full green for tree @TREE@ in /x/target/.rd-verified-full/%x%integration-1.99-w1
+
+==> all requested checks passed
+REAL EXIT: 0

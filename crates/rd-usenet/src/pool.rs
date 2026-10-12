@@ -13,10 +13,17 @@ use std::{
 use anyhow::{Context, Result, bail};
 use tokio::sync::{Mutex, Notify, Semaphore};
 
-use crate::{DecodedArticle, NntpServerConfig, decode_yenc};
+use crate::{
+    DecodedArticle, NntpServerConfig,
+    connections::{FileGauge, ServerGauge},
+    decode_yenc,
+};
 
+mod fetch_error;
 mod line;
 mod slot;
+
+pub use fetch_error::FetchError;
 
 use line::{Line, Named, Outcome};
 
@@ -60,41 +67,6 @@ const MAX_PASSES: usize = 3 * ARTICLE_ATTEMPTS;
 static OUT_OF_STEP: LazyLock<std::sync::Mutex<HashSet<String>>> =
     LazyLock::new(|| std::sync::Mutex::new(HashSet::new()));
 
-/// Why an article did not arrive - and whether that says anything about the article.
-///
-/// The whole point of the type (RD-108-29). Only [`Self::Unavailable`] is a statement about
-/// the article, and only it may cost the caller the bytes; [`Self::ServerFault`] means the
-/// question was never answered and has to be asked again later.
-#[derive(Debug)]
-pub enum FetchError {
-    /// Every server said it does not have this article.
-    Unavailable(String),
-    /// At least one server could not answer: a transient status, a connection that broke, a
-    /// body that did not decode - each of them already retried.
-    ServerFault(String),
-}
-
-impl FetchError {
-    /// The detail worth logging or putting into a failure message.
-    #[must_use]
-    pub fn detail(&self) -> &str {
-        match self {
-            Self::Unavailable(detail) | Self::ServerFault(detail) => detail,
-        }
-    }
-}
-
-impl std::fmt::Display for FetchError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Unavailable(detail) => write!(formatter, "{detail}"),
-            Self::ServerFault(detail) => write!(formatter, "{detail}"),
-        }
-    }
-}
-
-impl std::error::Error for FetchError {}
-
 /// Decoded article plus the number of prioritized servers tried.
 pub struct PooledArticle {
     pub article: DecodedArticle,
@@ -129,12 +101,33 @@ impl NntpPool {
         configs: Vec<(NntpServerConfig, Option<Arc<AtomicU64>>)>,
         cap: Option<usize>,
     ) -> Result<Self> {
+        Self::gauged(
+            configs
+                .into_iter()
+                .map(|(config, traffic)| PoolServer {
+                    config,
+                    traffic,
+                    gauge: None,
+                })
+                .collect(),
+            cap,
+        )
+    }
+
+    /// Like [`Self::metered`], each server also with the gauge its busy lines are counted on
+    /// (RD-1270-21).
+    pub(crate) fn gauged(configs: Vec<PoolServer>, cap: Option<usize>) -> Result<Self> {
         if configs.is_empty() {
             bail!("no enabled NNTP server is configured");
         }
         let mut max_parallel = 0_usize;
         let mut servers = Vec::with_capacity(configs.len());
-        for (config, traffic) in configs {
+        for PoolServer {
+            config,
+            traffic,
+            gauge,
+        } in configs
+        {
             if config.max_connections == 0 {
                 bail!("NNTP server connection limit is zero");
             }
@@ -144,7 +137,10 @@ impl NntpPool {
             max_parallel = max_parallel
                 .checked_add(connections)
                 .context("NNTP connection limit overflow")?;
-            servers.push(ServerPool::new(config, connections, traffic));
+            if let Some(gauge) = &gauge {
+                gauge.set_limit(connections);
+            }
+            servers.push(ServerPool::new(config, connections, traffic, gauge));
         }
         Ok(Self {
             servers: Arc::new(servers),
@@ -195,10 +191,19 @@ impl NntpPool {
     /// backup account does not turn a primary's `400` into a fact about the article
     /// (RD-108-29).
     pub async fn fetch_decoded(&self, message_id: &str) -> Result<PooledArticle, FetchError> {
+        self.fetch_decoded_for(message_id, None).await
+    }
+
+    /// [`Self::fetch_decoded`] on behalf of the running file `file` counts its lines on.
+    pub(crate) async fn fetch_decoded_for(
+        &self,
+        message_id: &str,
+        file: Option<&Arc<FileGauge>>,
+    ) -> Result<PooledArticle, FetchError> {
         let mut failures = Vec::new();
         let mut faulted = false;
         for server in self.servers.iter() {
-            match server.article(message_id).await {
+            match server.article(message_id, file).await {
                 Ok(article) => {
                     return Ok(PooledArticle {
                         article,
@@ -224,6 +229,15 @@ impl NntpPool {
     }
 }
 
+/// One server a pool is built for, with what it counts on.
+pub(crate) struct PoolServer {
+    pub(crate) config: NntpServerConfig,
+    /// Where its article bodies are added (RD-1100-05).
+    pub(crate) traffic: Option<Arc<AtomicU64>>,
+    /// Where its busy lines are counted (RD-1270-21).
+    pub(crate) gauge: Option<Arc<ServerGauge>>,
+}
+
 struct ServerPool {
     config: NntpServerConfig,
     /// Connections this pool may open to the server.
@@ -243,10 +257,17 @@ struct ServerPool {
     changed: Notify,
     /// Where the bytes of every body this server sends are added (RD-1100-05).
     traffic: Option<Arc<AtomicU64>>,
+    /// Where the lines carrying a request are counted (RD-1270-21).
+    gauge: Option<Arc<ServerGauge>>,
 }
 
 impl ServerPool {
-    fn new(config: NntpServerConfig, connections: usize, traffic: Option<Arc<AtomicU64>>) -> Self {
+    fn new(
+        config: NntpServerConfig,
+        connections: usize,
+        traffic: Option<Arc<AtomicU64>>,
+        gauge: Option<Arc<ServerGauge>>,
+    ) -> Self {
         let depth = if out_of_step().contains(&endpoint(&config)) {
             1
         } else {
@@ -261,6 +282,7 @@ impl ServerPool {
             connecting: AtomicUsize::new(0),
             changed: Notify::new(),
             traffic,
+            gauge,
         }
     }
 
@@ -273,7 +295,11 @@ impl ServerPool {
     /// for its own reasons, the line broke, or the body did not decode. Those cost an
     /// attempt and a short wait, and are asked again on a fresh line, up to
     /// [`ARTICLE_ATTEMPTS`]. What they never do is end as an answer about the article.
-    async fn article(&self, message_id: &str) -> Result<DecodedArticle, FetchError> {
+    async fn article(
+        &self,
+        message_id: &str,
+        file: Option<&Arc<FileGauge>>,
+    ) -> Result<DecodedArticle, FetchError> {
         let _request = self
             .requests
             .acquire()
@@ -291,7 +317,7 @@ impl ServerPool {
             if faults >= ARTICLE_ATTEMPTS {
                 break;
             }
-            let slot = match self.slot(unconfirmed.is_some()).await {
+            let slot = match self.slot(unconfirmed.is_some(), file).await {
                 Ok(slot) => slot,
                 // A server that will not take another connection right now is as transient
                 // as one that answers `400`, and is counted the same way.

@@ -18,6 +18,14 @@
 # passes `[]` when recorded Linux and Windows greens cover the tree, and a dispatch for macOS
 # alone then runs none of them again (RD-1120-07).
 #
+# e2e.yml and recovery.yml run it as their own `gate` job (RD-1270-11): the release candidate
+# dispatches both on `ci/<version>`, and the push to `main` after the tag ran them over the same
+# tree again, about 40 runner minutes. They name their workflow and matrix job for
+# scripts/ci-tree-greens.sh (CI_TREE_GREENS_WORKFLOW, CI_TREE_GREENS_LEG), let a green count up to
+# documentation and the version bump (CI_TREE_GREENS_UP_TO_VERSIONS), and read `platforms`,
+# `check` and `jobs`: e2e.yml its images with `ONCE='[]'`, recovery.yml no image and its one job
+# as `ONCE`.
+#
 #   REQUESTED='["ubuntu-24.04",…]' ONCE='["docker",…]' CALLED='["components"]' \
 #       [REQUESTED_JOBS='[]'] scripts/ci-gate.sh
 #
