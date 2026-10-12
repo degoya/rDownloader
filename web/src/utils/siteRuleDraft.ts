@@ -16,6 +16,8 @@ import { isPlainRecord } from '@/utils/values'
 /** What `rd_siterules::Rule::validate` accepts for an identifier and a name. */
 const MAX_RULE_ID_LENGTH = 64
 const MAX_RULE_NAME_LENGTH = 120
+/** The longest group the service takes (`rd-siterules`' `MAX_GROUP_LENGTH`). */
+const MAX_GROUP_LENGTH = 32
 
 /** The seven step kinds, exactly as the rule format spells them. */
 export const STEP_KINDS = ['fetch', 'fetch-json', 'regex', 'decode', 'form', 'redirect', 'captcha'] as const
@@ -385,4 +387,22 @@ export function draftComplete(draft: RuleDraft): boolean {
     && draft.steps.length > 0
     && draft.probe.trim().length > 0
     && (!draft.grouped || (draft.groups.from.trim().length > 0 && draft.groups.steps.length > 0))
+}
+
+/**
+ * A group as the service stores it, from what somebody typed (RD-1251-02): lowercase kebab-case
+ * of at most 32 characters, so "Link Protektor" becomes `link-protektor` instead of a rule the
+ * service refuses on save. Accents lose their mark, ß becomes `ss`, every run of anything else
+ * becomes one hyphen; empty when nothing usable is left.
+ */
+export function groupSlug(name: string): string {
+  return name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+/, '')
+    .slice(0, MAX_GROUP_LENGTH)
+    .replace(/-+$/, '')
 }

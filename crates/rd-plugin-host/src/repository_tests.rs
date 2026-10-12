@@ -553,20 +553,6 @@ async fn the_refresh_interval_is_bounded_and_defaults() {
 }
 
 #[test]
-fn a_repository_address_is_plain_https() {
-    assert!(parse_https("https://plugins.example.test/index.json").is_ok());
-    for bad in [
-        "http://plugins.example.test/index.json",
-        "https://user:pw@plugins.example.test/index.json",
-        "https://plugins.example.test/index.json#x",
-        "file:///etc/passwd",
-        "not a url",
-    ] {
-        assert!(parse_https(bad).is_err(), "{bad}");
-    }
-}
-
-#[test]
 fn only_the_official_repository_withdraws_everything() {
     let mut row = PluginRepository {
         id: OFFICIAL_REPOSITORY_ID.to_owned(),
@@ -592,3 +578,7 @@ fn only_the_official_repository_withdraws_everything() {
 /// The malicious-repository cases of the plugin-trust review (`docs/security/plugin-trust.md`).
 #[path = "repository_trust_tests.rs"]
 mod trust;
+
+/// Updates of installed versions this build refuses, and the address rule (RD-1251-01).
+#[path = "repository_refused_tests.rs"]
+mod refused;

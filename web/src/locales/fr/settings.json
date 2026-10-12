@@ -1009,7 +1009,8 @@
       "eyebrow": "Crédits",
       "title": "Qui fait rDownloader",
       "author": "Auteur",
-      "thanks": "rDownloader repose sur les projets ci-dessous – merci à toutes celles et ceux qui les écrivent et les maintiennent."
+      "thanks": "rDownloader repose sur de nombreux projets libres – merci à toutes celles et ceux qui les écrivent et les maintiennent. Leur liste figure sous Licences.",
+      "show_licenses": "Voir les licences"
     },
     "licenses": {
       "eyebrow": "Licences",

@@ -106,7 +106,7 @@ step_version_bump() {
 # run happens as before.
 step_test() {
     rd_prebump_reuse rust "full Rust run" && return 0
-    JOBS="$JOBS" scripts/check.sh --rust --full
+    JOBS="$JOBS" RD_RELEASE_VERSION="$VERSION" scripts/check.sh --rust --full
 }
 
 # Whether a green of half $1 covers the tree before the bump while the bump changed version lines

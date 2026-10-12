@@ -38,7 +38,7 @@
     "id_hint": "Letras minúsculas, dígitos y guiones. No se puede cambiar después y nunca repite el de otra regla.",
     "name": "Nombre",
     "group": "Grupo",
-    "group_hint": "Aquello por lo que se agrupa la lista y lo que abarca el interruptor de grupo.",
+    "group_hint": "Aquello por lo que se agrupa la lista y lo que abarca el interruptor de grupo. Minúsculas, cifras y guiones: «Protector de enlaces» pasa a ser protector-de-enlaces.",
     "version": "Revisión",
     "version_hint": "Auméntala cuando cambies la regla.",
     "hosts": "Hosts",

@@ -328,7 +328,7 @@ mod tests {
         let answer = about(&BuildInfo::new("1a2b3c4d-dirty", "2026-09-25T12:00:00Z"));
         assert_eq!(answer.commit.as_deref(), Some("1a2b3c4d-dirty"));
         assert_eq!(answer.built.as_deref(), Some("2026-09-25T12:00:00Z"));
-        assert_eq!(answer.authors, ["Alexander Herling"]);
+        assert_eq!(answer.authors, ["Alexander Herling / DEGOYA.digital"]);
         assert_eq!(answer.license, "GPL-3.0-or-later");
     }
 }

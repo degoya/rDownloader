@@ -1009,7 +1009,8 @@
       "eyebrow": "Credits",
       "title": "Who makes rDownloader",
       "author": "Author",
-      "thanks": "rDownloader is built on the projects listed below – thanks to everyone who writes and maintains them."
+      "thanks": "rDownloader is built on many free projects – thanks to everyone who writes and maintains them. Which ones is listed under Licenses.",
+      "show_licenses": "Go to the licenses"
     },
     "licenses": {
       "eyebrow": "Licenses",

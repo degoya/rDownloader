@@ -162,8 +162,8 @@ members = [
 ]
 
 [workspace.package]
-version = "1.25.0"
-authors = ["Alexander Herling"]
+version = "1.25.1"
+authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.99"
 license = "GPL-3.0-or-later"

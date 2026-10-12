@@ -185,6 +185,18 @@ const anyOpen = computed(() => open.rust || open.npm)
                 <dd class="text-sm text-highlighted">{{ about.authors.join(', ') }}</dd>
               </dl>
               <p class="mt-3 max-w-3xl text-sm leading-6 text-muted">{{ t('settings.about.credits.thanks') }}</p>
+              <!-- The projects are the Licenses tab's list since RD-1160-01; the sentence once
+                   pointed "below" at a card that moved there (RD-1251-03). -->
+              <UButton
+                data-testid="about-show-licenses"
+                class="mt-2"
+                color="neutral"
+                variant="link"
+                size="sm"
+                trailing-icon="i-lucide-arrow-right"
+                :label="t('settings.about.credits.show_licenses')"
+                @click="activeTab = 'licenses'"
+              />
               <!-- The dedication the status bar carried until it gave the room to the selection
                    (RD-1250-06); here it has the space and the context. -->
               <p data-testid="about-dedication" class="mt-3 flex flex-wrap items-center gap-1 text-sm text-toned">

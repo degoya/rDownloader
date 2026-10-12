@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { SiteRule } from '@/api/types'
 import { duplicateName } from '@/utils/copyName'
+import { groupSlug } from '@/utils/siteRuleDraft'
 import {
   STEP_KINDS,
   copyBody,
@@ -300,5 +301,18 @@ describe('a two-stage rule (RD-1170-03)', () => {
     const groups = toBody(draft).groups as Record<string, unknown> & { steps: Record<string, unknown>[] }
     expect('pick' in groups).toBe(false)
     expect(groups.steps.some(step => 'json' in step || 'page' in step || 'invisible' in step)).toBe(false)
+  })
+})
+
+// The service takes a group only as lowercase kebab-case of at most 32 characters (RD-1251-02).
+describe('groupSlug', () => {
+  it('writes what was typed the way the service stores it', () => {
+    expect(groupSlug('Link Protektor')).toBe('link-protektor')
+    expect(groupSlug('  Größe & Übersicht_2 ')).toBe('grosse-ubersicht-2')
+    expect(groupSlug('board')).toBe('board')
+    expect(groupSlug('—!?')).toBe('')
+    const long = groupSlug('a'.repeat(31) + ' bcd')
+    expect(long).toBe('a'.repeat(31))
+    expect(long.length).toBeLessThanOrEqual(32)
   })
 })

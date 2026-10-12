@@ -378,7 +378,7 @@ fn read_locales(directory: &Path) -> Result<Vec<(String, Vec<u8>)>> {
 /// Every `<root>/<plugin-id>/<version>` directory, ignoring stray files and the staging
 /// directory of an install that stopped before its rename (RD-170-07): loading one would list a
 /// second copy of the plugin that `remove_version` cannot address.
-fn version_directories(root: &Path) -> Result<Vec<std::path::PathBuf>> {
+pub(super) fn version_directories(root: &Path) -> Result<Vec<std::path::PathBuf>> {
     if !root.exists() {
         return Ok(Vec::new());
     }
@@ -430,7 +430,7 @@ fn version_cmp_desc(left: &str, right: &str) -> std::cmp::Ordering {
         .cmp(&semver::Version::parse(left).ok())
 }
 
-fn read_optional_bounded(path: &Path, limit: u64) -> Result<Option<Vec<u8>>> {
+pub(super) fn read_optional_bounded(path: &Path, limit: u64) -> Result<Option<Vec<u8>>> {
     match read_bounded_file(path, limit) {
         Ok(bytes) => Ok(Some(bytes)),
         Err(error)

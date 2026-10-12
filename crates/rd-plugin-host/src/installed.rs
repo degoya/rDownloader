@@ -5,11 +5,13 @@ use anyhow::Result;
 use crate::{PluginInstaller, PluginManifest, VerifiedPackage, VersionRole};
 
 mod disk;
+mod refused;
 
 use disk::{
     install_stagings, list_incompatible_sync, list_installed_sync, load_one, load_verified_sync,
     locale_bundle_sync, read_package_parts, verified_contents_sync,
 };
+pub use refused::RefusedInstall;
 
 /// An installed package this build refuses, kept listable so it can be recognised and removed.
 #[derive(Clone, Debug)]

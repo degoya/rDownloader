@@ -38,7 +38,7 @@
     "id_hint": "Kleinbuchstaben, Ziffern und Bindestriche. Später nicht änderbar und nie die einer anderen Regel.",
     "name": "Name",
     "group": "Gruppe",
-    "group_hint": "Wonach die Liste gruppiert und was der Gruppenschalter umfasst.",
+    "group_hint": "Wonach die Liste gruppiert und was der Gruppenschalter umfasst. Kleinbuchstaben, Ziffern und Bindestriche: aus „Link Protektor“ wird link-protektor.",
     "version": "Revision",
     "version_hint": "Erhöhe sie, wenn du die Regel änderst.",
     "hosts": "Hosts",

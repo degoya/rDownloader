@@ -37,6 +37,12 @@ rd_file_checks() {
     # was.
     if [[ "${RD_SKIP_JOB_LAYOUT:-0}" == 1 ]]; then
         skip "the job layout" "RD_SKIP_JOB_LAYOUT=1: archive-jobs.sh runs as a generator after this (integrate.sh)"
+    elif [[ -n "${RD_RELEASE_VERSION:-}" ]]; then
+        # Inside a release (scripts/release-start.sh, the pipeline's test step) the finished jobs
+        # move in the release commit, at the chain's archive-jobs step; before it they are due,
+        # not wrong. Everything else in the layout still fails.
+        step "the job layout: open jobs not archived (finished ones move with release $RD_RELEASE_VERSION)"
+        attempt scripts/archive-jobs.sh --check --due-ok --release "$RD_RELEASE_VERSION"
     else
         step "the job layout: finished jobs archived, open ones not"
         attempt scripts/archive-jobs.sh --check

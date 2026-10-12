@@ -98,7 +98,7 @@ const BASELINE: &[(&str, usize)] = &[
     ("crates/rd-plugin-host/src/manifest_tests.rs", 957),
     ("crates/rd-plugin-host/src/native/expand/tests.rs", 557),
     ("crates/rd-plugin-host/src/native/host_tests.rs", 1051),
-    ("crates/rd-plugin-host/src/repository_tests.rs", 594),
+    ("crates/rd-plugin-host/src/repository_tests.rs", 584),
     ("crates/rd-plugin-host/src/repository_trust_tests.rs", 509),
     ("crates/rd-plugin-host/tests/krakenfiles_parity.rs", 521),
     ("crates/rd-plugin-host/tests/turbobit_hitfile_contract.rs", 587),

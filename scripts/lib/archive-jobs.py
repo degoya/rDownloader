@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Moves finished roadmap job files into docs/roadmap/jobs/archive/ (RD-140-19).
 
-    archive-jobs.py <repo> [--check] [--release X.Y.Z]
+    archive-jobs.py <repo> [--check [--due-ok]] [--release X.Y.Z]
 
 A job file directly in docs/roadmap/jobs/ is due when its first `- **Status:**` line begins with
 `Implemented` or `Blocked/No-Go`. A working file without a status line — `<NNN>-00-*.md` such as
@@ -35,7 +35,9 @@ every file in archive/ whose status is open again (`Open`, `In progress`, `Parti
 a job back is left to a person, with its row), every row listed twice or in the wrong index, every
 Job Inventory row whose numbers the catalogs do not bear out and every job file, here or in
 archive/, whose status line is missing or starts with a word that is not one of STATUS_WORDS
-(RD-120-14: `Done` is not one), and exits 1 when there is any of the five. A working file `<NNN>-00-*.md` and README.md
+(RD-120-14: `Done` is not one), and exits 1 when there is any of the five. With --due-ok a
+due file is named but does not count: the release chain's checks before its archive-jobs step
+run that way (RD_RELEASE_VERSION, scripts/lib/preflight.sh), because that step moves them. A working file `<NNN>-00-*.md` and README.md
 need no status line; one that has a line is checked all the same. scripts/check.sh runs it that
 way on every run, so neither the layout, the counts nor the words can drift. The word check was
 the Rust test crates/rdownloader/tests/job_status_words.rs until RD-191-09: a branch run skips
@@ -277,6 +279,7 @@ def stale_inventory(repo):
 def main(argv):
     args = argv[1:]
     check = "--check" in args
+    due_ok = "--due-ok" in args
     release = args[args.index("--release") + 1] if "--release" in args else None
     repo = next((a for a in args if not a.startswith("--") and a != release), None)
     if repo is None:
@@ -317,12 +320,13 @@ def main(argv):
         for path, problem in bad:
             print(f"status: {path}: {problem} (docs/roadmap/jobs/README.md, Rules)")
         for name, reason in due:
-            print(f"due: {JOBS}/{name} ({reason}) — run scripts/archive-jobs.sh")
+            hint = "the release's archive-jobs step moves it" if due_ok else "run scripts/archive-jobs.sh"
+            print(f"due: {JOBS}/{name} ({reason}) — {hint}")
         for line in stale:
             print(f"miscounted: {JOBS}/README.md Job Inventory has `{line[0]}`, the catalogs say "
                   f"`{line[1]}` — run scripts/archive-jobs.sh")
         print(f"{len(due)} job file(s) due for {ARCHIVE}/" if due else "nothing to archive")
-        return 1 if due or misplaced or stale or bad or listed else 0
+        return 1 if (due and not due_ok) or misplaced or stale or bad or listed else 0
     if not due:
         if stale:
             index_path = os.path.join(repo, JOBS, "README.md")

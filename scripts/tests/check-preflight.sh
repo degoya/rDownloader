@@ -20,7 +20,8 @@ export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid
 export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 export CARGO_TARGET_DIR="$SCRATCH/target"
 export FAKE="$SCRATCH/fake"
-unset GITLEAKS RD_SKIP_JOB_LAYOUT
+# The release chain exports RD_RELEASE_VERSION, which turns the job layout into its due-ok form.
+unset GITLEAKS RD_SKIP_JOB_LAYOUT RD_RELEASE_VERSION
 mkdir -p "$FAKE" "$SCRATCH/bin"
 
 # A stand-in on PATH or in the checkout: logs `<name> <args>` and fails while $FAKE/<name>-red

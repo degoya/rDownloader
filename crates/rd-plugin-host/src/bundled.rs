@@ -79,7 +79,8 @@ pub async fn sync_bundled(
         installer.set_bundled(Vec::new());
         return Ok(report);
     };
-    let installed = installer.list_installed().await?;
+    // A refused version counts as installed: the bundle is what replaces it (RD-1251-01).
+    let installed = installer.installed_or_refused_versions().await?;
     // What each bundled id *is*, so a leftover of a different type under the same id can be
     // recognised after the loop.
     let mut bundled_types: std::collections::HashMap<PluginId, PluginType> =
@@ -110,12 +111,10 @@ pub async fn sync_bundled(
         let bundled_version = semver::Version::parse(&package.manifest.version).ok();
         let newest_installed = installed
             .iter()
-            .filter(|manifest| manifest.id == package.manifest.id)
-            .filter_map(|manifest| semver::Version::parse(&manifest.version).ok())
+            .filter(|(id, _)| *id == package.manifest.id)
+            .filter_map(|(_, version)| semver::Version::parse(version).ok())
             .max();
-        let is_installed = installed
-            .iter()
-            .any(|manifest| manifest.id == package.manifest.id);
+        let is_installed = installed.iter().any(|(id, _)| *id == package.manifest.id);
         if bundled_version.is_some() && !is_installed {
             absent.push((name, path, package.manifest.id));
             continue;
@@ -205,14 +204,18 @@ async fn remove_orphans(
 }
 
 #[cfg(test)]
+#[path = "bundled_refused_tests.rs"]
+mod refused_tests;
+
+#[cfg(test)]
 mod tests {
     use super::{BundledPolicy, sync_bundled};
     use crate::{PluginInstaller, PluginVerifier, packager::package_plugin};
 
-    const EMPTY_COMPONENT: &[u8] = b"\0asm\x0d\0\x01\0";
+    pub(super) const EMPTY_COMPONENT: &[u8] = b"\0asm\x0d\0\x01\0";
     const DEV_PUBLIC_KEY: &str = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY=";
 
-    fn manifest(version: &str) -> Vec<u8> {
+    pub(super) fn manifest(version: &str) -> Vec<u8> {
         format!(
             r#"manifest_version = 3
 plugin_type = "resolver"

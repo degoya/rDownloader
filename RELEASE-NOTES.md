@@ -12,6 +12,12 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
+## 1.25.1
+
+- Fixed: after updating the application, plugins built for the previous version are replaced by their new versions instead of staying unusable.
+- Fixed: a new site-rule group named with capitals or spaces is saved instead of refused.
+- The About page now links to the Licenses tab, where the projects rDownloader is built on are listed.
+
 ## 1.25.0
 
 - The queue downloads in its order again: a file that fails briefly keeps its place, and one that keeps failing waits longer instead of holding up the rest.

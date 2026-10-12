@@ -5,6 +5,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.25.1] - 2026-10-12
+
+### Fixed
+
+- **Plugins follow the application across a contract change (RD-1251-01, owner 2026-10-12).**
+  1.25.0 raised `rdownloader:plugin` to `0.11.0`, so an installation updated from 1.24 held only
+  refused packages — and both paths that replace a package skipped them: the start's bundled sync
+  (`BundledPolicy::InstalledOnly`) took a refused plugin for one never installed, and the
+  repository's `updates()` measured only `list_installed`. On the owner's Windows instance all 13
+  plugins stayed refused with their 1.25 versions in the bundle beside the executable, and the
+  Updates card said every plugin was current. A refused version whose manifest still names its id
+  and version now counts as installed for both (`PluginInstaller::list_refused`,
+  `list_update_bases`; an update still needs the installed version's key), and an install
+  removes the refused versions of its plugin older than itself
+  (`remove_superseded_refused`); a refused version newer than the install stays.
+- **A new site-rule group is written the way the service stores it (RD-1251-02, owner
+  2026-10-12).** Naming a group "Link Protektor" in the rule editor kept it as typed, and saving
+  failed with `group "Link Protektor" is not lowercase kebab-case`. The editor now writes a new
+  group as lowercase kebab-case of at most 32 characters (`groupSlug`, `link-protektor`), and the
+  field's hint says so.
+- **About points at the projects it thanks (RD-1251-03, owner 2026-10-12).** The credits said
+  "the projects listed below", which moved to the Licenses tab with RD-1160-01; the sentence now
+  names the tab and a link opens it. The author reads "Alexander Herling / DEGOYA.digital"
+  (`[workspace.package] authors`).
+- **A release no longer stops on its own finished jobs.** `release-start.sh` runs
+  `check.sh --full` before the pipeline, and its job-layout check refused the jobs the release had
+  just set to `Implemented`, which only the chain's `archive-jobs` step moves (1.25.0's first start
+  stopped there). The chain's checks before that step now run with `RD_RELEASE_VERSION`:
+  `archive-jobs.sh --check --due-ok` names what is due and still fails on every other layout fault.
+  `scripts/tests/check-preflight.sh` starts without the variable, which it had inherited from the
+  chain (the first 1.25.1 chain stopped on two of its cases).
+
 ## [1.25.0] - 2026-10-11
 
 ### Added

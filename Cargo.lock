@@ -6843,7 +6843,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6910,7 +6910,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-access"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -6940,7 +6940,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-admin"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -6984,7 +6984,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-compat"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -7003,7 +7003,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-core"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -7068,7 +7068,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-intake"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7110,7 +7110,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-mcp"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -7134,7 +7134,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-queue"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -7165,7 +7165,7 @@ dependencies = [
 
 [[package]]
 name = "rd-authn"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
@@ -7187,7 +7187,7 @@ dependencies = [
 
 [[package]]
 name = "rd-automation"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "chrono",
  "croner",
@@ -7202,7 +7202,7 @@ dependencies = [
 
 [[package]]
 name = "rd-autostart"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "directories",
@@ -7212,7 +7212,7 @@ dependencies = [
 
 [[package]]
 name = "rd-backup"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -7250,7 +7250,7 @@ dependencies = [
 
 [[package]]
 name = "rd-captcha"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -7273,7 +7273,7 @@ dependencies = [
 
 [[package]]
 name = "rd-capture"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7320,7 +7320,7 @@ dependencies = [
 
 [[package]]
 name = "rd-collector"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7364,7 +7364,7 @@ version = "1.0.0"
 
 [[package]]
 name = "rd-db"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -7391,7 +7391,7 @@ dependencies = [
 
 [[package]]
 name = "rd-diagnostics"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7413,7 +7413,7 @@ dependencies = [
 
 [[package]]
 name = "rd-extract"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7437,7 +7437,7 @@ dependencies = [
 
 [[package]]
 name = "rd-files"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "crc32fast",
@@ -7460,7 +7460,7 @@ dependencies = [
 
 [[package]]
 name = "rd-ftp"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7484,7 +7484,7 @@ dependencies = [
 
 [[package]]
 name = "rd-gallery"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7501,7 +7501,7 @@ dependencies = [
 
 [[package]]
 name = "rd-hotfolder"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7519,7 +7519,7 @@ dependencies = [
 
 [[package]]
 name = "rd-http"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7558,7 +7558,7 @@ dependencies = [
 
 [[package]]
 name = "rd-limits"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7572,7 +7572,7 @@ dependencies = [
 
 [[package]]
 name = "rd-media"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7598,7 +7598,7 @@ dependencies = [
 
 [[package]]
 name = "rd-notify"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "aws-lc-rs",
@@ -7622,7 +7622,7 @@ dependencies = [
 
 [[package]]
 name = "rd-object-storage"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7657,7 +7657,7 @@ dependencies = [
 
 [[package]]
 name = "rd-pack"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7871,7 +7871,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-ext"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7967,7 +7967,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-host"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -8580,7 +8580,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-transfer"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8661,7 +8661,7 @@ dependencies = [
 
 [[package]]
 name = "rd-postprocess"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "dunce",
@@ -8680,7 +8680,7 @@ dependencies = [
 
 [[package]]
 name = "rd-power"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8706,7 +8706,7 @@ dependencies = [
 
 [[package]]
 name = "rd-scheduler"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8741,7 +8741,7 @@ dependencies = [
 
 [[package]]
 name = "rd-secrets"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -8760,7 +8760,7 @@ dependencies = [
 
 [[package]]
 name = "rd-sftp"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8784,7 +8784,7 @@ dependencies = [
 
 [[package]]
 name = "rd-sign"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -8798,7 +8798,7 @@ dependencies = [
 
 [[package]]
 name = "rd-siterules"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -8816,7 +8816,7 @@ dependencies = [
 
 [[package]]
 name = "rd-stream"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8839,7 +8839,7 @@ dependencies = [
 
 [[package]]
 name = "rd-subscription"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8862,7 +8862,7 @@ dependencies = [
 
 [[package]]
 name = "rd-tools"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -8892,7 +8892,7 @@ dependencies = [
 
 [[package]]
 name = "rd-torrent"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8921,7 +8921,7 @@ dependencies = [
 
 [[package]]
 name = "rd-transfer-file"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "rd-core",
@@ -8938,7 +8938,7 @@ dependencies = [
 
 [[package]]
 name = "rd-update"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8967,7 +8967,7 @@ dependencies = [
 
 [[package]]
 name = "rd-usenet"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8998,7 +8998,7 @@ dependencies = [
 
 [[package]]
 name = "rd-webdav"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -9013,7 +9013,7 @@ dependencies = [
 
 [[package]]
 name = "rdownloader"
-version = "1.25.0"
+version = "1.25.1"
 dependencies = [
  "anyhow",
  "axum",

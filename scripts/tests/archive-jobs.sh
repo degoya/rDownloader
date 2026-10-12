@@ -98,6 +98,10 @@ expect_true "check names what is due and exits 1" '[[ $status -eq 1 ]] && has "$
 expect_true "check leaves the untagged 1.4.0 working file alone" '! has "$SCRATCH/out" 140-00-release'
 expect_true "check writes nothing" '[[ -z "$(git -C "$TREE" status --porcelain)" ]]'
 
+# The release chain's checks before its archive-jobs step: due is named, not a failure.
+run --check --due-ok
+expect_true "check --due-ok names what is due and exits 0" '[[ $status -eq 0 ]] && has "$SCRATCH/out" 140-01-done.md && has "$SCRATCH/out" "archive-jobs step moves it"'
+
 echo "edit in progress" >> "$JOBS/140-02-open.md"
 run
 expect_true "uncommitted work under the jobs directory is refused" '[[ $status -eq 2 ]] && [[ -f "$JOBS/140-01-done.md" ]]'

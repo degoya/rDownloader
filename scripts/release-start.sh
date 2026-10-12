@@ -70,7 +70,7 @@ if [[ "$chain" -eq 1 ]]; then
     {
         # rust-embed compiles web/dist into the binary, so the frontend is built before any cargo.
         run pnpm --dir web run build \
-            && run scripts/check.sh --full \
+            && run env RD_RELEASE_VERSION="$version" scripts/check.sh --full \
             && run scripts/release-pipeline.sh "$version" "${push[@]}"
     } || status=$?
     echo

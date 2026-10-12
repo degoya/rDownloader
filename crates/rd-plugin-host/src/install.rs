@@ -220,6 +220,8 @@ impl PluginInstaller {
             let _ = tokio::fs::remove_dir_all(&staging).await;
             return Err(error.into());
         }
+        self.remove_superseded_refused(package.manifest.id, &package.manifest.version)
+            .await;
         Ok(InstalledPackage {
             path: destination,
             manifest: package.manifest,

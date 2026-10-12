@@ -103,6 +103,16 @@ describe('the site-rule editor', () => {
       .toContain('gallery')
   })
 
+  // RD-1251-02: "Link Protektor" was taken as typed and refused on save.
+  it('writes a new group the way the service stores it', async () => {
+    const { model } = mount({ groups: ['board'] })
+    await fireEvent.update(screen.getByLabelText('Group'), 'Link Protektor')
+    await fireEvent.click(groupMenu().querySelector('[data-create-item]') as HTMLElement)
+    expect(model.value.group).toBe('link-protektor')
+    expect(within(groupMenu()).getAllByRole('button').map(item => item.textContent))
+      .toContain('link-protektor')
+  })
+
   // "Service last seen alive" is typed or picked in the calendar beside it (RD-1140-09).
   it('takes the day the service was last seen alive from the calendar', async () => {
     const { model } = mount()

@@ -38,7 +38,7 @@
     "id_hint": "Lowercase letters, digits and hyphens. It cannot be changed later and never repeats another rule's.",
     "name": "Name",
     "group": "Group",
-    "group_hint": "What the list groups and the group switch covers.",
+    "group_hint": "What the list groups and the group switch covers. Lowercase letters, digits and hyphens: “Link Protector” becomes link-protector.",
     "version": "Revision",
     "version_hint": "Raise it when you change the rule.",
     "hosts": "Hosts",

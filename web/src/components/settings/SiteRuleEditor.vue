@@ -27,6 +27,7 @@ import SiteRuleSteps from '@/components/settings/SiteRuleSteps.vue'
 import SiteRuleTestResult from '@/components/settings/SiteRuleTestResult.vue'
 import { GROUP_MIRRORS, draftComplete, type RuleDraft } from '@/composables/useSiteRules'
 import { PLAIN } from '@/utils/numberInput'
+import { groupSlug } from '@/utils/siteRuleDraft'
 import { originView } from '@/utils/siteRuleOrigin'
 
 const props = withDefaults(defineProps<{
@@ -74,10 +75,11 @@ const testAddress = computed(() => address.value.trim() || draft.value.probe.tri
 /**
  * A group the list does not hold yet. The field offers what exists so a typo cannot quietly
  * open a second group of one; naming a new one stays possible, because the first rule of a
- * group has to come from somewhere.
+ * group has to come from somewhere. A group is a word of lowercase kebab-case, so what was typed
+ * is written that way here rather than refused when the rule is saved (RD-1251-02).
  */
 function createGroup(name: string): void {
-  const group = name.trim()
+  const group = groupSlug(name)
   if (!group) return
   if (!groupItems.value.includes(group)) created.value.push(group)
   draft.value.group = group

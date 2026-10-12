@@ -127,7 +127,7 @@ impl PluginRepositoryService {
     /// Every package the enabled repositories offer, official repository first.
     pub async fn offers(&self) -> anyhow::Result<Vec<Offer>> {
         let repositories = self.database().list_plugin_repositories().await?;
-        let installed = newest_installed(&self.installer().list_installed().await?);
+        let installed = newest_installed(&self.installer().list_update_bases().await?);
         let loaded = self.loaded();
         let verifier = self.installer().verifier();
         let mut offers = Vec::new();
@@ -168,7 +168,7 @@ impl PluginRepositoryService {
     /// version under another publisher's key is a different plugin that happens to share an
     /// id, and it is offered like any other package — with its own preview — never as an update.
     pub async fn updates(&self) -> anyhow::Result<Vec<Update>> {
-        let installed = newest_installed(&self.installer().list_installed().await?);
+        let installed = newest_installed(&self.installer().list_update_bases().await?);
         let mut best: HashMap<String, (semver::Version, Offer, Permissions)> = HashMap::new();
         for offer in self.offers().await? {
             if offer.compatibility != PackageCompatibility::Compatible {

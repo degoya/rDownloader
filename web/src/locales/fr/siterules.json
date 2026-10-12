@@ -38,7 +38,7 @@
     "id_hint": "Minuscules, chiffres et tirets. Non modifiable ensuite, et jamais celui d’une autre règle.",
     "name": "Nom",
     "group": "Groupe",
-    "group_hint": "Ce par quoi la liste regroupe et ce que couvre l’interrupteur de groupe.",
+    "group_hint": "Ce par quoi la liste regroupe et ce que couvre l’interrupteur de groupe. Minuscules, chiffres et tirets : « Protection liens » devient protection-liens.",
     "version": "Révision",
     "version_hint": "Augmentez-la quand vous modifiez la règle.",
     "hosts": "Hôtes",

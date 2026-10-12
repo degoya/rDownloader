@@ -4,7 +4,7 @@
  * that is not published yet is text with a mark and never a link, and the dependency list is
  * behind a control that says how many rows it opens onto.
  */
-import { fireEvent, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { api } from '@/api/client'
@@ -189,6 +189,19 @@ describe('SettingsAboutTab, tabs', () => {
     expect(panel(container, 'about').hidden).toBe(true)
     await fireEvent.click(screen.getAllByRole('tab')[0] as HTMLElement)
     expect(emitted()['update:subTab']).toEqual([['about']])
+  })
+
+  // RD-1251-03: the thanks said "the projects below", which live on the Licenses tab.
+  it('points the thanks at the Licenses tab and opens it', async () => {
+    const { container, emitted } = mount()
+
+    await waitFor(() => expect(container.querySelector('[data-testid="about-credits"]')).not.toBeNull())
+    const credits = container.querySelector('[data-testid="about-credits"]') as HTMLElement
+    expect(credits.textContent).toContain(en.subtabs.about.licenses)
+    expect(credits.textContent).not.toContain('below')
+    await fireEvent.click(within(credits).getByRole('button', { name: en.about.credits.show_licenses }))
+    expect(emitted()['update:subTab']).toEqual([['licenses']])
+    expect(panel(container, 'licenses').hidden).toBe(false)
   })
 
   it('puts every card the search finds on the tab its entry names', async () => {
