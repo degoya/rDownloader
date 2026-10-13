@@ -16,6 +16,10 @@ user notices says only: Maintenance release: internal changes only, no change in
 
 <!-- draft: the notes of the version in the making -->
 
+## 1.28.1
+
+- Maintenance release: internal changes only, no change in behaviour.
+
 ## 1.28.0
 
 - An automation's version history can be reset: every earlier version and its runs are removed and the current one becomes version 1, after a confirmation that says how much goes.

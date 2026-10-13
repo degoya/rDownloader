@@ -370,6 +370,11 @@ chmod +x "$SCRATCH/tools/pgrep" "$SCRATCH/tools/ps"
 printf '#!/usr/bin/env bash\necho "check.sh $* layout-skip=${RD_SKIP_JOB_LAYOUT:-}" >> "%s/check.calls"\n[[ ! -f "%s/preflight-red" ]] || { echo "!! 1 stage(s) failed"; exit 1; }\necho "==> all requested checks passed"\n' \
     "$SCRATCH" "$SCRATCH" > "$TREE/scripts/check.sh"
 chmod +x "$TREE/scripts/check.sh"
+# RD-1280-23: the preflight holds the migration-forward baselines to the release; the stand-in
+# answers --check red while $SCRATCH/baselines-behind exists.
+printf '#!/usr/bin/env bash\n[[ ! -f "%s/baselines-behind" ]] || { echo "the baselines are not at $2 yet"; exit 1; }\necho "the baselines are at $2"\n' \
+    "$SCRATCH" > "$TREE/scripts/migration-baselines.sh"
+chmod +x "$TREE/scripts/migration-baselines.sh"
 printf 'scripts/\nartifacts/\n' >> "$TREE/.git/info/exclude"
 git -C "$TREE" checkout -q development
 export CARGO_TARGET_DIR="$SCRATCH/target"
@@ -388,6 +393,11 @@ preflight_case
 expect_status "a red preflight stops the release" 1
 expect_output "saying why" "the preflight is red; the release does not start"
 rm -f "$SCRATCH/preflight-red"
+touch "$SCRATCH/baselines-behind"
+preflight_case
+expect_status "migration baselines behind the release stop it" 1
+expect_output "naming the step" "run scripts/migration-baselines.sh 9.9.9 and commit it before the chain"
+rm -f "$SCRATCH/baselines-behind"
 
 # PIPE-01: only a process named cargo with a building subcommand holds the release, never a shell
 # that names one in its command line.

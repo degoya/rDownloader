@@ -30,7 +30,26 @@ table() { grep -oE 'const BASELINES: &\[\(&str, i64\)\] = &\[.*\];' "$SUITE/migr
 tests() { grep -oE 'the_[0-9_]+_baseline_upgrades_with_its_queue_intact => "[0-9.]+"' "$SUITE/migration_forward/baselines.rs" | tr '\n' '|'; }
 migration() { echo "SELECT 1;" > "$MIGRATIONS/$1"; }
 
-# The real files are where the tree is: 1.27.0 was released at 0145, and nothing came since.
+# The real files move with every release the script runs for, so their copies start from one
+# fixed ratchet, 1.26.0 and 1.27.0 at 0145, in the real files' own format (1.28.1 broke the test
+# that read them as they stood).
+python3 - "$SUITE/migration_forward.rs" "$SUITE/migration_forward/baselines.rs" << 'EOF'
+import re, sys
+table, tests = sys.argv[1], sys.argv[2]
+s = open(table).read()
+s, n = re.subn(r'const BASELINES: &\[\(&str, i64\)\] = &\[.*\];',
+               'const BASELINES: &[(&str, i64)] = &[("1.26.0", 145), ("1.27.0", 145)];', s)
+assert n == 1, "the BASELINES table"
+open(table, "w").write(s)
+s = open(tests).read()
+s, n = re.subn(r'(every_release_baseline! \{\n)(?:    the_[0-9_]+_baseline_upgrades_with_its_queue_intact => "[0-9.]+",\n)+',
+               r'\1    the_1_26_0_baseline_upgrades_with_its_queue_intact => "1.26.0",\n'
+               r'    the_1_27_0_baseline_upgrades_with_its_queue_intact => "1.27.0",\n', s)
+assert n == 1, "the every_release_baseline! lines"
+open(tests, "w").write(s)
+EOF
+
+# The copies are where 1.27.0 left them: released at 0145, and nothing came since.
 migration 0144_before.sql
 migration 0145_category_selectable.sql
 baselines --check 1.27.0

@@ -52,6 +52,13 @@ if ! rd_release_version "$version"; then
     exit 2
 fi
 [[ "$chain" -eq 1 ]] || "$ROOT/scripts/release-branches.sh" status "$version" --quiet >&2 || true  # RD-1270-16: wiki/site work left on release-X.Y
+# The migration-forward suite's newest baseline is the release (RD-1280-23). Its guard reads the
+# version, which the chain's test step never sees when it reuses the green before the bump: 1.28.0
+# shipped with the guard red on main. Refused here, in seconds, before the web build and --full.
+if [[ "$chain" -eq 0 ]] && ! "$ROOT/scripts/migration-baselines.sh" --check "$version" >&2; then
+    echo "run scripts/migration-baselines.sh $version and commit it, then start the release again" >&2
+    exit 1
+fi
 
 run_dir="${RD_RELEASE_RUN_DIR:-/tmp/claude-$(id -u)/release-$version}"
 log="$run_dir/chain.log"

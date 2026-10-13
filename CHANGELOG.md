@@ -5,6 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.28.1] - 2026-10-13
+
+### Fixed
+
+- **The migration-forward baselines are at 1.28.0** (RD-1280-23). The release of 1.28.0 skipped
+  `scripts/migration-baselines.sh`, so `the_baselines_are_the_last_two_releases` failed on `main`
+  once the version was bumped; the chain's `test` step had reused the green before the bump and
+  never ran it with the new version. Baselines 1.27.0 and 1.28.0, the 1.26.0 row and its test gone.
+  `scripts/tests/migration-baselines.sh` starts its copies from a fixed ratchet instead of the
+  tree's, which broke it as soon as a release moved the baselines.
+
+### Changed
+
+- **The release refuses baselines behind its version** (RD-1280-23): `scripts/release-start.sh`
+  runs `scripts/migration-baselines.sh --check X.Y.Z` before the web build and `--full`, and the
+  pipeline's `preflight` step does the same for a direct run or a `--resume`; a pre-release passes.
+  Test: `scripts/tests/release-start-baselines.sh`, against a scratch tree with stand-ins.
+
 ## [1.28.0] - 2026-10-13
 
 ### Added

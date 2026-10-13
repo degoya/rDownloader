@@ -50,6 +50,13 @@ step_preflight() {
         return 1
     fi
 
+    # RD-1280-23: the test step reuses the green before the version bump, so the guard that holds
+    # the newest migration baseline to the release would first fail on main (1.28.0 did).
+    scripts/migration-baselines.sh --check "$VERSION" || {
+        echo "run scripts/migration-baselines.sh $VERSION and commit it before the chain" >&2
+        return 1
+    }
+
     local tool
     for tool in cargo cargo-nextest node pnpm python3 zip; do
         command -v "$tool" > /dev/null || { echo "missing tool: $tool" >&2; return 1; }
