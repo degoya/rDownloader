@@ -5,18 +5,17 @@
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import type { CollectorPick, CollectorPickEntry } from '@/api/types'
 
 const get = vi.fn()
 const post = vi.fn()
 const remove = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    DELETE: (...args: unknown[]) => remove(...args)
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  POST: (...args: unknown[]) => post(...args),
+  DELETE: (...args: unknown[]) => remove(...args),
   responseError: vi.fn(() => 'That pick list no longer exists; add the page again.')
 }))
 

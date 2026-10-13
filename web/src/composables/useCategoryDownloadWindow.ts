@@ -5,7 +5,7 @@ import type { Category, DownloadWindow } from '@/api/types'
 import { draftOf, sameWindow, windowBody, type DownloadWindowDraft } from '@/utils/downloadWindow'
 
 /** What a save sends: the window wanted, and the one the category had when it was opened. */
-export interface WindowChange {
+interface WindowChange {
   window: DownloadWindow | null
   before: DownloadWindow | null
 }

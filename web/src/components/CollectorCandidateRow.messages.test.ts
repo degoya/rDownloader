@@ -1,6 +1,6 @@
-import { render } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock } from '@/test/mocks'
 import { createI18n } from 'vue-i18n'
 
 import type { LinkCandidate } from '@/api/types'
@@ -8,22 +8,19 @@ import { i18n as appI18n } from '@/i18n'
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/linkgrabber.json'
 import { loadEveryLocale } from '@/test/locales'
+import { mountComponent, passthrough, uiStubs } from '@/test/mount'
 
 import CollectorCandidateRow from './CollectorCandidateRow.vue'
 
 // The row reads which providers have an account; the answer does not matter here.
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn().mockResolvedValue({ data: [] }) },
-  responseError: vi.fn(),
-  errorMessage: vi.fn()
-}))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn().mockResolvedValue({ data: [] }), responseError: vi.fn(), errorMessage: vi.fn() }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { linkgrabber: en, common } } })
 
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
 const components = {
+  ...uiStubs,
   UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
   UCheckbox: passthrough,
   UBadge: passthrough,
@@ -58,10 +55,7 @@ function failed(params: Record<string, string> | undefined): LinkCandidate {
 }
 
 function errorLine(value: LinkCandidate): string {
-  render(CollectorCandidateRow, {
-    props: { candidate: value, selected: false, busy: false },
-    global: { plugins: [i18n], components }
-  })
+  mountComponent(CollectorCandidateRow, { props: { candidate: value, selected: false, busy: false }, i18n, stubs: components, keepPinia: true })
   return document.querySelector('p.text-error')?.textContent ?? ''
 }
 

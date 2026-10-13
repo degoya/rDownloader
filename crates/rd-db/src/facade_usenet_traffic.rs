@@ -22,7 +22,7 @@ impl Database {
     }
 
     /// [`Self::record_usenet_traffic`] on the day `now` falls on.
-    pub async fn record_usenet_traffic_at(
+    pub(crate) async fn record_usenet_traffic_at(
         &self,
         counts: Vec<(rd_core::UsenetServerId, u64)>,
         now: DateTime<Utc>,

@@ -61,6 +61,11 @@ pub fn refuse(
 #[macro_export]
 macro_rules! auth_plugin {
     ($component:ident) => {
-        $crate::export_auth!($component with_types_in $crate);
+        // The generated canonical-ABI exports are the only unsafe code a plugin holds; the
+        // allow sits on their expansion here instead of on every plugin's `guest.rs`.
+        #[allow(unsafe_code)]
+        const _: () = {
+            $crate::export_auth! { $component with_types_in $crate }
+        };
     };
 }

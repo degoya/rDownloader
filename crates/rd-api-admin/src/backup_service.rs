@@ -148,7 +148,7 @@ pub async fn tick(state: &AppState, now: DateTime<Utc>) -> Option<String> {
 /// # Errors
 ///
 /// `backup.already_running` when another run has not finished.
-pub async fn start_run(
+pub(crate) async fn start_run(
     state: &AppState,
     origin: BackupOrigin,
     audit: AuditContext,
@@ -345,12 +345,5 @@ async fn finish_failed(
         .await
     {
         tracing::warn!(%error, "the end of a backup destination could not be recorded");
-    }
-}
-
-fn failure(code: &'static str, detail: impl Into<String>) -> BackupError {
-    BackupError {
-        code,
-        detail: detail.into(),
     }
 }

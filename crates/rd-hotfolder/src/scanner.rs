@@ -10,7 +10,6 @@ use std::{
 
 use anyhow::{Result, bail};
 use rd_core::HotFolderConfig;
-use sha2::{Digest, Sha256};
 
 use crate::{
     DUPLICATE_CODE, DuplicateIntake, FailedIntake, HotFolderIntake, IntakeSink, MAX_INTAKE_BYTES,
@@ -99,7 +98,7 @@ impl Scanner<'_> {
     async fn import(&mut self, path: PathBuf) -> Result<()> {
         self.observed.remove(&path);
         let content = tokio::fs::read(&path).await?;
-        let sha256 = hex::encode(Sha256::digest(&content));
+        let sha256 = rd_sign::hex_sha256(&content);
         if self.imported.contains(&sha256) {
             let processed_path = unique_destination(&self.processed, &path);
             tracing::warn!(

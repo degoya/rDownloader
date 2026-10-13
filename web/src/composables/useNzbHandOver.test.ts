@@ -5,6 +5,7 @@
  */
 import { screen, waitFor } from '@testing-library/vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { defineComponent, h } from 'vue'
 
 import type { NzbImport } from '@/api/types'
@@ -22,12 +23,9 @@ const get = vi.fn(async (path: string) => {
   if (path === '/api/v1/providers') return { data: [{ slug: 'torbox', display_name: 'TorBox', credentials: 'api_key', kind: 'remote' }] }
   return { data: [] }
 })
-vi.mock('@/api/client', () => ({
-  api: { GET: (path: string) => get(path), POST: vi.fn() },
-  responseError: vi.fn()
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (path: string) => get(path), responseError: vi.fn() }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 const handedOver = {
   id: 'nzb-1',

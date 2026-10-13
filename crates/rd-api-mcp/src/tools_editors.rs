@@ -7,7 +7,9 @@
 //! a person with a dropdown does, and one asking why a notification never arrived needs the
 //! delivery history. None of them hands out a secret, takes one in, gives a consent or
 //! changes anything outside this machine: the dry run evaluates and acts on nothing, and the
-//! regex tester compiles a pattern against samples the caller sends.
+//! regex tester compiles a pattern against samples the caller sends. The one writer here empties
+//! an automation's version history (RD-1280-01), and asks the person first as every tool that
+//! empties a store does.
 
 use axum::{
     Json,
@@ -21,7 +23,8 @@ use super::{
     params_config::IdParams,
     params_handling::body,
     params_remaining::{
-        AutomationRunsParams, DeliveriesParams, DryRunParams, TestRegexParams, object,
+        AutomationRunsParams, DeliveriesParams, DryRunParams, ResetAutomationVersionsParams,
+        TestRegexParams, object,
     },
 };
 use crate::automation_handlers as automations;
@@ -68,6 +71,31 @@ impl RdMcpServer {
             let Json(versions) =
                 automations::list_automation_versions(State(self.state.clone()), Path(id)).await?;
             Ok(versions)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Reset one automation's version history (id from list_automations): every saved version but the one in force is deleted together with its runs, and the one in force becomes version 1; the runs of that version stay. Irreversible, so it asks first: a call without a `confirmation` code changes nothing and answers with a question for the person and a code; call again with confirmed=true and that code only after the person agreed. Refused with automation.version_reset_run_active while a run of an older version is still queued, running or waiting for a retry (list_automation_runs shows it). Answers with the automation and how many versions and runs were removed."
+    )]
+    pub async fn reset_automation_versions(
+        &self,
+        Parameters(params): Parameters<ResetAutomationVersionsParams>,
+    ) -> McpToolResult {
+        if let Some(question) = self.ask_first(
+            "reset_automation_versions",
+            params.confirmation.as_deref().filter(|_| params.confirmed),
+            "Delete every saved version of this automation but the one in force, together with \
+             the runs of the deleted versions, and make the one in force version 1.",
+        ) {
+            return question;
+        }
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let Json(reset) =
+                automations::reset_automation_versions(State(self.state.clone()), Path(id)).await?;
+            Ok(reset)
         }
         .await;
         respond(result)

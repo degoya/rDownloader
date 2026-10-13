@@ -62,7 +62,7 @@ fn release(version: &str) -> UpdateManifest {
 }
 
 async fn checked(signed_by: &SigningKey, version: &str, running: &str) -> State {
-    let sources = Sources::official();
+    let sources = Sources::official().expect("official sources");
     let fetcher = MemoryFetcher::new();
     fetcher.serve(
         sources.stable.as_str(),

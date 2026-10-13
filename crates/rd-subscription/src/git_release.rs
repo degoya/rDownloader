@@ -81,7 +81,7 @@ impl Repository {
 
     /// The first page of the release list, newest first, `per_page` releases long.
     #[must_use]
-    pub fn releases_url(&self, per_page: u32) -> Url {
+    pub(crate) fn releases_url(&self, per_page: u32) -> Url {
         let mut url = self.api.clone();
         if let Ok(mut segments) = url.path_segments_mut() {
             segments.pop_if_empty();

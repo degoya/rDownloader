@@ -189,7 +189,7 @@ impl DetectedVersion {
 /// banner, a usage message or an error. `ffmpeg version 6.1.1` and `Usage: ffmpeg [options]`
 /// both start with `ffmpeg`; only one of them is answering the question.
 #[must_use]
-pub fn parse_output(tool: &str, output: &str) -> Option<ToolVersion> {
+pub(crate) fn parse_output(tool: &str, output: &str) -> Option<ToolVersion> {
     let line = output
         .lines()
         .map(str::trim)

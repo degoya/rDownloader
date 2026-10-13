@@ -51,13 +51,16 @@ impl NotificationService {
         } else {
             None
         };
-        self.queue_event(
+        // A rule's own wording is filled here, once, so a retry sends what the first attempt
+        // did (RD-1280-02).
+        let values = self.wanted_values(kind, category_id, event).await?;
+        self.queue_worded(
             kind,
             category_id,
             &event.id.to_string(),
-            &title,
-            &body,
+            (&title, &body),
             package_path,
+            values.as_ref(),
         )
         .await
     }
@@ -93,10 +96,36 @@ impl NotificationService {
         body: &str,
         package_path: Option<String>,
     ) -> anyhow::Result<()> {
+        self.queue_worded(
+            kind,
+            category_id,
+            event_id,
+            (title, body),
+            package_path,
+            None,
+        )
+        .await
+    }
+
+    /// [`Self::queue_event`], each rule with a template sending its own wording filled with
+    /// `values` (RD-1280-02); without values, every rule sends the built-in one.
+    pub(super) async fn queue_worded(
+        &self,
+        kind: NotificationEvent,
+        category_id: Option<rd_core::CategoryId>,
+        event_id: &str,
+        (title, body): (&str, &str),
+        package_path: Option<String>,
+        values: Option<&rd_notify::Values>,
+    ) -> anyhow::Result<()> {
         for rule in self.inner.database.list_notification_rules().await? {
             if !rule.matches(kind, category_id) {
                 continue;
             }
+            let (title, body) = values.map_or_else(
+                || (title.to_owned(), body.to_owned()),
+                |values| rule.wording(title, body, values),
+            );
             self.inner
                 .database
                 .queue_notification_delivery(rd_db::NewDelivery {
@@ -106,8 +135,8 @@ impl NotificationService {
                     // lands on the same key and the unique index drops it.
                     idempotency_key: rd_notify::idempotency_key(rule.id, event_id),
                     event: kind,
-                    title: title.to_owned(),
-                    body: body.to_owned(),
+                    title,
+                    body,
                     package_path: package_path.clone(),
                 })
                 .await?;
@@ -134,18 +163,10 @@ impl NotificationService {
     }
 
     /// Maps a bus event onto a notification event, its category and its text.
-    #[allow(clippy::type_complexity)]
     pub(super) async fn classify(
         &self,
         event: &rd_core::EventEnvelope,
-    ) -> anyhow::Result<
-        Option<(
-            NotificationEvent,
-            Option<rd_core::CategoryId>,
-            String,
-            String,
-        )>,
-    > {
+    ) -> anyhow::Result<Option<Classified>> {
         match event.kind {
             rd_core::EventKind::PackageState => self.package_finished(&event.payload).await,
             rd_core::EventKind::StorageCapacity => {
@@ -179,18 +200,10 @@ impl NotificationService {
     /// A package that just finished or failed, decided on the event's payload (RD-1260-04): its
     /// row is read only for the name and the category, and a package removed in the meantime is
     /// still announced.
-    #[allow(clippy::type_complexity)]
     async fn package_finished(
         &self,
         payload: &serde_json::Value,
-    ) -> anyhow::Result<
-        Option<(
-            NotificationEvent,
-            Option<rd_core::CategoryId>,
-            String,
-            String,
-        )>,
-    > {
+    ) -> anyhow::Result<Option<Classified>> {
         let Some(kind) = super::transitions::package_outcome(payload) else {
             return Ok(None);
         };
@@ -234,18 +247,10 @@ impl NotificationService {
 
     /// A livestream recording that finished (RD-1240-17), in its package's category. Every
     /// other `download.state` is a start (folded into a burst) or nobody's news.
-    #[allow(clippy::type_complexity)]
     async fn stream_recorded(
         &self,
         payload: &serde_json::Value,
-    ) -> anyhow::Result<
-        Option<(
-            NotificationEvent,
-            Option<rd_core::CategoryId>,
-            String,
-            String,
-        )>,
-    > {
+    ) -> anyhow::Result<Option<Classified>> {
         if payload.get("state").and_then(|value| value.as_str()) != Some("completed") {
             return Ok(None);
         }
@@ -278,18 +283,10 @@ impl NotificationService {
     /// A subscription poll that accepted new items (RD-1240-17), in the subscription's
     /// category. Every other `subscription.changed` - an edit, a poll that found nothing new -
     /// is nobody's news.
-    #[allow(clippy::type_complexity)]
     async fn subscription_matched(
         &self,
         payload: &serde_json::Value,
-    ) -> anyhow::Result<
-        Option<(
-            NotificationEvent,
-            Option<rd_core::CategoryId>,
-            String,
-            String,
-        )>,
-    > {
+    ) -> anyhow::Result<Option<Classified>> {
         if payload.get("poll").and_then(|value| value.as_str()) != Some("finished") {
             return Ok(None);
         }
@@ -327,18 +324,10 @@ impl NotificationService {
 
     /// The queue paused at its stop mark (RD-1210-02), in the marked package's category. A mark
     /// set or cleared by hand is nobody's news.
-    #[allow(clippy::type_complexity)]
     async fn stop_mark_reached(
         &self,
         payload: &serde_json::Value,
-    ) -> anyhow::Result<
-        Option<(
-            NotificationEvent,
-            Option<rd_core::CategoryId>,
-            String,
-            String,
-        )>,
-    > {
+    ) -> anyhow::Result<Option<Classified>> {
         if payload.get("action").and_then(|value| value.as_str()) != Some("reached") {
             return Ok(None);
         }
@@ -378,18 +367,10 @@ impl NotificationService {
     ///
     /// Every other `usenet.changed` - an import arriving, a server edited - is not a moment
     /// anybody is told about.
-    #[allow(clippy::type_complexity)]
     async fn usenet_job_hopeless(
         &self,
         payload: &serde_json::Value,
-    ) -> anyhow::Result<
-        Option<(
-            NotificationEvent,
-            Option<rd_core::CategoryId>,
-            String,
-            String,
-        )>,
-    > {
+    ) -> anyhow::Result<Option<Classified>> {
         if payload.get("state").and_then(|value| value.as_str()) != Some("hopeless") {
             return Ok(None);
         }

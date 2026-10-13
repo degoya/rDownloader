@@ -5,6 +5,7 @@
  */
 import { flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 import { defineComponent, h, ref } from 'vue'
 
 import { api } from '@/api/client'
@@ -15,13 +16,13 @@ import { mountComponent } from '@/test/mount'
 
 import { useResetFailed } from './useResetFailed'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: [] })), POST: vi.fn() },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async () => ({ data: [] })),
   responseError: vi.fn(() => 'refused'),
   errorMessage: vi.fn(),
   resultMessage: vi.fn(() => 'Done')
 }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: vi.fn(() => () => {}) }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const confirm = vi.fn(async (_files: string[], _hasCompleted: boolean) => ({ confirmed: true, deleteFiles: false }))
 vi.mock('@/composables/useResetConfirm', () => ({ useResetConfirm: () => confirm }))

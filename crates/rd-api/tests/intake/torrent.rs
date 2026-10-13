@@ -1151,6 +1151,7 @@ async fn auto_remove_takes_the_torrent_out_of_the_session() {
 async fn torrent_server(
     content_type: &'static str,
 ) -> (
+    rd_testkit::TestServer,
     std::net::SocketAddr,
     std::sync::Arc<std::sync::atomic::AtomicUsize>,
 ) {
@@ -1168,14 +1169,9 @@ async fn torrent_server(
             }
         },
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    (address, grabs)
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
+    (server, address, grabs)
 }
 
 /// Adds `link` to the LinkGrabber and waits until the check has named its package after
@@ -1226,7 +1222,7 @@ async fn add_rerouted(router: &Router, link: &str) -> serde_json::Value {
 async fn a_rerouted_torrent_names_its_package_after_the_release() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let (address, _) = torrent_server("application/x-bittorrent").await;
+    let (_server, address, _) = torrent_server("application/x-bittorrent").await;
     let token = "JKs2Jt3Fo=_l3XcwZVDZXkBOYSX+nhd+A==";
 
     let packages = add_rerouted(&router, &format!("http://{address}/dl/{token}")).await;
@@ -1309,7 +1305,7 @@ async fn enqueue_source(router: &Router, packages: &serde_json::Value) -> url::U
 async fn a_rerouted_torrent_is_grabbed_exactly_once() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let (address, grabs) = torrent_server("application/x-bittorrent").await;
+    let (_server, address, grabs) = torrent_server("application/x-bittorrent").await;
 
     let packages = add_rerouted(&router, &format!("http://{address}/dl/token")).await;
     assert_eq!(packages[0]["name"], "release", "{packages}");
@@ -1338,7 +1334,7 @@ async fn a_rerouted_torrent_is_grabbed_exactly_once() {
 async fn a_torrent_without_its_content_type_is_grabbed_exactly_once() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let (address, grabs) = torrent_server("application/octet-stream").await;
+    let (_server, address, grabs) = torrent_server("application/octet-stream").await;
 
     let packages = add_rerouted(&router, &format!("http://{address}/dl/token")).await;
     assert_eq!(packages[0]["name"], "release", "{packages}");
@@ -1356,7 +1352,7 @@ async fn a_torrent_without_its_content_type_is_grabbed_exactly_once() {
 async fn an_expired_torrent_is_fetched_again() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let (address, _) = torrent_server("application/x-bittorrent").await;
+    let (_server, address, _) = torrent_server("application/x-bittorrent").await;
     let link = format!("http://{address}/dl/token");
 
     let packages = add_rerouted(&router, &link).await;
@@ -1382,7 +1378,7 @@ async fn an_expired_torrent_is_fetched_again() {
 async fn removing_the_link_drops_the_kept_torrent() {
     let directory = tempfile::tempdir_in(".").expect("tempdir");
     let router = test_router(directory.path()).await;
-    let (address, _) = torrent_server("application/x-bittorrent").await;
+    let (_server, address, _) = torrent_server("application/x-bittorrent").await;
 
     add_rerouted(&router, &format!("http://{address}/dl/token")).await;
     let candidate = only_candidate(&router).await;

@@ -57,18 +57,18 @@ pub const LOCK_FILE: &str = "updater.lock";
 /// Inside [`UPDATE_DIR`]: the verified downloads.
 pub const DOWNLOAD_DIR: &str = "download";
 /// Inside [`UPDATE_DIR`]: the installer of the running version, kept for a rollback (MSI).
-pub const INSTALLER_DIR: &str = "installer";
+pub(crate) const INSTALLER_DIR: &str = "installer";
 /// Inside [`UPDATE_DIR`]: a journal [`Journal::check`] refused, kept for a person to read.
-pub const REJECTED_FILE: &str = "journal.rejected.json";
+pub(crate) const REJECTED_FILE: &str = "journal.rejected.json";
 /// Below the data directory: the database copies the backup before an update writes
 /// (`rd_backup::pre_update::DIRECTORY`).
-pub const PRE_UPDATE_DIR: &str = "pre-update";
+pub(crate) const PRE_UPDATE_DIR: &str = "pre-update";
 /// Beside the program files: the entries the switch replaced.
 pub const PREVIOUS_DIR: &str = ".previous";
 /// How long the updater waits for the new version to answer with its version.
 pub const DEFAULT_HEALTH_TIMEOUT_SECS: u64 = 90;
 /// The hidden subcommand the updater runs as.
-pub const APPLY_COMMAND: &str = "apply-update";
+pub(crate) const APPLY_COMMAND: &str = "apply-update";
 
 /// `<data>/update`.
 #[must_use]
@@ -174,7 +174,7 @@ impl Plan {
 
 /// Letters, digits, `.`, `_`, `+` and `-`, at most 64 of them: safe in a folder name.
 #[must_use]
-pub fn is_plain_version(version: &str) -> bool {
+pub(crate) fn is_plain_version(version: &str) -> bool {
     !version.is_empty()
         && version.len() <= 64
         && !version.starts_with('.')
@@ -358,13 +358,13 @@ impl Journal {
 
     /// `<install>/.previous`.
     #[must_use]
-    pub fn previous_dir(&self) -> PathBuf {
+    pub(crate) fn previous_dir(&self) -> PathBuf {
         self.plan.install_dir.join(PREVIOUS_DIR)
     }
 
     /// `<install>/.failed-<version>`: a rolled-back version's files, until they can be removed.
     #[must_use]
-    pub fn failed_dir(&self) -> PathBuf {
+    pub(crate) fn failed_dir(&self) -> PathBuf {
         self.plan
             .install_dir
             .join(format!(".failed-{}", self.plan.target_version))

@@ -5,7 +5,6 @@
 //! (`oauth_flows = ["redirect", "device"]`). Whichever one a sign-in takes, it ends in the same
 //! `store-oauth-token` call with the same refresh material, and `refresh` renews it the same
 //! way. The flow itself is `plugin-guest-oauth`'s; this file states what is Microsoft's.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_oauth::redirect::{CLIENT_ID_MARKER, Client, Device, Provider};
 

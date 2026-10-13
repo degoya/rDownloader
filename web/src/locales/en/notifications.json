@@ -128,5 +128,38 @@
   "desktop": {
     "quiet_summary_title": "While it was quiet: {count} notifications",
     "quiet_summary_more": "and {count} more"
+  },
+  "template": {
+    "title_label": "Own title",
+    "body_label": "Own text",
+    "description": "Optional; left empty, the built-in wording is sent. Write a placeholder as {example} and a brace doubled: {pair}.",
+    "placeholders_label": "Placeholders",
+    "placeholders_hint": "A click adds one to the field you used last. One an event does not fill stays empty.",
+    "summary_only": "The chosen events arrive bundled as one summary and keep their own wording.",
+    "preview_label": "Preview with sample data",
+    "built_in": "Built-in wording",
+    "unknown": "“{name}” is not a placeholder.",
+    "syntax": "A brace is not closed or not opened. Write a brace itself doubled: {pair}.",
+    "insert": "Add {placeholder}: {description}",
+    "badge": "Own wording"
+  },
+  "placeholder": {
+    "event": "The event's code, such as package_completed",
+    "severity": "info, warning or error",
+    "time": "Time, HH:MM in the service's time zone",
+    "date": "Date, YYYY-MM-DD in the service's time zone",
+    "title": "The built-in title",
+    "message": "The built-in text",
+    "package": "The package's name",
+    "file": "The file's name",
+    "category": "The category's name",
+    "state": "The package's state, such as completed",
+    "size": "Size, such as 1.4 GiB",
+    "path": "The folder on disk",
+    "error": "What went wrong",
+    "storage_target": "The storage root or backup destination",
+    "version": "The version",
+    "plugin": "The plugin's name",
+    "account": "The account's label and provider, never its user name"
   }
 }

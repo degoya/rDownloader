@@ -33,7 +33,7 @@ pub struct RefusedInstall {
 
 impl PluginInstaller {
     /// Every installed version this build refuses whose manifest still names its id and version.
-    pub async fn list_refused(&self) -> Result<Vec<RefusedInstall>> {
+    pub(crate) async fn list_refused(&self) -> Result<Vec<RefusedInstall>> {
         let root = self.root.clone();
         tokio::task::spawn_blocking(move || list_refused_sync(&root)).await?
     }
@@ -41,7 +41,7 @@ impl PluginInstaller {
     /// The installed manifests an update is measured against: the ones this build runs and the
     /// refused ones that still read as this manifest revision. Unverified, like
     /// `list_installed`; only versions and keys are read from it.
-    pub async fn list_update_bases(&self) -> Result<Vec<PluginManifest>> {
+    pub(crate) async fn list_update_bases(&self) -> Result<Vec<PluginManifest>> {
         let mut manifests = self.list_installed().await?;
         manifests.extend(
             self.list_refused()

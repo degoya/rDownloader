@@ -9,6 +9,7 @@
  */
 import axe from 'axe-core'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock } from '@/test/mocks'
 
 import type { Category, LinkCandidate, Settings, StorageRoot } from '@/api/types'
 
@@ -29,18 +30,15 @@ import SubscriptionItemRow from './SubscriptionItemRow.vue'
 import SettingsServicesTab from './settings/SettingsServicesTab.vue'
 import SiteRulePickPage from './SiteRulePickPage.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn()
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })), responseError: vi.fn() }))
 vi.mock('@/stores/transfers', () => ({
   useTransfersStore: () => ({ packages: [{ id: 'a' }, { id: 'b' }], activePackages: 1 })
 }))
 // The candidate row asks which providers have an account, and that lookup subscribes to
 // `plugin_catalog.changed`; jsdom has no `EventSource`. Its confirmation goes through an overlay
 // that only exists inside a Nuxt build.
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
+vi.mock('@/composables/useConfirm', () => confirmMock())
 
 /** The catalogues the components below read, besides `common`. */
 const messages = { downloads, linkgrabber, settings, subscriptions, torrent }

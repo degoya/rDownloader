@@ -10,15 +10,10 @@ use std::{
     time::Duration,
 };
 
-use tokio::net::TcpListener;
-
-/// Starts a server on an ephemeral port and returns its address plus a shutdown token.
-async fn serve(
-    directory: &std::path::Path,
-) -> (String, tokio_util::sync::CancellationToken, String) {
-    let database = rd_db::Database::open(directory.join("cli.sqlite3"))
-        .await
-        .expect("database");
+/// Starts the service on an ephemeral port: the handle that stops it when it drops, its
+/// address and the bearer token the CLI signs in with.
+async fn service(directory: &std::path::Path) -> (rd_testkit::TestServer, String, String) {
+    let database = rd_testkit::temp_database(directory).await;
     let bearer = "cli-test-token".to_owned();
     database
         .create_capture_token(
@@ -94,17 +89,9 @@ async fn serve(
         rd_core::PostprocessHold::new(),
         remote,
     );
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-    let address = listener.local_addr().expect("addr");
-    let router = rd_api::router(state);
-    let shutdown = tokio_util::sync::CancellationToken::new();
-    let stop = shutdown.clone();
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, router)
-            .with_graceful_shutdown(async move { stop.cancelled().await })
-            .await;
-    });
-    (format!("http://{address}"), shutdown, bearer)
+    let server = rd_testkit::serve(rd_api::router(state)).await;
+    let address = server.url("");
+    (server, address, bearer)
 }
 
 /// Runs the built binary with the given arguments.
@@ -130,7 +117,7 @@ fn run_with_code(args: &[&str]) -> (bool, String, String, i32) {
 #[tokio::test(flavor = "multi_thread")]
 async fn the_queue_can_be_listed_added_to_and_controlled_over_http() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let (server, shutdown, token) = serve(directory.path()).await;
+    let (_service, server, token) = service(directory.path()).await;
 
     let (ok, stdout, stderr) = run(&["queue", "list", "--server", &server, "--token", &token]);
     assert!(ok, "queue list failed: {stderr}");
@@ -176,14 +163,12 @@ async fn the_queue_can_be_listed_added_to_and_controlled_over_http() {
     assert!(ok, "{stderr}");
     let (_, stdout, _) = run(&["queue", "list", "--server", &server, "--token", &token]);
     assert!(stdout.contains("nothing to show"), "{stdout}");
-
-    shutdown.cancel();
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn links_are_handed_over_listed_and_discarded() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let (server, shutdown, token) = serve(directory.path()).await;
+    let (_service, server, token) = service(directory.path()).await;
 
     let (ok, stdout, stderr) = run(&[
         "links",
@@ -201,8 +186,6 @@ async fn links_are_handed_over_listed_and_discarded() {
     let (ok, stdout, stderr) = run(&["links", "list", "--server", &server, "--token", &token]);
     assert!(ok, "{stderr}");
     assert!(stdout.contains("PACKAGE"), "{stdout}");
-
-    shutdown.cancel();
 }
 
 /// Creates a category over the API, with the storage root it needs, and returns its id.
@@ -255,7 +238,7 @@ async fn get(server: &str, token: &str, path: &str) -> serde_json::Value {
 #[tokio::test(flavor = "multi_thread")]
 async fn links_go_straight_to_the_queue_or_the_linkgrabber_with_a_category() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let (server, shutdown, token) = serve(directory.path()).await;
+    let (_service, server, token) = service(directory.path()).await;
     let series = category(&server, &token, directory.path(), "Series").await;
 
     // By name, ignoring case, as somebody types it into a cron line.
@@ -338,14 +321,12 @@ async fn links_go_straight_to_the_queue_or_the_linkgrabber_with_a_category() {
     assert!(stderr.contains("Nope"), "{stderr}");
     let downloads = get(&server, &token, "/api/v1/downloads").await;
     assert_eq!(downloads.as_array().map(Vec::len), Some(2), "{downloads}");
-
-    shutdown.cancel();
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_wrong_token_reports_the_server_s_own_reason() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let (server, shutdown, _) = serve(directory.path()).await;
+    let (_service, server, _) = service(directory.path()).await;
 
     // The message has to name what went wrong, not just that something did: a script that
     // gets "request failed" cannot tell a bad token from an unreachable host.
@@ -362,8 +343,6 @@ async fn a_wrong_token_reports_the_server_s_own_reason() {
         stderr.contains("401") || stderr.to_lowercase().contains("login"),
         "{stderr}"
     );
-
-    shutdown.cancel();
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -392,7 +371,7 @@ fn a_server_address_without_a_scheme_is_refused_before_any_request() {
 #[tokio::test(flavor = "multi_thread")]
 async fn events_follow_what_the_queue_does() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let (server, shutdown, token) = serve(directory.path()).await;
+    let (_service, server, token) = service(directory.path()).await;
     let mut child = Command::new(env!("CARGO_BIN_EXE_rdownloader"))
         .args(["events", "--json", "--server", &server, "--token", &token])
         .stdout(Stdio::piped())
@@ -457,5 +436,4 @@ async fn events_follow_what_the_queue_does() {
 
     let _ = child.kill();
     let _ = child.wait();
-    shutdown.cancel();
 }

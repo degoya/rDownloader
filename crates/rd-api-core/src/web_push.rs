@@ -76,7 +76,9 @@ async fn forget(secrets: &rd_secrets::SecretStore, reference: &str) {
 /// devices it failed for and is retried when one of them is worth retrying; the retry sends to
 /// every browser again, and the notification's tag makes a second copy replace the first.
 #[must_use]
-pub fn settle_pushes(outcomes: Vec<(&WebPushSubscription, PushOutcome)>) -> (Attempt, Vec<String>) {
+pub(crate) fn settle_pushes(
+    outcomes: Vec<(&WebPushSubscription, PushOutcome)>,
+) -> (Attempt, Vec<String>) {
     let mut gone = Vec::new();
     let mut failures = Vec::new();
     let mut retryable = false;

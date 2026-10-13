@@ -1,15 +1,13 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 
 import { useCollectorStore } from './collector'
 
-vi.mock('@/api/client', async importOriginal => ({
-  ...await importOriginal<typeof import('@/api/client')>(),
-  api: { GET: vi.fn(), POST: vi.fn(), PATCH: vi.fn(), DELETE: vi.fn() }
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/api/client', async importOriginal => apiClientMock({}, await importOriginal<Record<string, unknown>>()))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 vi.mock('@/composables/useNotifications', () => ({ useNotifications: () => ({ notify: vi.fn() }) }))
 
 const ids = (count: number) => Array.from({ length: count }, (_, index) => `c-${index}`)

@@ -44,7 +44,7 @@ async fn each_moment_of_a_day_is_one_delivery() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::parked_harness(directory.path()).await;
     let router = harness.router.clone();
-    let (endpoint, _calls) = spawn_receiver().await;
+    let (_server, endpoint, _calls) = spawn_receiver().await;
     let target = create_target(
         &router,
         json!({ "name": "local", "kind": "webhook", "endpoint": endpoint }),

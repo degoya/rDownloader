@@ -30,7 +30,7 @@ const { t } = useI18n()
         <p class="mb-2 text-xs leading-5 text-muted">{{ t('network.hosters.description') }}</p>
         <UInput v-model="filter" icon="i-lucide-search" size="sm" :placeholder="t('network.hosters.filter_placeholder')" class="mb-2 w-full" />
         <p v-if="loading" class="text-xs text-muted">{{ t('network.hosters.loading') }}</p>
-        <p v-else-if="empty" class="text-xs text-muted">{{ t('network.hosters.empty') }}</p>
+        <UEmpty v-else-if="empty" :description="t('network.hosters.empty')" />
         <div v-else class="flex max-h-48 flex-wrap gap-1 overflow-y-auto">
           <UBadge v-for="host in hosters" :key="host" color="neutral" variant="subtle" size="sm" class="font-mono">{{ host }}</UBadge>
         </div>

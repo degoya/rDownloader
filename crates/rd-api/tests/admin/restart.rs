@@ -273,7 +273,6 @@ async fn under_a_supervisor_the_restart_stops_the_service_with_exit_code_75() {
         harness.state.restart.exit_code(),
         Some(rd_update::RESTART_EXIT_CODE)
     );
-    assert_eq!(rd_update::RESTART_EXIT_CODE, 75);
     assert!(plans.lock().expect("plans").is_empty(), "no relauncher");
 
     let (_, status_body) = get_json(&harness.router, STATUS).await;

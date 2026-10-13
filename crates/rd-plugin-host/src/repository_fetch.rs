@@ -35,7 +35,7 @@ impl HttpFetcher {
             }
         });
         Self {
-            client: reqwest::Client::builder()
+            client: rd_http::client_builder(rd_http::ClientPurpose::Service)
                 .timeout(Duration::from_secs(FETCH_TIMEOUT_SECONDS))
                 .redirect(redirects)
                 .https_only(true)

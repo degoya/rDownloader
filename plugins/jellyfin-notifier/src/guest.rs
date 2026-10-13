@@ -1,5 +1,4 @@
 //! The component: one finished package, one Jellyfin library refresh.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_notifier::{
     Guest, Notification, delivered, destination_settings,

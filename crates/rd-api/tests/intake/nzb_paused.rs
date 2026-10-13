@@ -128,13 +128,8 @@ async fn an_nzb_candidate_enqueued_paused_starts_paused() {
         "/release.nzb",
         axum::routing::get(|| async { ([("content-type", "application/x-nzb")], DOCUMENT) }),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
 
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = test_harness(directory.path()).await;

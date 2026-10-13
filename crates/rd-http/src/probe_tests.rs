@@ -120,13 +120,8 @@ fn markup_is_condensed_into_a_readable_message() {
 async fn head_probe_reports_the_advertised_content_length() {
     const PAYLOAD: &[u8] = b"cdn-payload-with-a-real-length";
     let app = Router::new().route("/file.bin", get(|| async { PAYLOAD }));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind fixture");
-    let address = listener.local_addr().expect("fixture address");
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.expect("serve fixture");
-    });
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
 
     let url = format!("http://{address}/file.bin").parse().expect("URL");
     let result = probe(&reqwest::Client::new(), url).await.expect("probe");

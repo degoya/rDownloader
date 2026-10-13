@@ -95,10 +95,10 @@ fn locking_unsupported(error: &std::io::Error) -> bool {
 pub(crate) enum Probe {
     /// No service holds the lock. `doctor` holds it now, so none starts while it works; `None`
     /// when the lock file could not be opened, and only the control file was asked.
-    Free(
-        // Never read: holding it is the point, until `doctor` drops the probe.
-        #[allow(dead_code)] Option<InstanceLock>,
-    ),
+    Free {
+        /// Never read: holding it is the point, until `doctor` drops the probe.
+        _lock: Option<InstanceLock>,
+    },
     /// A service holds the lock — starting, running or stopping — with its control file when
     /// it answers there. One still starting has written none yet.
     Held(Option<rd_api::local_control::ControlFile>),
@@ -115,13 +115,13 @@ pub(crate) enum Probe {
 /// For `doctor`, which must not touch the queue of a live service and says which one it found.
 pub(crate) async fn probe(data_directory: &Path) -> Probe {
     match try_acquire(data_directory) {
-        Ok(Some(lock)) => Probe::Free(Some(lock)),
+        Ok(Some(lock)) => Probe::Free { _lock: Some(lock) },
         Ok(None) => Probe::Held(running(data_directory).await),
         Err(error) => {
             tracing::warn!(%error, "doctor could not open the instance lock; asking the control file");
             match running(data_directory).await {
                 Some(control) => Probe::Held(Some(control)),
-                None => Probe::Free(None),
+                None => Probe::Free { _lock: None },
             }
         }
     }
@@ -203,7 +203,7 @@ mod tests {
         assert!(matches!(probe(directory.path()).await, Probe::Held(None)));
         drop(service);
 
-        let Probe::Free(Some(held)) = probe(directory.path()).await else {
+        let Probe::Free { _lock: Some(held) } = probe(directory.path()).await else {
             panic!("a free data directory");
         };
         acquire(directory.path()).expect_err("no service starts while doctor works");

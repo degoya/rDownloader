@@ -16,11 +16,7 @@ const NEW: &str = "a-brand-new-passphrase";
 type Calls = Arc<Mutex<Vec<serde_json::Value>>>;
 
 /// A stand-in for the running service: answers the reset route with the right token only.
-async fn service(token: &'static str) -> (SocketAddr, Calls) {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
+async fn service(token: &'static str) -> (rd_testkit::TestServer, SocketAddr, Calls) {
     let calls: Calls = Arc::default();
     let seen = calls.clone();
     let router = Router::new().route(
@@ -47,10 +43,9 @@ async fn service(token: &'static str) -> (SocketAddr, Calls) {
             },
         ),
     );
-    tokio::spawn(async move {
-        axum::serve(listener, router).await.expect("serve");
-    });
-    (address, calls)
+    let server = rd_testkit::serve(router).await;
+    let address = server.addr();
+    (server, address, calls)
 }
 
 fn control_file(data: &Path, address: SocketAddr, token: &str) {
@@ -160,7 +155,7 @@ async fn with_the_service_running_the_command_asks_it_over_the_local_control_tok
     let directory = tempfile::tempdir().expect("tempdir");
     let data = directory.path();
     let database = installation(data).await;
-    let (address, calls) = service("the-token").await;
+    let (_server, address, calls) = service("the-token").await;
     control_file(data, address, "the-token");
 
     let outcome = reset_password(&database, data, NEW, true, true)
@@ -272,7 +267,7 @@ async fn a_password_the_policy_refuses_reaches_neither_way() {
     let directory = tempfile::tempdir().expect("tempdir");
     let data = directory.path();
     let database = installation(data).await;
-    let (address, calls) = service("the-token").await;
+    let (_server, address, calls) = service("the-token").await;
     control_file(data, address, "the-token");
 
     let error = reset_password(&database, data, "short", true, false)

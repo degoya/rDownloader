@@ -136,9 +136,7 @@ function hide(event: Event) {
         </div>
       </dl>
 
-      <p v-if="!facts.length && !plot && !rest.length" class="text-xs text-muted">
-        {{ t('subscriptions.items.no_details') }}
-      </p>
+      <UEmpty v-if="!facts.length && !plot && !rest.length" :description="t('subscriptions.items.no_details')" />
     </div>
   </div>
 </template>

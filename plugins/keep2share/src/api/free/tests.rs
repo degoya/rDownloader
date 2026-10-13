@@ -3,8 +3,8 @@
 
 use super::*;
 
-fn body_of(bytes: Vec<u8>) -> String {
-    String::from_utf8(bytes).expect("utf8 body")
+fn body_of(bytes: Result<Vec<u8>, ApiFailure>) -> String {
+    String::from_utf8(bytes.expect("body")).expect("utf8 body")
 }
 
 fn parse(json: &str) -> FreeUrlResult {
@@ -22,7 +22,7 @@ fn the_probe_body_carries_only_the_file_id() {
 #[test]
 fn the_requestcaptcha_body_is_an_empty_object() {
     // The body is an empty object, not the file id — see the module doc.
-    assert_eq!(body_of(requestcaptcha_body()), "{}");
+    assert_eq!(body_of(Ok(requestcaptcha_body())), "{}");
 }
 
 #[test]

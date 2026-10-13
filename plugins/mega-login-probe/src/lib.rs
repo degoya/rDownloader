@@ -80,7 +80,9 @@ pub extern "C" fn probe_noop() -> u32 {
 /// The first sixteen unwrap the master key, the last sixteen are the `uh` the request carries.
 #[unsafe(no_mangle)]
 pub extern "C" fn probe_pbkdf2_v2() -> u32 {
-    checksum(&pbkdf2_hmac_sha512(PASSWORD, SALT, PBKDF2_ROUNDS))
+    // HMAC takes a key of any length, so `None` never happens; were it to, a zero checksum
+    // marks the run instead of a panic in the guest.
+    pbkdf2_hmac_sha512(PASSWORD, SALT, PBKDF2_ROUNDS).map_or(0, |derived| checksum(&derived))
 }
 
 /// Account version 1: 65 536 AES rounds to prepare the key, then 16 384 more for the hash.
@@ -116,27 +118,27 @@ pub extern "C" fn probe_rsa_csid() -> u32 {
     checksum(&rsa_decrypt_crt())
 }
 
-/// PBKDF2-HMAC-SHA512 for a derived key of at most one hash block.
-fn pbkdf2_hmac_sha512(password: &[u8], salt: &[u8], rounds: u32) -> [u8; 32] {
-    let round = |data: &[u8]| -> Vec<u8> {
-        let mut mac = <Hmac<Sha512> as KeyInit>::new_from_slice(password)
-            .expect("HMAC takes a key of any length");
+/// PBKDF2-HMAC-SHA512 for a derived key of at most one hash block; `None` only if the HMAC
+/// refused the password as a key, which it never does.
+fn pbkdf2_hmac_sha512(password: &[u8], salt: &[u8], rounds: u32) -> Option<[u8; 32]> {
+    let round = |data: &[u8]| -> Option<Vec<u8>> {
+        let mut mac = <Hmac<Sha512> as KeyInit>::new_from_slice(password).ok()?;
         mac.update(data);
-        mac.finalize().into_bytes().to_vec()
+        Some(mac.finalize().into_bytes().to_vec())
     };
     let mut block = salt.to_vec();
     block.extend_from_slice(&1_u32.to_be_bytes());
-    let mut current = round(&block);
+    let mut current = round(&block)?;
     let mut accumulated = current.clone();
     for _ in 1..rounds {
-        current = round(&current);
+        current = round(&current)?;
         for (into, from) in accumulated.iter_mut().zip(current.iter()) {
             *into ^= *from;
         }
     }
     let mut derived = [0_u8; 32];
-    derived.copy_from_slice(&accumulated[..32]);
-    derived
+    derived.copy_from_slice(accumulated.get(..32)?);
+    Some(derived)
 }
 
 /// MEGA's legacy key preparation: the password encrypts a fixed block 65 536 times over.
@@ -214,7 +216,7 @@ mod tests {
     /// vector: one round of PBKDF2 is exactly HMAC over salt with the block index appended.
     #[test]
     fn one_round_of_pbkdf2_is_the_bare_hmac() {
-        let derived = pbkdf2_hmac_sha512(b"password", b"salt", 1);
+        let derived = pbkdf2_hmac_sha512(b"password", b"salt", 1).expect("derived");
         let mut mac =
             <Hmac<Sha512> as KeyInit>::new_from_slice(b"password").expect("a key of any length");
         mac.update(b"salt");
@@ -230,6 +232,16 @@ mod tests {
             pbkdf2_hmac_sha512(b"password", b"salt", 1),
             pbkdf2_hmac_sha512(b"password", b"salt", 2)
         );
+    }
+
+    /// Two rounds against an independent implementation: Python's
+    /// `hashlib.pbkdf2_hmac("sha512", b"password", b"salt", 2, 32)`.
+    #[test]
+    fn two_rounds_match_an_independent_implementation() {
+        let derived = pbkdf2_hmac_sha512(b"password", b"salt", 2).expect("derived");
+        let expected = "e1d9c16aa681708a45f5c7c4e215ceb66e011a2e9f0040713f18aefdb866d53c";
+        let hex: String = derived.iter().map(|byte| format!("{byte:02x}")).collect();
+        assert_eq!(hex, expected);
     }
 
     /// The whole point of the RSA export: it has to recover what was encrypted, or the

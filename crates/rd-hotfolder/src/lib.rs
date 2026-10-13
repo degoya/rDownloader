@@ -53,7 +53,7 @@ pub struct FailedIntake {
 }
 
 /// The stable code a drop whose content was already taken in is logged under.
-pub const DUPLICATE_CODE: &str = "hotfolder.duplicate";
+pub(crate) const DUPLICATE_CODE: &str = "hotfolder.duplicate";
 
 /// A drop whose content this watcher handed over and has not moved away yet, moved to
 /// `processed` without a second import.
@@ -111,7 +111,7 @@ impl Default for WatchOptions {
 
 const DEFAULT_RETRY_DELAY: Duration = Duration::from_secs(5);
 /// The longest a failed folder waits before it is tried again.
-pub const MAX_RETRY_DELAY: Duration = Duration::from_secs(300);
+pub(crate) const MAX_RETRY_DELAY: Duration = Duration::from_secs(300);
 
 /// Starts one native watcher plus an unconditional reconciliation scan.
 ///

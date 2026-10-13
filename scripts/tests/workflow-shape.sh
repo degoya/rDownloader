@@ -10,10 +10,10 @@
 # - The jobs scripts/ci-tree-greens.sh asks for by name — `rust` and the `ONCE` list of the
 #   `gate` job — are jobs of ci.yml itself, not calls: a called workflow's check is named
 #   "<caller> / <job>", and the gate would never find that tree green again.
-# - Every wasm-tools a workflow installs — the repository's and the SDK's — is the version
-#   scripts/build-plugins.sh requires (RD-1110-08): it encodes the components, so another one
-#   changes their bytes. The component cache keys and the documents that name it agree.
-#
+# - Rust is set up only in .github/actions/setup-rust, pnpm only in setup-web (and repro.yml, for
+#   the rebuilt tag's own pin) (RD-1280-15).
+# - The tool versions a workflow installs (wasm-tools among them, RD-1110-08) are not checked
+#   here: scripts/tool-versions.sh --check holds every copy to its one source (RD-1280-12).
 # - The GitHub cache stays under its 10 GB (RD-1120-07): every Swatinem/rust-cache step says
 #   whether it saves (`save-if`), only ci.yml's `rust` and `warm-cache` save `rust-tests`
 #   (`save: true`), and the linker variables its key depends on are set in one place,
@@ -140,28 +140,13 @@ for workflow in "$WORKFLOWS"/*.yml; do
 done
 expect "e2e.yml and recovery.yml gate a push to main" "2" "$gated"
 
-# One wasm-tools: WASM_TOOLS_VERSION in scripts/lib/plugin-stamp.sh.
-pinned="$(sed -n 's/^WASM_TOOLS_VERSION="\(.*\)"$/\1/p' "$ROOT/scripts/lib/plugin-stamp.sh")"
-expect "scripts/lib/plugin-stamp.sh pins a wasm-tools version" "yes" "$([[ -n "$pinned" ]] && echo yes || echo no)"
-installs=0
-while IFS= read -r line; do
-    installs=$((installs + 1))
-    expect "${line%%:*} installs wasm-tools $pinned" "$pinned" "$(sed -n 's/.*tool: wasm-tools@\{0,1\}//p' <<< "${line#*:}")"
-done < <(grep -H 'tool: wasm-tools' "$WORKFLOWS"/*.yml "$ROOT"/sdk/ci/*.yml | sed "s|^$ROOT/||")
-expect "wasm-tools is installed somewhere to check" "yes" "$([[ "$installs" -gt 0 ]] && echo yes || echo no)"
-while IFS= read -r line; do
-    expect "${line%%:*}: the component cache key names wasm-tools $pinned" "wt$pinned" \
-        "$(grep -o 'components-[0-9.]*-wt[0-9.]*-' <<< "$line" | sed 's/^components-[0-9.]*-//; s/-$//')"
-done < <(grep -H 'key: components-' "$WORKFLOWS"/*.yml | sed "s|^$ROOT/||")
-# And the documents that name the version, so a bump finds every one (the public export has no
-# docs/, hence only the ones present).
-documents=()
-for document in AGENTS.md docs/development.md docs/architecture.md sdk/README.md; do
-    [[ -f "$ROOT/$document" ]] && documents+=("$document")
-done
-while IFS= read -r line; do
-    expect "${line%%:*} names wasm-tools $pinned" "$pinned" "${line##* }"
-done < <(cd "$ROOT" && grep -oHE 'wasm-tools(`| --version)? [0-9]+\.[0-9]+\.[0-9]+' "${documents[@]}")
+# The toolchain setups stand in their composite actions only (RD-191-09, RD-1280-15): Rust in
+# setup-rust, pnpm in setup-web. repro.yml alone sets pnpm up itself, because the web/package.json
+# that pins it is the rebuilt tag's, in a directory of its own.
+expect "dtolnay/rust-toolchain only in .github/actions/setup-rust" ".github/actions/setup-rust/action.yml" \
+    "$(cd "$ROOT" && grep -lE '^[[:space:]]*(- )?uses: dtolnay/rust-toolchain@' .github/workflows/*.yml .github/actions/*/action.yml | paste -sd' ' -)"
+expect "pnpm/action-setup only in setup-web and repro.yml" ".github/actions/setup-web/action.yml .github/workflows/repro.yml" \
+    "$(cd "$ROOT" && grep -lE '^[[:space:]]*(- )?uses: pnpm/action-setup@' .github/actions/*/action.yml .github/workflows/*.yml | paste -sd' ' -)"
 
 # Every rust-cache step names `save-if` in its `with:` block: the action's default saves on every
 # ref, and a cache nobody reads pushes main's out of the repository's 10 GB (RD-1120-07).

@@ -49,10 +49,12 @@ utoipa.workspace = true
 workspace = true
 
 [dev-dependencies]
+# The harness's database and the fake servers the suites point the service at (RD-1280-04).
+rd-testkit = { path = "../rd-testkit" }
 async-trait.workspace = true
 dunce.workspace = true
 hex.workspace = true
-http-body-util = "0.1"
+http-body-util.workspace = true
 # The `test-support` hooks the integration tests drive the service through (RD-1110-06).
 rd-api-core = { path = "../rd-api-core", features = ["test-support"] }
 rd-authn = { path = "../rd-authn", features = ["test-support"] }

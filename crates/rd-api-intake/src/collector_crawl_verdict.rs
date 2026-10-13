@@ -352,13 +352,8 @@ mod tests {
                     )
                 }),
             );
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind");
-        let address = listener.local_addr().expect("address");
-        tokio::spawn(async move {
-            axum::serve(listener, app).await.expect("serve");
-        });
+        let server = rd_testkit::serve(app).await;
+        let address = server.addr();
         let client = reqwest::Client::new();
         let at =
             |path: &str| -> url::Url { format!("http://{address}{path}").parse().expect("URL") };

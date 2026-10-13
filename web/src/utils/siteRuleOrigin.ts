@@ -9,7 +9,7 @@ import type { SiteRule } from '@/api/types'
 
 type Origin = SiteRule['origin']
 
-export interface OriginView {
+interface OriginView {
   icon: string
   color: 'success' | 'neutral'
   /** The word: the glyph's accessible name. */

@@ -6,6 +6,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import type { ProxyProfile, Settings } from '@/api/types'
 import type { ConfirmOptions } from '@/composables/useConfirm'
@@ -18,18 +19,14 @@ const post = vi.hoisted(() => vi.fn())
 const put = vi.hoisted(() => vi.fn())
 const del = vi.hoisted(() => vi.fn())
 const confirm = vi.hoisted(() => vi.fn())
-vi.mock('@/api/client', () => ({
-  api: {
-    POST: (...args: unknown[]) => post(...args),
-    PUT: (...args: unknown[]) => put(...args),
-    DELETE: (...args: unknown[]) => del(...args)
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  POST: (...args: unknown[]) => post(...args),
+  PUT: (...args: unknown[]) => put(...args),
+  DELETE: (...args: unknown[]) => del(...args),
   responseError: () => 'The endpoint was refused'
 }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
-vi.mock('@/composables/useConfirm', () => ({
-  useConfirm: () => (options: ConfirmOptions) => confirm(options)
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock())
+vi.mock('@/composables/useConfirm', () => confirmMock((options: ConfirmOptions) => confirm(options)))
 
 const TOR: ProxyProfile = {
   id: 'p1',

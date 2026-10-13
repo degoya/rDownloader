@@ -3,7 +3,6 @@
 //! One call does the whole sign-in, so there is nothing for `poll` to continue: MEGA asks
 //! nobody to visit anything and nothing is pending. `poll` therefore says so rather than
 //! asking the provider a question it cannot answer.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_auth::{
     AuthState, Guest, credentials, http,

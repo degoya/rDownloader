@@ -7,6 +7,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 import { reactive } from 'vue'
 
 import common from '@/locales/en/common.json'
@@ -15,8 +16,8 @@ import { defaultSettings, emptyNumberFields } from '@/settingsDefaults'
 import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn() } }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 import SettingsReconnectCard from './SettingsReconnectCard.vue'
 

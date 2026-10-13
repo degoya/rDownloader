@@ -70,7 +70,7 @@ export function useGrabberFacets() {
     || (!showFiltered.value && filteredCount.value > 0))
   /** Hoster options come from the unfiltered list so the active choice never disappears. */
   const hosterItems = computed(() => {
-    const values = new Set([...collector.candidates.map(hosterOf)].filter(Boolean))
+    const values = new Set(collector.candidates.map(hosterOf).filter(Boolean))
     if (collector.mirrorPreference.hoster) values.add(collector.mirrorPreference.hoster)
     return [
       { label: t('linkgrabber.filter.all_hosters'), value: 'all' },

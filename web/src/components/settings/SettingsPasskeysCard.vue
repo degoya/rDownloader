@@ -7,6 +7,7 @@ import { api, responseError } from '@/api/client'
 import type { components } from '@/api/schema'
 import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { useMfaCredentials } from '@/composables/useMfaCredentials'
 import { PasskeyAbort, createCredential, passkeysSupported, publicKeyOptions } from '@/webauthn'
 import { formatMoment } from '@/utils/format'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -92,25 +93,16 @@ async function save(): Promise<void> {
   toast.add({ title: t('system.passkeys.added_toast'), color: 'success', icon: 'i-lucide-key-round' })
 }
 
-async function remove(credential: MfaCredential): Promise<void> {
-  const confirmed = await confirm({
+const credentialRemoval = useMfaCredentials({ confirm, password, error, reload: load })
+
+function remove(credential: MfaCredential): Promise<void> {
+  return credentialRemoval.remove(credential, {
     title: t('system.passkeys.remove.title'),
     description: t('system.passkeys.remove.description', { label: credential.label }),
     confirmLabel: t('common.actions.remove'),
     confirmIcon: 'i-lucide-key-round',
     destructive: true
   })
-  if (!confirmed) return
-  const response = await api.DELETE('/api/v1/mfa/credentials/{id}', {
-    params: { path: { id: credential.id } },
-    body: { password: password.value }
-  })
-  if (!response.data) {
-    error.value = responseError(response)
-    return
-  }
-  password.value = ''
-  await load()
 }
 
 /// A name the person will recognise later. The browser does not say which authenticator was

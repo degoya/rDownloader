@@ -208,7 +208,6 @@
   },
   "examples": {
     "restore": "Restore bundled rules",
-    "restore_hint": "Writes the rules that come with rDownloader again, switched off. One you have stays as it is.",
     "restored": "{count} bundled rules restored, switched off.",
     "none_missing": "Every bundled rule is already here."
   },

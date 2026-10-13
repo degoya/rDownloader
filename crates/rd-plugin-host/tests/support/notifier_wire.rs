@@ -6,8 +6,10 @@
 //! `CONNECT` and then terminates TLS with a certificate for the requested name, issued by a test
 //! CA the client trusts through `custom_ca_pem`. Nothing leaves the machine.
 
-// Shared by several test binaries, and none uses every helper.
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    reason = "shared by several test binaries, and none uses every helper"
+)]
 
 use std::{
     collections::HashMap,

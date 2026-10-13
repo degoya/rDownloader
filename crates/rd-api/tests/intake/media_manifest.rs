@@ -26,7 +26,7 @@ const DRM: &str = "#EXTM3U\n\
     #EXTINF:6.0,\nseg1.ts\n#EXT-X-ENDLIST\n";
 
 /// Serves the four fixtures, plus one manifest with no telling extension.
-async fn fixture_server() -> String {
+async fn fixture_server() -> (rd_testkit::TestServer, String) {
     let app = Router::new()
         .route("/master.m3u8", get(|| async { MASTER }))
         .route("/live.m3u8", get(|| async { LIVE }))
@@ -37,14 +37,9 @@ async fn fixture_server() -> String {
             "/stream/token/abc",
             get(|| async { ([("content-type", "text/plain")], LIVE) }),
         );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    format!("http://{address}")
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
+    (server, format!("http://{address}"))
 }
 
 /// Adds one link and returns the candidate the check settled on.
@@ -79,7 +74,7 @@ async fn a_manifest_url_reaches_the_media_provider_rather_than_the_http_engine()
     // Without this the playlist *text* was downloaded and presented as the video.
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let server = fixture_server().await;
+    let (_server, server) = fixture_server().await;
 
     let candidate = intake(&router, &format!("{server}/master.m3u8")).await;
     assert_ne!(
@@ -93,7 +88,7 @@ async fn a_manifest_url_reaches_the_media_provider_rather_than_the_http_engine()
 async fn a_live_manifest_is_routed_to_the_recorder() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let server = fixture_server().await;
+    let (_server, server) = fixture_server().await;
 
     let candidate = intake(&router, &format!("{server}/live.m3u8")).await;
     assert_eq!(
@@ -107,7 +102,7 @@ async fn a_live_manifest_is_routed_to_the_recorder() {
 async fn a_vod_manifest_stays_on_the_download_path() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let server = fixture_server().await;
+    let (_server, server) = fixture_server().await;
 
     let candidate = intake(&router, &format!("{server}/vod.m3u8")).await;
     assert_eq!(candidate["provider"].as_str(), Some("media"));
@@ -118,7 +113,7 @@ async fn a_drm_protected_manifest_is_refused_instead_of_queued() {
     // DRM is a stated non-goal, so it has to fail here rather than obscurely inside ffmpeg.
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let server = fixture_server().await;
+    let (_server, server) = fixture_server().await;
 
     let candidate = intake(&router, &format!("{server}/drm.m3u8")).await;
     let error = candidate["error"].as_str().unwrap_or_default();
@@ -134,7 +129,7 @@ async fn a_manifest_without_an_extension_is_still_recognised() {
     // The address says nothing and the content type says text/plain; only the body knows.
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let server = fixture_server().await;
+    let (_server, server) = fixture_server().await;
 
     let candidate = intake(&router, &format!("{server}/stream/token/abc")).await;
     assert_eq!(
@@ -157,13 +152,8 @@ async fn an_ordinary_file_is_not_mistaken_for_a_manifest() {
             )
         }),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
 
     let candidate = intake(&router, &format!("http://{address}/clip.mp4")).await;
     assert_eq!(candidate["provider"].as_str(), Some("direct_http"));
@@ -177,7 +167,7 @@ async fn a_media_link_without_a_selection_is_refused_instead_of_queued() {
     // reason. The test service has no yt-dlp, so the manifest's probe yields no variants.
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let server = fixture_server().await;
+    let (_server, server) = fixture_server().await;
 
     let candidate = intake(&router, &format!("{server}/vod.m3u8")).await;
     assert_eq!(candidate["provider"].as_str(), Some("media"), "{candidate}");

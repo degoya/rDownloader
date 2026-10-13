@@ -1,8 +1,9 @@
 //! rd-db integration tests: the stores, the migrations and the backups, against a real database.
 //!
 //! One test binary, each former test file a module of it (RD-1120-08, the RD-150-10 pattern of
-//! `rd-api`): 31 binaries linked the same crate for tests that open a database each. The two
-//! crash binaries, `archive_password_crash` and `download_history_crash`, stay alone beside it —
+//! `rd-api`): 31 binaries linked the same crate for tests that open a database each. The three
+//! crash binaries, `archive_password_crash`, `download_history_crash` and
+//! `automation_reset_crash` (RD-1280-01), stay alone beside it —
 //! `scripts/lib/crash-matrix.list` runs them by name with the `failpoints` feature on.
 
 mod audit_store;

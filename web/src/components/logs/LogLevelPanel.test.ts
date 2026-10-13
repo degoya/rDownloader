@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import type { LogLevelState } from '@/api/logLevel'
 import common from '@/locales/en/common.json'
@@ -24,18 +25,16 @@ vi.mock('@/api/logLevel', () => ({
   startLogDebug: (area: string, minutes: number, pluginId: string | null) => startLogDebug(area, minutes, pluginId),
   stopLogDebug: () => stopLogDebug()
 }))
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async () => ({
-      data: {
-        installed: [
-          { id: 'p-mega', name: 'MEGA', active: true },
-          { id: 'p-old', name: 'Old MEGA', active: false },
-          { id: 'p-ddl', name: 'DDownload', active: true }
-        ]
-      }
-    }))
-  }
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async () => ({
+    data: {
+      installed: [
+        { id: 'p-mega', name: 'MEGA', active: true },
+        { id: 'p-old', name: 'Old MEGA', active: false },
+        { id: 'p-ddl', name: 'DDownload', active: true }
+      ]
+    }
+  }))
 }))
 
 const { default: LogLevelPanel } = await import('./LogLevelPanel.vue')

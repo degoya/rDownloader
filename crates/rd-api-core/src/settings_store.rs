@@ -154,7 +154,7 @@ pub async fn diagnosed_settings(
 }
 
 /// [`startup_settings`] over an already-loaded blob; `None` is a first start.
-pub fn startup_settings_of(
+pub(crate) fn startup_settings_of(
     blob: Option<&serde_json::Value>,
 ) -> Result<(SettingsResponse, rd_scheduler::RuntimeSettings), RefusedSetting> {
     let settings = match blob {

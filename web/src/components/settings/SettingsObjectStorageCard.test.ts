@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import remote from '@/locales/en/remote.json'
 import common from '@/locales/en/common.json'
@@ -30,15 +31,15 @@ const calls = vi.hoisted(() => ({
   confirm: vi.fn(async () => true)
 }))
 
-vi.mock('@/api/client', () => ({
-  api: { GET: calls.get, POST: calls.post, PUT: calls.put, DELETE: calls.delete },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: calls.get,
+  POST: calls.post,
+  PUT: calls.put,
+  DELETE: calls.delete,
   responseError: () => 'failed',
   resultMessage: () => 'Object storage profile deleted'
 }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: calls.confirm() }) }) })
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock({ overlay: { open: () => ({ result: calls.confirm() }) } }))
 
 /** The shared field stub with its description, which is where the "stored" state is said. */
 const fieldWithDescription = {

@@ -22,16 +22,16 @@ use crate::{
 };
 
 /// The variable `fetch` writes and `regex` reads when neither names one.
-pub const PAGE_VARIABLE: &str = "page";
+pub(crate) const PAGE_VARIABLE: &str = "page";
 /// The variable the executor reads the result from.
-pub const LINKS_VARIABLE: &str = "links";
+pub(crate) const LINKS_VARIABLE: &str = "links";
 /// Most steps a rule may take, and its `groups` again (PL-09). The shipped rules take six at
 /// most; the run's own limits bound what the steps fetch, this bounds what is checked and
 /// compiled before anything is.
 pub const MAX_STEPS: usize = 32;
 /// Longest regular expression a rule may carry, in characters (PL-09). The shipped rules'
 /// longest has 63.
-pub const MAX_PATTERN_LENGTH: usize = 1024;
+pub(crate) const MAX_PATTERN_LENGTH: usize = 1024;
 /// Most memory one compiled pattern may take (PL-09). The `regex` crate's default is 10 MiB; a
 /// few characters of a repeated Unicode class (`\w{60}`) already take more than this.
 const PATTERN_SIZE_LIMIT: usize = 2 * 1024 * 1024;

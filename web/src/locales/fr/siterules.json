@@ -208,7 +208,6 @@
   },
   "examples": {
     "restore": "Restaurer les règles fournies",
-    "restore_hint": "Recrée, désactivées, les règles fournies avec rDownloader. Une règle déjà présente reste telle quelle.",
     "restored": "{count} règles fournies restaurées, désactivées.",
     "none_missing": "Toutes les règles fournies sont déjà présentes."
   },

@@ -5,15 +5,16 @@
  * component the router rendered; the confirmation is a function each test answers. The proxy
  * form's case sits with the settings document's in `SettingsUnsavedGuard.test.ts`.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { type Component } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import automation from '@/locales/en/automation.json'
 import subscriptions from '@/locales/en/subscriptions.json'
-import { createTestI18n, uiStubs } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 const VOCABULARY = {
   triggers: ['download_completed'],
@@ -24,24 +25,13 @@ const VOCABULARY = {
   max_condition_depth: 3
 }
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async (path: string) => ({ data: path === '/api/v1/automations/vocabulary' ? VOCABULARY : [] })),
-    POST: vi.fn(),
-    PUT: vi.fn(),
-    PATCH: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: () => 'The service did not answer',
-  resultMessage: () => ''
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async (path: string) => ({ data: path === '/api/v1/automations/vocabulary' ? VOCABULARY : [] }))
 }))
 const confirm = vi.fn<() => Promise<boolean>>()
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: vi.fn() }) })
-}))
+vi.mock('@/composables/useConfirm', () => confirmMock((...args: never[]) => (confirm as (...args: never[]) => unknown)(...args)))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
+vi.mock('@nuxt/ui/composables', () => toastMock({ overlay: { open: vi.fn() } }))
 
 const { default: SubscriptionsView } = await import('./SubscriptionsView.vue')
 const { default: AutomationView } = await import('./AutomationView.vue')
@@ -57,12 +47,7 @@ async function mountAt(path: string, view: Component, messages: Record<string, u
   await router.push(path)
   await router.isReady()
   setActivePinia(createPinia())
-  render({ template: '<RouterView />' }, {
-    global: {
-      plugins: [router, createTestI18n(messages)],
-      stubs: { ...uiStubs, ConditionTree: true, AreaBackupButtons: true } as never
-    }
-  })
+  mountComponent({ template: '<RouterView />' }, { messages, plugins: [router], stubs: { ConditionTree: true, AreaBackupButtons: true }, keepPinia: true })
   return router
 }
 

@@ -49,14 +49,9 @@ impl TransferBackend {
         let sandbox = SandboxEngine::new(manifest.limits)?;
         let component = sandbox.compile_component(component_bytes, &manifest)?;
         let mut linker = Linker::new(sandbox.engine());
-        rdownloader::plugin::host::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
+        crate::component::link_granted(&manifest, &mut linker)?;
+        // The part file this invocation writes is what a transfer backend is, not a grant.
         rdownloader::plugin::sink::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
-        if manifest.capabilities.net_stream.is_some() {
-            rdownloader::plugin::net::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
-        }
-        if manifest.capabilities.net_http.is_some() {
-            rdownloader::plugin::http::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
-        }
         let pre = TransferPluginPre::new(linker.instantiate_pre(&component)?)?;
         Ok(Self {
             manifest,
@@ -161,7 +156,14 @@ impl TransferBackend {
             .call_run(&mut store, &job)
             .await
             .map_err(crate::component::component_failure)?;
-        state::outcome(store.data().transfer.as_ref().expect("transfer store"), end)
+        let Some(transfer) = store.data().transfer.as_ref() else {
+            return Err(rd_core::Failure::coded(
+                rd_core::FailureKind::Permanent,
+                "plugin.execution_failed",
+                "Plugin execution failed: the transfer store holds no transfer state",
+            ));
+        };
+        state::outcome(transfer, end)
     }
 
     /// A store for one call of `operation`, whose log lines are this plugin's (RD-1260-12).

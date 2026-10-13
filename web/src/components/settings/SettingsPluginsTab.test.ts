@@ -16,6 +16,7 @@
 import { useFileUpload } from '@nuxt/ui/composables/useFileUpload'
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { defineComponent, toRef } from 'vue'
 
 import commonCatalogue from '@/locales/en/common.json'
@@ -28,20 +29,16 @@ const post = vi.fn()
 const remove = vi.fn()
 /** The translated text `@/api/client` would derive from a coded error body. */
 const responseError = vi.fn<(response: unknown) => string>()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: vi.fn(),
-    PATCH: vi.fn(async () => ({ data: {} })),
-    DELETE: (...args: unknown[]) => remove(...args)
-  },
-  responseError: (response: unknown) => responseError(response),
-  resultMessage: vi.fn(() => '')
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  POST: (...args: unknown[]) => post(...args),
+  PATCH: vi.fn(async () => ({ data: {} })),
+  DELETE: (...args: unknown[]) => remove(...args),
+  responseError: (response: unknown) => responseError(response)
 }))
 /** The shared confirmation dialog, so a test can read what it was asked to confirm. */
 const confirmed = vi.fn<(options: Record<string, unknown>) => Promise<boolean>>()
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
+vi.mock('@/composables/useConfirm', () => confirmMock((...args: never[]) => (confirmed as (...args: never[]) => unknown)(...args)))
 // `formatMoment` reaches for the application's own i18n instance rather than the mounted one,
 // so the withdrawal dates a row prints need a `d()` here; without it the mock throws mid-render.
 vi.mock('@/i18n', () => ({
@@ -70,7 +67,7 @@ let trustEvent: ((event: MessageEvent<string>) => void) | null = null
  * never served.
  */
 let subscribedNames: string[] = []
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, (event: MessageEvent<string>) => void>) => {
     subscribedNames = Object.keys(handlers)
     pluginEvent = handlers['plugin.changed'] ?? null
@@ -86,8 +83,8 @@ vi.mock('@/i18n/server', () => ({
 }))
 
 /** The toast that answers removing every superseded version at once (RD-1140-04). */
-const toastAdd = vi.fn()
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: toastAdd }) }))
+const toastAdd = vi.hoisted(() => vi.fn())
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toastAdd }))
 
 const { default: SettingsPluginsTab } = await import('./SettingsPluginsTab.vue')
 

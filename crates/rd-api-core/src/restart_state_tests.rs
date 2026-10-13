@@ -64,7 +64,13 @@ fn a_supervised_restart_ends_with_its_exit_code() {
         assert!(state.begin(how));
         assert_eq!(state.exit_code(), Some(RESTART_EXIT_CODE), "{how:?}");
     }
-    assert_eq!(RESTART_EXIT_CODE, 75);
+    // What the code is for: the packaged unit's `Restart=on-failure` reads `0` as a wanted stop,
+    // and `1` is the service's error or a stop past its deadline.
+    assert_ne!(
+        RESTART_EXIT_CODE, 0,
+        "a restart would read as a wanted stop"
+    );
+    assert_ne!(RESTART_EXIT_CODE, 1, "a restart would read as an error");
 }
 
 /// The way follows the environment the state was given.

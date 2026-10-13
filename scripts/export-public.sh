@@ -138,8 +138,6 @@ fi
 
 # --- the clone -------------------------------------------------------------------------------
 
-pub() { git -C "$PUBLIC_DIR" "$@"; }
-
 # The very first export meets an empty repository: no main anywhere, HEAD unborn.
 rd_public_prepare_clone "$PUBLIC_DIR" "$PUBLIC_REMOTE" "$PUBLIC_MAIN"
 

@@ -14,5 +14,8 @@ serde_json.workspace = true
 [lib]
 crate-type = ["rlib"]
 
+[dev-dependencies]
+plugin-common = { path = "../common", features = ["test-support"] }
+
 [lints]
 workspace = true

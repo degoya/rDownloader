@@ -29,6 +29,7 @@
 //! else of what a person entered, and it leaves this plugin in that header and nowhere else.
 
 use plugin_common::failure::{SecretSlot, coded, require_account, require_secret};
+use plugin_common::label::account_name;
 use plugin_common::{
     Account, CheckInput, Failure, FailureKind, Header, HttpRequest, HttpResponse, Label, LinkCheck,
     PluginHost, ResolveInput, Resolved,
@@ -226,18 +227,9 @@ async fn call<H: PluginHost>(
     Err(failure)
 }
 
-/// The account row's label: the address the person signed in with, and nothing else; the
-/// display name only when the address is missing, and nothing at all when both are. The shared
-/// label builder bounds it and strips controls, because it is shown rather than parsed.
-fn account_name<'a>(login: Option<&'a str>, display_name: Option<&'a str>) -> Option<&'a str> {
-    login
-        .filter(|value| !value.is_empty())
-        .or(display_name.filter(|value| !value.is_empty()))
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{Label, account_name, matches};
+    use super::matches;
 
     #[test]
     fn only_box_file_addresses_are_claimed() {
@@ -249,28 +241,5 @@ mod tests {
         assert!(!matches("https://app.box.com/folder/987"));
         assert!(!matches("https://app.box.com/s/abc123"));
         assert!(!matches("https://ddownload.com/f/abc"));
-    }
-
-    #[test]
-    fn the_account_label_is_the_address_and_never_a_control_character() {
-        assert_eq!(
-            account_name(Some("someone@example.invalid"), Some("Someone")),
-            Some("someone@example.invalid")
-        );
-        assert_eq!(account_name(None, Some("Someone")), Some("Someone"));
-        assert_eq!(account_name(None, None), None);
-        // Bounded and stripped of controls on its way into the label part.
-        let parts = Label::new()
-            .user(account_name(Some("a\u{0}b"), None))
-            .user(account_name(Some(&"x".repeat(200)), None))
-            .into_parts();
-        assert_eq!(parts[0].params, vec![("user".to_owned(), "ab".to_owned())]);
-        assert_eq!(parts[1].params[0].1.len(), 80);
-        assert!(
-            Label::new()
-                .user(account_name(None, None))
-                .into_parts()
-                .is_empty()
-        );
     }
 }

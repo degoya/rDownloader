@@ -20,6 +20,7 @@ rd-plugin-types = { path = "../../crates/rd-plugin-types" }
 crate-type = ["rlib"]
 
 [dev-dependencies]
+plugin-common = { path = "../common", features = ["test-support"] }
 tokio.workspace = true
 
 [lints]

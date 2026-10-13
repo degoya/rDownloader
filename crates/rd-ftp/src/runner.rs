@@ -47,13 +47,7 @@ impl ExternalRunner for FtpRunner {
     /// The staged part file resumes after its length and the server's validators were checked
     /// (`rd-transfer-file`); a finished file is not adopted and there is no digest to verify.
     fn reuse(&self) -> rd_core::ReuseCapability {
-        rd_core::ReuseCapability {
-            resume_partial: true,
-            recheck_partial: true,
-            adopt_completed: false,
-            verify_completed: false,
-            applies_collision_policy: false,
-        }
+        rd_core::ReuseCapability::STAGED
     }
 
     fn slot_capacity(&self) -> usize {
@@ -179,7 +173,11 @@ impl FtpRunner {
             Staging::open(self.service.database(), file, root, part_path, size, LABELS).await;
         match staging.plan_resume(modified).await? {
             // Size and timestamp are all FTP gives us to recognise the file again.
-            Resume::Refused => return Ok(RunOutcome::Failed(error::file_changed())),
+            Resume::Refused => {
+                return Ok(RunOutcome::Failed(rd_transfer_file::file_changed(
+                    error::FILE_CHANGED,
+                )));
+            }
             Resume::Complete => return staging.promote().await,
             Resume::Continue => {
                 if let Err(error) = connection.resume_from(staging.committed() as usize).await {

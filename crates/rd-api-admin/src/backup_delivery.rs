@@ -15,7 +15,7 @@ use rd_db::BackupDestinationRecord;
 use crate::AppState;
 
 /// What opening a destination needs, read from the live settings.
-pub async fn destination_context(state: &AppState) -> DestinationContext {
+pub(crate) async fn destination_context(state: &AppState) -> DestinationContext {
     let postprocess = match state
         .database
         .service_settings::<rd_core::PostprocessSettings>()

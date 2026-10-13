@@ -29,8 +29,7 @@ use std::sync::Arc;
 mod mock;
 
 use mock::{
-    CONTENT_FILES, CONTENT_FOLDERS, EMPTY_FOLDER, FILE_INFO_BATCH, FILE_INFO_FOLDERKEY,
-    FOLDER_INFO, Folder, MISSING_TOKEN, MockMediafire, PRIVATE_FOLDER, RATE_LIMITED, ROOT,
+    EMPTY_FOLDER, FILE_INFO_BATCH, Folder, MockMediafire, PRIVATE_FOLDER, RATE_LIMITED, ROOT,
     ROOT_NAME, SUB_FOLDER, captured_tree, chunk, component, crawler, file, info, subfolder,
 };
 
@@ -357,22 +356,4 @@ async fn a_folder_that_contains_itself_is_read_once() {
             .count(),
         1
     );
-}
-
-/// The fixtures are sanitised captures: nothing in them is a token, a session, an address
-/// or a person's name.
-#[test]
-fn fixtures_carry_no_credential_material() {
-    for (name, document) in [
-        ("folder-info", FOLDER_INFO),
-        ("content-files", CONTENT_FILES),
-        ("content-folders", CONTENT_FOLDERS),
-        ("missing-token", MISSING_TOKEN),
-        ("file-info-folderkey", FILE_INFO_FOLDERKEY),
-        ("file-info-batch", FILE_INFO_BATCH),
-    ] {
-        for marker in ["session_token", "api_key", "@", "Vlas", "Santiago", "Mansi"] {
-            assert!(!document.contains(marker), "{name} carries `{marker}`");
-        }
-    }
 }

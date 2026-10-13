@@ -46,13 +46,7 @@ impl ExternalRunner for SftpRunner {
     /// The staged part file resumes after its length and the server's validators were checked
     /// (`rd-transfer-file`); a finished file is not adopted and there is no digest to verify.
     fn reuse(&self) -> rd_core::ReuseCapability {
-        rd_core::ReuseCapability {
-            resume_partial: true,
-            recheck_partial: true,
-            adopt_completed: false,
-            verify_completed: false,
-            applies_collision_policy: false,
-        }
+        rd_core::ReuseCapability::STAGED
     }
 
     fn slot_capacity(&self) -> usize {
@@ -165,7 +159,11 @@ impl SftpRunner {
             Staging::open(self.service.database(), file, root, part_path, size, LABELS).await;
         // Size and modification time are the only validators SFTP offers.
         let resume = match staging.plan_resume(modified).await? {
-            Resume::Refused => return Ok(RunOutcome::Failed(error::file_changed())),
+            Resume::Refused => {
+                return Ok(RunOutcome::Failed(rd_transfer_file::file_changed(
+                    error::FILE_CHANGED,
+                )));
+            }
             Resume::Complete => return staging.promote().await,
             other => other,
         };
@@ -182,7 +180,9 @@ impl SftpRunner {
                 .await
                 .is_err()
         {
-            return Ok(RunOutcome::Failed(error::file_changed()));
+            return Ok(RunOutcome::Failed(rd_transfer_file::file_changed(
+                error::FILE_CHANGED,
+            )));
         }
         let mut sink = staging.open_part().await?;
 

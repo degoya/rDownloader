@@ -61,6 +61,10 @@ pub(crate) fn routes() -> Router<AppState> {
             put(notify_handlers::update_rule).delete(notify_handlers::delete_rule),
         )
         .route(
+            "/api/v1/notifications/placeholders",
+            get(notify_handlers::list_notification_placeholders),
+        )
+        .route(
             "/api/v1/notifications/deliveries",
             get(notify_handlers::list_deliveries),
         )
@@ -131,6 +135,7 @@ pub(crate) fn routes() -> Router<AppState> {
     notify_handlers::create_rule,
     notify_handlers::update_rule,
     notify_handlers::delete_rule,
+    notify_handlers::list_notification_placeholders,
     notify_handlers::list_deliveries,
     crate::data_reset_handlers::clear_notification_deliveries,
     crate::data_reset_handlers::discard_pending_notification_deliveries,

@@ -213,7 +213,7 @@ impl Action {
 
     /// Whether the action works on the run's package and so cannot run without one.
     #[must_use]
-    pub const fn needs_package(&self) -> bool {
+    pub(crate) const fn needs_package(&self) -> bool {
         matches!(
             self,
             Self::SetCategory { .. }
@@ -239,6 +239,18 @@ pub enum RunState {
     Retrying,
     /// Given up on after the last attempt.
     Failed,
+}
+
+/// What resetting an automation's version history removed (RD-1280-01).
+///
+/// Only the version in force stays, renumbered to 1; the older versions go with the runs that
+/// point at them. The counts are what the confirmation promised, read back from the deletes.
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct VersionReset {
+    /// The automation afterwards, at version 1.
+    pub automation: Automation,
+    pub removed_versions: u32,
+    pub removed_runs: u32,
 }
 
 /// One execution of one automation version against one event.

@@ -72,7 +72,7 @@ fn parse_download_url_rejects_a_malformed_url() {
 
 #[test]
 fn login_body_serializes_the_literal_templates_with_username_first() {
-    let body = super::login_body();
+    let body = super::login_body().expect("body");
     assert_eq!(
         String::from_utf8(body).expect("utf8"),
         r#"{"username":"{{username}}","password":"{{secret:keep2share_password}}"}"#
@@ -81,7 +81,7 @@ fn login_body_serializes_the_literal_templates_with_username_first() {
 
 #[test]
 fn geturl_body_serializes_file_id_and_auth_token() {
-    let body = super::geturl_body("abcdefghijklm", "tok-abc");
+    let body = super::geturl_body("abcdefghijklm", "tok-abc").expect("body");
     assert_eq!(
         String::from_utf8(body).expect("utf8"),
         r#"{"file_id":"abcdefghijklm","auth_token":"tok-abc"}"#
@@ -90,7 +90,7 @@ fn geturl_body_serializes_file_id_and_auth_token() {
 
 #[test]
 fn accountinfo_body_serializes_auth_token() {
-    let body = super::accountinfo_body("tok-abc");
+    let body = super::accountinfo_body("tok-abc").expect("body");
     assert_eq!(
         String::from_utf8(body).expect("utf8"),
         r#"{"auth_token":"tok-abc"}"#
@@ -99,11 +99,25 @@ fn accountinfo_body_serializes_auth_token() {
 
 #[test]
 fn getfilesinfo_body_serializes_the_id_list() {
-    let body = super::getfilesinfo_body(&["a", "b"]);
+    let body = super::getfilesinfo_body(&["a", "b"]).expect("body");
     assert_eq!(
         String::from_utf8(body).expect("utf8"),
         r#"{"ids":["a","b"]}"#
     );
+}
+
+/// A body that fails to serialize is a coded failure, not a panic in the guest.
+#[test]
+fn a_body_that_fails_to_serialize_is_a_coded_failure() {
+    struct Unserializable;
+    impl serde::Serialize for Unserializable {
+        fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
+            Err(serde::ser::Error::custom("refused"))
+        }
+    }
+    let failure = super::json_body(&Unserializable).expect_err("serialization fails");
+    assert_eq!(failure.code, "keep2share.request_encoding");
+    assert_eq!(failure.param("error"), Some("refused"));
 }
 
 #[test]

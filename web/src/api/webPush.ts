@@ -9,9 +9,9 @@ import type { components } from './schema'
 type Schemas = components['schemas']
 
 /** A browser that receives push messages; its message keys never come back. */
-export type WebPushSubscription = Schemas['WebPushSubscription']
+type WebPushSubscription = Schemas['WebPushSubscription']
 
-export type WebPushSubscriptionRequest = Schemas['WebPushSubscriptionRequest']
+type WebPushSubscriptionRequest = Schemas['WebPushSubscriptionRequest']
 
 export const webPushKey = () =>
   call<Schemas['WebPushKeyResponse']>('GET', '/api/v1/notifications/web-push/key')

@@ -16,6 +16,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 import { defineComponent, ref } from 'vue'
 
 import captcha from '@/locales/en/captcha.json'
@@ -34,15 +35,12 @@ vi.mock('@/api/bundledPlugins', () => ({
   removeBundled: (...args: unknown[]) => removeBundled(...args)
 }))
 const confirm = vi.fn()
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => (...args: unknown[]) => confirm(...args) }))
+vi.mock('@/composables/useConfirm', () => confirmMock((...args: unknown[]) => confirm(...args)))
 const push = vi.fn()
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: (...args: unknown[]) => push(...args) }) }))
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...args), POST: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'The service did not answer')
-}))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 const empty = { default: { template: '<div />' } }
 vi.mock('@/components/settings/SettingsAccountsTab.vue', () => empty)
 vi.mock('@/components/settings/SettingsUsenetTab.vue', () => empty)

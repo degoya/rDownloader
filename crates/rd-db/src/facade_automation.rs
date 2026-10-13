@@ -81,6 +81,19 @@ impl Database {
         .await
     }
 
+    /// Keeps only the version in force, renumbered to 1, and deletes the older versions with
+    /// their runs (RD-1280-01). Refused with [`crate::StoreErrorKind::WrongState`] while a run of
+    /// an older version is still active.
+    pub async fn reset_automation_versions(
+        &self,
+        id: rd_core::AutomationId,
+    ) -> Result<rd_automation::VersionReset> {
+        writer::request(&self.writer, |reply| {
+            NotifyCommand::ResetAutomationVersions { id, reply }
+        })
+        .await
+    }
+
     /// Queues a run; `false` means this event already produced one for this version.
     pub async fn queue_automation_run(&self, input: automation_store::NewRun) -> Result<bool> {
         writer::request(&self.writer, |reply| NotifyCommand::QueueAutomationRun {

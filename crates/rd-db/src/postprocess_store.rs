@@ -258,7 +258,7 @@ async fn write_assembly_segments(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn upsert_step(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     owner_id: String,
@@ -337,7 +337,7 @@ async fn enqueue_steps(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn write_progress(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     owner_id: String,

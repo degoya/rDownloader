@@ -12,8 +12,10 @@
 # `.git/rd-verified-ci` (lib/verified.sh, rd_ci_covering: the commit's tree or one that differs
 # from it only in documentation and version lines). It refuses (exit 1, nothing written) a run
 # that is not green: `full` not 0, `windows` or `public-ci` neither 0 nor skipped, `check.log`
-# without `==> all requested checks passed`, or no recorded Linux and Windows green for the tree
-# — a red GitHub run holds the merge (RD-140-23). The generators' commit is named when the
+# without `==> all requested checks passed`, or no recorded Windows green for the tree and no
+# Linux one — a red GitHub run holds the merge (RD-140-23). Linux is GitHub's green or the local
+# --full green of the Rust half covering the tree (rd_full_covering): since RD-1280-14 a wave runs
+# Linux on GitHub only without that local green. The generators' commit is named when the
 # integration has one (`chore(generated): regenerate after merging …` naming one of the jobs).
 #
 # What only a person knows stays the coordinator's, and comes first: ticking a box the run
@@ -150,8 +152,14 @@ if [[ -f "$record" ]]; then
     done < <(awk '{ print $1 }' "$record" | sort -u |
         awk '/^ubuntu-/ { print 1, $0; next } /^windows-/ { print 2, $0; next } { print 3, $0 }' | sort | cut -d' ' -f2)
 fi
-if ! printf '%s\n' "${platforms[@]}" | grep -q '^ubuntu-' || ! printf '%s\n' "${platforms[@]}" | grep -q '^windows-'; then
-    die "no GitHub green on Linux and Windows recorded for tree ${tree:0:12} in $record — a wave goes through scripts/public-ci.sh before its merge (RD-140-23)"
+# Linux without a GitHub green: the local --full green of the Rust half (RD-1280-14).
+linux_local=0
+if ! printf '%s\n' "${platforms[@]}" | grep -q '^ubuntu-' && [[ -n "$(rd_full_covering "$ROOT" rust "$tree")" ]]; then
+    linux_local=1
+fi
+if { ! printf '%s\n' "${platforms[@]}" | grep -q '^ubuntu-' && [[ "$linux_local" -eq 0 ]]; } \
+    || ! printf '%s\n' "${platforms[@]}" | grep -q '^windows-'; then
+    die "no GitHub green on Linux and Windows recorded for tree ${tree:0:12} in $record (Linux counts by a local --full green of the Rust half too, RD-1280-14) — a wave goes through scripts/public-ci.sh before its merge (RD-140-23)"
 fi
 run=""
 if [[ -f "$logs/public-ci.log" ]]; then
@@ -196,6 +204,7 @@ fi
 evidence="— Nachweis der Welle (Koordinator $(date -r "$logs/status" +%F), \`$branch\` @ $commit): \`scripts/check.sh --full\` grün ($counts)"
 [[ "$windows" == 0 ]] && evidence+=", \`scripts/check.sh --windows\` grün"
 evidence+=", GitHub CI${run:+ $run} grün auf $(join_de "${platforms[@]}")"
+[[ "$linux_local" -eq 0 ]] || evidence+=", Linux durch das lokale \`--full\`"
 [[ ${#workflows[@]} -eq 0 ]] || evidence+=" (dazu $(join_de "${workflows[@]}"))"
 if [[ ${#generated[@]} -gt 0 ]]; then
     evidence+="; Generatoren nach dem Merge ($generators: $(printf '%s, ' "${generated[@]}" | sed 's/, $//'))"
@@ -300,7 +309,7 @@ write() {
         echo "    written:   ${2#"$ROOT"/}"
     fi
 }
-echo "==> $branch @ $commit (tree ${tree:0:12}): --full, GitHub $(join_de "${platforms[@]}")${run:+ (run $run)}"
+echo "==> $branch @ $commit (tree ${tree:0:12}): --full, GitHub $(join_de "${platforms[@]}")${run:+ (run $run)}$([[ "$linux_local" -eq 0 ]] || echo ', Linux by the local --full')"
 for number in "${numbers[@]}"; do
     write "$scratch/$number.md" "${target[$number]}"
 done

@@ -5,8 +5,15 @@
 //! it, together with the three other stages a sign-in performs, so the answer is a figure
 //! rather than an order of magnitude.
 //!
-//! It is not a test and CI does not run it. `scripts/measure-mega-login-fuel.sh` builds
-//! `plugins/mega-login-probe` for `wasm32-unknown-unknown` and runs this against it.
+//! It is not a test and CI does not run it. Build the probe, then run this against it:
+//!
+//! ```text
+//! cargo rustc --release -j 2 --target wasm32-unknown-unknown -p mega-login-probe --lib \
+//!     --crate-type cdylib
+//! cargo run -j 2 -p rd-plugin-host --example mega_login_fuel
+//! ```
+//!
+//! (`rlib` only like every plugin crate, RD-1120-11, so the module is asked for explicitly.)
 //!
 //! The engine is configured exactly as `SandboxEngine` configures the one plugins run in --
 //! fuel on, epochs on, NaN canonicalisation on -- because fuel is charged per instruction and
@@ -21,8 +28,8 @@ use wasmtime::{Config, Engine, Instance, Module, Store};
 
 /// What the host gives one invocation, from `rd_plugin_host::DEFAULT_FUEL`.
 const DEFAULT_FUEL: u64 = rd_plugin_host::DEFAULT_FUEL;
-/// The most a manifest may declare, from `manifest.rs`: twenty times the default.
-const MAX_FUEL: u64 = 20 * DEFAULT_FUEL;
+/// The most a manifest may declare, from `rd_plugin_host::MAX_FUEL` (RD-1280-18).
+const MAX_FUEL: u64 = rd_plugin_host::MAX_FUEL;
 /// Enough for the measurement itself. Not a limit anything in the product may use.
 const MEASUREMENT_FUEL: u64 = u64::MAX / 2;
 

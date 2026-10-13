@@ -13,6 +13,7 @@ import type {
   AutomationRequest,
   AutomationRun,
   AutomationVersion,
+  AutomationVersionReset,
   AutomationSchedule,
   AutomationVocabulary
 } from '@/api/types'
@@ -157,6 +158,39 @@ export const useAutomationsStore = defineStore('automations', () => {
   }
 
   /**
+   * Every run of one automation the server keeps, or `null` with `error` set (RD-1280-01). It
+   * keeps 200 per automation, below the route's 500, so the reset dialog counts all of them.
+   */
+  async function runsOf(id: string): Promise<AutomationRun[] | null> {
+    const response = await api.GET('/api/v1/automations/runs', {
+      params: { query: { automation_id: id, limit: 500 } }
+    })
+    if (!response.data) {
+      error.value = responseError(response)
+      return null
+    }
+    return response.data
+  }
+
+  /**
+   * Keeps only the version in force, as version 1, and deletes the older versions with their
+   * runs (RD-1280-01). Answers with what went, or `null` with `error` set — the server refuses
+   * with `automation.version_reset_run_active` while a run of an older version is active.
+   */
+  async function resetVersions(id: string): Promise<AutomationVersionReset | null> {
+    busy.value = true
+    const response = await api.POST('/api/v1/automations/{id}/versions/reset', { params: { path: { id } } })
+    busy.value = false
+    if (!response.data) {
+      error.value = responseError(response)
+      return null
+    }
+    error.value = null
+    await refresh()
+    return response.data
+  }
+
+  /**
    * Evaluates a trigger and a sample package. Never has an effect. With a `draft` only that
    * automation is judged — the editor's form, saved or not, on or off (RD-1120-17); without one,
    * every enabled automation.
@@ -211,6 +245,8 @@ export const useAutomationsStore = defineStore('automations', () => {
     dryRun,
     versions,
     restore,
+    runsOf,
+    resetVersions,
     connectEvents,
     disconnectEvents
   }

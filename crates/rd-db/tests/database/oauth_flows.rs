@@ -10,12 +10,6 @@ use rd_core::{AccountId, AuthFlowState};
 use rd_db::{Database, NewAccount, UpsertAuthFlow};
 use tempfile::TempDir;
 
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("oauth.sqlite"))
-        .await
-        .expect("database")
-}
-
 async fn account(database: &Database) -> AccountId {
     database
         .create_account(NewAccount {
@@ -72,7 +66,7 @@ async fn a_flow_waiting_for_a_redirect_is_never_polled() {
     // which is exactly what the sign-in sweep picks up. It would drive the flow through the
     // device-code plugins, which do not claim its provider, and fail it on the first tick.
     let directory = TempDir::new().expect("directory");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
         .upsert_auth_flow(flow(account_id))
@@ -90,7 +84,7 @@ async fn a_flow_waiting_for_a_redirect_is_never_polled() {
 async fn a_device_flow_alongside_it_is_still_polled() {
     // The exclusion must be about the callback state, not about the state name it shares.
     let directory = TempDir::new().expect("directory");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
         .upsert_auth_flow(UpsertAuthFlow {
@@ -107,7 +101,7 @@ async fn a_device_flow_alongside_it_is_still_polled() {
 #[tokio::test]
 async fn a_callback_finds_its_flow_by_the_value_the_provider_echoed() {
     let directory = TempDir::new().expect("directory");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
         .upsert_auth_flow(flow(account_id))
@@ -133,7 +127,7 @@ async fn a_callback_finds_its_flow_by_the_value_the_provider_echoed() {
 #[tokio::test]
 async fn a_callback_state_is_taken_once() {
     let directory = TempDir::new().expect("directory");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
         .upsert_auth_flow(flow(account_id))
@@ -164,7 +158,7 @@ async fn a_callback_state_is_taken_once() {
 #[tokio::test]
 async fn renewal_becomes_due_only_once_the_expiry_is_within_reach() {
     let directory = TempDir::new().expect("directory");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
         .upsert_auth_flow(renewable(account_id, Duration::minutes(10)))
@@ -195,7 +189,7 @@ async fn a_flow_with_no_refresh_material_is_never_due_for_renewal() {
     // Without material the only way back is the person signing in again, and a sweep that
     // claimed otherwise would ask a provider the same impossible question forever.
     let directory = TempDir::new().expect("directory");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
         .upsert_auth_flow(UpsertAuthFlow {
@@ -220,7 +214,7 @@ async fn a_held_back_renewal_waits_its_turn() {
     // The rate-limit guard: a provider that answers "not yet" must not be asked again on the
     // next three-second tick.
     let directory = TempDir::new().expect("directory");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
         .upsert_auth_flow(renewable(account_id, Duration::minutes(-5)))
@@ -267,7 +261,7 @@ async fn what_a_renewal_needs_survives_a_restart() {
     // stops mid-life must come back knowing when the token dies and what renews it.
     let directory = TempDir::new().expect("directory");
     let account_id = {
-        let database = database(&directory).await;
+        let database = rd_testkit::temp_database(directory.path()).await;
         let account_id = account(&database).await;
         database
             .upsert_auth_flow(renewable(account_id, Duration::minutes(-1)))
@@ -276,7 +270,7 @@ async fn what_a_renewal_needs_survives_a_restart() {
         account_id
     };
 
-    let reopened = database(&directory).await;
+    let reopened = rd_testkit::temp_database(directory.path()).await;
     let now = Utc::now();
     let due = reopened
         .due_refresh_auth_flows(now, now + Duration::minutes(1))
@@ -298,7 +292,7 @@ async fn what_a_renewal_needs_survives_a_restart() {
 #[tokio::test]
 async fn an_answered_callback_state_matches_nothing_the_second_time() {
     let directory = TempDir::new().expect("directory");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
         .upsert_auth_flow(flow(account_id))
@@ -342,7 +336,7 @@ async fn an_answered_callback_state_matches_nothing_the_second_time() {
 #[tokio::test]
 async fn a_sign_in_s_parts_are_kept_one_by_one_and_go_with_the_flow() {
     let directory = TempDir::new().expect("directory");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
         .upsert_auth_flow(renewable(account_id, Duration::hours(1)))

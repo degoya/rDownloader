@@ -54,7 +54,8 @@ function hasProgress(step: PostprocessStep): boolean {
 }
 function toggleOutput(key: string): void {
   const next = new Set(openOutput.value)
-  next.has(key) ? next.delete(key) : next.add(key)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
   openOutput.value = next
 }
 </script>
@@ -62,7 +63,7 @@ function toggleOutput(key: string): void {
 <template>
   <div class="space-y-1 text-xs">
     <p v-if="props.loading" class="text-muted">{{ t('downloads.postprocess.loading') }}</p>
-    <p v-else-if="!props.steps.length" class="text-muted">{{ t('downloads.postprocess.empty') }}</p>
+    <UEmpty v-else-if="!props.steps.length" :description="t('downloads.postprocess.empty')" />
     <div v-for="step in ordered" :key="stepKey(step)" class="grid gap-1 bg-elevated p-2 sm:grid-cols-[auto_1fr_auto] sm:items-center">
       <UBadge :color="stateColor[step.state] ?? 'neutral'" variant="subtle" size="sm">{{ stateLabel(step.state) }}</UBadge>
       <div class="min-w-0">

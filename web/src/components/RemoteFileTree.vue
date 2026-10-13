@@ -234,7 +234,7 @@ const range = useRangeSelection(
         </span>
         <span v-if="!node.isDir" class="shrink-0 font-mono text-2xs text-muted">{{ formatBytes(node.size) }}</span>
       </div>
-      <p v-if="!rows.length" class="p-5 text-center text-xs text-muted">{{ t('remote.listing.empty') }}</p>
+      <UEmpty v-if="!rows.length" :description="t('remote.listing.empty')" />
     </div>
   </div>
 </template>

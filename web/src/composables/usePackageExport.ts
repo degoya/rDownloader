@@ -15,7 +15,7 @@ export interface PackageExportChoice {
 }
 
 /** What to export; any mix, or `all` for every package of the download list. */
-export interface PackageExportSelection {
+interface PackageExportSelection {
   packageIds?: string[]
   downloadIds?: string[]
   collectorPackageIds?: string[]
@@ -29,7 +29,7 @@ export function exportFileName(disposition: string | null, format: PackageExport
 }
 
 /** An NZB the export could not embed, with the coded reason (RD-1220-02). */
-export interface ExportFailure {
+interface ExportFailure {
   name: string
   message: string
   code: string

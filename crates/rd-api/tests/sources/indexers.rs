@@ -100,7 +100,7 @@ async fn serve_api(
     )
 }
 
-async fn indexer_server(refuse: bool) -> (String, IndexerState) {
+async fn indexer_server(refuse: bool) -> (rd_testkit::TestServer, String, IndexerState) {
     let state = IndexerState {
         queries: Arc::new(Mutex::new(Vec::new())),
         refuse,
@@ -151,14 +151,13 @@ async fn indexer_server(refuse: bool) -> (String, IndexerState) {
             }),
         )
         .with_state(state.clone());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    (format!("http://{address}/api?t=search&cat=5030"), state)
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
+    (
+        server,
+        format!("http://{address}/api?t=search&cat=5030"),
+        state,
+    )
 }
 
 fn body(url: &str) -> Value {
@@ -249,7 +248,7 @@ fn recorded_search(state: &IndexerState) -> Option<RecordedQuery> {
 async fn results_become_review_items_and_download_the_nzb() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, state) = indexer_server(false).await;
+    let (_server, url, state) = indexer_server(false).await;
     let id = create_and_poll(&router, &url).await;
 
     let items = item_list(&router, &id).await;
@@ -288,7 +287,7 @@ async fn results_become_review_items_and_download_the_nzb() {
 async fn the_api_key_is_never_returned_by_the_api() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _) = indexer_server(false).await;
+    let (_server, url, _) = indexer_server(false).await;
     let id = create_and_poll(&router, &url).await;
 
     let (_, listed) = get_json(&router, "/api/v1/subscriptions").await;
@@ -309,7 +308,7 @@ async fn an_indexer_that_refuses_the_query_fails_visibly_and_without_the_key() {
     // like an indexer that simply had nothing new — the worst possible failure mode.
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _) = indexer_server(true).await;
+    let (_server, url, _) = indexer_server(true).await;
     let id = create_and_poll(&router, &url).await;
 
     let (_, listed) = get_json(&router, "/api/v1/subscriptions").await;
@@ -361,7 +360,7 @@ async fn an_indexer_nzb_link_is_imported_rather_than_saved_to_disk() {
     // the NZBHydra/Prowlarr shape — no `.nzb` extension, identified by content type alone.
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, _) = indexer_server(false).await;
+    let (_server, base, _) = indexer_server(false).await;
     let origin = base.split("/api").next().expect("origin").to_owned();
 
     let (status, _) = post_json(
@@ -417,7 +416,7 @@ async fn an_indexer_nzb_link_is_imported_rather_than_saved_to_disk() {
 async fn capabilities_are_discovered_and_double_as_the_test_action() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, state) = indexer_server(false).await;
+    let (_server, url, state) = indexer_server(false).await;
     let (status, created) = post_json(&router, "/api/v1/subscriptions", body(&url)).await;
     assert_eq!(status, StatusCode::CREATED, "{created}");
     let id = created["id"].as_str().expect("id");
@@ -488,7 +487,7 @@ async fn asking_a_non_indexer_for_capabilities_is_refused() {
 async fn a_mapped_indexer_category_decides_where_a_release_lands() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _) = indexer_server(false).await;
+    let (_server, url, _) = indexer_server(false).await;
 
     // Two categories, so the mapping has something to choose between.
     let library = temp.path().join("library");
@@ -574,7 +573,7 @@ async fn first_package(router: &Router) -> Value {
 async fn queueing_a_reviewed_item_hands_it_to_the_collector() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _) = indexer_server(false).await;
+    let (_server, url, _) = indexer_server(false).await;
     let id = create_and_poll(&router, &url).await;
 
     let items = item_list(&router, &id).await;
@@ -604,7 +603,7 @@ async fn queueing_a_reviewed_item_hands_it_to_the_collector() {
 async fn a_queued_indexer_hit_is_routed_by_what_the_feed_declared() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _) = indexer_server(false).await;
+    let (_server, url, _) = indexer_server(false).await;
     let id = create_and_poll(&router, &url).await;
 
     let items = item_list(&router, &id).await;
@@ -633,7 +632,7 @@ async fn a_queued_indexer_hit_is_routed_by_what_the_feed_declared() {
 async fn an_nzb_is_recognised_even_when_the_server_does_not_say_so() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, _) = indexer_server(false).await;
+    let (_server, base, _) = indexer_server(false).await;
     let origin = base.split("/api").next().expect("origin").to_owned();
 
     let (status, _) = post_json(
@@ -667,7 +666,7 @@ async fn an_nzb_is_recognised_even_when_the_server_does_not_say_so() {
 async fn a_queued_indexer_hit_keeps_the_release_name() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _) = indexer_server(false).await;
+    let (_server, url, _) = indexer_server(false).await;
     let id = create_and_poll(&router, &url).await;
 
     let items = item_list(&router, &id).await;
@@ -702,7 +701,7 @@ async fn a_queued_indexer_hit_keeps_the_release_name() {
 async fn an_import_is_named_by_the_headers_the_indexer_answers_with() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, _) = indexer_server(false).await;
+    let (_server, base, _) = indexer_server(false).await;
     let origin = base.split("/api").next().expect("origin").to_owned();
 
     let (status, _) = post_json(
@@ -743,7 +742,7 @@ async fn an_import_is_named_by_the_headers_the_indexer_answers_with() {
 async fn a_refusal_dressed_up_as_success_is_reported_as_one() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, _) = indexer_server(false).await;
+    let (_server, base, _) = indexer_server(false).await;
     let origin = base.split("/api").next().expect("origin").to_owned();
 
     let (status, _) = post_json(
@@ -806,7 +805,7 @@ async fn settle(router: &Router) -> String {
 async fn capabilities_can_be_probed_before_the_subscription_exists() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, state) = indexer_server(false).await;
+    let (_server, url, state) = indexer_server(false).await;
 
     let (status, caps) = post_json(
         &router,
@@ -835,7 +834,7 @@ async fn capabilities_can_be_probed_before_the_subscription_exists() {
 async fn probing_without_a_key_is_refused_before_anything_is_requested() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, state) = indexer_server(false).await;
+    let (_server, url, state) = indexer_server(false).await;
 
     let (status, problem) = post_json(
         &router,
@@ -853,7 +852,7 @@ async fn probing_without_a_key_is_refused_before_anything_is_requested() {
 async fn a_subscription_asks_only_for_the_categories_it_wants() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, state) = indexer_server(false).await;
+    let (_server, url, state) = indexer_server(false).await;
 
     // The shared fixture's address already carries `cat=5030` — a saved search, which wins.
     // This subscription is written with a bare address, the way somebody pasting the indexer's
@@ -889,7 +888,7 @@ async fn a_subscription_asks_only_for_the_categories_it_wants() {
 async fn requested_categories_are_trimmed_and_deduplicated() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _state) = indexer_server(false).await;
+    let (_server, url, _state) = indexer_server(false).await;
 
     let mut request = body(&url);
     request["source_categories"] = json!([" 5040 ", "5040", "", "5000"]);
@@ -906,7 +905,7 @@ async fn requested_categories_are_trimmed_and_deduplicated() {
 async fn an_address_that_already_names_categories_is_left_alone() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, state) = indexer_server(false).await;
+    let (_server, url, state) = indexer_server(false).await;
 
     let mut request = body(&url);
     request["source_categories"] = json!(["5000"]);
@@ -949,7 +948,7 @@ async fn an_address_that_already_names_categories_is_left_alone() {
 async fn a_title_filter_applies_on_the_indexer_path_and_keeps_its_reason() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, state) = indexer_server(false).await;
+    let (_server, url, state) = indexer_server(false).await;
 
     // The fixture's one hit is `Example.Release.1080p`.
     let mut wanted = body(&url);

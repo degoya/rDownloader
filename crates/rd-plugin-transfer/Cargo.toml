@@ -30,6 +30,7 @@ url.workspace = true
 workspace = true
 
 [dev-dependencies]
+rd-testkit = { path = "../rd-testkit", default-features = false }
 # Its own integration tests reach the `test-support` hooks this way.
 rd-plugin-transfer = { path = ".", features = ["test-support"] }
 rd-limits = { path = "../rd-limits" }

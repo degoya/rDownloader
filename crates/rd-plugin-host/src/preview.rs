@@ -146,7 +146,7 @@ pub fn preview_package(bytes: &[u8], verifier: &PluginVerifier) -> Result<Packag
 /// Reads the archive the way the installer does, so a package whose zip framing differs but
 /// whose members are the same bytes still matches — and one with a single changed byte in any
 /// member does not.
-pub fn archive_digest(bytes: &[u8]) -> Result<[u8; 32]> {
+pub(crate) fn archive_digest(bytes: &[u8]) -> Result<[u8; 32]> {
     let (manifest_bytes, component, _signature, locales) = read_archive(Cursor::new(bytes))?;
     Ok(package_digest(&manifest_bytes, &component, &locales))
 }

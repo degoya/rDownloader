@@ -1,15 +1,13 @@
-//! Guards `scripts/i18n-key.sh`, the one sanctioned way to add a translation key.
+//! Guards `scripts/i18n-key.sh`, the one sanctioned way to add a translation key, where the
+//! Bash test cannot: the order of the keys a catalogue already holds.
 //!
-//! The script is the rule: `AGENTS.md` says new keys are added with it and nothing else, because
-//! it writes all four languages in one go. So the group where most new keys appear -- the error
-//! codes in `server.json` -- has to be reachable by it. Until RD-120-24 it was not: `codes` holds
-//! literal keys with dots in them, and a dotted argument built a nested group instead, which
-//! resolved nowhere. All four catalogues agreed about that, so the language comparison could not
-//! see it either (`web/src/i18n/sourceKeys.test.ts` says which six codes got through that way).
+//! Every other case — a code flat in all four languages, nesting, the refusals and that a
+//! refusal writes nothing — is `scripts/tests/i18n-key.sh` since RD-1280-22. This one, two keys
+//! added after an existing one and found in the order they were written rather than sorted, is
+//! the one property the Bash test does not pin.
 //!
-//! These cases run the script against a throwaway catalogue tree through `RD_LOCALES_DIR`, which
-//! exists for exactly this: the script is a repository tool, and there is no other way to check
-//! what it does to a file without letting it write to the real ones.
+//! The case runs the script against a throwaway catalogue tree through `RD_LOCALES_DIR`, which
+//! exists for exactly this.
 //!
 //! Unix only: the script is a bash tool for the repository, and on a Windows runner `bash` is
 //! WSL's launcher without a distribution behind it.
@@ -63,105 +61,6 @@ fn read(directory: &Path, language: &str, catalogue: &str) -> String {
 }
 
 #[test]
-fn an_error_code_lands_flat_inside_codes_in_all_four_languages() {
-    let directory = catalogues("flat");
-    let output = run(
-        &directory,
-        &[
-            "server",
-            r"codes.collector\.check_no_resolver",
-            "Kein Resolver",
-            "No resolver",
-            "Sin resolver",
-            "Aucun resolveur",
-        ],
-    );
-    assert!(output.status.success(), "{output:?}");
-
-    for (language, expected) in [
-        ("de", "Kein Resolver"),
-        ("en", "No resolver"),
-        ("es", "Sin resolver"),
-        ("fr", "Aucun resolveur"),
-    ] {
-        let text = read(&directory, language, "server");
-        let parsed: serde_json::Value = serde_json::from_str(&text).expect("valid json");
-        assert_eq!(
-            parsed["codes"]["collector.check_no_resolver"], expected,
-            "{language} did not get the code as one literal key: {text}"
-        );
-    }
-    let _ = std::fs::remove_dir_all(&directory);
-}
-
-#[test]
-fn a_nested_key_still_nests() {
-    let directory = catalogues("nested");
-    let output = run(
-        &directory,
-        &[
-            "plugins",
-            "actions.disable",
-            "Deaktivieren",
-            "Disable",
-            "Desactivar",
-            "Desactiver",
-        ],
-    );
-    assert!(output.status.success(), "{output:?}");
-
-    let parsed: serde_json::Value =
-        serde_json::from_str(&read(&directory, "en", "plugins")).expect("valid json");
-    assert_eq!(parsed["actions"]["disable"], "Disable");
-    assert_eq!(parsed["actions"]["enable"], "Aktivieren");
-    let _ = std::fs::remove_dir_all(&directory);
-}
-
-#[test]
-fn a_dotted_key_that_would_open_a_group_inside_a_flat_one_is_refused() {
-    let directory = catalogues("guard");
-    let output = run(
-        &directory,
-        &["server", "codes.collector.other", "A", "B", "C", "D"],
-    );
-    assert!(!output.status.success(), "the script should have refused");
-
-    let message = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        message.contains(r"'codes.collector\.other'"),
-        "the refusal has to name the escaped form to use: {message}"
-    );
-    // Nothing was written: a refusal that has already edited two of four catalogues is worse
-    // than the mistake it refuses.
-    assert_eq!(
-        read(&directory, "de", "server"),
-        "{\n  \"codes\": {\n    \"collector.already_here\": \"vorhanden\"\n  }\n}\n"
-    );
-    let _ = std::fs::remove_dir_all(&directory);
-}
-
-#[test]
-fn an_existing_code_is_refused() {
-    let directory = catalogues("exists");
-    let output = run(
-        &directory,
-        &[
-            "server",
-            r"codes.collector\.already_here",
-            "A",
-            "B",
-            "C",
-            "D",
-        ],
-    );
-    assert!(
-        !output.status.success(),
-        "an existing leaf has to be refused"
-    );
-    let _ = std::fs::remove_dir_all(&directory);
-}
-
-#[test]
 fn the_order_of_the_existing_keys_is_kept() {
     let directory = catalogues("order");
     for key in ["codes.a\\.two", "codes.a\\.one"] {
@@ -176,28 +75,5 @@ fn the_order_of_the_existing_keys_is_kept() {
         first < second && second < third,
         "keys have to keep the order they were written in, not be sorted: {text}"
     );
-    let _ = std::fs::remove_dir_all(&directory);
-}
-
-#[test]
-fn a_new_subgroup_under_an_ordinary_group_is_still_allowed() {
-    // `actions` holds only strings, like 407 groups in the real catalogues. The guard is about
-    // groups whose keys carry dots; a first subgroup here is ordinary nesting and must work.
-    let directory = catalogues("subgroup");
-    let output = run(
-        &directory,
-        &[
-            "plugins",
-            "actions.bulk.enable",
-            "Alle",
-            "All",
-            "Todos",
-            "Tous",
-        ],
-    );
-    assert!(output.status.success(), "{output:?}");
-    let parsed: serde_json::Value =
-        serde_json::from_str(&read(&directory, "en", "plugins")).expect("valid json");
-    assert_eq!(parsed["actions"]["bulk"]["enable"], "All");
     let _ = std::fs::remove_dir_all(&directory);
 }

@@ -4,7 +4,7 @@ use super::Reply;
 
 /// The commands `Writer::handle_logs` applies.
 // The variant names were the flat enum's; within one area they share a postfix.
-#[allow(clippy::enum_variant_names)]
+#[expect(clippy::enum_variant_names)]
 pub(crate) enum LogsCommand {
     /// Stores a batch of already-redacted log records (RD-110-02).
     AppendLogRecords {

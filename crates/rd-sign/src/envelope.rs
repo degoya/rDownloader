@@ -101,7 +101,7 @@ impl SignedDocument {
 
     /// [`verify`](Self::verify), also naming the trusted key whose signature held: what a
     /// caller records as the document's signer (RD-1200-05).
-    pub fn verify_signer<T: DeserializeOwned>(
+    pub(crate) fn verify_signer<T: DeserializeOwned>(
         &self,
         domain: &str,
         trust: &TrustStore,
@@ -142,7 +142,7 @@ impl SignedDocument {
     }
 
     /// Builds a document from an already-serialised payload and its signatures.
-    pub fn from_parts(payload: Box<RawValue>, signatures: Vec<DocumentSignature>) -> Self {
+    pub(crate) fn from_parts(payload: Box<RawValue>, signatures: Vec<DocumentSignature>) -> Self {
         Self {
             payload,
             signatures,

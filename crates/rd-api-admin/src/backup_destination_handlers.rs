@@ -44,7 +44,7 @@ fn text(config: &serde_json::Value, field: &str) -> Option<String> {
 
 /// A destination row as the interface shows it, with what the ledger knows of it.
 #[must_use]
-pub fn destination_response(
+pub(crate) fn destination_response(
     record: &BackupDestinationRecord,
     archives: &[BackupArchive],
 ) -> BackupDestinationResponse {

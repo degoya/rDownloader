@@ -159,11 +159,8 @@ pub fn component(package: &str) -> Vec<u8> {
 /// was not installed. Fails exactly as [`component`] does.
 #[must_use]
 pub fn bundled_package(package: &str) -> crate::VerifiedPackage {
-    let path = plugin_directory(&workspace_root(), package).join("manifest.toml");
-    let text = std::fs::read_to_string(&path)
-        .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
-    let manifest =
-        toml::from_str(&text).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let text = bundled_manifest(package);
+    let manifest = toml::from_str(&text).unwrap_or_else(|error| panic!("{package}: {error}"));
     crate::VerifiedPackage {
         manifest,
         manifest_bytes: text.into_bytes(),
@@ -171,6 +168,22 @@ pub fn bundled_package(package: &str) -> crate::VerifiedPackage {
         signature: None,
         locales: Vec::new(),
     }
+}
+
+/// The manifest of the bundled plugin `package` (`rd-plugin-<name>` or `<name>`) as a package
+/// carries it: `plugins/metadata.toml`'s shared fields filled in, exactly as `rd-pack plugin
+/// package --defaults` writes them (RD-1280-18). For a test that installs or signs the plugin's
+/// manifest; one that only reads its domains or its provider can read the source as it is.
+#[must_use]
+pub fn bundled_manifest(package: &str) -> String {
+    let root = workspace_root();
+    let path = plugin_directory(&root, package).join("manifest.toml");
+    let source = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    let defaults = crate::ManifestDefaults::read(&root.join("plugins/metadata.toml"))
+        .unwrap_or_else(|error| panic!("{error:#}"));
+    crate::complete_manifest(&source, Some(&defaults), None)
+        .unwrap_or_else(|error| panic!("{}: {error:#}", path.display()))
 }
 
 /// What to say about a component that has not been built in this checkout.

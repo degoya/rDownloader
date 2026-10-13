@@ -134,14 +134,7 @@ pub fn stage_of(status: &str) -> Stage {
 /// percent, which is why this has a test of its own.
 #[must_use]
 pub fn permille(progress: Option<f64>) -> Option<u16> {
-    let progress = progress?;
-    if !progress.is_finite() {
-        return None;
-    }
-    let scaled = (progress * 1_000.0).round().clamp(0.0, 1_000.0);
-    // The clamp above bounds the value into u16 range before the cast, so nothing is lost.
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    Some(scaled as u16)
+    plugin_guest_remote_job::permille_of_fraction(progress)
 }
 
 /// Whether a provider-supplied identifier is safe to put in a query or a request path.

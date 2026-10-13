@@ -30,7 +30,7 @@ pub const KEPT_VERSIONS_PER_TOOL: usize = 3;
 /// A manifest is signed, but a signature is not a reason to let a string become a path
 /// traversal: the key could rotate, the publisher could be compromised, and the cost of
 /// checking is nothing.
-pub fn validate_segment(segment: &str) -> Result<(), ToolError> {
+pub(crate) fn validate_segment(segment: &str) -> Result<(), ToolError> {
     let acceptable = !segment.is_empty()
         && segment.len() <= 64
         && segment != "."

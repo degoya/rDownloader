@@ -4,16 +4,13 @@
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 
 import { useTorrentsStore } from './torrents'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'The torrent does not exist'),
-  resultMessage: vi.fn(() => 'Done')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The torrent does not exist'), resultMessage: vi.fn(() => 'Done') }))
 vi.mock('@/i18n', () => ({ i18n: { global: { t: (key: string) => key } } }))
 
 function detail(name: string, extra: Record<string, unknown> = {}) {

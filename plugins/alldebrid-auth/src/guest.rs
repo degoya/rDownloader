@@ -3,7 +3,6 @@
 //! The same contract as a device flow in a different shape — a short PIN and an address, and a
 //! separate opaque value the application polls with. The opaque value travels back through
 //! `flow-state`, because a guest is instantiated fresh for every call and remembers nothing.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_auth::{
     AuthState, Guest, UserPrompt, credentials,

@@ -1,4 +1,5 @@
-//! Conversions between domain values and the text the tables store them as.
+//! Conversions between domain values and the text the tables store them as, and the close of a
+//! connection whose work is done.
 
 use std::str::FromStr;
 
@@ -52,4 +53,13 @@ pub(crate) fn page_binds(offset: u64, limit: Option<u64>) -> (i64, i64) {
         limit.map_or(-1, |limit| i64::try_from(limit).unwrap_or(i64::MAX)),
         i64::try_from(offset).unwrap_or(i64::MAX),
     )
+}
+
+/// Closes a connection whose work is done. A failed close is no failure of that work: SQLite
+/// releases the handle when it drops, and nothing waits for it, so the error is only logged.
+pub(crate) async fn close_quietly(connection: sqlx::SqliteConnection) {
+    use sqlx::Connection as _;
+    if let Err(error) = connection.close().await {
+        tracing::debug!(%error, "a database connection did not close cleanly");
+    }
 }

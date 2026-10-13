@@ -257,8 +257,25 @@ async fn read_notes(directory: &Path, package: &Path) -> Result<Option<String>> 
     let notes = tokio::fs::read_to_string(&path)
         .await
         .with_context(|| format!("read release notes {}", path.display()))?;
-    Ok(Some(notes))
+    Ok(index_notes(notes))
 }
+
+/// The sentence a plugin's `CHANGES.md` section says when nothing a user notices changed
+/// (`scripts/plugin-release-notes.sh`).
+const MAINTENANCE: &str = "Maintenance release: internal changes only, no change in behaviour.";
+
+/// The notes an entry carries: none for the maintenance sentence alone (RD-1280-17).
+///
+/// `scripts/plugin-release-notes.sh` already prints the newest section with content in its
+/// place; this holds a notes directory written another way, a third-party repository's among
+/// them, to the same rule, so the plugin cards never read "Maintenance release".
+fn index_notes(notes: String) -> Option<String> {
+    (notes.trim() != MAINTENANCE).then_some(notes)
+}
+
+#[cfg(test)]
+#[path = "plugin_index_tests.rs"]
+mod tests;
 
 /// Refuses an index an installation would refuse, and optionally the packages beside it.
 async fn verify(args: &VerifyArgs) -> Result<()> {

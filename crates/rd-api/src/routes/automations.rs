@@ -48,6 +48,10 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/automations/{id}/versions",
             get(automation_handlers::list_automation_versions),
         )
+        .route(
+            "/api/v1/automations/{id}/versions/reset",
+            post(automation_handlers::reset_automation_versions),
+        )
 }
 
 /// OpenAPI operations of this area.
@@ -60,6 +64,7 @@ pub(crate) fn routes() -> Router<AppState> {
         automation_handlers::delete_automation,
         automation_handlers::enable_automation,
         automation_handlers::list_automation_versions,
+        automation_handlers::reset_automation_versions,
         automation_handlers::list_automation_runs,
         automation_handlers::dry_run_automations,
         crate::area_backup::export_automations,
@@ -86,6 +91,7 @@ pub(crate) fn routes() -> Router<AppState> {
         rd_automation::RunState,
         rd_automation::Schedule,
         rd_automation::Trigger,
+        rd_automation::VersionReset,
     ))
 )]
 pub(crate) struct Doc;

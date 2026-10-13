@@ -24,7 +24,7 @@ pub const CHANNEL_HEADER: &str = "x-rdownloader-update-channel";
 /// The answer header the service asks the agent to install a version in.
 pub const REQUEST_HEADER: &str = "x-rdownloader-agent-update-request";
 /// The longest report read; anything longer is not one this project's agent sends.
-pub const MAX_REPORT_BYTES: usize = 160;
+pub(crate) const MAX_REPORT_BYTES: usize = 160;
 
 /// Where the agent's own update stands.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]

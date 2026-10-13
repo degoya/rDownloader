@@ -179,7 +179,7 @@ function kindLabel(value: string): string {
           <h3 class="text-sm font-semibold text-highlighted">{{ t('system.backup.full_restore.source.title') }}</h3>
           <URadioGroup v-model="kind" orientation="horizontal" :items="kindItems" data-testid="full-restore-kind" />
           <template v-if="kind === 'history'">
-            <p v-if="!runItems.length" class="text-sm text-muted">{{ t('system.backup.full_restore.source.no_runs') }}</p>
+            <UEmpty v-if="!runItems.length" :description="t('system.backup.full_restore.source.no_runs')" />
             <USelect
               v-else
               v-model="runId"
@@ -307,7 +307,7 @@ function kindLabel(value: string): string {
           <p class="text-sm text-toned">
             {{ t('system.backup.full_restore.test.summary', { moved: report.moved_paths, credentials: report.restored_credentials, migrated: report.schema.migrated, packages: report.counts.packages }) }}
           </p>
-          <p v-if="!report.problems.length" class="text-sm text-muted">{{ t('system.backup.full_restore.test.none') }}</p>
+          <UEmpty v-if="!report.problems.length" :description="t('system.backup.full_restore.test.none')" />
           <ul v-else class="divide-y divide-muted border border-muted">
             <li v-for="problem in report.problems" :key="`${problem.severity}:${problem.code}`" class="space-y-1 p-3 text-sm">
               <div class="flex items-center gap-2">

@@ -691,64 +691,6 @@ async fn discard_reaches_the_provider_only_when_called() {
     );
 }
 
-/// Nothing that could be a credential, an account's real identifier or a live link is
-/// committed to the repository.
-#[test]
-fn fixtures_carry_no_credential_material() {
-    fn walk(value: &serde_json::Value, path: &std::path::Path) {
-        match value {
-            serde_json::Value::Object(fields) => {
-                for (name, inner) in fields {
-                    assert!(
-                        !matches!(
-                            name.as_str(),
-                            "access_token" | "refresh_token" | "token" | "client_secret"
-                        ),
-                        "{path:?} carries a `{name}` field"
-                    );
-                    if name == "id"
-                        && let Some(id) = inner.as_str()
-                    {
-                        assert!(id.starts_with("REDACTED"), "{path:?} carries a real id");
-                    }
-                    if name == "hash"
-                        && let Some(hash) = inner.as_str()
-                    {
-                        assert!(
-                            hash.eq_ignore_ascii_case(HASH) || hash.chars().all(|c| c == '0'),
-                            "{path:?} carries a real hash"
-                        );
-                    }
-                    walk(inner, path);
-                }
-            }
-            serde_json::Value::Array(items) => {
-                for item in items {
-                    walk(item, path);
-                }
-            }
-            serde_json::Value::String(text) if text.starts_with("http") => {
-                assert!(
-                    text.contains("REDACTED") || text.starts_with("https://api.real-debrid.com/"),
-                    "{path:?} carries a live link: {text}"
-                );
-            }
-            _ => {}
-        }
-    }
-    let directory =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/realdebrid_torrents");
-    let mut checked = 0;
-    for entry in std::fs::read_dir(&directory).expect("the fixture directory") {
-        let path = entry.expect("a fixture").path();
-        let body = std::fs::read_to_string(&path).expect("a fixture");
-        let value: serde_json::Value = serde_json::from_str(&body).expect("fixture is JSON");
-        walk(&value, &path);
-        checked += 1;
-    }
-    assert!(checked >= 10, "only {checked} fixtures were checked");
-}
-
 /// The plugin reaches only the API it needs, with only the token it needs, and claims the
 /// provider row its two siblings already share.
 #[test]

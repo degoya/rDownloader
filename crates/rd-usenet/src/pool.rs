@@ -88,7 +88,10 @@ impl NntpPool {
 
     /// Like [`Self::new`], with `cap` bounding the connections to any one server below its
     /// own limit; `None` leaves every server at its limit (RD-108-25).
-    pub fn with_connection_cap(configs: Vec<NntpServerConfig>, cap: Option<usize>) -> Result<Self> {
+    pub(crate) fn with_connection_cap(
+        configs: Vec<NntpServerConfig>,
+        cap: Option<usize>,
+    ) -> Result<Self> {
         Self::metered(
             configs.into_iter().map(|config| (config, None)).collect(),
             cap,
@@ -175,7 +178,7 @@ impl NntpPool {
 
     /// Number of priority/fallback endpoints attempted for an unavailable article.
     #[must_use]
-    pub fn server_count(&self) -> usize {
+    pub(crate) fn server_count(&self) -> usize {
         self.servers.len()
     }
 

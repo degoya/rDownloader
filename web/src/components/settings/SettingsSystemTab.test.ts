@@ -1,5 +1,6 @@
 import { waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import settings from '@/locales/en/settings.json'
@@ -23,11 +24,11 @@ vi.mock('./SettingsDataResetButton.vue', () => ({
   }
 }))
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
+vi.mock('@/api/client', () => apiClientMock())
 // The update dialog asks through useConfirm, which Nuxt UI's overlay backs; the tests never confirm.
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn() }))
+vi.mock('@/composables/useConfirm', () => confirmMock(vi.fn()))
 // The update dialog's copy button reports a refused clipboard with a toast.
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 vi.mock('@/composables/useAppTour', () => ({ useAppTour: () => ({ startTour: vi.fn() }) }))
 vi.mock('@/stores/session', () => ({
   useSessionStore: () => ({ setupRequired: false, loginDisabled: false, openWizard: vi.fn() })

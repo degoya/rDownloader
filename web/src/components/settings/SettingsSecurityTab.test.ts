@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import type { Settings } from '@/api/types'
 import settings from '@/locales/en/settings.json'
@@ -15,11 +16,8 @@ import { mountComponent } from '@/test/mount'
 import SettingsSecurityTab from './SettingsSecurityTab.vue'
 
 // The cards beside the warning are stubbed, but their modules still load.
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(true) }) }) })
-}))
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn(async () => ({ data: null })) }, responseError: () => 'failed' }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ answer: true }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: null })), responseError: () => 'failed' }))
 
 function mount(values: Partial<Settings>) {
   return mountComponent(SettingsSecurityTab, {

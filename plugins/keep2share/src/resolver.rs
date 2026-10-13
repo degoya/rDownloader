@@ -82,7 +82,7 @@ pub(crate) async fn check_account<H: PluginHost>(
     require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let token = require_token(host).await?;
     let info: api::AccountInfoResult =
-        api_call(host, "accountinfo", api::accountinfo_body(&token)).await?;
+        api_call(host, "accountinfo", api::accountinfo_body(&token)?).await?;
     let premium = api::is_premium(info.account_expires.as_ref());
     Ok(Account {
         valid: true,
@@ -110,7 +110,7 @@ pub(crate) async fn resolve<H: PluginHost>(
     require_secret(host, account_id, ACCOUNT_SECRET).await?;
     let token = require_token(host).await?;
     let result: api::GetUrlResult =
-        api_call(host, "geturl", api::geturl_body(&file_id, &token)).await?;
+        api_call(host, "geturl", api::geturl_body(&file_id, &token)?).await?;
     let raw_url = result
         .url
         .ok_or_else(|| coded(FailureKind::Permanent, messages::NO_DOWNLOAD_URL))?;
@@ -159,13 +159,10 @@ pub(crate) async fn check<H: PluginHost>(
 
     for chunk in indexed_ids.chunks(CHUNK_SIZE) {
         let ids: Vec<&str> = chunk.iter().map(|(_, fuid)| fuid.as_str()).collect();
-        let files = match api_call::<H, api::GetFilesInfoResult>(
-            host,
-            "getfilesinfo",
-            api::getfilesinfo_body(&ids),
-        )
-        .await
-        {
+        let Ok(body) = api::getfilesinfo_body(&ids) else {
+            continue;
+        };
+        let files = match api_call::<H, api::GetFilesInfoResult>(host, "getfilesinfo", body).await {
             Ok(result) => result.files,
             Err(_) => continue,
         };
@@ -192,7 +189,7 @@ fn check_one(url: &str, fuid: &str, files: &[api::FileEntry]) -> LinkCheck {
 /// `POST /login` — a fresh session token every invocation; never cached, because there is
 /// nowhere to cache it.
 async fn require_token<H: PluginHost>(host: &H) -> Result<String, Failure> {
-    let result: api::LoginResult = api_call(host, "login", api::login_body()).await?;
+    let result: api::LoginResult = api_call(host, "login", api::login_body()?).await?;
     result
         .auth_token
         .ok_or_else(|| coded(FailureKind::Permanent, messages::NO_TOKEN))

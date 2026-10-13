@@ -29,10 +29,9 @@ pub(super) async fn produce(
     started_at: DateTime<Utc>,
 ) -> Result<Written, BackupError> {
     // No key, no backup: there is no path that writes one unsealed.
-    let record = config
-        .key
-        .as_ref()
-        .ok_or_else(|| failure("backup.key_missing", "no backup passphrase has been set up"))?;
+    let record = config.key.as_ref().ok_or_else(|| {
+        BackupError::new("backup.key_missing", "no backup passphrase has been set up")
+    })?;
     let key = load_key(state, record).await?;
 
     let records: Vec<_> = config
@@ -41,7 +40,7 @@ pub(super) async fn produce(
         .filter(|record| record.enabled)
         .collect();
     if records.is_empty() {
-        return Err(failure(
+        return Err(BackupError::new(
             "backup.destination_missing",
             "no backup destination is set",
         ));
@@ -75,7 +74,7 @@ pub(super) async fn produce(
             }
         }
         return Err(first.unwrap_or_else(|| {
-            failure("backup.destination_missing", "no backup destination is set")
+            BackupError::new("backup.destination_missing", "no backup destination is set")
         }));
     }
 
@@ -134,12 +133,12 @@ pub(crate) async fn load_key(
         .secrets
         .get_bytes(&record.reference)
         .await
-        .map_err(|error| failure("backup.key_unavailable", format!("{error:#}")))?;
+        .map_err(|error| BackupError::new("backup.key_unavailable", format!("{error:#}")))?;
     let salt = STANDARD
         .decode(&record.salt)
-        .map_err(|error| failure("backup.key_unavailable", error.to_string()))?;
+        .map_err(|error| BackupError::new("backup.key_unavailable", error.to_string()))?;
     BackupKey::from_stored(&key_bytes, &salt)
-        .map_err(|error| failure("backup.key_unavailable", format!("{error:#}")))
+        .map_err(|error| BackupError::new("backup.key_unavailable", format!("{error:#}")))
 }
 
 /// What an archive holds besides the database: the settings bundle sealed under `key`, the
@@ -151,9 +150,9 @@ pub(crate) async fn backup_sources(
 ) -> Result<BackupSources, BackupError> {
     let bundle = build_settings_bundle(state, SecretSealing::BackupKey(key))
         .await
-        .map_err(|error| failure("backup.settings_failed", error.message()))?;
+        .map_err(|error| BackupError::new("backup.settings_failed", error.message()))?;
     let settings_bundle = serde_json::to_vec_pretty(&bundle)
-        .map_err(|error| failure("backup.settings_failed", error.to_string()))?;
+        .map_err(|error| BackupError::new("backup.settings_failed", error.to_string()))?;
     Ok(BackupSources {
         settings_bundle,
         torrent_session: Some(state.torrent.session_directory()),

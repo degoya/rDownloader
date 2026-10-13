@@ -5,23 +5,21 @@
  * that says what went and, with its reason, what stayed.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 import { ref } from 'vue'
 
-const add = vi.fn()
+const add = vi.hoisted(() => vi.fn())
 const DELETE = vi.fn()
 const confirmed = vi.fn<(options: Record<string, unknown>) => Promise<boolean>>()
 
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add }))
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string, named?: Record<string, unknown>) => named ? `${key} ${JSON.stringify(named)}` : key
   })
 }))
-vi.mock('@/api/client', () => ({
-  api: { DELETE },
-  responseError: () => 'The service did not answer'
-}))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
+vi.mock('@/api/client', () => apiClientMock({ DELETE }))
+vi.mock('@/composables/useConfirm', () => confirmMock((...args: never[]) => (confirmed as (...args: never[]) => unknown)(...args)))
 vi.mock('@/i18n/server', () => ({
   translateServerMessage: (message: { code: string }) => `[${message.code}]`
 }))

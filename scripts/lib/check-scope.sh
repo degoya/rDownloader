@@ -15,6 +15,18 @@
 # checkout root.
 
 rd_check_scope() {
+    rd_check_scope_kind
+    rd_check_scope_packages
+    rd_check_scope_wide
+    rd_check_scope_tests
+    rd_check_scope_rd_api
+    rd_check_scope_triggers
+}
+
+# The named steps of rd_check_scope (RD-1280-08), in its order; each sets its globals, listed above.
+
+# docs_only and rust_touched.
+rd_check_scope_kind() {
     # Documentation only: no path the change touches is read by any check (rd_inert_path,
     # scripts/lib/inert-paths.sh — the one rule verified.sh and --defer apply too). The two .md
     # files a test reads are not documentation there.
@@ -31,7 +43,11 @@ rd_check_scope() {
     if [[ "$full" -eq 1 ]] || { [[ -n "$changed" ]] && rd_rust_input_touched <<< "$changed"; }; then
         rust_touched=1
     fi
+}
 
+# packages: the touched crates, the contract tests of a plugin change, the crates a Rust test
+# input names.
+rd_check_scope_packages() {
     mapfile -t crate_dirs < <(rd_scope_crate_dirs <<< "$changed")
     packages=()
     for directory in "${crate_dirs[@]+"${crate_dirs[@]}"}"; do
@@ -56,7 +72,11 @@ rd_check_scope() {
         packages+=("${input_packages[@]}")
         rust_touched=1
     fi
+}
 
+# wide_reason and lock_paths: a reason to run the whole workspace, or the members a lock change
+# narrows to (rd_check_scope_lock).
+rd_check_scope_wide() {
     # The whole workspace at branch level too, when the blast radius is everything: the toolchain,
     # the nextest or the deny configuration. Until RD-120-58 touching rd-core, rd-db, rd-scheduler or
     # rd-files, or more than six crates, did the same; now those get their own tests plus one level
@@ -72,35 +92,44 @@ rd_check_scope() {
     if [[ -n "$governing" ]]; then
         wide_reason="$governing governs the whole build"
     elif [[ "$full" -eq 0 ]] && touches '^Cargo\.(toml|lock)$'; then
-        lock_scope="$(rd_scope_lock_crates "$boundary")" \
-            || lock_scope="WIDE scripts/lib/lock-scope.py could not answer"
-        if [[ "$lock_scope" == WIDE\ * ]]; then
-            wide_reason="Cargo.toml/Cargo.lock: ${lock_scope#WIDE }"
-        else
-            echo
-            echo "==> Cargo.toml/Cargo.lock: the members whose resolved tree changed"
-            plugin_members=0
-            while read -r package directory why; do
-                [[ -n "$package" ]] || continue
-                if [[ "$directory" == plugins/* ]]; then
-                    # Like a change under plugins/: the contract tests below, added once.
-                    plugin_members=$((plugin_members + 1))
-                    continue
-                fi
-                echo "    $package — $why"
-                packages+=("$package")
-                # For the rd-api map, the change counts as one to that crate's manifest.
-                lock_paths+="$directory/Cargo.toml"$'\n'
-            done <<< "$lock_scope"
-            if [[ "$plugin_members" -gt 0 ]]; then
-                echo "    $plugin_members plugin crates — their contract tests (rd-plugin-ext, rd-plugin-host)"
-                packages+=(rd-plugin-ext rd-plugin-host)
-            fi
-            [[ -n "$lock_scope" ]] || echo "    none — the change resolves to the same tree"
-        fi
+        rd_check_scope_lock
     fi
     if [[ "$full" -eq 1 ]]; then wide_reason="--full"; fi
+}
 
+# The members whose resolved tree a change to Cargo.toml or Cargo.lock changed, into packages and
+# lock_paths; wide_reason when lock-scope.py cannot narrow it.
+rd_check_scope_lock() {
+    lock_scope="$(rd_scope_lock_crates "$boundary")" \
+        || lock_scope="WIDE scripts/lib/lock-scope.py could not answer"
+    if [[ "$lock_scope" == WIDE\ * ]]; then
+        wide_reason="Cargo.toml/Cargo.lock: ${lock_scope#WIDE }"
+    else
+        echo
+        echo "==> Cargo.toml/Cargo.lock: the members whose resolved tree changed"
+        plugin_members=0
+        while read -r package directory why; do
+            [[ -n "$package" ]] || continue
+            if [[ "$directory" == plugins/* ]]; then
+                # Like a change under plugins/: the contract tests below, added once.
+                plugin_members=$((plugin_members + 1))
+                continue
+            fi
+            echo "    $package — $why"
+            packages+=("$package")
+            # For the rd-api map, the change counts as one to that crate's manifest.
+            lock_paths+="$directory/Cargo.toml"$'\n'
+        done <<< "$lock_scope"
+        if [[ "$plugin_members" -gt 0 ]]; then
+            echo "    $plugin_members plugin crates — their contract tests (rd-plugin-ext, rd-plugin-host)"
+            packages+=(rd-plugin-ext rd-plugin-host)
+        fi
+        [[ -n "$lock_scope" ]] || echo "    none — the change resolves to the same tree"
+    fi
+}
+
+# test_packages and dependant_packages.
+rd_check_scope_tests() {
     # Branch level: the touched crates in full, and one level of reverse dependencies with their
     # library and binary tests only. rd-api is removed from both; it has a rule of its own below.
     test_packages=()
@@ -110,7 +139,10 @@ rd_check_scope() {
         mapfile -t dependant_packages < <(printf '%s\n' "${packages[@]}" | rd_scope_reverse_deps \
             | sort -u | grep -vxF -f <(printf '%s\n' "${packages[@]}" rd-api) || true)
     fi
+}
 
+# RD_API_MAP, rd_api_all, rd_api_selected, rd_api_reason, rd_api_binaries, rd_api_filter.
+rd_check_scope_rd_api() {
     # The rd-api integration suites: all of them in a wide run, otherwise what the map demands.
     # They run as the binaries holding them (RD-150-10), filtered to them when not all are selected.
     RD_API_MAP="scripts/lib/rd-api-tests.map"
@@ -137,7 +169,10 @@ rd_check_scope() {
         && command -v cargo-nextest > /dev/null; then
         rd_api_filter=(-E "$(rd_api_test_filter "${rd_api_selected[@]}")")
     fi
+}
 
+# crash_triggers, failpoints, sqlx, web_changed, extension_changed.
+rd_check_scope_triggers() {
     # The crash matrix's runs and the crates that call for them: scripts/lib/crash-matrix.list, the
     # one list check.sh and ci.yml read (RD-191-09).
     # shellcheck source=lib/crash-matrix.sh

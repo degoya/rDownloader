@@ -3,6 +3,7 @@
  * draws from the answer, and the jump a choice makes.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 import { effectScope, nextTick, ref } from 'vue'
 
 import { api } from '@/api/client'
@@ -10,7 +11,7 @@ import { router } from '@/router'
 
 import { PALETTE_QUEUE_LIMIT, queueSearchGroups, usePaletteQueueSearch } from './paletteQueueSearch'
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
+vi.mock('@/api/client', () => apiClientMock())
 
 const t = (key: string): string => key
 

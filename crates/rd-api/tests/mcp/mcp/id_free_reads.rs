@@ -42,6 +42,8 @@ pub(super) fn id_free_reads() -> Vec<(&'static str, serde_json::Value)> {
         ("list_automations", serde_json::json!({})),
         ("list_notification_rules", serde_json::json!({})),
         ("list_notification_targets", serde_json::json!({})),
+        // RD-1280-02: the placeholders a rule's own wording may name.
+        ("list_notification_placeholders", serde_json::json!({})),
         ("list_web_push_subscriptions", serde_json::json!({})),
         ("list_subscriptions", serde_json::json!({})),
         ("list_stream_channels", serde_json::json!({})),

@@ -23,11 +23,11 @@ use crate::{
 };
 
 /// The settings key of the switch that sets every installed plugin to automatic updates.
-pub const AUTOMATIC_UPDATES_KEY: &str = "plugin_updates";
+pub(crate) const AUTOMATIC_UPDATES_KEY: &str = "plugin_updates";
 
 /// Whether every installed plugin updates itself, whatever its own policy. Off when nothing
 /// was ever stored.
-pub async fn automatic_for_all(database: &rd_db::Database) -> anyhow::Result<bool> {
+pub(crate) async fn automatic_for_all(database: &rd_db::Database) -> anyhow::Result<bool> {
     Ok(switched_on(
         database.get_setting(AUTOMATIC_UPDATES_KEY).await?.as_ref(),
     ))

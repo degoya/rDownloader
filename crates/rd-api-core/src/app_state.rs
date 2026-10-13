@@ -35,7 +35,7 @@ impl RemoteServices {
 impl AppState {
     /// Creates API state from initialized service components.
     #[must_use]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         database: Database,
         scheduler: SchedulerHandle,

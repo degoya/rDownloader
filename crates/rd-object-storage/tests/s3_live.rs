@@ -26,7 +26,8 @@ use rd_extract::{ObjectUpload, ObjectUploader, UploadReport};
 use rd_scheduler::RunOutcome;
 use tokio_util::sync::CancellationToken;
 
-use support::{Harness, payload};
+use rd_testkit::payload;
+use support::Harness;
 
 struct Live {
     endpoint: Option<String>,

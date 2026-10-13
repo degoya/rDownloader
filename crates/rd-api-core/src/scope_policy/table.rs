@@ -110,6 +110,11 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/automations/{id}", Method::PUT, CONFIG),
     entry("/api/v1/automations/{id}/enable", Method::POST, CONFIG),
     entry("/api/v1/automations/{id}/versions", Method::GET, CONFIG),
+    entry(
+        "/api/v1/automations/{id}/versions/reset",
+        Method::POST,
+        CONFIG,
+    ),
     // The full backup (RD-160-01): an archive of the whole installation, credentials included,
     // written to a folder of the caller's choosing. Every route of it is administration, the
     // price the settings export already has -- reading the schedule included, since it names
@@ -513,6 +518,8 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
         ADMIN,
     ),
     entry("/api/v1/notifications/destinations", Method::GET, CONFIG),
+    // RD-1280-02: what a rule's own title and text may name.
+    entry("/api/v1/notifications/placeholders", Method::GET, CONFIG),
     entry("/api/v1/notifications/rules", Method::GET, CONFIG),
     entry("/api/v1/notifications/rules", Method::POST, CONFIG),
     entry("/api/v1/notifications/rules/{id}", Method::DELETE, CONFIG),

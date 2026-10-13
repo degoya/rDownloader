@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "remote-job"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000011e"
 name = "TorBox jobs"
-version = "0.2.12"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.2.13"
 
 [capabilities]
 # The API key the person pasted into the TorBox account. It is read back here only as the
@@ -33,14 +29,6 @@ containers = ["torrent", "nzb"]
 
 [metadata]
 description = "Runs magnets, torrent files, NZBs and web links as jobs on a TorBox account, and checks TorBox's cache for them."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-# The `remote-job` world does not exist before 1.0.7, and the `address` source shape this
-# plugin needs for web downloads arrived with the 0.7.0 contract. `cache-kinds` and
-# `check-cached` (RD-130-11) arrived with 0.9.0, which `api_version` already gates: a core
-# that predates them refuses the package by its contract, whatever this line says.
-min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432
@@ -50,5 +38,3 @@ memory_bytes = 33554432
 # NZB for a large release is comfortably larger than a `.torrent`, which is why the bound is
 # twice what the torrent-only sibling needs.
 fuel = 500000000
-timeout_milliseconds = 15000
-max_response_bytes = 8388608

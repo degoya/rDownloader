@@ -50,7 +50,7 @@ fn context(auth: Option<AuthMaterial>, custom_ca_pem: Vec<Vec<u8>>) -> ClientCon
 
 /// Serves `/guarded` (echoes the Authorization header it saw) and `/away` (redirects to
 /// `elsewhere`), on an ephemeral port.
-async fn http_fixture(elsewhere: Option<String>) -> String {
+async fn http_fixture(elsewhere: Option<String>) -> rd_testkit::TestServer {
     let app = Router::new()
         .route(
             "/guarded",
@@ -69,12 +69,7 @@ async fn http_fixture(elsewhere: Option<String>) -> String {
                 async move { Redirect::temporary(&target) }
             }),
         );
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    format!("http://{address}")
+    rd_testkit::serve(app).await
 }
 
 #[tokio::test]
@@ -84,8 +79,10 @@ async fn a_bearer_token_reaches_the_target_but_not_a_foreign_redirect() {
         "authorization".to_owned(),
         "Bearer profile-token".to_owned(),
     )];
-    let foreign = http_fixture(None).await;
-    let origin = http_fixture(Some(format!("{foreign}/guarded"))).await;
+    let foreign_server = http_fixture(None).await;
+    let foreign = foreign_server.url("");
+    let origin_server = http_fixture(Some(format!("{foreign}/guarded"))).await;
+    let origin = origin_server.url("");
     let client = ClientPool::default()
         .get_or_create(context(None, Vec::new()))
         .await
@@ -125,7 +122,8 @@ async fn a_bearer_token_reaches_the_target_but_not_a_foreign_redirect() {
 
 #[tokio::test]
 async fn basic_credentials_are_encoded_the_way_the_scheduler_sends_them() {
-    let origin = http_fixture(None).await;
+    let origin_server = http_fixture(None).await;
+    let origin = origin_server.url("");
     let client = ClientPool::default()
         .get_or_create(context(None, Vec::new()))
         .await
@@ -274,8 +272,10 @@ async fn a_certificate_bearing_client_refuses_to_leave_its_origin() {
     // from being offered to a redirect target during the handshake. This is the only case
     // that needs the origin-bounded redirect policy, and this is the test for it. The
     // second fixture listens on another port, which is already a different origin.
-    let foreign = http_fixture(None).await;
-    let origin = http_fixture(Some(format!("{foreign}/guarded"))).await;
+    let foreign_server = http_fixture(None).await;
+    let foreign = foreign_server.url("");
+    let origin_server = http_fixture(Some(format!("{foreign}/guarded"))).await;
+    let origin = origin_server.url("");
     let identity = mtls_fixture().await.client_identity_pem;
 
     let client = ClientPool::default()

@@ -24,7 +24,7 @@ use crate::stream::{self, OpeningReader};
 
 /// The largest part a preview keeps in memory; the settings bundle and the two JSON lists are
 /// far below it, and anything bigger is only hashed.
-pub const MAX_KEPT_PART_BYTES: u64 = 64 << 20;
+pub(crate) const MAX_KEPT_PART_BYTES: u64 = 64 << 20;
 
 /// Derives the archive's key from `passphrase` and checks that it opens the first chunk.
 ///

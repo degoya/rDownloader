@@ -7,9 +7,10 @@
  * Owner, same day: "all" is every page of the list as it was drawn, never a hit held back — the
  * drawer sends the list's watermark, which moves only when the list is drawn again.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
@@ -18,32 +19,24 @@ import common from '@/locales/en/common.json'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import subscriptions from '@/locales/en/subscriptions.json'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
-import { uiStubs } from '@/test/mount'
+import { mountComponent, passthrough, uiStubs } from '@/test/mount'
 
 import IndexerReviewList from './IndexerReviewList.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), PUT: vi.fn(), POST: vi.fn() },
-  responseError: vi.fn(() => 'failed'),
-  errorMessage: vi.fn()
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'failed'), errorMessage: vi.fn() }))
 let subscriptionEvent: ((event: MessageEvent<string>) => void) | null = null
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, (event: MessageEvent<string>) => void>) => {
     subscriptionEvent = handlers['subscription.changed'] ?? null
     return () => { subscriptionEvent = null }
   }
 }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { common, linkgrabber, subscriptions } } })
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
 const components = {
-  UAlert: uiStubs.UAlert,
-  UCollapsible: uiStubs.UCollapsible,
-  UEmpty: uiStubs.UEmpty,
-  UPopover: uiStubs.UPopover,
+  ...uiStubs,
   UButton: { props: ['label', 'disabled', 'loading'], template: '<button v-bind="$attrs" :disabled="disabled">{{ label }}</button>' },
   UBadge: passthrough,
   UIcon: passthrough,
@@ -103,7 +96,7 @@ beforeEach(() => {
 })
 
 async function openGroup(): Promise<void> {
-  render(IndexerReviewList, { global: { plugins: [i18n], components } })
+  mountComponent(IndexerReviewList, { i18n, stubs: components, keepPinia: true })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Review' })).toBeTruthy())
   await fireEvent.click(screen.getByRole('button', { name: 'Review' }))
   await waitFor(() => expect(screen.getByText('Weekly documentaries')).toBeTruthy())

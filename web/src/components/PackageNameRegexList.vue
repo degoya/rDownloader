@@ -43,7 +43,7 @@ function move(index: number, delta: -1 | 1): void {
 
 <template>
   <div class="space-y-2" data-testid="package-name-regex">
-    <p v-if="!pairs.length" class="text-xs text-muted">{{ t('settings.postprocess.package_names.regex.empty') }}</p>
+    <UEmpty v-if="!pairs.length" :description="t('settings.postprocess.package_names.regex.empty')" />
     <ol v-else class="space-y-1">
       <li v-for="(pair, index) in pairs" :key="index" class="flex items-center gap-2 border border-muted px-2 py-1" data-testid="package-name-regex-row">
         <span class="numeric w-5 shrink-0 text-xs text-muted">{{ index + 1 }}.</span>

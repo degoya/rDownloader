@@ -1321,7 +1321,11 @@
     "diagnostics.log_level_locked": "RUST_LOG={rust_log} legt das Protokoll fest; die Stufe gilt erst, wenn der Dienst ohne RUST_LOG startet.",
     "diagnostics.debug_minutes_invalid": "Debug für eine Weile dauert 15, 30 oder 60 Minuten.",
     "diagnostics.debug_plugin_invalid": "Nur der Bereich Plugin nimmt ein Plugin, und nur ein installiertes.",
-    "media.ytdlp_cookies_required": "Die Seite weist yt-dlp ohne ihre Cookies ab (HTTP 412). Hinterlege die Browser-Cookies der Seite in einem Authentifizierungsprofil (Konten → Authentifizierungsprofile) oder übergib sie mit „Sitzung dieser Seite an rDownloader senden“ in der Browser-Erweiterung. {detail}"
+    "media.ytdlp_cookies_required": "Die Seite weist yt-dlp ohne ihre Cookies ab (HTTP 412). Hinterlege die Browser-Cookies der Seite in einem Authentifizierungsprofil (Konten → Authentifizierungsprofile) oder übergib sie mit „Sitzung dieser Seite an rDownloader senden“ in der Browser-Erweiterung. {detail}",
+    "automation.version_reset_run_active": "Ein Lauf einer älteren Version ist noch aktiv. Setze die Versionen zurück, sobald er fertig ist.",
+    "notification.template_syntax": "Eine geschweifte Klammer in der Vorlage ist nicht geschlossen, nicht geöffnet oder leer.",
+    "notification.template_unknown_placeholder": "„{placeholder}“ ist kein Platzhalter.",
+    "notification.template_too_long": "Die Vorlage ist länger als {max} Zeichen."
   },
   "capabilities": {
     "media_download": "Mediendownloads",

@@ -339,7 +339,7 @@ impl DownloadEngine {
     /// replay and no validator. The shape every source of a mirror set is fetched in
     /// (RD-150-03), where each source has validators of its own and the piece and whole-file
     /// hashes stand in for them. The set's length still holds every answer to it (TR-01).
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub(crate) async fn fetch_chunk(
         &self,
         url: Url,

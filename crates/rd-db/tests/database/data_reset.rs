@@ -21,10 +21,10 @@ use rd_db::{
 use rd_notify::{DeliveryState, NotificationEvent};
 use tempfile::TempDir;
 
-async fn database(directory: &TempDir) -> (Database, std::path::PathBuf) {
-    let path = directory.path().join("data-reset.sqlite");
-    let database = Database::open(&path).await.expect("database");
-    (database, path)
+/// The kit's database in `directory`, with the file's path for the raw reads.
+async fn database_at(directory: &TempDir) -> (Database, std::path::PathBuf) {
+    let database = rd_testkit::temp_database(directory.path()).await;
+    (database, directory.path().join(rd_testkit::DATABASE_FILE))
 }
 
 fn log_record(message: &str) -> NewLogRecord {
@@ -164,7 +164,7 @@ async fn counts(database: &Database) -> (u64, u64, u64) {
 #[tokio::test]
 async fn clearing_the_logs_leaves_the_audit_and_the_statistics_alone() {
     let directory = TempDir::new().expect("tempdir");
-    let (database, path) = database(&directory).await;
+    let (database, path) = database_at(&directory).await;
     seed_all(&database, &path).await;
     assert_eq!(counts(&database).await, (7, 3, 6));
 
@@ -187,7 +187,7 @@ async fn clearing_the_logs_leaves_the_audit_and_the_statistics_alone() {
 #[tokio::test]
 async fn clearing_the_statistics_leaves_the_logs_and_the_audit_alone() {
     let directory = TempDir::new().expect("tempdir");
-    let (database, path) = database(&directory).await;
+    let (database, path) = database_at(&directory).await;
     seed_all(&database, &path).await;
 
     let removed = database.clear_transfer_stats().await.expect("clear");
@@ -208,7 +208,7 @@ async fn clearing_the_statistics_leaves_the_logs_and_the_audit_alone() {
 #[tokio::test]
 async fn clearing_the_audit_leaves_one_record_saying_who_cleared_it() {
     let directory = TempDir::new().expect("tempdir");
-    let (database, path) = database(&directory).await;
+    let (database, path) = database_at(&directory).await;
     seed_all(&database, &path).await;
 
     let mut marker = audit_record(AuditAction::AuditCleared);
@@ -248,7 +248,7 @@ async fn clearing_the_audit_leaves_one_record_saying_who_cleared_it() {
 #[tokio::test]
 async fn clearing_the_notification_history_keeps_what_is_still_owed_an_attempt() {
     let directory = TempDir::new().expect("tempdir");
-    let (database, path) = database(&directory).await;
+    let (database, path) = database_at(&directory).await;
     seed_all(&database, &path).await;
     seed_deliveries(
         &database,
@@ -295,7 +295,7 @@ async fn clearing_the_notification_history_keeps_what_is_still_owed_an_attempt()
 #[tokio::test]
 async fn discarding_the_pending_notifications_keeps_the_finished_history() {
     let directory = TempDir::new().expect("tempdir");
-    let (database, path) = database(&directory).await;
+    let (database, path) = database_at(&directory).await;
     seed_all(&database, &path).await;
     seed_deliveries(
         &database,
@@ -345,7 +345,7 @@ async fn discarding_the_pending_notifications_keeps_the_finished_history() {
 #[tokio::test]
 async fn an_attempt_recorded_after_its_delivery_was_discarded_changes_nothing() {
     let directory = TempDir::new().expect("tempdir");
-    let (database, _path) = database(&directory).await;
+    let (database, _path) = database_at(&directory).await;
     seed_deliveries(&database, &[DeliveryState::Queued]).await;
     let picked_up = database
         .due_notification_deliveries(Utc::now())
@@ -386,7 +386,7 @@ async fn an_attempt_recorded_after_its_delivery_was_discarded_changes_nothing() 
 #[tokio::test]
 async fn clearing_an_empty_store_is_a_success_that_removed_nothing() {
     let directory = TempDir::new().expect("tempdir");
-    let (database, _path) = database(&directory).await;
+    let (database, _path) = database_at(&directory).await;
 
     assert_eq!(database.clear_log_records().await.expect("logs"), 0);
     assert_eq!(database.clear_transfer_stats().await.expect("stats"), 0);

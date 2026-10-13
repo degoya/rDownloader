@@ -5,15 +5,13 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import notifications from '@/locales/en/notifications.json'
 import { mountComponent } from '@/test/mount'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...args), POST: vi.fn() },
-  responseError: vi.fn(() => 'The service did not answer')
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
 
 // The button has its own test (`SettingsDataResetButton.test.ts`); here it only has to be
 // findable at the list, carrying the count, and able to say it cleared.

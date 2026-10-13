@@ -140,7 +140,13 @@
     "restore": "Restaurar",
     "restore_title": "¿Restaurar la versión {version}?",
     "restore_description": "El disparador, la condición y las acciones de la versión {version} vuelven a ser la definición de «{name}», guardados como una versión nueva. El nombre y el interruptor de activación se quedan como están.",
-    "restored": "La versión {version} vuelve a estar en vigor, guardada como versión {current}."
+    "restored": "La versión {version} vuelve a estar en vigor, guardada como versión {current}.",
+    "reset": "Restablecer versiones",
+    "reset_title": "¿Restablecer las versiones de «{name}»?",
+    "reset_versions": "{count} versión anterior | {count} versiones anteriores",
+    "reset_runs": "ninguna ejecución | {count} ejecución suya | {count} ejecuciones suyas",
+    "reset_description": "Se eliminan {versions} y {runs}. La versión {version} se queda, pasa a ser la versión 1 y conserva sus propias ejecuciones. No se puede deshacer.",
+    "reset_done": "Historial restablecido: se eliminaron {versions} y {runs}, la versión actual es ahora la versión 1."
   },
   "schedule": {
     "heading": "Programación",

@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import type { NzbImport } from '@/api/types'
@@ -9,7 +10,7 @@ import { useNzbImportsStore } from './nzbImports'
 
 /** The handlers the store registered, so a test can play the server's events. */
 const handlers: Record<string, (event: MessageEvent) => void> = {}
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (registered: Record<string, (event: MessageEvent) => void>) => {
     Object.assign(handlers, registered)
     return () => { for (const name of Object.keys(registered)) delete handlers[name] }

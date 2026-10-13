@@ -13,7 +13,7 @@ use crate::{ApiError, AppState};
 /// Without any applicable category the default storage root is used — a package with no
 /// category still belongs into configured storage, not into the service's own download
 /// folder. Returns `None` only when no storage root is configured at all.
-pub async fn resolve_destination(
+pub(crate) async fn resolve_destination(
     database: &Database,
     selected: Option<CategoryId>,
 ) -> Result<Option<PathBuf>> {
@@ -111,7 +111,7 @@ pub async fn intake_destination(
 
 /// Why [`intake_target`] has no destination.
 #[derive(Debug)]
-pub enum IntakeTargetError {
+pub(crate) enum IntakeTargetError {
     /// A refusal the person can act on: the category's destination or the free-space stop.
     Refused(ApiError),
     /// The store or the filesystem failed; the cause is kept whole for the caller's log.
@@ -125,7 +125,7 @@ pub enum IntakeTargetError {
 /// # Errors
 ///
 /// [`IntakeTargetError::Refused`] or [`IntakeTargetError::Failed`].
-pub async fn intake_target(
+pub(crate) async fn intake_target(
     database: &Database,
     scheduler: &rd_scheduler::SchedulerHandle,
     selected: Option<CategoryId>,
@@ -166,15 +166,9 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use rd_core::StorageRootId;
-    use rd_db::{Database, NewCategory, NewStorageRoot};
+    use rd_db::{NewCategory, NewStorageRoot};
 
     use super::{Unresolvable, destination_unresolved, resolve_destination};
-
-    async fn database(directory: &Path) -> Database {
-        Database::open(directory.join("destination-test.sqlite3"))
-            .await
-            .expect("database")
-    }
 
     fn new_root(name: &str, path: &Path, is_default: bool) -> NewStorageRoot {
         NewStorageRoot {
@@ -192,7 +186,7 @@ mod tests {
         // a symlink (`/var` -> `/private/var`), so the expectation is built from the same --
         // through `dunce`, as the resolver does, so Windows has no `\\?\` prefix on it.
         let base = dunce::canonicalize(temporary.path()).expect("canonical tempdir");
-        let database = database(temporary.path()).await;
+        let database = rd_testkit::temp_database(temporary.path()).await;
         let alphabetically_first = base.join("archive");
         let marked_default = base.join("media");
         database
@@ -224,7 +218,7 @@ mod tests {
         // a symlink (`/var` -> `/private/var`), so the expectation is built from the same --
         // through `dunce`, as the resolver does, so Windows has no `\\?\` prefix on it.
         let base = dunce::canonicalize(temporary.path()).expect("canonical tempdir");
-        let database = database(temporary.path()).await;
+        let database = rd_testkit::temp_database(temporary.path()).await;
         let only = base.join("storage");
         database
             .create_storage_root(StorageRootId::new(), new_root("Storage", &only, false))
@@ -241,7 +235,7 @@ mod tests {
     #[tokio::test]
     async fn without_any_storage_root_the_caller_decides() {
         let temporary = tempfile::tempdir().expect("tempdir");
-        let database = database(temporary.path()).await;
+        let database = rd_testkit::temp_database(temporary.path()).await;
         assert!(
             resolve_destination(&database, None)
                 .await
@@ -257,7 +251,7 @@ mod tests {
         // a symlink (`/var` -> `/private/var`), so the expectation is built from the same --
         // through `dunce`, as the resolver does, so Windows has no `\\?\` prefix on it.
         let base = dunce::canonicalize(temporary.path()).expect("canonical tempdir");
-        let database = database(temporary.path()).await;
+        let database = rd_testkit::temp_database(temporary.path()).await;
         let root_path = base.join("storage");
         let root = database
             .create_storage_root(StorageRootId::new(), new_root("Storage", &root_path, true))
@@ -322,7 +316,7 @@ mod tests {
     #[tokio::test]
     async fn a_folder_outside_its_root_is_the_categorys_400_without_the_path() {
         let temporary = tempfile::tempdir().expect("tempdir");
-        let database = database(temporary.path()).await;
+        let database = rd_testkit::temp_database(temporary.path()).await;
         let root_path = temporary.path().join("storage");
         let root = database
             .create_storage_root(StorageRootId::new(), new_root("Storage", &root_path, true))
@@ -349,7 +343,7 @@ mod tests {
     #[tokio::test]
     async fn a_root_the_filesystem_refuses_is_a_500_without_the_cause() {
         let temporary = tempfile::tempdir().expect("tempdir");
-        let database = database(temporary.path()).await;
+        let database = rd_testkit::temp_database(temporary.path()).await;
         // A file where the root's directory should be: creating the root fails with an I/O
         // error, which is no setting the category could fix.
         let occupied = temporary.path().join("occupied");

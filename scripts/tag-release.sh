@@ -17,6 +17,11 @@
 #
 set -euo pipefail
 
+case "${1:-}" in
+    -h | --help) sed -n '2,17p' "$0"; exit 0 ;;
+    -*) echo "usage: scripts/tag-release.sh [X.Y.Z]" >&2; exit 2 ;;
+esac
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=lib/verified.sh
 source "$ROOT/scripts/lib/verified.sh"

@@ -191,7 +191,9 @@ impl Read for MultiVolumeReader {
         let (_, length) = &self.volumes[index];
         let local = self.position - self.offsets[index];
         let remaining = length - local;
-        let (_, file) = self.open.as_mut().expect("volume opened above");
+        let Some((_, file)) = self.open.as_mut() else {
+            return Err(std::io::Error::other("the volume was not opened"));
+        };
         file.seek(SeekFrom::Start(local))?;
         let wanted = usize::try_from(remaining.min(buffer.len() as u64)).unwrap_or(buffer.len());
         let read = file.read(&mut buffer[..wanted])?;

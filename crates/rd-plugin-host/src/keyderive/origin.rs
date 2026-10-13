@@ -54,7 +54,7 @@ impl SecretOrigin {
     /// `plugin.key_derivation_needs_one_way` for a typed credential whose chain does not open
     /// with PBKDF2, and `plugin.key_derivation_needs_key_step` for sign-in key material whose
     /// chain does not open with AES.
-    pub fn admits_first(self, first: &DerivationStep) -> Result<(), Failure> {
+    pub(crate) fn admits_first(self, first: &DerivationStep) -> Result<(), Failure> {
         match (self, first) {
             (Self::Person, DerivationStep::Pbkdf2HmacSha512 { .. })
             | (Self::SignIn, DerivationStep::Aes128EcbDecrypt(_)) => Ok(()),

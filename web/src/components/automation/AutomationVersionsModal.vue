@@ -6,6 +6,10 @@
  * answered with them since RD-090-04 — but nothing in the interface asked. The dialog lists them
  * newest first, says what each one changed against the one before it, and puts an older one
  * back in force through the ordinary update, which saves it as the newest version.
+ *
+ * "Reset versions" (RD-1280-01) keeps only the version in force, as version 1, and deletes the
+ * older ones with their runs. The confirmation states how many of each go: the versions are the
+ * list, the runs are read for this automation when asked, every one the server keeps.
  */
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -33,6 +37,7 @@ const confirm = useConfirm()
 const versions = ref<AutomationVersion[]>([])
 const { loading, load: track } = useFetchState()
 const restoringId = ref<string | null>(null)
+const resetting = ref(false)
 const message = ref<string | null>(null)
 /** The version in force, which moves when a restore saves a new one. */
 const current = ref(props.automation.version)
@@ -72,6 +77,47 @@ async function restore(version: AutomationVersion): Promise<void> {
   await load()
 }
 
+/** "2 older versions", "no runs of them" — the two counts the dialog and the notice name. */
+function counted(versions: number, runs: number): { versions: string, runs: string } {
+  return {
+    versions: t('automation.history.reset_versions', { count: versions }, versions),
+    runs: t('automation.history.reset_runs', { count: runs }, runs)
+  }
+}
+
+async function reset(): Promise<void> {
+  const kept = versions.value.find(version => version.version === current.value)
+  if (!kept) return
+  message.value = null
+  resetting.value = true
+  const runs = await store.runsOf(props.automation.id)
+  if (!runs) {
+    resetting.value = false
+    return
+  }
+  const older = runs.filter(run => run.automation_version_id !== kept.id).length
+  const confirmed = await confirm({
+    title: t('automation.history.reset_title', { name: props.automation.name }),
+    description: t('automation.history.reset_description', {
+      ...counted(versions.value.length - 1, older),
+      version: kept.version
+    }),
+    confirmLabel: t('automation.history.reset'),
+    confirmIcon: 'i-lucide-trash-2',
+    destructive: true
+  })
+  if (!confirmed) {
+    resetting.value = false
+    return
+  }
+  const done = await store.resetVersions(props.automation.id)
+  resetting.value = false
+  if (!done) return
+  current.value = done.automation.version
+  message.value = t('automation.history.reset_done', counted(done.removed_versions, done.removed_runs))
+  await load()
+}
+
 onMounted(() => void load())
 </script>
 
@@ -100,7 +146,7 @@ onMounted(() => void load())
                 icon="i-lucide-history"
                 :label="t('automation.history.restore')"
                 :loading="restoringId === version.id"
-                :disabled="restoringId !== null"
+                :disabled="restoringId !== null || resetting"
                 @click="restore(version)"
               />
             </div>
@@ -127,6 +173,17 @@ onMounted(() => void load())
           <UEmpty :description="t('automation.history.empty')" />
         </DataState>
       </div>
+    </template>
+    <template v-if="versions.length > 1" #footer>
+      <UButton
+        color="error"
+        variant="outline"
+        icon="i-lucide-trash-2"
+        :label="t('automation.history.reset')"
+        :loading="resetting"
+        :disabled="restoringId !== null"
+        @click="reset"
+      />
     </template>
   </UModal>
 </template>

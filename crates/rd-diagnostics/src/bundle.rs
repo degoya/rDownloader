@@ -34,7 +34,7 @@ use crate::{
 };
 
 /// The manifest format this crate writes; bump when an entry changes meaning.
-pub const MANIFEST_FORMAT: u32 = 1;
+pub(crate) const MANIFEST_FORMAT: u32 = 1;
 /// Records `recent-errors.json` holds at most.
 pub const RECENT_ERRORS_LIMIT: usize = 200;
 
@@ -333,7 +333,7 @@ pub fn build(
             kind: entry.kind.clone(),
             description: entry.description.text.clone(),
             bytes: bytes.len() as u64,
-            sha256: hex::encode(Sha256::digest(bytes)),
+            sha256: rd_sign::hex_sha256(bytes),
         });
         for redaction in &entry.redactions {
             let line = format!("{}: {}", entry.path, redaction.text);

@@ -38,6 +38,21 @@ pub(crate) struct AutomationRunsParams {
     pub limit: Option<u32>,
 }
 
+/// Resetting an automation's version history (RD-1280-01), with the question every tool that
+/// empties a store asks first (`crate::confirm`).
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct ResetAutomationVersionsParams {
+    /// The automation (id from list_automations).
+    pub id: String,
+    /// `true` together with `confirmation`; without it the call asks again.
+    #[serde(default)]
+    pub confirmed: bool,
+    /// The code from this tool's own question, once the person agreed. Without it the call
+    /// changes nothing and answers with the question.
+    #[serde(default)]
+    pub confirmation: Option<String>,
+}
+
 #[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct DryRunParams {
     /// The trigger to simulate, as get_automation_vocabulary lists it, e.g. `package_completed`.

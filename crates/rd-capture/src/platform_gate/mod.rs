@@ -120,6 +120,11 @@ const LINUX_TOOLING: &[(&str, &str)] = &[
         "embed-resource",
         "compiles the Windows resource file; on Linux it finds no toolchain and does nothing",
     ),
+    (
+        "rd-testkit",
+        "workspace crate, a dev-dependency only: the CNL tests' one-shot server (RD-1280-04). \
+         Without its default feature `db` it links axum and tokio alone, no window or tray stack",
+    ),
     ("toml", "reads this crate's manifest for the checks below"),
 ];
 

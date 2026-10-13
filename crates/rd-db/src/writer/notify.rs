@@ -98,6 +98,11 @@ impl Writer {
                 let result = crate::automation_store::delete(&mut self.connection, id).await;
                 publish_unit_event(reply, result, &self.events);
             }
+            NotifyCommand::ResetAutomationVersions { id, reply } => {
+                let result =
+                    crate::automation_reset_store::reset_versions(&mut self.connection, id).await;
+                publish_config(reply, result, &self.events);
+            }
             NotifyCommand::QueueAutomationRun { input, reply } => {
                 // Queuing is silent; the engine reports once a run has an outcome.
                 let result = crate::automation_store::queue_run(&mut self.connection, input).await;

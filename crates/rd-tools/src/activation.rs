@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use crate::{error::ToolError, store::validate_segment};
 
 /// File name of the pointer inside a tool's directory.
-pub const POINTER_FILE_NAME: &str = "active.json";
+pub(crate) const POINTER_FILE_NAME: &str = "active.json";
 
 /// The active version of one tool.
 #[derive(Clone, Debug, Deserialize, Serialize)]

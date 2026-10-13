@@ -6,6 +6,7 @@
  */
 import { render } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { confirmMock } from '@/test/mocks'
 import { defineComponent, ref } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
@@ -15,7 +16,7 @@ import { createTestI18n } from '@/test/mount'
 import { useUnsavedGuard, type UnsavedGuardOptions } from './useUnsavedGuard'
 
 const confirm = vi.fn<(options: { title: string, destructive?: boolean }) => Promise<boolean>>()
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
+vi.mock('@/composables/useConfirm', () => confirmMock((...args: never[]) => (confirm as (...args: never[]) => unknown)(...args)))
 
 const dirty = ref(false)
 

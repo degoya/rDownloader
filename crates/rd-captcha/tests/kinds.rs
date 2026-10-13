@@ -177,13 +177,8 @@ async fn a_configured_solver_answers_a_click_point_and_a_cutcaptcha() {
                 Json(json!({ "errorId": 0, "status": "ready", "solution": solution }))
             }),
         );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let endpoint = format!("http://{}", listener.local_addr().expect("address"));
-    tokio::spawn(async move {
-        axum::serve(listener, router).await.expect("serve");
-    });
+    let server = rd_testkit::serve(router).await;
+    let endpoint = server.url("");
     let reference = fixture
         .secrets
         .put_string("service-key".to_owned())

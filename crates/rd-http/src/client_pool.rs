@@ -197,8 +197,7 @@ impl ClientPool {
 }
 
 fn build_client(context: &ClientContext, cookie_jar: Arc<Jar>) -> Result<Client> {
-    let mut builder = Client::builder()
-        .no_proxy()
+    let mut builder = crate::client_builder(crate::ClientPurpose::Direct)
         .cookie_provider(cookie_jar)
         .connect_timeout(Duration::from_secs(20))
         .pool_idle_timeout(Duration::from_secs(90))
@@ -206,8 +205,7 @@ fn build_client(context: &ClientContext, cookie_jar: Arc<Jar>) -> Result<Client>
             context.auth.as_ref(),
             context.replay_scope.clone(),
             context.key.address_policy.clone(),
-        ))
-        .user_agent(rd_core::user_agent!());
+        ));
 
     if let Some(profile) = &context.proxy {
         let mut proxy = Proxy::all(profile.endpoint.as_str()).context("create proxy")?;

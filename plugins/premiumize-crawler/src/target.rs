@@ -101,12 +101,15 @@ mod tests {
     fn an_address_belonging_to_somebody_else_is_never_claimed() {
         // The resolver claims every http(s) address because a multihoster is chosen by
         // catalogue. A crawler doing the same would list a folder behind every link.
-        assert_eq!(claim("https://ddownload.com/f/abc"), None);
-        assert_eq!(claim("https://premiumize.me.evil.test/folder/a"), None);
-        assert_eq!(claim("https://x@www.premiumize.me/folder/a"), None);
-        assert_eq!(claim("ftp://www.premiumize.me/folder/a"), None);
-        assert_eq!(claim("https://www.premiumize.me/account"), None);
-        assert_eq!(claim("https://www.premiumize.me/"), None);
+        for foreign in plugin_common::foreign::around("https://www.premiumize.me/folder/abc123") {
+            assert_eq!(claim(&foreign), None, "{foreign}");
+        }
+        for own_but_not_this in [
+            "https://www.premiumize.me/account",
+            "https://www.premiumize.me/",
+        ] {
+            assert_eq!(claim(own_but_not_this), None, "{own_but_not_this}");
+        }
     }
 
     #[test]

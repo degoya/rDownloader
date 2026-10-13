@@ -128,5 +128,38 @@
   "desktop": {
     "quiet_summary_title": "Während der Ruhezeit: {count} Benachrichtigungen",
     "quiet_summary_more": "und {count} weitere"
+  },
+  "template": {
+    "title_label": "Eigener Titel",
+    "body_label": "Eigener Text",
+    "description": "Optional – leer schickt den eingebauten Wortlaut. Einen Platzhalter schreibst du als {example}, eine geschweifte Klammer doppelt: {pair}.",
+    "placeholders_label": "Platzhalter",
+    "placeholders_hint": "Ein Klick fügt ihn in das zuletzt benutzte Feld ein. Was ein Ereignis nicht füllt, bleibt leer.",
+    "summary_only": "Die gewählten Ereignisse kommen gebündelt als eine Zusammenfassung und behalten ihren Wortlaut.",
+    "preview_label": "Vorschau mit Beispieldaten",
+    "built_in": "Eingebauter Wortlaut",
+    "unknown": "„{name}“ ist kein Platzhalter.",
+    "syntax": "Eine geschweifte Klammer ist nicht geschlossen oder nicht geöffnet. Eine Klammer selbst schreibst du doppelt: {pair}.",
+    "insert": "{placeholder} einfügen: {description}",
+    "badge": "Eigener Wortlaut"
+  },
+  "placeholder": {
+    "event": "Code des Ereignisses, z. B. package_completed",
+    "severity": "info, warning oder error",
+    "time": "Uhrzeit, HH:MM in der Zeitzone des Dienstes",
+    "date": "Datum, JJJJ-MM-TT in der Zeitzone des Dienstes",
+    "title": "Eingebauter Titel",
+    "message": "Eingebauter Text",
+    "package": "Name des Pakets",
+    "file": "Name der Datei",
+    "category": "Name der Kategorie",
+    "state": "Zustand des Pakets, z. B. completed",
+    "size": "Größe, z. B. 1.4 GiB",
+    "path": "Ordner auf dem Datenträger",
+    "error": "Was schiefging",
+    "storage_target": "Speicherort oder Sicherungsziel",
+    "version": "Version",
+    "plugin": "Name des Plugins",
+    "account": "Bezeichnung und Anbieter des Kontos, nie der Benutzername"
   }
 }

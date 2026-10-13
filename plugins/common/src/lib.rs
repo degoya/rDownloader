@@ -64,6 +64,9 @@ pub fn own_hosters(hosts: &[&str]) -> Vec<String> {
     hosts.iter().map(|host| (*host).to_owned()).collect()
 }
 
+#[cfg(any(test, feature = "test-support"))]
+pub mod foreign;
+
 #[cfg(test)]
 mod tests {
     #[test]

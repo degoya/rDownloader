@@ -9,7 +9,10 @@
 # version — or, when nothing does, the fixed sentence "Maintenance release: internal changes only,
 # no change in behaviour." The section of <version> is printed as one line of plain text: bold and
 # link targets dropped, wrapped lines joined. Nothing is printed for a version without a section,
-# or a plugin without the file; the plugin index then carries no notes for it.
+# or a plugin without the file; the plugin index then carries no notes for it. A maintenance
+# section is not printed (RD-1280-17): the newest older section with content stands in, as
+# "In <its version>: <its text>", and with none the version has no notes. Three cascades of 72 to
+# 75 plugins each had left 209 of 248 sections saying "Maintenance release" on the plugin cards.
 #
 # Until 1.13 the notes were every CHANGELOG.md entry naming the version (RD-160-09); an entry that
 # raised every plugin at once became 2000 characters of developer prose on each plugin's card.
@@ -99,10 +102,19 @@ def problems(text, others):
 
 
 def print_notes(version, path):
-    for found, text, _ in sections(path):
-        if found == version and text:
-            print(text if len(text) <= LIMIT else text[: LIMIT - 1].rstrip() + "…")
+    found = sections(path)
+    at = next((index for index, (name, text, _) in enumerate(found) if name == version and text), None)
+    if at is None:
+        return
+    # A maintenance section says nothing a user notices: the newest older section that does,
+    # named by its version, stands in; with none, the version has no notes (RD-1280-17).
+    text = found[at][1]
+    if text == MAINTENANCE:
+        older = next(((name, body) for name, body, _ in found[at + 1:] if body and body != MAINTENANCE), None)
+        if older is None:
             return
+        text = f"In {older[0]}: {older[1]}"
+    print(text if len(text) <= LIMIT else text[: LIMIT - 1].rstrip() + "…")
 
 
 def check(root, names, packageable):

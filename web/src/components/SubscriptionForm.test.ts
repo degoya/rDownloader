@@ -6,18 +6,14 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import subscriptions from '@/locales/en/subscriptions.json'
 import { mountComponent } from '@/test/mount'
 
 const post = vi.hoisted(() => vi.fn())
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: [] })), POST: post, PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: () => ''
-}))
-vi.mock('@nuxt/ui/composables', () => ({
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(null) }) }) })
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })), POST: post, responseError: () => '' }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ answer: null }))
 
 import SubscriptionForm from './SubscriptionForm.vue'
 

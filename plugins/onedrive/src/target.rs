@@ -177,16 +177,16 @@ mod tests {
 
     #[test]
     fn an_address_belonging_to_somebody_else_is_never_claimed() {
-        assert_eq!(claim("https://1drv.ms.evil.test/u/s!abc"), None);
-        assert_eq!(claim("https://x@1drv.ms/u/s!abc"), None);
-        assert_eq!(claim("ftp://1drv.ms/u/s!abc"), None);
-        assert_eq!(claim("https://ddownload.com/f/abc"), None);
-        assert_eq!(claim("https://1drv.ms/"), None);
-        assert_eq!(claim("https://graph.microsoft.com/v1.0/me"), None);
-        assert_eq!(
-            claim("https://login.microsoftonline.com/common/oauth2/v2.0/authorize"),
-            None
-        );
+        for foreign in plugin_common::foreign::around("https://1drv.ms/u/s!abc") {
+            assert_eq!(claim(&foreign), None, "{foreign}");
+        }
+        for own_but_not_this in [
+            "https://1drv.ms/",
+            "https://graph.microsoft.com/v1.0/me",
+            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        ] {
+            assert_eq!(claim(own_but_not_this), None, "{own_but_not_this}");
+        }
     }
 
     #[test]

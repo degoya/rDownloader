@@ -69,7 +69,7 @@ export function useVirtualRows<T extends VirtualRow>(rows: Ref<T[]>, options: Vi
   /** `offsets[i]` is where row `i` starts; the last entry is the total height. */
   const offsets = computed<number[]>(() => {
     const list = rows.value
-    const result: number[] = new Array<number>(list.length + 1)
+    const result: number[] = Array.from({ length: list.length + 1 }, () => 0)
     let sum = 0
     for (let index = 0; index < list.length; index += 1) {
       result[index] = sum

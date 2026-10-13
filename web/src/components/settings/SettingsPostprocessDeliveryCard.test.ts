@@ -8,13 +8,14 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import type { Settings } from '@/api/types'
 import settings from '@/locales/en/settings.json'
 import { mountComponent, unitOf } from '@/test/mount'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({ api: { GET: (...args: unknown[]) => get(...args) } }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
 
 /** The shared event stream, reduced to the one handler this card registers. */
 let pluginEvent: ((event: MessageEvent<string>) => void) | null = null
@@ -25,7 +26,7 @@ let pluginEvent: ((event: MessageEvent<string>) => void) | null = null
  * never served.
  */
 let subscribedNames: string[] = []
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, (event: MessageEvent<string>) => void>) => {
     subscribedNames = Object.keys(handlers)
     pluginEvent = handlers['postprocess_catalog.changed'] ?? null

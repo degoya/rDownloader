@@ -79,7 +79,7 @@ export async function request(config, path, init = {}, fetchImpl = fetch) {
   try {
     response = await fetchImpl(`${normalizeServer(config.server)}${path}`, {
       ...init,
-      headers: { ...headers, ...(init.headers ?? {}) }
+      headers: { ...headers, ...init.headers }
     })
   } catch (error) {
     return { ok: false, status: 0, code: 'network', message: String(error?.message ?? error), payload: null }

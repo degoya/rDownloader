@@ -13,7 +13,7 @@ use crate::{ApiError, dto::PageQuery, error_codes::bulk_range};
 ///
 /// The web client sends a larger selection in batches of this size
 /// (`web/src/utils/bulkBatches.ts`).
-pub const MAX_BULK: usize = 500;
+pub(crate) const MAX_BULK: usize = 500;
 
 /// `400` unless a bulk request names between 1 and [`MAX_BULK`] ids.
 ///
@@ -28,14 +28,14 @@ pub fn validate_bulk(count: usize) -> Result<(), ApiError> {
 }
 
 /// The largest page a list route hands out in one answer.
-pub const MAX_PAGE_LIMIT: u32 = 1_000;
+pub(crate) const MAX_PAGE_LIMIT: u32 = 1_000;
 
 /// The header that carries the length of the whole list when a page was asked for.
 pub const TOTAL_COUNT_HEADER: HeaderName = HeaderName::from_static("x-total-count");
 
 /// `400` for a page size outside `1..=MAX_PAGE_LIMIT`.
 #[must_use]
-pub fn page_limit_range() -> ApiError {
+pub(crate) fn page_limit_range() -> ApiError {
     ApiError::bad_request(
         "request.page_limit",
         format!("The page size must be between 1 and {MAX_PAGE_LIMIT}"),

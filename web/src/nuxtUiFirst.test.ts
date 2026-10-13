@@ -34,6 +34,10 @@ interface Tag {
   attrs: string
   /** The element this tag is the first child of: the opening tag right before it, unless that one closes itself. */
   firstChildOf: string | null
+  /** The text between this tag and the next one, interpolations included. */
+  text: string
+  /** The `v-if` or `v-else-if` condition of the nearest tag before this one that has one: what a `v-else` here is the other case of. */
+  chain: string | null
 }
 
 interface Pattern {
@@ -47,6 +51,14 @@ const has = (pattern: RegExp) => (tag: Tag) => pattern.test(tag.attrs)
 const own = (tag: Tag) => !/^U[A-Z]/.test(tag.name)
 const NATIVE_CONTROLS = new Set(['select', 'textarea', 'hr', 'table', 'progress', 'dialog'])
 const FRAMES = new Set(['section', 'div', 'form'])
+/** A condition that holds on an empty list: a `length` negated, or compared with 0. */
+const EMPTY_LIST = /!\s*[\w$.?[\]()]+\.length\b(?!\s*[-+*/<>=!])|\.length\s*===?\s*0\b/
+/** A condition that holds on a filled list, a `length` as it stands; its `v-else` is the empty case. */
+const FILLED_LIST = /^\s*[\w$.?[\]()]+\.length\s*$/
+const condition = (tag: Tag) => /(?<![:\w-])v-(?:else-)?if="([^"]*)"/.exec(tag.attrs)?.[1] ?? null
+/** Shown when a list is empty: on its own condition, or as the `v-else` of a filled one. */
+const onEmptyList = (tag: Tag) => EMPTY_LIST.test(condition(tag) ?? '')
+  || (/(?<![:\w-])v-else(?![-\w])/.test(tag.attrs) && FILLED_LIST.test(tag.chain ?? ''))
 /** The one component that holds a `UInputDate`, its calendar beside it. */
 const DATE_FIELD = 'components/DateField.vue'
 
@@ -142,6 +154,13 @@ const PATTERNS = {
     use: 'UEmpty',
     matches: tag => tag.name === 'p' && tag.firstChildOf === 'DataState'
   },
+  // The same paragraph outside a `DataState`: a muted sentence, translated and nothing else, in
+  // place of a list that is empty (RD-1280-10). A muted line that explains what the empty list
+  // means for the rest of a form is a hint and goes in `ALLOWED`.
+  'empty-list-paragraph': {
+    use: 'UEmpty',
+    matches: tag => tag.name === 'p' && has(/\btext-muted\b/)(tag) && /^\s*\{\{[^}]*\bt\(/.test(tag.text) && onEmptyList(tag)
+  },
   // A unit stands at its number, not at the far end of the label row (RD-1140-08).
   'unit-hint': {
     use: 'NumberWithUnit (a UInputNumber and an outline UBadge in a UFieldGroup)',
@@ -173,6 +192,9 @@ const MAX: Record<PatternId, number> = {
   'native-control': 0,
   'toggle-group': 0,
   'empty-paragraph': 0,
+  // `UpdateDetailsModal.vue`'s "no release notes" line: the update dialog is RD-1280-17's in the
+  // 1.28 wave, so its conversion waits for the next one.
+  'empty-list-paragraph': 1,
   'unit-hint': 0
 }
 
@@ -222,6 +244,10 @@ const ALLOWED: Allowance[] = [
   { file: 'components/QueueColumnHeader.vue', pattern: 'focusable-element', count: 1, design: 'design.md:1632-1633', quote: 'has no handle for a grid that is not a `UTable`; this one is the exception' },
   { file: 'components/ControlRoomLayout.vue', pattern: 'raw-link', count: 1, design: 'design.md:377-379', quote: 'not a `ULink`, because it is an in-page jump' },
   { file: 'components/NzbDropOverlay.vue', pattern: 'dashed-box', count: 1, design: 'design.md:375-377', quote: 'The overlay is a picture of the drop over the whole page, not a field' },
+  // A muted line that says what an empty list means for the form around it (RD-1280-10).
+  { file: 'components/DownloadWindowEditor.vue', pattern: 'empty-list-paragraph', count: 1, design: 'design.md:2269-2272', quote: 'is a hint, not an empty state, and stays a line beside its control: no time span means downloads at any time' },
+  { file: 'components/routing/RoutingCategoryPluginSteps.vue', pattern: 'empty-list-paragraph', count: 1, design: 'design.md:2269-2272', quote: 'no step means the category runs none' },
+  { file: 'components/MediaCookieProfileField.vue', pattern: 'empty-list-paragraph', count: 1, design: 'design.md:2269-2272', quote: 'a field with nothing to choose names where its first entry is added' },
   // A file tree's rows hold checkboxes and priority selects, which a `UTree` row cannot (RD-1110-12).
   { file: 'components/RemoteFileTree.vue', pattern: 'indented-tree', count: 1, design: 'design.md:1677-1679', quote: 'build their rows themselves — indented by depth, a chevron button per folder' },
   { file: 'components/RemoteFileTree.vue', pattern: 'chevron-toggle', count: 1, design: 'design.md:1677-1679', quote: 'build their rows themselves — indented by depth, a chevron button per folder' },
@@ -241,15 +267,22 @@ function templateTags(file: string, source: string): Tag[] {
   const template = source.slice(start, end).replace(/<!--[\s\S]*?-->/g, comment => comment.replace(/[^\n]/g, ' '))
   const before = source.slice(0, start).split('\n').length - 1
   const matches = [...template.matchAll(TAG)]
+  let chain: string | null = null
   return matches.map((match, index) => {
     const previous = matches[index - 1]
-    return {
+    const after = match.index + match[0].length
+    const next = template.indexOf('<', after)
+    const tag: Tag = {
       file,
       line: before + template.slice(0, match.index).split('\n').length,
       name: match[1] ?? '',
       attrs: match[2] ?? '',
-      firstChildOf: previous && !previous[0].endsWith('/>') ? previous[1] ?? null : null
+      firstChildOf: previous && !previous[0].endsWith('/>') ? previous[1] ?? null : null,
+      text: template.slice(after, next < 0 ? undefined : next),
+      chain
     }
+    chain = condition(tag) ?? chain
+    return tag
   })
 }
 
@@ -362,6 +395,18 @@ describe('Nuxt UI first', () => {
     it('finds a paragraph standing in for the empty state of a DataState, and only there', () => {
       const found = fixture('  <DataState :empty="true">\n    <p class="text-sm text-muted">Nothing</p>\n  </DataState>\n  <DataState :empty="true" />\n  <p class="text-sm text-muted">Below</p>')
       expect(found['empty-paragraph'].map(tag => tag.line)).toEqual([6])
+    })
+
+    it('finds a muted sentence in place of an empty list, and not a muted value or a filled list', () => {
+      const found = fixture([
+        '  <p v-if="!rows.length" class="text-xs text-muted">{{ t(\'empty\') }}</p>',
+        '  <ul v-if="items.length"><li>One</li></ul>',
+        '  <p v-else class="p-5 text-sm text-muted">{{ t(\'none\') }}</p>',
+        '  <p v-if="!versions.length" class="text-xs text-muted">{{ sourceLabel }}</p>',
+        '  <p v-if="rows.length > 1" class="text-xs text-muted">{{ t(\'more\') }}</p>',
+        '  <p v-if="!rows.length" class="text-xs text-toned">{{ t(\'empty\') }}</p>'
+      ].join('\n'))
+      expect(found['empty-list-paragraph'].map(tag => tag.line)).toEqual([5, 7])
     })
 
     it('turns red on a unit as the hint of a field, not on a sentence', () => {

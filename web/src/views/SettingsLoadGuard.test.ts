@@ -5,9 +5,10 @@
  * configuration. The pages bound to the document, the save bar and the reset now wait for a
  * successful load.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
+import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { api } from '@/api/client'
@@ -16,26 +17,17 @@ import commonCatalogue from '@/locales/en/common.json'
 import settingsCatalogue from '@/locales/en/settings.json'
 import { defaultSettings } from '@/settingsDefaults'
 import { loadEveryLocale } from '@/test/locales'
-import { uiStubs } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 beforeAll(loadEveryLocale)
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(),
-    POST: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
-    PUT: vi.fn(),
-    PATCH: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
-    DELETE: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } }))
-  },
-  responseError: () => 'The service did not answer',
-  resultMessage: () => ''
+vi.mock('@/api/client', () => apiClientMock({
+  POST: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
+  PATCH: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
+  DELETE: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } }))
 }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(true) }) }), overlays: [] })
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ answer: true }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 vi.mock('@/composables/useAppTour', () => ({ useAppTour: () => ({ startTour: vi.fn() }) }))
 
 import SettingsView from './SettingsView.vue'
@@ -52,7 +44,7 @@ async function mountSection(section: string): Promise<void> {
   await router.isReady()
   setActivePinia(createPinia())
   i18n.global.locale.value = 'en'
-  render(SettingsView, { global: { plugins: [router, i18n], stubs: uiStubs as never } })
+  mountComponent(SettingsView, { i18n, plugins: [router], keepPinia: true })
 }
 
 function button(name: string): HTMLElement | null {

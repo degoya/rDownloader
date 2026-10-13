@@ -132,7 +132,7 @@ impl PluginInstaller {
 
     /// Whether this plugin id is switched off.
     #[must_use]
-    pub fn is_disabled(&self, id: &str) -> bool {
+    pub(crate) fn is_disabled(&self, id: &str) -> bool {
         self.disabled
             .read()
             .is_ok_and(|disabled| disabled.contains(id))
@@ -205,7 +205,9 @@ impl PluginInstaller {
         ));
         tokio::fs::create_dir(&staging).await?;
         if let Err(error) = write_staging(&staging, &package).await {
-            let _ = tokio::fs::remove_dir_all(&staging).await;
+            if let Err(cleanup) = tokio::fs::remove_dir_all(&staging).await {
+                tracing::debug!(error = %cleanup, folder = %staging.display(), "a failed install's staging folder could not be removed");
+            }
             return Err(error);
         }
         // A stop here leaves the whole package under its staging name: never loaded (see
@@ -217,7 +219,9 @@ impl PluginInstaller {
             // `version_directories` enumerates every directory under the plugin root, so a
             // leftover `.install-<id>` is loaded and listed as a second copy of the plugin
             // that `remove_version` cannot address.
-            let _ = tokio::fs::remove_dir_all(&staging).await;
+            if let Err(cleanup) = tokio::fs::remove_dir_all(&staging).await {
+                tracing::debug!(error = %cleanup, folder = %staging.display(), "an unpromoted install's staging folder could not be removed");
+            }
             return Err(error.into());
         }
         self.remove_superseded_refused(package.manifest.id, &package.manifest.version)

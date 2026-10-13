@@ -5,7 +5,6 @@
 //! asked again. What keeps that from being unbounded is [`crate::walk`]: depth, breadth, pages
 //! and cycles are refused there, and the manifest's fuel and time budget sit underneath as the
 //! last resort rather than as the plan.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use onedrive_common::{
     address::{self, GRAPH, LinkKind},

@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import common from '@/locales/en/common.json'
 import server from '@/locales/en/server.json'
@@ -21,10 +22,7 @@ const calls = vi.hoisted(() => ({
   discard: vi.fn()
 }))
 
-vi.mock('@/api/client', () => ({
-  api: { GET: calls.get },
-  responseError: () => 'failed'
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: calls.get, responseError: () => 'failed' }))
 vi.mock('@/api/fullRestore', () => ({
   restoreStatus: calls.status,
   discardRestore: calls.discard,
@@ -33,7 +31,7 @@ vi.mock('@/api/fullRestore', () => ({
   startRestore: vi.fn(),
   uploadArchive: vi.fn()
 }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 const NONE = {
   state: 'none',

@@ -184,7 +184,7 @@ impl Clamd {
     ///
     /// At most `limit` bytes are sent; the caller decides beforehand what to do with a file
     /// larger than that, so the limit here only guards against one that grew meanwhile.
-    pub async fn scan_file(&self, path: &Path, limit: u64) -> Result<Verdict, ClamdError> {
+    pub(crate) async fn scan_file(&self, path: &Path, limit: u64) -> Result<Verdict, ClamdError> {
         let file = tokio::fs::File::open(path)
             .await
             .map_err(|error| ClamdError::Read(error.to_string()))?;

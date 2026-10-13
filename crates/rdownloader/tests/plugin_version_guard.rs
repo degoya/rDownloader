@@ -86,16 +86,12 @@ impl Tree {
         self.root.path().join("dist/plugins")
     }
 
-    /// Signs nothing: writes `<name>-<version>.rdplug` with the plugin's real manifest and
-    /// locales and the given component, then lets `edit` change the staged members first.
+    /// Signs nothing: writes `<name>-<version>.rdplug` with the plugin's real manifest, completed,
+    /// its locales and the given component, then lets `edit` change the staged members first.
     fn package(&self, version: &str, component: &[u8], edit: impl FnOnce(&Path)) {
         let staging = self.root.path().join(format!("staging-{version}"));
         std::fs::create_dir_all(staging.join("locales")).expect("staging directory");
-        std::fs::copy(
-            self.plugin().join("manifest.toml"),
-            staging.join("manifest.toml"),
-        )
-        .expect("manifest");
+        std::fs::write(staging.join("manifest.toml"), self.completed_manifest()).expect("manifest");
         std::fs::write(staging.join("component.wasm"), component).expect("component");
         std::fs::write(staging.join("signature.ed25519"), b"not a signature").expect("signature");
         for entry in std::fs::read_dir(self.plugin().join("locales")).expect("locales") {
@@ -126,6 +122,18 @@ impl Tree {
             .status()
             .expect("run zip");
         assert!(status.success(), "zip failed: {status:?}");
+    }
+
+    /// The manifest a package of this plugin carries: `plugins/metadata.toml`'s shared fields
+    /// filled in (RD-1280-18), as the script itself completes it.
+    fn completed_manifest(&self) -> Vec<u8> {
+        let output = Command::new("bash")
+            .arg(workspace_root().join("scripts/build-plugins.sh"))
+            .args(["--completed-manifest", &self.name])
+            .output()
+            .expect("run build-plugins.sh");
+        assert!(output.status.success(), "{output:?}");
+        output.stdout
     }
 
     /// Runs the query for this plugin and returns its standard output.

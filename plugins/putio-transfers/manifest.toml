@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "remote-job"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000152"
 name = "Put.io transfers"
-version = "0.1.15"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.1.16"
 
 [capabilities]
 # The access token an `oauth` sign-in produced, the same slot the resolver sibling reads. It is
@@ -31,14 +27,8 @@ containers = ["torrent"]
 
 [metadata]
 description = "Runs magnets and torrent files as transfers on a Put.io account."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-# The `remote-job` world does not exist before 1.0.7; an older host could not load this.
-min_app_version = "1.9.0"
 
 [limits]
-memory_bytes = 67108864
 # Most calls here make one request. The exception is the single poll that finds a transfer
 # finished: it walks the folder Put.io produced, one request per folder, to learn the names and
 # sizes of the files before any of them is offered to anybody. `api::MAX_TREE_REQUESTS` bounds
@@ -47,4 +37,3 @@ fuel = 4000000000
 # Compute time only -- the host credits time spent waiting on the network back, so this bounds
 # the JSON a thousand-entry folder listing costs to read, not the requests.
 timeout_milliseconds = 30000
-max_response_bytes = 8388608

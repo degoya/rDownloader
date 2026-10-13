@@ -24,7 +24,7 @@ use crate::{
 
 /// What a rule with a `probe` that is not an address at all reports. Every other code in a
 /// report is one of `RunError`'s.
-pub const PROBE_INVALID: &str = "site_rules.probe_invalid";
+pub(crate) const PROBE_INVALID: &str = "site_rules.probe_invalid";
 
 /// How a rule fared against its own probe.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -5,7 +5,6 @@
 //! with a stable code rather than a trap — the world requires them to exist, and the manifest's
 //! `oauth_flows = ["redirect"]` means the host never calls them anyway. The flow itself is
 //! `plugin-guest-oauth`'s; this file states what is Google's about it.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_oauth::redirect::{CLIENT_ID_MARKER, Client, Device, Provider};
 

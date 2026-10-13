@@ -34,7 +34,7 @@ fn release_list(entries: &[(&str, bool)]) -> Vec<u8> {
 }
 
 fn served() -> (MemoryFetcher, Sources) {
-    let sources = Sources::official();
+    let sources = Sources::official().expect("official sources");
     let fetcher = MemoryFetcher::new();
     fetcher.serve(
         sources.stable.as_str(),
@@ -104,7 +104,7 @@ async fn the_beta_channel_finds_the_newest_beta_manifest_in_the_release_list() {
 /// Before the first stable release with a manifest, a beta installation is still served.
 #[tokio::test]
 async fn a_missing_stable_manifest_beside_a_verified_beta_is_no_problem() {
-    let sources = Sources::official();
+    let sources = Sources::official().expect("official sources");
     let fetcher = MemoryFetcher::new();
     fetcher.serve(
         sources.releases.as_str(),
@@ -226,7 +226,7 @@ async fn an_artifact_outside_the_release_downloads_refuses_the_manifest() {
         "https://github.com/degoya/rDownloader/releases/download/%2e%2e/%2E%2E/%2e%2e/evil/a.tar.gz",
         "https://github.com/degoya/rDownloader-fork/releases/download/v1.8.0/a.tar.gz",
     ] {
-        let sources = Sources::official();
+        let sources = Sources::official().expect("official sources");
         let fetcher = MemoryFetcher::new();
         let mut release = manifest(Channel::Stable, "1.8.0", 10);
         release.artifacts[0].url = url.to_owned();
@@ -268,7 +268,7 @@ fn an_agent_archive_outside_the_release_downloads_refuses_the_manifest() {
 fn the_beta_channel_reads_sixty_releases() {
     // Two releases per version since 1.9.1 (the application's and `plugins-vX.Y.Z`): sixty keep
     // thirty versions in view (RD-191-09 RA-TOOL-06). That they fit the cap is a const assertion.
-    let sources = Sources::official();
+    let sources = Sources::official().expect("official sources");
     assert_eq!(sources.releases.query(), Some("per_page=60"));
 }
 

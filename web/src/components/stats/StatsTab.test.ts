@@ -5,24 +5,15 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import stats from '@/locales/en/stats.json'
 import { mountComponent } from '@/test/mount'
 import { axeViolations } from '@/test/axe'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: vi.fn(),
-    PUT: vi.fn(),
-    PATCH: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const { default: StatsTab } = await import('./StatsTab.vue')
 

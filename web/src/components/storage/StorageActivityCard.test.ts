@@ -5,15 +5,13 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import settings from '@/locales/en/settings.json'
 import { mountComponent } from '@/test/mount'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...args), POST: vi.fn() },
-  responseError: vi.fn(() => 'The service did not answer')
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
 
 const history = vi.fn()
 const check = vi.fn()

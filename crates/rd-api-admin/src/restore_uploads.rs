@@ -22,11 +22,11 @@ use crate::restore_service::layout;
 use crate::{ApiError, AppState};
 
 /// The largest chunk one request carries.
-pub const CHUNK_LIMIT: u64 = 32 << 20;
+pub(crate) const CHUNK_LIMIT: u64 = 32 << 20;
 /// The largest archive an upload accepts.
-pub const MAX_UPLOAD_BYTES: u64 = 1 << 40;
+pub(crate) const MAX_UPLOAD_BYTES: u64 = 1 << 40;
 /// How many uploads may lie waiting at once.
-pub const MAX_UPLOADS: usize = 4;
+pub(crate) const MAX_UPLOADS: usize = 4;
 
 /// Chunks are appended one at a time, whichever upload they belong to.
 static WRITING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

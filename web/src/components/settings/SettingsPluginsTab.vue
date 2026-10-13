@@ -5,11 +5,10 @@ import { useI18n } from 'vue-i18n'
 import { api, responseError, resultMessage } from '@/api/client'
 import { listOffers, releaseNotesByPlugin, type PreviewSource, type ReleaseNote } from '@/api/pluginRepositories'
 import type { IncompatiblePlugin, InstalledPlugin, PluginLifecycle } from '@/api/types'
-import { serverMessageFrom, translateServerMessage } from '@/i18n/server'
 import DataState from '@/components/DataState.vue'
-import { useConfirm } from '@/composables/useConfirm'
 import { usePluginDiagnostics } from '@/composables/usePluginDiagnostics'
 import { usePluginGroups } from '@/composables/usePluginGroups'
+import { usePluginVersionRemoval } from '@/composables/usePluginVersionRemoval'
 import { usePluginSupersededRemoval } from '@/composables/usePluginSupersededRemoval'
 import { usePluginWithdrawals } from '@/composables/usePluginWithdrawals'
 import { useFetchState } from '@/composables/useFetchState'
@@ -71,7 +70,6 @@ const packageFile = ref<File | null>(null)
 const previewSource = ref<PreviewSource | null>(null)
 const message = ref<string | null>(null)
 const error = ref<string | null>(null)
-const confirm = useConfirm()
 /**
  * Most plugin changes run only from the next start (RD-1240-32): after any answer the restart
  * status is read again, and while one is pending the answer offers "Restart now".
@@ -91,6 +89,8 @@ const { revocations, pendingWithdrawal, withdrawalReason, withdrawing, isWithdra
   usePluginWithdrawals({ message, error })
 const { executions, openDiagnostics, diagnosticsLoading, toggleDiagnostics } = usePluginDiagnostics(error)
 const { removeSuperseded } = usePluginSupersededRemoval({ message, error, done: refresh })
+/** Removing one version, asked first, and the coded answer in the notices (`usePluginVersionRemoval`). */
+const { showAnswer, removeVersion, confirmRemove, confirmRemoveSuperseded } = usePluginVersionRemoval({ message, error, done: refresh })
 /** Every plugin's superseded versions, for the tab's action that removes them all (RD-1140-04). */
 const supersededCount = computed(() => pluginGroups.value.reduce((sum, group) => sum + group.superseded.length, 0))
 
@@ -177,64 +177,6 @@ async function refresh(): Promise<string | null> {
   // plugin regardless, so that a disabled one can be switched back on.
   if (settings.data) disabledIds.value = settings.data.disabled_plugins ?? []
   return inventory.data ? null : responseError(inventory)
-}
-
-/** Removes a package this build refuses, once the user asks for it. */
-async function removeVersion(plugin: { id: string, version: string }): Promise<void> {
-  error.value = null
-  message.value = null
-  const response = await api.DELETE('/api/v1/plugins/{id}/{version}', {
-    params: { path: { id: plugin.id, version: plugin.version } }
-  })
-  showAnswer(response)
-  await refresh()
-}
-
-/**
- * The coded message of a removal's answer, in the success or the error line. Through the client
- * like every request (WEB-03): a raw `fetch` here noticed neither a lapsed session nor a dropped
- * connection.
- */
-function showAnswer(response: { data?: unknown, error?: unknown }): void {
-  const serverMessage = serverMessageFrom(response.data ?? response.error)
-  const text = serverMessage ? translateServerMessage(serverMessage) : null
-  if (response.data) message.value = text
-  else error.value = text
-}
-
-/** Asks first: removing a plugin deletes it from disk, and re-adding means re-installing it. */
-async function confirmRemove(plugin: InstalledPlugin): Promise<void> {
-  const confirmed = await confirm({
-    title: t('plugins.remove.title'),
-    description: t('plugins.remove.description', { name: displayName(plugin) }),
-    confirmLabel: t('common.actions.delete'),
-    confirmIcon: 'i-lucide-trash-2',
-    destructive: true
-  })
-  if (confirmed) await removeVersion(plugin)
-}
-
-/**
- * Removes one superseded version, once the user asks for it.
- *
- * Also destructive, and asked for separately: the version that is loaded stays, so the
- * sentence has to name which of the two is going. The service refuses with
- * `plugin.version_in_use` when a job is still bound to it, and that answer is what the alert
- * above the list then shows.
- */
-async function confirmRemoveSuperseded(active: InstalledPlugin, old: InstalledPlugin): Promise<void> {
-  const confirmed = await confirm({
-    title: t('plugins.remove.superseded_title'),
-    description: t('plugins.remove.superseded_description', {
-      name: displayName(active),
-      version: old.version,
-      active: active.version
-    }),
-    confirmLabel: t('common.actions.delete'),
-    confirmIcon: 'i-lucide-trash-2',
-    destructive: true
-  })
-  if (confirmed) await removeVersion(old)
 }
 
 /**

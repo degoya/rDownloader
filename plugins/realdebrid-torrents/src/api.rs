@@ -153,13 +153,7 @@ pub fn stage_of(status: &str) -> Stage {
 /// Percent as Real-Debrid states it, in the thousandths the contract carries.
 #[must_use]
 pub fn permille(progress: Option<f64>) -> Option<u16> {
-    let progress = progress?;
-    if !progress.is_finite() {
-        return None;
-    }
-    let scaled = (progress * 10.0).round().clamp(0.0, 1_000.0);
-    // The clamp above bounds the value into u16 range before the cast, so nothing is lost.
-    Some(scaled as u16)
+    plugin_guest_remote_job::permille_of_percent(progress)
 }
 
 /// Whether Real-Debrid already considers a file selected.

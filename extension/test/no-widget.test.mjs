@@ -9,7 +9,7 @@ import { test } from 'node:test'
 
 import { NO_WIDGET_MESSAGE, TOKEN_MESSAGE, WIDGET_MARKERS, harvestAnswer, reportPageWithoutWidget } from '../src/captcha.js'
 
-import { CONFIG, WIDGET, fakeApi, names, setupAnswerer as setup } from './fakes.mjs'
+import { CONFIG, fakeApi, names, pageChrome, setupAnswerer as setup, WIDGET } from './fakes.mjs'
 
 const MISSING = { messageType: NO_WIDGET_MESSAGE, afterMs: 15_000, markers: WIDGET_MARKERS }
 
@@ -21,7 +21,7 @@ function page(run) {
   const state = { present: new Set(), now: 1_000 }
   const real = { setInterval: globalThis.setInterval, clearInterval: globalThis.clearInterval, now: Date.now }
   globalThis.document = { querySelector: (selector) => (state.present.has(selector) ? { value: '' } : null) }
-  globalThis.chrome = { runtime: { sendMessage: (payload) => sent.push(payload) } }
+  globalThis.chrome = pageChrome(sent)
   globalThis.setInterval = (fn) => { timers.push(fn); return timers.length }
   globalThis.clearInterval = (id) => cleared.push(id)
   Date.now = () => state.now

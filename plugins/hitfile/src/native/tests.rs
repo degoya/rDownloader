@@ -108,7 +108,9 @@ fn the_manifest_declares_the_measured_domains_limits_and_budget() {
     assert!(manifest.contains("domains = [\"hitfile.net\", \"app.hitfile.net\"]"));
     assert!(manifest.contains("secret_domains = [\"app.hitfile.net\"]"));
     assert!(manifest.contains("secrets = [\"hitfile_password\"]"));
-    assert!(manifest.contains("wait_budget_milliseconds = 600000"));
+    // The host's default wait budget, ten minutes, is the measured one: the manifest names only
+    // the limits it changes (RD-1280-18).
+    assert!(!manifest.contains("wait_budget_milliseconds"));
     let metadata = rd_plugin_api::metadata_from_manifest(manifest);
     assert_eq!(metadata.provider_slug, "hitfile");
     assert_eq!(metadata.max_concurrent_downloads, 1);

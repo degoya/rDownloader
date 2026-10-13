@@ -221,7 +221,7 @@ pub(crate) fn path_string(path: &Path) -> Result<String> {
 
 /// Truncates free text for step messages.
 pub(crate) fn truncate(text: impl AsRef<str>) -> String {
-    text.as_ref().chars().take(MESSAGE_LIMIT).collect()
+    rd_core::text::truncate_chars(text.as_ref(), MESSAGE_LIMIT).to_owned()
 }
 
 /// Forwards progress samples to the database at most every 750 ms (last sample always).

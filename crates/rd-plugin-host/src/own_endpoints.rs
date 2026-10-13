@@ -52,7 +52,7 @@ impl OwnEndpoints {
 
     /// Whether `port` is one of ours.
     #[must_use]
-    pub fn is_own_port(&self, port: Option<u16>) -> bool {
+    pub(crate) fn is_own_port(&self, port: Option<u16>) -> bool {
         port.is_some_and(|port| self.ports.contains(&port))
     }
 

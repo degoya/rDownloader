@@ -1,8 +1,10 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import type { SubscriptionItem } from '@/api/types'
+import { settle as flush } from '@/test/mount'
 
 import { useSubscriptionsStore } from './subscriptions'
 
@@ -13,14 +15,13 @@ import { useSubscriptionsStore } from './subscriptions'
  * followed the event stream — so a subscription could announce thirty-two hits above a list
  * that stayed empty until the page was reloaded by hand. These cases pin the two together.
  */
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), PUT: vi.fn(), POST: vi.fn(), DELETE: vi.fn() },
+vi.mock('@/api/client', () => apiClientMock({
   responseError: vi.fn(() => 'The subscription could not be reached'),
   errorMessage: vi.fn(() => 'The request failed')
 }))
 
 let subscriptionEvent: ((event: MessageEvent<string>) => void) | null = null
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, (event: MessageEvent<string>) => void>) => {
     subscriptionEvent = handlers['subscription.changed'] ?? null
     return () => { subscriptionEvent = null }
@@ -51,11 +52,6 @@ function deferred<T>(): { promise: Promise<T>, resolve: (value: T) => void } {
   let resolve: (value: T) => void = () => {}
   const promise = new Promise<T>(settle => { resolve = settle })
   return { promise, resolve }
-}
-
-/** Lets every already-resolved promise in the chain run. */
-async function flush(): Promise<void> {
-  for (let round = 0; round < 8; round += 1) await Promise.resolve()
 }
 
 function itemPageCalls(): string[] {

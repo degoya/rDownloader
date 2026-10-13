@@ -19,18 +19,18 @@ use sha1::Sha1;
 use crate::digest::constant_time_eq;
 
 /// Seconds per code. Fixed by what authenticator apps assume.
-pub const STEP_SECONDS: u64 = 30;
+pub(crate) const STEP_SECONDS: u64 = 30;
 /// Digits per code.
-pub const DIGITS: u32 = 6;
+pub(crate) const DIGITS: u32 = 6;
 /// How many steps either side of now are accepted.
 ///
 /// One step, so a code entered as it rolls over still works — a phone clock a few seconds off,
 /// or a person who started typing at second twenty-nine. Wider would multiply an attacker's
 /// guessing surface by the same factor for no gain a user would notice.
-pub const DRIFT_STEPS: u64 = 1;
+pub(crate) const DRIFT_STEPS: u64 = 1;
 
 /// Bytes in a generated secret. 20 is the RFC 4226 recommendation and what apps expect.
-pub const SECRET_BYTES: usize = 20;
+pub(crate) const SECRET_BYTES: usize = 20;
 
 /// Generates a fresh secret.
 #[must_use]
@@ -43,7 +43,7 @@ pub fn generate_secret() -> Vec<u8> {
 
 /// The code for one time step.
 #[must_use]
-pub fn code_at_step(secret: &[u8], step: u64) -> String {
+pub(crate) fn code_at_step(secret: &[u8], step: u64) -> String {
     let mut mac = Hmac::<Sha1>::new_from_slice(secret).expect("HMAC accepts any key length");
     mac.update(&step.to_be_bytes());
     let digest = mac.finalize().into_bytes();

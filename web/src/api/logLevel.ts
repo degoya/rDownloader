@@ -19,7 +19,7 @@ export type LogDebugArea =
   | 'http' | 'scheduler'
 
 /** One area on debug until `until` (RFC 3339); `plugin_id` narrows the plugin area to one plugin. */
-export interface LogDebugWindow {
+interface LogDebugWindow {
   area: LogDebugArea
   plugin_id?: string | null
   until: string

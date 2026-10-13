@@ -5,15 +5,9 @@
 //! most of a feed into one that queued all of it. The row is refused instead, the way a corrupt
 //! `url` or `id` in the same row already is.
 
-use rd_db::{Database, NewSubscription};
+use rd_db::NewSubscription;
 use sqlx::{Connection, SqliteConnection};
 use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("subscriptions.sqlite"))
-        .await
-        .expect("database")
-}
 
 /// A subscription that keeps most of its feed out.
 fn subscription() -> NewSubscription {
@@ -48,7 +42,7 @@ fn subscription() -> NewSubscription {
 /// Writes `value` into the `filters_json` column of every subscription, bypassing the writer:
 /// disk damage and hand editing are the only ways this column ever becomes unparseable.
 async fn corrupt_filters(directory: &TempDir, value: &str) {
-    let path = directory.path().join("subscriptions.sqlite");
+    let path = directory.path().join(rd_testkit::DATABASE_FILE);
     let mut connection = SqliteConnection::connect(&format!("sqlite://{}", path.display()))
         .await
         .expect("raw connection");
@@ -63,7 +57,7 @@ async fn corrupt_filters(directory: &TempDir, value: &str) {
 #[tokio::test]
 async fn a_readable_filter_set_survives_the_round_trip() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .create_subscription(subscription())
         .await
@@ -77,7 +71,7 @@ async fn a_readable_filter_set_survives_the_round_trip() {
 #[tokio::test]
 async fn an_unreadable_filter_set_fails_the_row_instead_of_accepting_everything() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let created = database
         .create_subscription(subscription())
         .await
@@ -102,12 +96,12 @@ async fn an_unreadable_filter_set_fails_the_row_instead_of_accepting_everything(
 #[tokio::test]
 async fn a_null_filter_column_still_reads_as_no_filters() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .create_subscription(subscription())
         .await
         .expect("create");
-    let path = directory.path().join("subscriptions.sqlite");
+    let path = directory.path().join(rd_testkit::DATABASE_FILE);
     let mut connection = SqliteConnection::connect(&format!("sqlite://{}", path.display()))
         .await
         .expect("raw connection");

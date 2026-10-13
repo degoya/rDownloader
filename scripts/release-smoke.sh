@@ -16,6 +16,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+# ok, fail and the count of failures: the script tests' assertions (RD-1280-15).
+# shellcheck source=tests/lib/expect.sh
+source "$ROOT/scripts/tests/lib/expect.sh"
 
 VERSION="${1:-}"
 [[ -n "$VERSION" ]] || { echo "usage: scripts/release-smoke.sh <version>" >&2; exit 2; }
@@ -29,23 +32,19 @@ BASE="http://127.0.0.1:$PORT"
 PASSWORD="smoke-$(head -c 12 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"
 SERVER_LOG="$WORK/server.log"
 SERVER_PID=""
-FAILURES=0
 
 cleanup() {
     if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2> /dev/null; then
         kill "$SERVER_PID" 2> /dev/null || true
         wait "$SERVER_PID" 2> /dev/null || true
     fi
-    if [[ "$FAILURES" -ne 0 && -f "$SERVER_LOG" ]]; then
+    if [[ "$failures" -ne 0 && -f "$SERVER_LOG" ]]; then
         echo "--- server log (last 60 lines) ---" >&2
         tail -60 "$SERVER_LOG" >&2 || true
     fi
     rm -rf "$WORK"
 }
 trap cleanup EXIT
-
-fail() { echo "FAIL $*" >&2; FAILURES=$((FAILURES + 1)); }
-pass() { echo "ok   $*"; }
 
 # One HTTP call. Body to $WORK/body, status returned on stdout, and the exit status of curl
 # itself is checked — a connection refused must not read as an empty status string.
@@ -60,11 +59,11 @@ http() {
     echo "$code"
 }
 
-expect() {
+expect_http() {
     local want="$1" method="$2" path="$3" data="${4:-}" got
     got="$(http "$method" "$path" "$data")"
     if [[ "$got" == "$want" ]]; then
-        pass "$method $path -> $got"
+        ok "$method $path -> $got"
     else
         fail "$method $path -> $got (expected $want): $(head -c 300 "$WORK/body" 2>/dev/null)"
     fi
@@ -94,22 +93,22 @@ for _ in $(seq 1 60); do
     sleep 1
 done
 [[ "$ready" -eq 1 ]] || { echo "the service never answered /api/v1/health" >&2; exit 1; }
-pass "service came up (pid $SERVER_PID)"
+ok "service came up (pid $SERVER_PID)"
 
 # ---------------------------------------------------------------------------------------------
 # The API, as a client sees it
 # ---------------------------------------------------------------------------------------------
 reported="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$WORK/body")"
 if [[ "$reported" == "$VERSION" ]]; then
-    pass "/api/v1/health reports $reported"
+    ok "/api/v1/health reports $reported"
 else
     fail "/api/v1/health reports $reported, expected $VERSION"
 fi
 
-expect 200 GET /api/v1/auth/status
+expect_http 200 GET /api/v1/auth/status
 setup_required="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["setup_required"])' "$WORK/body")"
 if [[ "$setup_required" == "True" ]]; then
-    pass "a fresh install asks for setup"
+    ok "a fresh install asks for setup"
 else
     fail "a fresh install reports setup_required=$setup_required"
 fi
@@ -118,24 +117,24 @@ fi
 # of the suite is meaningless, so it is checked first.
 guarded="$(http GET /api/v1/settings)"
 if [[ "$guarded" == "401" || "$guarded" == "403" ]]; then
-    pass "GET /api/v1/settings without a session -> $guarded"
+    ok "GET /api/v1/settings without a session -> $guarded"
 else
     fail "GET /api/v1/settings without a session -> $guarded (expected 401 or 403)"
 fi
 
-expect 200 POST /api/v1/auth/setup "{\"password\":\"$PASSWORD\"}"
-expect 200 POST /api/v1/auth/login "{\"password\":\"$PASSWORD\"}"
+expect_http 200 POST /api/v1/auth/setup "{\"password\":\"$PASSWORD\"}"
+expect_http 200 POST /api/v1/auth/login "{\"password\":\"$PASSWORD\"}"
 
 # The same route again, now that there is a session.
-expect 200 GET /api/v1/settings
-expect 200 GET /api/v1/packages
-expect 200 GET /api/v1/system/media
-expect 200 GET /api/v1/collector/candidates
+expect_http 200 GET /api/v1/settings
+expect_http 200 GET /api/v1/packages
+expect_http 200 GET /api/v1/system/media
+expect_http 200 GET /api/v1/collector/candidates
 
 # The embedded web UI has to be in the binary; a release built without web/dist serves nothing.
 index_code="$(http GET /)"
 if [[ "$index_code" == "200" ]] && grep -qi '<div id="app"' "$WORK/body"; then
-    pass "the embedded web UI is served ($(stat -c %s "$WORK/body") bytes)"
+    ok "the embedded web UI is served ($(stat -c %s "$WORK/body") bytes)"
 else
     fail "GET / -> $index_code, and no app root in the body"
 fi
@@ -226,7 +225,7 @@ JS
     if NODE_PATH="$PW_ROOT" SMOKE_BASE="$BASE" SMOKE_PASSWORD="$PASSWORD" \
        SMOKE_SHOT="$ROOT/artifacts/release-smoke-$VERSION.png" \
        node "$WORK/ui.mjs"; then
-        pass "the UI signs in and renders"
+        ok "the UI signs in and renders"
     else
         fail "the Playwright UI pass"
     fi
@@ -234,9 +233,9 @@ fi
 
 # ---------------------------------------------------------------------------------------------
 echo
-if [[ "$FAILURES" -eq 0 ]]; then
+if [[ "$failures" -eq 0 ]]; then
     echo "==> smoke test passed"
 else
-    echo "==> smoke test failed: $FAILURES check(s)" >&2
+    echo "==> smoke test failed: $failures check(s)" >&2
 fi
-exit "$FAILURES"
+exit "$failures"

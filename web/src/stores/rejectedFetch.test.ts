@@ -8,22 +8,13 @@
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: vi.fn(),
-    PUT: vi.fn(),
-    PATCH: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
 /** The handlers each store registered, so a test can play the server's events. */
 const handlers: Record<string, (event: MessageEvent) => void> = {}
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (registered: Record<string, (event: MessageEvent) => void>) => {
     Object.assign(handlers, registered)
     return () => {}

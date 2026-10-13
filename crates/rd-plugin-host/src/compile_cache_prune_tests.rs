@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use super::{CAP_BYTES, OWNERS_FILE, read_owners};
-use crate::compile_cache::{WASMTIME_DIRECTORY, entries, hex_digest};
+use crate::compile_cache::{WASMTIME_DIRECTORY, entries};
 use crate::engine::{
     SharedEngine,
     tests::{EMPTY_COMPONENT, variant},
@@ -16,7 +16,10 @@ fn entry_paths(root: &Path) -> Vec<PathBuf> {
 }
 
 fn installed(components: &[&[u8]]) -> BTreeSet<String> {
-    components.iter().map(|bytes| hex_digest(bytes)).collect()
+    components
+        .iter()
+        .map(|bytes| rd_sign::hex_sha256(bytes))
+        .collect()
 }
 
 /// Two components compiled, one after the other, as a start does.

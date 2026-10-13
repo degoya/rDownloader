@@ -1,4 +1,5 @@
-//! What each of the seven step kinds does when it runs, and how the run ends.
+//! Which of the seven step kinds runs, and how the run ends; what each kind does is in
+//! `step_kinds.rs` (RD-1280-08).
 //!
 //! Every step either writes a variable or refuses. There is no step that half-succeeds: a
 //! `regex` that matched nothing is a page whose structure changed, and saying so is the whole
@@ -12,17 +13,19 @@ use regex::Regex;
 use url::Url;
 
 use super::{
-    decode,
     error::RunError,
-    guard::{host_allowed, is_public, literal_address},
-    ports::{CaptchaRequest, Method},
+    guard::{is_public, literal_address},
+    ports::Method,
     run::Run,
-    value::{CAPTCHA_VARIABLE, ExpandError, Expansion, PAGE_URL_VARIABLE, Value},
+    value::{ExpandError, Expansion, PAGE_URL_VARIABLE, Value},
 };
 use crate::{
     format::PackageSource,
     step::{LINKS_VARIABLE, PAGE_VARIABLE, Step, compile_pattern},
 };
+
+#[path = "step_kinds.rs"]
+mod kinds;
 
 /// The longest package name a run yields, in characters -- the length a package name may have
 /// in the queue.
@@ -33,119 +36,28 @@ impl Run<'_> {
     pub(crate) async fn step(&mut self, index: usize, step: &Step) -> Result<(), RunError> {
         self.check_time()?;
         match step {
-            Step::Fetch { url, into } => {
-                let target = match url {
-                    Some(template) => match self.expand_each(index, "fetch", template)? {
-                        Expansion::One(expanded) => self.target(index, "fetch", &expanded)?,
-                        Expansion::Each(entries) => {
-                            let bodies = self
-                                .fetch_each(index, "fetch", &entries, |body| Ok(Value::One(body)))
-                                .await?;
-                            self.variables
-                                .set(into.as_deref().unwrap_or(PAGE_VARIABLE), bodies);
-                            return Ok(());
-                        }
-                    },
-                    None => self.address.clone(),
-                };
-                let (_, response) = self
-                    .fetch_page(target, Method::Get, BTreeMap::new(), false)
-                    .await?;
-                self.variables
-                    .set(into.as_deref().unwrap_or(PAGE_VARIABLE), response.body);
-            }
+            Step::Fetch { url, into } => self.fetch_step(index, url, into).await,
             Step::FetchJson { url, path, into } => {
-                let expanded = match self.expand_each(index, "fetch-json", url)? {
-                    Expansion::One(expanded) => expanded,
-                    Expansion::Each(entries) => {
-                        let found = self
-                            .fetch_each(index, "fetch-json", &entries, |body| {
-                                json_at(index, &body, path)
-                            })
-                            .await?;
-                        self.variables.set(into, found);
-                        return Ok(());
-                    }
-                };
-                let target = self.target(index, "fetch-json", &expanded)?;
-                let (_, response) = self
-                    .fetch_page(target, Method::Get, BTreeMap::new(), false)
-                    .await?;
-                let value = json_at(index, &response.body, path)?;
-                self.variables.set(into, value);
+                self.fetch_json_step(index, url, path, into).await
             }
             Step::Regex {
                 pattern,
                 from,
                 into,
                 all,
-            } => {
-                let source = from.as_deref().unwrap_or(PAGE_VARIABLE);
-                let value = self.read(index, "regex", source)?;
-                let regex = compile_pattern(pattern).map_err(|error| RunError::Structure {
-                    step: index,
-                    kind: "regex",
-                    detail: format!("the pattern does not compile: {error}"),
-                })?;
-                let mut found = Vec::new();
-                for text in value.iter() {
-                    if *all {
-                        found.extend(regex.captures_iter(text).filter_map(first_capture));
-                    } else {
-                        found.extend(regex.captures(text).and_then(first_capture));
-                    }
-                }
-                if found.is_empty() {
-                    return Err(RunError::Structure {
-                        step: index,
-                        kind: "regex",
-                        detail: format!("{pattern:?} matched nothing in {source:?}"),
-                    });
-                }
-                self.variables.set(into, Value::list(found));
-            }
+            } => self.regex_step(index, pattern, from, into, *all),
             Step::Decode {
                 encoding,
                 from,
                 into,
-            } => {
-                let value = self.read(index, "decode", from)?;
-                let mut decoded = Vec::new();
-                for text in value.iter() {
-                    decoded.push(decode::decode(*encoding, text).ok_or_else(|| {
-                        RunError::DecodeFailed {
-                            step: index,
-                            encoding: decode::name(*encoding).to_owned(),
-                        }
-                    })?);
-                }
-                self.variables.set(into, Value::list(decoded));
-            }
+            } => self.decode_step(index, *encoding, from, into),
             Step::Form {
                 url,
                 fields,
                 into,
                 json,
-            } => {
-                let expanded = self.expand(index, "form", url)?;
-                let target = self.target(index, "form", &expanded)?;
-                let mut body = BTreeMap::new();
-                for (name, template) in fields {
-                    body.insert(name.clone(), self.expand(index, "form", template)?);
-                }
-                let (_, response) = self.fetch_page(target, Method::Post, body, *json).await?;
-                self.variables
-                    .set(into.as_deref().unwrap_or(PAGE_VARIABLE), response.body);
-            }
-            Step::Redirect { from, into } => {
-                let value = self.read(index, "redirect", from)?;
-                let mut targets = Vec::new();
-                for text in value.iter() {
-                    let url = self.target(index, "redirect", text)?;
-                    targets.push(self.redirect_target_of(index, &url).await?);
-                }
-                self.variables.set(into, Value::list(targets));
-            }
+            } => self.form_step(index, url, fields, into, *json).await,
+            Step::Redirect { from, into } => self.redirect_step(index, from, into).await,
             Step::Captcha {
                 challenge,
                 sitekey,
@@ -153,54 +65,10 @@ impl Run<'_> {
                 page,
                 invisible,
             } => {
-                let solver = self.ports.captcha.ok_or_else(|| RunError::CaptchaFailed {
-                    step: index,
-                    reason: "no captcha broker is available to this run".to_owned(),
-                })?;
-                let sitekey = match sitekey {
-                    Some(template) => Some(self.expand(index, "captcha", template)?),
-                    None => None,
-                };
-                let page_url = match page {
-                    Some(template) => {
-                        let expanded = self.expand(index, "captcha", template)?;
-                        self.target(index, "captcha", &expanded)?
-                    }
-                    None => self.current_page(index)?,
-                };
-                // Sent to the solver and the person's browser, so held to the rule's own hosts
-                // like every page it fetches (RD-1190-22): a rule cannot spend the person's
-                // solver credit on another site's captcha.
-                if !host_allowed(self.rule, &self.origin_host, &page_url) {
-                    return Err(RunError::TargetNotAllowed {
-                        url: page_url.to_string(),
-                    });
-                }
-                let asked = self.ports.clock.elapsed();
-                let answer = solver
-                    .solve(CaptchaRequest {
-                        challenge: challenge.clone(),
-                        sitekey,
-                        page_url,
-                        invisible: *invisible,
-                    })
-                    .await;
-                self.captcha_waited(self.ports.clock.elapsed().saturating_sub(asked));
-                let token = answer.map_err(|reason| RunError::CaptchaFailed {
-                    step: index,
-                    reason,
-                })?;
-                if token.is_empty() {
-                    return Err(RunError::CaptchaFailed {
-                        step: index,
-                        reason: "the broker returned an empty answer".to_owned(),
-                    });
-                }
-                self.variables
-                    .set(into.as_deref().unwrap_or(CAPTCHA_VARIABLE), token);
+                self.captcha_step(index, challenge, sitekey, into, page, *invisible)
+                    .await
             }
         }
-        Ok(())
     }
 
     /// The links the run produced: absolute, deduplicated, in the order the rule found them.

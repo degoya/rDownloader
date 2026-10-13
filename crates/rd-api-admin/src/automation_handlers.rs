@@ -5,7 +5,7 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
 };
-use rd_automation::{Automation, AutomationVersion, Run, Trigger};
+use rd_automation::{Automation, AutomationVersion, Run, Trigger, VersionReset};
 use rd_core::{AutomationId, PackageId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -148,7 +148,41 @@ pub async fn list_automation_versions(
     Ok(Json(state.database.automation_versions(id).await?))
 }
 
-#[utoipa::path(get, path = "/api/v1/automations/runs", tag = "automations", responses((status = 200, body = [Run])))]
+/// Keeps only the version in force, renumbered to 1, and deletes the older versions with their
+/// runs (RD-1280-01). Refused with `409 automation.version_reset_run_active` while a run of an
+/// older version is still queued, running or waiting for a retry.
+#[utoipa::path(post, path = "/api/v1/automations/{id}/versions/reset", tag = "automations", params(("id" = AutomationId, Path)), responses((status = 200, body = VersionReset), (status = 404), (status = 409)))]
+pub async fn reset_automation_versions(
+    State(state): State<AppState>,
+    Path(id): Path<AutomationId>,
+) -> Result<Json<VersionReset>, ApiError> {
+    state
+        .database
+        .reset_automation_versions(id)
+        .await
+        .map(Json)
+        .map_err(|error| {
+            crate::error_codes::store_error(
+                &error,
+                "automation.not_found",
+                "Automation not found",
+                rd_db::StoreErrorKind::WrongState,
+                "automation.version_reset_run_active",
+                "A run of an older version is still active; reset once it has finished",
+            )
+        })
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/automations/runs",
+    tag = "automations",
+    params(
+        ("automation_id" = Option<AutomationId>, Query, description = "Only this automation's runs"),
+        ("limit" = Option<u32>, Query, description = "Newest runs to return, 1-500")
+    ),
+    responses((status = 200, body = [Run]))
+)]
 pub async fn list_automation_runs(
     State(state): State<AppState>,
     Query(query): Query<RunQuery>,

@@ -11,7 +11,6 @@
 //! password, is built from the known marker and is **not** covered by a recorded
 //! page: none of the seven pages of the measurement carries a protected entry, and none could
 //! be found. It is written to be right and it is honestly untested.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_crawler::{
     CrawledLink, Guest, host,

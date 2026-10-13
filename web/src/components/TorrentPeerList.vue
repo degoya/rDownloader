@@ -52,7 +52,7 @@ function bucketClass(percent: number): string {
           :class="bucketClass(percent)"
         />
       </div>
-      <p v-else class="text-xs text-muted">{{ t('torrent.pieces.empty') }}</p>
+      <UEmpty v-else :description="t('torrent.pieces.empty')" />
     </section>
 
     <section class="grid gap-1">
@@ -61,7 +61,7 @@ function bucketClass(percent: number): string {
         <span v-if="props.peers" class="numeric">{{ t('torrent.peers.count', { count: props.peers.total }) }}</span>
       </div>
       <p v-if="offline" class="text-xs text-muted">{{ t('torrent.peers.offline') }}</p>
-      <p v-else-if="!entries.length" class="text-xs text-muted">{{ t('torrent.peers.empty') }}</p>
+      <UEmpty v-else-if="!entries.length" :description="t('torrent.peers.empty')" />
       <ul v-else class="max-h-64 overflow-y-auto border border-muted bg-default">
         <li
           v-for="peer in entries"

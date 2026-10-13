@@ -24,7 +24,7 @@ use crate::audit::{AuditContext, AuditEvent};
 use crate::{ApiError, AppState, backup_delivery};
 
 /// The folder archives are fetched into for a check, below the data directory.
-pub const VERIFY_DIR: &str = "backup-verify";
+pub(crate) const VERIFY_DIR: &str = "backup-verify";
 
 /// Where verifications fetch their copies.
 #[must_use]
@@ -105,7 +105,7 @@ pub async fn tick(state: &AppState, now: DateTime<Utc>) -> usize {
 ///
 /// `backup.key_missing` when no passphrase is set up, `backup.destination_missing` when the
 /// archive's destination is gone.
-pub async fn start_verification(
+pub(crate) async fn start_verification(
     state: &AppState,
     archive: &BackupArchive,
     origin: BackupOrigin,

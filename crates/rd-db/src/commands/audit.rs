@@ -4,7 +4,7 @@ use super::Reply;
 
 /// The commands `Writer::handle_audit` applies.
 // The variant names were the flat enum's; within one area they share a postfix.
-#[allow(clippy::enum_variant_names)]
+#[expect(clippy::enum_variant_names)]
 pub(crate) enum AuditCommand {
     /// Appends audit records (RD-110-03). There is deliberately no command that updates one.
     AppendAuditRecords {

@@ -18,8 +18,6 @@ keys, file names, sizes and content hashes are the public share's own and stay.
 | `api-file-get-info-batch-2026-09-21.json` | two keys, one of them deleted: `file_infos[]` plus `skipped` |
 | `api-file-get-info-invalid-2026-09-21.json` | the documentation's deleted example key: error 110, HTTP `404` (it was `400` at 00:30 the same day) |
 | `api-file-get-info-missing-2026-09-21.json` | a key of the wrong length: error 111, HTTP `400` |
-| `api-file-get-links-2026-09-21.json` | `file/get_links` without a token: `normal_download` only |
-| `api-file-get-links-direct-denied-2026-09-21.json` | `link_type=direct_download` without a token: error 45 |
 | `error-redirect-errno-320-2026-09-21.txt` | the `302` target of a file page that does not exist |
 | `file-page-captcha-recaptcha.html` | synthetic |
 | `file-page-captcha-checkbox.html` | synthetic |
@@ -27,4 +25,3 @@ keys, file names, sizes and content hashes are the public share's own and stay.
 | `file-page-password.html` | synthetic |
 | `file-page-malware.html` | synthetic |
 | `api-error-261.json` | synthetic |
-| `error-redirect-errno-999.txt` | synthetic |

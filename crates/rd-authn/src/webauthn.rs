@@ -43,7 +43,7 @@ use crate::ProxyConfig;
 ///
 /// Long enough to find the phone, short enough that an abandoned challenge is not a lasting
 /// piece of server state. The authenticator's own timeout is shorter in practice.
-pub const CEREMONY_TTL: Duration = Duration::from_secs(300);
+pub(crate) const CEREMONY_TTL: Duration = Duration::from_secs(300);
 
 /// How many ceremonies may be in flight at once.
 ///
@@ -64,7 +64,7 @@ const MAX_IN_FLIGHT: usize = 64;
 const MAX_PER_OWNER: usize = 8;
 
 /// The name shown in the authenticator's account picker.
-pub const RELYING_PARTY_NAME: &str = "rDownloader";
+pub(crate) const RELYING_PARTY_NAME: &str = "rDownloader";
 
 /// Why a ceremony cannot be started here.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]

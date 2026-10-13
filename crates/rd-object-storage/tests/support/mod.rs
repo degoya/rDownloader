@@ -1,39 +1,24 @@
 //! What the Azure and Google wire tests share: a service on a fresh database and vault, a
 //! queue row for a link, a run of the runner, and a partial file left by an earlier attempt.
-//! Each test file brings its own fixture server; `tests/s3.rs` predates this and keeps its own.
+//! Each test file brings its own fixture server; `tests/s3.rs` predates this and keeps its own
+//! harness. `lock`, `respond` and `payload` are `rd_testkit`'s; each test imports the ones it
+//! uses, since every binary uses a different few.
 //! `tests/s3_tls.rs` and `tests/s3_live.rs` use it for S3 over TLS and against a real service.
 
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    reason = "shared by several test binaries, and none uses every helper"
+)]
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use axum::{Router, body::Body, response::Response};
+use axum::Router;
 use rd_core::{DownloadKind, DownloadState, PackageId};
 use rd_db::{Database, NewDownload, NewObjectStorageProfile, NewPackage};
 use rd_object_storage::ObjectStorageService;
 use rd_scheduler::{RunLimits, RunOutcome};
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
-
-pub fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    mutex
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
-pub fn respond(
-    status: axum::http::StatusCode,
-    headers: &[(&str, String)],
-    body: impl Into<Body>,
-) -> Response {
-    let mut builder = Response::builder().status(status);
-    for (name, value) in headers {
-        builder = builder.header(*name, value);
-    }
-    builder
-        .body(body.into())
-        .unwrap_or_else(|_| Response::new(Body::empty()))
-}
 
 /// Percent-decodes one URL component; `+` stays a plus, as it does in a path.
 pub fn decode(raw: &str) -> String {
@@ -43,22 +28,10 @@ pub fn decode(raw: &str) -> String {
         .unwrap_or_default()
 }
 
-pub fn payload(length: usize) -> Vec<u8> {
-    (0..length).map(|index| (index % 241) as u8).collect()
-}
-
-/// Serves `app` on a free local port and answers its address.
-pub async fn serve(app: Router) -> std::net::SocketAddr {
+/// Serves `app` on a free local port until the handle drops.
+pub async fn serve(app: Router) -> rd_testkit::TestServer {
     // A part or block is up to 16 MiB; axum's default 2 MiB body limit would refuse every one.
-    let app = app.layer(axum::extract::DefaultBodyLimit::disable());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    address
+    rd_testkit::serve(app.layer(axum::extract::DefaultBodyLimit::disable())).await
 }
 
 pub struct Harness {
@@ -99,9 +72,7 @@ impl Harness {
         network: rd_http::NetworkDefaults,
     ) -> Self {
         let directory = tempfile::tempdir().expect("tempdir");
-        let database = Database::open(directory.path().join("objects.sqlite3"))
-            .await
-            .expect("database");
+        let database = rd_testkit::temp_database(directory.path()).await;
         let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
             .await
             .expect("secrets");

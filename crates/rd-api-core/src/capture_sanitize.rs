@@ -45,7 +45,7 @@ pub fn body_not_allowed() -> ApiError {
 
 /// `400` when the encoded body exceeds what the contract accepts.
 #[must_use]
-pub fn body_length(max: usize) -> ApiError {
+pub(crate) fn body_length(max: usize) -> ApiError {
     ApiError::bad_request(
         "capture.body_length",
         format!("Provide at most {max} bytes of encoded request body"),
@@ -77,7 +77,7 @@ pub fn header_length() -> ApiError {
 
 /// `400` for an oversized referrer, user agent or content disposition.
 #[must_use]
-pub fn field_length(field: &str) -> ApiError {
+pub(crate) fn field_length(field: &str) -> ApiError {
     ApiError::bad_request(
         "capture.field_length",
         format!("Captured `{field}` is too long"),

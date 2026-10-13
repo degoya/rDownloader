@@ -83,7 +83,7 @@ pub(crate) struct Client {
 impl Client {
     /// Builds a client for `server`, authenticating with `token` when one is given.
     pub(crate) fn new(server: &str, token: Option<String>, timeout_seconds: u64) -> Result<Self> {
-        let http = reqwest::Client::builder()
+        let http = rd_http::client_builder(rd_http::ClientPurpose::Service)
             .timeout(std::time::Duration::from_secs(timeout_seconds))
             .build()
             .context("build HTTP client")?;
@@ -107,7 +107,7 @@ impl Client {
         token: Option<String>,
         connect_seconds: u64,
     ) -> Result<Self> {
-        let http = reqwest::Client::builder()
+        let http = rd_http::client_builder(rd_http::ClientPurpose::Service)
             .connect_timeout(std::time::Duration::from_secs(connect_seconds))
             .read_timeout(STREAM_STALL)
             .build()
@@ -231,9 +231,8 @@ pub(crate) const STREAM_STALL: std::time::Duration = std::time::Duration::from_s
 /// received the Bearer token of the local control file and every update failed with
 /// `update.service_did_not_stop`.
 pub(crate) fn local_http(timeout: std::time::Duration) -> Result<reqwest::Client> {
-    reqwest::Client::builder()
+    rd_http::client_builder(rd_http::ClientPurpose::Direct)
         .timeout(timeout)
-        .no_proxy()
         .build()
         .context("build HTTP client")
 }
@@ -288,19 +287,14 @@ mod tests {
                 .build()
                 .expect("runtime");
             runtime.block_on(async {
-                let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-                    .await
-                    .expect("bind");
-                let address = listener.local_addr().expect("address");
                 let router = axum::Router::new().route(
                     "/ping",
                     axum::routing::get(|| async {
                         axum::Json(serde_json::json!({ "pong": true }))
                     }),
                 );
-                tokio::spawn(async move {
-                    axum::serve(listener, router).await.expect("serve");
-                });
+                let server = rd_testkit::serve(router).await;
+                let address = server.addr();
                 let client =
                     Client::local(&format!("http://{address}"), Some("token".to_owned()), 5)
                         .expect("client");

@@ -46,6 +46,7 @@ export function reportServiceReachable(): void {
   if (state.value === 'connected') return
   state.value = 'connected'
   // Copy first: a listener may unregister while we iterate.
+  // oxlint-disable-next-line unicorn/no-useless-spread -- the copy is the point, see above
   for (const listener of [...reconnectListeners]) listener()
 }
 

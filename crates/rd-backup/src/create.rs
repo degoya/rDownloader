@@ -79,6 +79,15 @@ pub struct BackupError {
 }
 
 impl BackupError {
+    /// A failure under the stable `code` with its `detail`.
+    #[must_use]
+    pub fn new(code: &'static str, detail: impl Into<String>) -> Self {
+        Self {
+            code,
+            detail: detail.into(),
+        }
+    }
+
     fn at(code: &'static str) -> impl FnOnce(anyhow::Error) -> Self {
         move |error| Self {
             code,

@@ -17,7 +17,7 @@ use futures_util::stream::{self, BoxStream, StreamExt};
 /// How long fetching one small document (a manifest, the release list) may take.
 pub const FETCH_TIMEOUT_SECONDS: u64 = 60;
 /// How long a download may go without receiving a byte.
-pub const READ_TIMEOUT_SECONDS: u64 = 60;
+pub(crate) const READ_TIMEOUT_SECONDS: u64 = 60;
 /// Most redirects one request follows. A release asset takes two.
 const MAX_REDIRECTS: usize = 5;
 
@@ -52,6 +52,9 @@ impl HttpFetcher {
             }
         });
         Self {
+            // Not `rd_http::client_builder`: this crate is linked into the capture agent, which
+            // does not link the download engine. The same rule by hand: the user agent, a
+            // connect deadline, the environment's proxy variables.
             client: reqwest::Client::builder()
                 // GitHub's API refuses a request without one.
                 .user_agent(rd_core::user_agent!())

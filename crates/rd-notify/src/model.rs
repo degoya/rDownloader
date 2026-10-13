@@ -217,6 +217,13 @@ pub struct NotificationRule {
     /// Restricts the rule to one category; `None` matches all.
     pub category_id: Option<CategoryId>,
     pub min_severity: Severity,
+    /// The rule's own title with `{placeholder}` holes (RD-1280-02); `None` sends the built-in
+    /// one. Which event fills which placeholder: [`NotificationEvent::placeholders`].
+    #[serde(default)]
+    pub title_template: Option<String>,
+    /// The rule's own text, like [`Self::title_template`].
+    #[serde(default)]
+    pub body_template: Option<String>,
 }
 
 impl NotificationRule {
@@ -299,6 +306,8 @@ mod tests {
             events: Vec::new(),
             category_id: None,
             min_severity: Severity::Info,
+            title_template: None,
+            body_template: None,
         }
     }
 

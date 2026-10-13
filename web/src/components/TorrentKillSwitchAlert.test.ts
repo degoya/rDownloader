@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import type { TorrentNetworkStatus } from '@/api/types'
 import downloads from '@/locales/en/downloads.json'
@@ -12,7 +13,7 @@ import { mountComponent } from '@/test/mount'
 const get = vi.hoisted(() => vi.fn())
 const push = vi.hoisted(() => vi.fn(async () => undefined))
 const reveal = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => true))
-vi.mock('@/api/client', () => ({ api: { GET: (...args: unknown[]) => get(...args) } }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@/utils/revealAnchor', () => ({ revealAnchor: (...args: unknown[]) => reveal(...args) }))
 

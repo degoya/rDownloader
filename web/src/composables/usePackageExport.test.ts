@@ -3,22 +3,19 @@
  * file the service wrote is saved under the name it gave, and the toast counts what went in.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
-const add = vi.fn()
+const add = vi.hoisted(() => vi.fn())
 const open = vi.fn()
 const saved: { blob: Blob, name: string }[] = []
 
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add }),
-  useOverlay: () => ({ create: () => ({ open }) })
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add, overlay: { open } }))
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => `${key} ${JSON.stringify(values ?? {})}` })
 }))
 vi.mock('@/components/PackageExportModal.vue', () => ({ default: {} }))
 vi.mock('@/utils/jsonFile', () => ({ downloadBlob: (blob: Blob, name: string) => saved.push({ blob, name }) }))
-vi.mock('@/api/client', () => ({
-  api: { POST: vi.fn() },
+vi.mock('@/api/client', () => apiClientMock({
   errorMessage: (error: unknown) => typeof error === 'string' ? error : 'failed',
   resultMessage: (body: { code?: string }) => `translated ${body.code ?? ''}`
 }))

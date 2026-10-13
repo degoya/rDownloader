@@ -208,7 +208,6 @@
   },
   "examples": {
     "restore": "Mitgelieferte wiederherstellen",
-    "restore_hint": "Legt die mit rDownloader ausgelieferten Regeln wieder an, abgeschaltet. Eine vorhandene bleibt, wie sie ist.",
     "restored": "{count} mitgelieferte Regeln wiederhergestellt, abgeschaltet.",
     "none_missing": "Alle mitgelieferten Regeln sind schon da."
   },

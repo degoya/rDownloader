@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import downloads from '@/locales/en/downloads.json'
@@ -13,18 +14,14 @@ import { mountComponent } from '@/test/mount'
 
 import QueuePauseControl from './QueuePauseControl.vue'
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async () => ({ data: undefined })),
-    POST: vi.fn(async () => ({ data: undefined })),
-    PUT: vi.fn(),
-    DELETE: vi.fn()
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async () => ({ data: undefined })),
+  POST: vi.fn(async () => ({ data: undefined })),
   responseError: vi.fn(() => 'refused'),
   errorMessage: vi.fn(),
   resultMessage: vi.fn()
 }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: vi.fn(() => () => {}) }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const NOW = new Date('2026-10-02T12:00:00Z')
 

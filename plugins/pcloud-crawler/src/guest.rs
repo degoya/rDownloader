@@ -14,7 +14,6 @@
 //!
 //! Which of pCloud's two installations the calls go to is settled by the first one and pinned
 //! for the rest — see `plugins/pcloud/src/resolver.rs` for why that correction exists at all.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use pcloud_common::{
     address::{self, Region},

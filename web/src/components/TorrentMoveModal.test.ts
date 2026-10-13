@@ -5,6 +5,7 @@
 import { fireEvent, screen } from '@testing-library/vue'
 import { flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import common from '@/locales/en/common.json'
 import torrent from '@/locales/en/torrent.json'
@@ -14,19 +15,17 @@ import TorrentMoveModal from './TorrentMoveModal.vue'
 
 const calls = vi.hoisted(() => ({ post: [] as unknown[], answer: null as unknown }))
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async () => ({
-      data: [
-        { id: 'r1', name: 'Media', path: '/srv/media', is_default: false },
-        { id: 'r2', name: 'Archive', path: '/srv/archive', is_default: true }
-      ]
-    })),
-    POST: vi.fn(async (_path: string, options: unknown) => {
-      calls.post.push(options)
-      return calls.answer
-    })
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async () => ({
+    data: [
+      { id: 'r1', name: 'Media', path: '/srv/media', is_default: false },
+      { id: 'r2', name: 'Archive', path: '/srv/archive', is_default: true }
+    ]
+  })),
+  POST: vi.fn(async (_path: string, options: unknown) => {
+    calls.post.push(options)
+    return calls.answer
+  }),
   responseError: (response: { error?: { message?: string } }) => response.error?.message ?? 'failed',
   resultMessage: (body: { message?: string }) => body.message ?? ''
 }))

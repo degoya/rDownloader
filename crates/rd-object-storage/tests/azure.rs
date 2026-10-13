@@ -27,7 +27,8 @@ use rd_db::NewObjectStorageProfile;
 use rd_extract::UploadReport;
 use rd_object_storage::error::{ACCESS_DENIED, AUTH_FAILED, OBJECT_CHANGED};
 use rd_scheduler::RunOutcome;
-use support::{Harness, decode, lock, payload, respond};
+use rd_testkit::{lock, payload, respond};
+use support::{Harness, decode};
 
 const ACCOUNT: &str = "devstoreaccount1";
 /// Azurite's published development key, not a secret of anybody's.
@@ -226,9 +227,13 @@ fn list(fixture: &Fixture, query: &BTreeMap<String, String>) -> Response {
     )
 }
 
-async fn start(source: ObjectCredentialSource, secret: &str) -> (Harness, Fixture) {
+async fn start(
+    source: ObjectCredentialSource,
+    secret: &str,
+) -> (rd_testkit::TestServer, Harness, Fixture) {
     let fixture = Fixture::default();
-    let address = support::serve(Router::new().fallback(handle).with_state(fixture.clone())).await;
+    let server = support::serve(Router::new().fallback(handle).with_state(fixture.clone())).await;
+    let address = server.addr();
     let harness = Harness::start(
         NewObjectStorageProfile {
             name: "azurite".to_owned(),
@@ -251,12 +256,12 @@ async fn start(source: ObjectCredentialSource, secret: &str) -> (Harness, Fixtur
         CONTAINER,
     )
     .await;
-    (harness, fixture)
+    (server, harness, fixture)
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_container_is_listed_and_a_blob_downloaded_signed_with_the_account_key() {
-    let (harness, fixture) = start(ObjectCredentialSource::Static, ACCOUNT_KEY).await;
+    let (_server, harness, fixture) = start(ObjectCredentialSource::Static, ACCOUNT_KEY).await;
     fixture.put("shows/e01.mkv", payload(70_000));
     fixture.put("shows/e02.mkv", payload(10));
 
@@ -298,7 +303,7 @@ async fn a_container_is_listed_and_a_blob_downloaded_signed_with_the_account_key
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_shared_access_signature_travels_as_the_query_and_never_as_a_header() {
-    let (harness, fixture) = start(
+    let (_server, harness, fixture) = start(
         ObjectCredentialSource::SharedAccessSignature,
         &format!("https://{ACCOUNT}.blob.core.windows.net/{CONTAINER}?{SAS}"),
     )
@@ -323,7 +328,7 @@ async fn a_shared_access_signature_travels_as_the_query_and_never_as_a_header() 
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_resume_asks_for_the_rest_of_the_same_blob_only() {
-    let (harness, fixture) = start(ObjectCredentialSource::Static, ACCOUNT_KEY).await;
+    let (_server, harness, fixture) = start(ObjectCredentialSource::Static, ACCOUNT_KEY).await;
     let body = payload(80_000);
     fixture.put("shows/e03.mkv", body.clone());
     let (file, package) = harness.queue("shows/e03.mkv", "e03.mkv").await;
@@ -366,7 +371,7 @@ async fn a_resume_asks_for_the_rest_of_the_same_blob_only() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_block_upload_reaches_the_endpoint_and_is_verified() {
-    let (harness, fixture) = start(ObjectCredentialSource::Static, ACCOUNT_KEY).await;
+    let (_server, harness, fixture) = start(ObjectCredentialSource::Static, ACCOUNT_KEY).await;
     let body = payload(20 * 1024 * 1024);
     let report = harness.upload(&body).await;
     assert_eq!(
@@ -381,7 +386,7 @@ async fn a_block_upload_reaches_the_endpoint_and_is_verified() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_refused_key_is_an_authentication_failure_and_a_missing_right_is_not() {
-    let (harness, fixture) = start(ObjectCredentialSource::Static, ACCOUNT_KEY).await;
+    let (_server, harness, fixture) = start(ObjectCredentialSource::Static, ACCOUNT_KEY).await;
     *lock(&fixture.refuse_with) = Some("AuthenticationFailed");
     let failure = harness
         .service
@@ -402,7 +407,7 @@ async fn a_refused_key_is_an_authentication_failure_and_a_missing_right_is_not()
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_key_that_is_not_base64_is_refused_before_any_request() {
-    let (harness, fixture) = start(ObjectCredentialSource::Static, "not a key!").await;
+    let (_server, harness, fixture) = start(ObjectCredentialSource::Static, "not a key!").await;
     let failure = harness
         .service
         .test_profile(&harness.profile)

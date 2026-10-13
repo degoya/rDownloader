@@ -12,9 +12,7 @@ use rd_db::{Database, NewDownload, NewPackage};
 use tokio::sync::broadcast::error::TryRecvError;
 
 async fn open(directory: &Path) -> Database {
-    let database = Database::open(directory.join("rdownloader.sqlite3"))
-        .await
-        .expect("database");
+    let database = rd_testkit::temp_database(directory).await;
     database
         .install_file_vault(directory.join("secrets"))
         .await

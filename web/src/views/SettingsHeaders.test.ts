@@ -8,38 +8,31 @@
  * the service answering nothing but the settings document — the pages bound to it wait for it
  * (WEB-01) — so what is counted is the page as a person reaches it.
  */
-import { render } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { i18n, SUPPORTED_LOCALES } from '@/i18n'
 import { SETTINGS_SECTIONS } from '@/settingsSections'
 import { axeViolations } from '@/test/axe'
 import { loadEveryLocale } from '@/test/locales'
-import { uiStubs } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 // The navbar test below switches through all four languages.
 beforeAll(loadEveryLocale)
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async (path: string) => path === '/api/v1/settings'
-      ? { data: (await import('@/settingsDefaults')).defaultSettings() }
-      : { data: undefined, error: { code: 'internal' } }),
-    POST: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
-    PUT: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
-    PATCH: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
-    DELETE: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } }))
-  },
-  responseError: () => 'The service did not answer',
-  resultMessage: () => ''
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async (path: string) => path === '/api/v1/settings'
+    ? { data: (await import('@/settingsDefaults')).defaultSettings() }
+    : { data: undefined, error: { code: 'internal' } }),
+  POST: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
+  PUT: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
+  PATCH: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
+  DELETE: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } }))
 }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(false) }) }), overlays: [] })
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 vi.mock('@/composables/useAppTour', () => ({ useAppTour: () => ({ startTour: vi.fn() }) }))
 
 import SettingsView from './SettingsView.vue'
@@ -56,9 +49,7 @@ async function mountPage(section: string, locale = 'en'): Promise<HTMLElement> {
   await router.isReady()
   setActivePinia(createPinia())
   i18n.global.locale.value = locale as typeof i18n.global.locale.value
-  const { container } = render(SettingsView, {
-    global: { plugins: [router, i18n], stubs: { ...uiStubs, UDashboardNavbar } as never }
-  })
+  const { container } = mountComponent(SettingsView, { i18n, plugins: [router], stubs: { UDashboardNavbar }, keepPinia: true })
   // The settings document answers before the bound pages render.
   await new Promise(resolve => setTimeout(resolve, 0))
   return container as HTMLElement

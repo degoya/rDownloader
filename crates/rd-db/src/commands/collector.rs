@@ -3,9 +3,6 @@
 use super::Reply;
 
 /// The commands `Writer::handle_collector` applies.
-// `RecordCandidateCheck` carries a check result and a message with its parameters and
-// outweighs the rest; every message is as large as the largest command, as with one flat enum.
-#[allow(clippy::large_enum_variant)]
 pub(crate) enum CollectorCommand {
     /// Appends probed playlist entries to an existing LinkGrabber package.
     AddMediaCandidates {

@@ -19,10 +19,12 @@ use serde::{Deserialize, Serialize};
 use crate::{DEFAULT_FUEL, PluginLimits};
 
 mod checks;
+mod complete;
 mod sections;
 mod settings;
 mod validate;
 
+pub use complete::{ManifestDefaults, complete_manifest};
 pub use sections::{
     Capabilities, CredentialKindManifest, NetHttpCapability, OAuthFlowManifest, PluginMetadata,
     ProviderKindManifest, ProviderManifest, SecretFilledByManifest, SettingManifest,
@@ -170,36 +172,53 @@ const MAX_LICENSE_CHARS: usize = 64;
 const MAX_URL_CHARS: usize = 256;
 const MAX_SLUG_CHARS: usize = 32;
 /// Hard ceiling for a plugin's declared waiting time (30 minutes).
-const MAX_WAIT_BUDGET_MILLISECONDS: u64 = 30 * 60 * 1000;
+pub const MAX_WAIT_BUDGET_MILLISECONDS: u64 = 30 * 60 * 1000;
 /// Hard ceilings for the rest of the sandbox budget a manifest declares for itself.
 ///
 /// The limits in a manifest are the plugin's own request, and the manifest is written by
 /// whoever wrote the plugin. Refusing only zero left the fuel, memory and timeout guards
 /// self-granted: a third-party manifest asking for 8 GiB, `u64::MAX` fuel and a day-long
 /// epoch deadline got exactly that, and the sandbox then bounded nothing. A plugin may ask
-/// for less than the ceiling and is refused above it.
-const MAX_MEMORY_BYTES: u64 = 512 * 1024 * 1024;
-const MAX_FUEL: u64 = 20 * DEFAULT_FUEL;
-const MAX_TIMEOUT_MILLISECONDS: u64 = MAX_WAIT_BUDGET_MILLISECONDS;
-pub(crate) const MAX_RESPONSE_BYTES: u64 = 64 * 1024 * 1024;
+/// for less than the ceiling and is refused above it. Exported (RD-1280-18) so a tool that
+/// prices a budget against the ceiling, `examples/mega_login_fuel.rs`, reads the one value.
+pub const MAX_MEMORY_BYTES: u64 = 512 * 1024 * 1024;
+/// The most fuel a manifest may declare: twenty times [`DEFAULT_FUEL`].
+pub const MAX_FUEL: u64 = 20 * DEFAULT_FUEL;
+/// The longest compute time a manifest may declare, the same 30 minutes as the wait budget.
+pub const MAX_TIMEOUT_MILLISECONDS: u64 = MAX_WAIT_BUDGET_MILLISECONDS;
+/// The largest HTTP answer a manifest may let its plugin read (64 MiB).
+pub const MAX_RESPONSE_BYTES: u64 = 64 * 1024 * 1024;
 const MIN_SLUG_CHARS: usize = 2;
 
 /// Signed metadata included in a `.rdplug` archive.
+///
+/// Four identity fields (`manifest_version`, `api_version`, `key_id`, `public_key`) and
+/// `metadata.author` read as empty when absent and are refused empty by
+/// [`validate_manifest`], which every package passes at packaging, verification and
+/// installation (RD-1280-18). A bundled plugin's source manifest leaves them to
+/// `plugins/metadata.toml`, which `rd-pack plugin package --defaults` writes into the packaged
+/// copy ([`complete_manifest`]); reading that source for its domains or its provider -- what
+/// the contract tests do -- therefore needs no completion, and a package without them is still
+/// refused. A third-party manifest states them, as it always did.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PluginManifest {
-    /// Manifest revision; must equal [`MANIFEST_VERSION`].
+    /// Manifest revision; must equal [`MANIFEST_VERSION`]. Absent reads as 0, refused.
+    #[serde(default)]
     pub manifest_version: u32,
     /// What this plugin is; decides which world it is instantiated against.
     pub plugin_type: PluginType,
     /// Version of the `rdownloader:plugin` WIT package the component was built against.
+    #[serde(default)]
     pub api_version: String,
     pub id: PluginId,
     /// Default display name. Localised overrides live in `locales/<lang>.json`.
     pub name: String,
     pub version: String,
     /// Names the signing key; also the trust-store key for this author.
+    #[serde(default)]
     pub key_id: String,
     /// Base64 Ed25519 public key of `key_id`, used for trust-on-first-use.
+    #[serde(default)]
     pub public_key: String,
     pub metadata: PluginMetadata,
     /// The provider row a resolver contributes. Required for `plugin_type = "resolver"` and

@@ -355,7 +355,8 @@ pub(crate) async fn not_a_file(
     let excerpt = rd_http::peek_body_text(client, source.clone(), headers, NOT_A_FILE_PEEK_BYTES)
         .await
         .map(|text| {
-            truncate_on_char_boundary(rd_core::redact_text(&text), NOT_A_FILE_MESSAGE_BYTES)
+            rd_core::text::truncate(&rd_core::redact_text(&text), NOT_A_FILE_MESSAGE_BYTES)
+                .to_owned()
         });
     let message = match &excerpt {
         Some(text) => format!("The server returned {content_type} instead of a file: {text}"),
@@ -379,18 +380,6 @@ pub(crate) fn size_mismatch(announced: u64, offered: u64) -> Failure {
     )
     .with_param("announced_bytes", announced.to_string())
     .with_param("offered_bytes", offered.to_string())
-}
-
-fn truncate_on_char_boundary(mut text: String, limit: usize) -> String {
-    if text.len() <= limit {
-        return text;
-    }
-    let cut = (0..=limit)
-        .rev()
-        .find(|index| text.is_char_boundary(*index))
-        .unwrap_or_default();
-    text.truncate(cut);
-    text
 }
 
 /// An attempt that met a stored credential the vault master key cannot open (RD-1240-36): coded,
@@ -461,21 +450,5 @@ fn from_http_error_with_replay(error: HttpDownloadError, is_post_replay: bool) -
             format!("{error:#}"),
         ),
         HttpDownloadError::Internal(error) => transient(error),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::truncate_on_char_boundary;
-
-    #[test]
-    fn an_excerpt_is_cut_without_splitting_a_character() {
-        let text = "quota café exceeded";
-        // Byte 10 lands inside the two-byte "é", so the cut steps back to byte 9.
-        assert_eq!(truncate_on_char_boundary(text.to_owned(), 10), "quota caf");
-        // Byte 11 is the boundary right after "é", so it is kept.
-        assert_eq!(truncate_on_char_boundary(text.to_owned(), 11), "quota café");
-        // A short excerpt is returned unchanged.
-        assert_eq!(truncate_on_char_boundary("short".to_owned(), 300), "short");
     }
 }

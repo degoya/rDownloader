@@ -1,5 +1,6 @@
 import { screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import system from '@/locales/en/system.json'
@@ -7,7 +8,7 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsReadinessCard from './SettingsReadinessCard.vue'
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
+vi.mock('@/api/client', () => apiClientMock())
 vi.mock('@/stores/session', () => ({
   useSessionStore: () => ({ setupRequired: false, loginDisabled: false })
 }))

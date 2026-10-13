@@ -113,12 +113,27 @@ function compareVersionsDesc(left: string, right: string): number {
   return 0
 }
 
+/** The sentence a plugin version's notes say when nothing a user notices changed. */
+export const MAINTENANCE_NOTES = 'Maintenance release: internal changes only, no change in behaviour.'
+
+/**
+ * The notes worth showing, trimmed: none for empty ones or the maintenance sentence alone
+ * (RD-1280-17). The official index already carries the newest section with content in its
+ * place; an older index, or a third-party repository's, may still say it.
+ */
+export function userNotes(notes: string | null | undefined): string | null {
+  const text = notes?.trim()
+  return text && text !== MAINTENANCE_NOTES ? text : null
+}
+
 /**
  * The release notes of every offered version, by plugin id, newest first (RD-140-02).
  *
  * Only versions that carry notes appear, so a plugin whose index says nothing gets no entry and
- * the version panel renders no notes section for it. The first repository listed wins a
- * version two repositories offer, which is the official one — the order the service lists them.
+ * the version panel renders no notes section for it; a maintenance sentence counts as nothing,
+ * and notes an older version repeats word for word stay with the newest one only (RD-1280-17).
+ * The first repository listed wins a version two repositories offer, which is the official
+ * one — the order the service lists them.
  */
 export function releaseNotesByPlugin(offers: PluginOffers): Map<string, ReleaseNote[]> {
   const byPlugin = new Map<string, ReleaseNote[]>()
@@ -127,14 +142,17 @@ export function releaseNotesByPlugin(offers: PluginOffers): Map<string, ReleaseN
   const available = Array.isArray(offers?.available) ? offers.available : []
   const installed = Array.isArray(offers?.installed) ? offers.installed : []
   for (const offer of [...updates.map(update => update.offer), ...installed, ...available]) {
-    const notes = offer.package.release_notes?.trim()
+    const notes = userNotes(offer.package.release_notes)
     if (!notes) continue
     const list = byPlugin.get(offer.package.plugin_id) ?? []
     if (list.some(entry => entry.version === offer.package.version)) continue
     list.push({ version: offer.package.version, notes, repository: offer.repository_name })
     byPlugin.set(offer.package.plugin_id, list)
   }
-  for (const list of byPlugin.values()) list.sort((left, right) => compareVersionsDesc(left.version, right.version))
+  for (const [plugin, list] of byPlugin) {
+    list.sort((left, right) => compareVersionsDesc(left.version, right.version))
+    byPlugin.set(plugin, list.filter((entry, index) => list.findIndex(other => other.notes === entry.notes) === index))
+  }
   return byPlugin
 }
 

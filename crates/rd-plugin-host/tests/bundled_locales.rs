@@ -41,7 +41,7 @@ fn plugin_directories() -> Vec<PathBuf> {
     // and are not packaged. So does
     // `mega-login-probe` (RD-120-11), which is not a plugin at all but the measuring instrument
     // that priced a MEGA sign-in in guest fuel; it has no manifest for the same reason and is
-    // built only by `scripts/measure-mega-login-fuel.sh`.
+    // built only by hand, for the example `mega_login_fuel`.
     //
     // An exact count so a plugin dropping out of the release is a test failure rather than a
     // quiet omission - and so adding one is a deliberate act. The fortieth is

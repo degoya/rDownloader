@@ -33,8 +33,9 @@
 ^resources/build/                           rdownloader rd-capture
 # The container fixtures.
 ^testfile/                                  rd-api rd-collector
-# The plugin templates the scaffold and the stream-transform contract read.
-^sdk/templates/                             rd-pack rd-plugin-ext
+# The plugin templates the scaffold, the stream-transform contract and the third-party manifest
+# test (RD-1280-18) read.
+^sdk/templates/                             rd-pack rd-plugin-ext rd-plugin-host
 # Scripts whose behaviour a Rust test pins.
 ^scripts/build-plugins\.sh$                 rdownloader rd-plugin-host
 ^scripts/lib/plugin-(stamp|drift)\.sh$      rdownloader rd-plugin-host

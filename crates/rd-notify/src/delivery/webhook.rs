@@ -73,7 +73,7 @@ pub(super) async fn send(
 /// receiver that answers `302` with an inner address would otherwise be the way around it. The
 /// Web Push transport sends through the same kind of client (RD-1240-13).
 pub(super) fn client(reach: &rd_http::AddressPolicy, timeout: Duration) -> Result<reqwest::Client> {
-    reqwest::Client::builder()
+    rd_http::client_builder(rd_http::ClientPurpose::Service)
         .redirect(reqwest::redirect::Policy::none())
         .dns_resolver(rd_http::GuardedResolver::system(reach.clone()))
         .timeout(timeout)

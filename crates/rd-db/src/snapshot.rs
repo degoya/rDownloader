@@ -52,7 +52,7 @@ pub async fn check_integrity(snapshot: &Path) -> Result<()> {
         .fetch_all(&mut connection)
         .await
         .with_context(|| format!("check the integrity of {}", snapshot.display()));
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     let findings = findings?;
     if matches!(findings.as_slice(), [only] if only == "ok") {
         return Ok(());
@@ -103,7 +103,7 @@ pub async fn read_tables(
             .with_context(|| format!("parse a row of {table}"))?;
         dump.insert((*table).to_owned(), rows);
     }
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     Ok(dump)
 }
 
@@ -129,7 +129,7 @@ pub async fn read_partial_transfers(snapshot: &Path) -> Result<Vec<serde_json::V
     .fetch_all(&mut connection)
     .await
     .context("read the unfinished downloads of the snapshot")?;
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     rows.iter()
         .map(|row| serde_json::from_str(row).context("parse an unfinished download"))
         .collect()

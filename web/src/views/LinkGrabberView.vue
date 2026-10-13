@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useOverlay, useToast } from '@nuxt/ui/composables'
+import { useOverlay } from '@nuxt/ui/composables'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import CollectorCandidateRow from '@/components/CollectorCandidateRow.vue'
@@ -29,7 +29,7 @@ import { useGrabberFacets } from '@/composables/useGrabberFacets'
 import { useGrabberRows } from '@/composables/useGrabberRows'
 import { grabberKey, useGrabberSelection } from '@/composables/useGrabberSelection'
 import type { CollectorEntry } from '@/composables/useGrabberSelection'
-import { useIntakeModal } from '@/composables/useIntakeModal'
+import { useGrabberIntake } from '@/composables/useGrabberIntake'
 import { useNzbHandOver } from '@/composables/useNzbHandOver'
 import { usePackageExport } from '@/composables/usePackageExport'
 import { useGrabberEnqueue } from '@/composables/useGrabberEnqueue'
@@ -44,13 +44,11 @@ import { useCategories } from '@/stores/categories'
 import { useCollectorStore } from '@/stores/collector'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { usePublishedSelection } from '@/stores/selection'
-import { sharedText } from '@/utils/sharedLinks'
 import type { CollectorSort } from '@/utils/collectorSort'
 
 const collector = useCollectorStore()
 const nzb = useNzbImportsStore()
-const openIntake = useIntakeModal()
-const toast = useToast()
+const { addLinks, handleSharedLinks } = useGrabberIntake()
 const copyLinks = useCopyLinks()
 const { exportPackages } = usePackageExport()
 const { t } = useI18n()
@@ -131,7 +129,6 @@ async function revealSelection(): Promise<void> {
   if (nzbId) await grabberList.value?.focusRow(`nzb:${nzbId}`)
 }
 const route = useRoute()
-const router = useRouter()
 /**
  * `?package=<id>`, from a remote job's package link (RD-1120-02): read before the shared-link
  * handling clears the query, and focused once the package is listed.
@@ -209,43 +206,9 @@ function copyPackageLinks(id: string): void {
   void copyLinks(collector.candidates.filter(candidate => candidate.package_id === id).map(candidate => candidate.url))
 }
 
-/**
- * Takes over a link shared from a mobile browser (RD-090-08).
- *
- * The share target is a GET target, so the link arrives in the query string. It is consumed
- * once and removed from the URL: a reload must not hand the same link over a second time,
- * and the address bar should not keep showing what was shared.
- */
-async function handleSharedLinks(): Promise<void> {
-  const text = sharedText(route.query as Record<string, unknown>)
-  await router.replace({ path: route.path })
-  if (!text) return
-  await collector.collect({ text })
-}
-
 function handlePendingImportRequest(): void {
   const request = consumeFileImportRequest()
   if (request) void importFiles(request.files)
-}
-
-async function addLinks(): Promise<void> {
-  const result = await openIntake()
-  if (!result) return
-  const outcome = await collector.collect({ text: result.text, ...(result.packageName ? { packageName: result.packageName } : {}), ...(result.password ? { password: result.password } : {}) })
-  if (outcome.skippedExcluded) {
-    toast.add({ title: t('linkgrabber.intake.skipped_excluded', { count: outcome.skippedExcluded }, outcome.skippedExcluded), color: 'warning', icon: 'i-lucide-shield-ban' })
-  }
-  if (outcome.skippedDisabled) {
-    toast.add({ title: t('linkgrabber.intake.skipped_disabled', { count: outcome.skippedDisabled }, outcome.skippedDisabled), color: 'warning', icon: 'i-lucide-power-off' })
-  }
-  // Both numbers, not just the loss: "12 of 40" says a rule reached too far, while a bare
-  // "12 dropped" reads like a fault in the paste (RD-110-07).
-  if (outcome.listed) {
-    toast.add({ title: t('linkgrabber.intake.listed', { count: outcome.listed }, outcome.listed), color: 'info', icon: 'i-lucide-list-checks' })
-  }
-  if (outcome.crawledDropped) {
-    toast.add({ title: t('linkgrabber.intake.crawled_dropped', { count: outcome.crawledDropped, found: outcome.crawledFound }, outcome.crawledDropped), color: 'warning', icon: 'i-lucide-file-x' })
-  }
 }
 
 /**

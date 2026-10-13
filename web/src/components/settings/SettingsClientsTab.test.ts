@@ -5,6 +5,7 @@
  */
 import { waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import settings from '@/locales/en/settings.json'
@@ -13,10 +14,7 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsClientsTab from './SettingsClientsTab.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: [] })), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'refused')
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })), responseError: vi.fn(() => 'refused') }))
 
 /** The cards keep their own tests; here only where they stand and what they are handed. */
 const stubs = {

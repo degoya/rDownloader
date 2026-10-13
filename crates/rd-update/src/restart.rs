@@ -34,11 +34,11 @@ use crate::install::{InstallError, is_plain_version, process, update_dir};
 /// deadline).
 pub const RESTART_EXIT_CODE: i32 = 75;
 /// The hidden subcommand the relauncher runs as.
-pub const RESTART_COMMAND: &str = "restart-service";
+pub(crate) const RESTART_COMMAND: &str = "restart-service";
 /// Inside `<data>/update`: the plan the relauncher reads.
-pub const PLAN_FILE: &str = "restart.json";
+pub(crate) const PLAN_FILE: &str = "restart.json";
 /// What systemd sets for every unit it starts (`systemd.exec(5)`, `$INVOCATION_ID`).
-pub const SYSTEMD_ENV: &str = "INVOCATION_ID";
+pub(crate) const SYSTEMD_ENV: &str = "INVOCATION_ID";
 /// How long the relauncher waits for the restarted service to answer.
 pub const DEFAULT_HEALTH_TIMEOUT_SECS: u64 = 90;
 
@@ -112,7 +112,7 @@ impl Environment {
 
 /// Whether the environment `lookup` reads names systemd as the starter.
 #[must_use]
-pub fn systemd_from(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> bool {
+pub(crate) fn systemd_from(lookup: impl Fn(&str) -> Option<std::ffi::OsString>) -> bool {
     lookup(SYSTEMD_ENV).is_some_and(|value| !value.is_empty())
 }
 

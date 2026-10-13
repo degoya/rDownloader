@@ -13,12 +13,6 @@ use rd_db::{
 };
 use tempfile::TempDir;
 
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("backup.sqlite3"))
-        .await
-        .expect("database")
-}
-
 /// Keys of the `settings` table named `probe-<n>`, as numbers.
 async fn probe_numbers(path: &std::path::Path) -> Vec<u64> {
     let snapshot = rd_db::snapshot::read_tables(path, &["settings"])
@@ -35,7 +29,7 @@ async fn probe_numbers(path: &std::path::Path) -> Vec<u64> {
 #[tokio::test]
 async fn the_snapshot_is_one_point_in_the_writer_s_order_while_writes_keep_arriving() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     // A writer that never stops while the snapshot is taken, like a running download's
     // checkpoints. Every write is acknowledged before the next is sent, so the acknowledged
     // count is a lower bound of what any later snapshot must hold.
@@ -105,7 +99,7 @@ async fn the_snapshot_is_one_point_in_the_writer_s_order_while_writes_keep_arriv
 #[tokio::test]
 async fn a_snapshot_never_overwrites_a_file_that_is_there() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let path = directory.path().join("taken.sqlite3");
     std::fs::write(&path, b"something else").expect("occupy");
     assert!(database.snapshot_into(&path).await.is_err());
@@ -115,7 +109,7 @@ async fn a_snapshot_never_overwrites_a_file_that_is_there() {
 #[tokio::test]
 async fn the_plugin_trust_is_read_from_the_snapshot_table_by_table() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .trust_plugin_key(NewPluginTrustedKey {
             key_id: "author-v1".to_owned(),
@@ -194,7 +188,7 @@ async fn the_plugin_trust_is_read_from_the_snapshot_table_by_table() {
 #[tokio::test]
 async fn unfinished_downloads_are_listed_with_their_checkpoints() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let package_id = rd_core::PackageId::new();
     database
         .create_package(rd_db::NewPackage {
@@ -267,7 +261,7 @@ async fn unfinished_downloads_are_listed_with_their_checkpoints() {
 #[tokio::test]
 async fn the_configuration_keeps_its_schedule_and_hands_back_a_replaced_key() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let initial = database.backup_config().await.expect("config");
     assert!(!initial.enabled);
     assert_eq!(initial.schedule, "0 3 * * *");
@@ -317,7 +311,7 @@ async fn the_configuration_keeps_its_schedule_and_hands_back_a_replaced_key() {
 
     // A restart reads the same due time back instead of computing a new one.
     drop(database);
-    let reopened = Database::open(directory.path().join("backup.sqlite3"))
+    let reopened = Database::open(directory.path().join(rd_testkit::DATABASE_FILE))
         .await
         .expect("reopen");
     let restarted = reopened.backup_config().await.expect("config");
@@ -340,7 +334,7 @@ fn run(id: &str) -> NewBackupRun {
 #[tokio::test]
 async fn one_run_at_a_time_and_the_history_says_how_each_ended() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     assert!(database.begin_backup_run(run("a")).await.expect("begin"));
     assert!(!database.begin_backup_run(run("b")).await.expect("second"));
     database
@@ -383,7 +377,7 @@ async fn one_run_at_a_time_and_the_history_says_how_each_ended() {
 #[tokio::test]
 async fn a_run_still_running_at_the_start_is_recorded_as_interrupted() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     assert!(
         database
             .begin_backup_run(run("stopped"))

@@ -103,19 +103,14 @@ struct Origin {
     ranges: Mutex<Vec<Option<String>>>,
 }
 
-async fn serve() -> (SocketAddr, Arc<Origin>) {
+async fn serve() -> (rd_testkit::TestServer, SocketAddr, Arc<Origin>) {
     let origin = Arc::new(Origin::default());
     let router = Router::new()
         .route("/payload", get(payload))
         .with_state(Arc::clone(&origin));
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, router).await;
-    });
-    (address, origin)
+    let server = rd_testkit::serve(router).await;
+    let address = server.addr();
+    (server, address, origin)
 }
 
 async fn payload(State(origin): State<Arc<Origin>>, headers: HeaderMap) -> Response {
@@ -193,7 +188,7 @@ async fn run(
 /// Four connections whose boundaries are the provider's, and the file that comes out.
 #[tokio::test]
 async fn parallel_chunks_on_the_provider_boundaries_produce_the_expected_file() {
-    let (address, origin) = serve().await;
+    let (_server, address, origin) = serve().await;
     let directory = tempfile::tempdir().expect("tempdir");
     let part = directory.path().join("payload.part");
     let recorder = Arc::new(Recorder::default());
@@ -225,7 +220,7 @@ async fn parallel_chunks_on_the_provider_boundaries_produce_the_expected_file() 
 /// part of a chunk. Three connections over a file chunked into four is exactly that case.
 #[tokio::test]
 async fn a_layout_that_does_not_line_up_falls_back_to_one_stream() {
-    let (address, origin) = serve().await;
+    let (_server, address, origin) = serve().await;
     let directory = tempfile::tempdir().expect("tempdir");
     let part = directory.path().join("payload.part");
     let recorder = Arc::new(Recorder::default());
@@ -253,7 +248,7 @@ async fn a_layout_that_does_not_line_up_falls_back_to_one_stream() {
 /// the engine says `Complete`, so a mismatch can never be presented as a finished download.
 #[tokio::test]
 async fn a_wrong_integrity_value_fails_the_attempt_and_keeps_the_partial_file() {
-    let (address, _origin) = serve().await;
+    let (_server, address, _origin) = serve().await;
     let directory = tempfile::tempdir().expect("tempdir");
     let part = directory.path().join("payload.part");
     let recorder = Arc::new(Recorder::default());
@@ -285,7 +280,7 @@ async fn a_wrong_integrity_value_fails_the_attempt_and_keeps_the_partial_file() 
 /// A continuation with the same description keeps what was recorded and fetches only the rest.
 #[tokio::test]
 async fn the_same_description_continues_where_it_stopped() {
-    let (address, origin) = serve().await;
+    let (_server, address, origin) = serve().await;
     let directory = tempfile::tempdir().expect("tempdir");
     let part = directory.path().join("payload.part");
 
@@ -351,7 +346,7 @@ async fn the_same_description_continues_where_it_stopped() {
 /// else's state.
 #[tokio::test]
 async fn a_different_description_starts_over() {
-    let (address, origin) = serve().await;
+    let (_server, address, origin) = serve().await;
     let directory = tempfile::tempdir().expect("tempdir");
     let part = directory.path().join("payload.part");
     let recorder = Arc::new(Recorder::default());
@@ -389,7 +384,7 @@ async fn a_different_description_starts_over() {
 /// verdict: the integrity value covers the file, and half of one cannot be checked.
 #[tokio::test]
 async fn a_layout_that_covers_only_part_of_the_file_is_not_judged() {
-    let (address, _origin) = serve().await;
+    let (_server, address, _origin) = serve().await;
     let directory = tempfile::tempdir().expect("tempdir");
     let part = directory.path().join("payload.part");
     let recorder = Arc::new(Recorder::default());
@@ -421,7 +416,7 @@ async fn a_layout_that_covers_only_part_of_the_file_is_not_judged() {
 /// An ordinary download -- no description at all -- runs exactly the code it ran before.
 #[tokio::test]
 async fn a_download_without_a_description_is_untouched() {
-    let (address, _origin) = serve().await;
+    let (_server, address, _origin) = serve().await;
     let directory = tempfile::tempdir().expect("tempdir");
     let part = directory.path().join("payload.part");
     let recorder = Arc::new(Recorder::default());

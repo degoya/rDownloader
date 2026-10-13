@@ -67,7 +67,8 @@ rd_component_gates() {
             break
         fi
     done < <(rd_plugin_linked_crates)
-    if [[ "$full" -eq 1 ]] || touches '^crates/rd-plugin-api/wit/'; then
+    # plugins/metadata.toml is every packaged manifest's shared fields (RD-1280-18).
+    if [[ "$full" -eq 1 ]] || touches '^crates/rd-plugin-api/wit/' || touches '^plugins/metadata\.toml$'; then
         unbumped_scope="every plugin"
     elif [[ -n "$linked_touched" ]]; then
         unbumped_scope="every plugin, since the change touches ${linked_touched%/}, which plugins link"

@@ -7,14 +7,13 @@
  * check for the body reports that successful delete as a failure.
  */
 import { describe, expect, it, vi } from 'vitest'
+import { confirmMock } from '@/test/mocks'
 import { ref } from 'vue'
 
 import { useEditableList } from './useEditableList'
 
 const confirmed = vi.hoisted(() => ({ value: true }))
-vi.mock('@/composables/useConfirm', () => ({
-  useConfirm: () => async () => confirmed.value
-}))
+vi.mock('@/composables/useConfirm', () => confirmMock(async () => confirmed.value))
 
 interface Row { id: string, name: string }
 

@@ -103,21 +103,19 @@ mod tests {
 
     use super::fetch_sniffed;
 
-    async fn serve(body: &'static [u8]) -> url::Url {
+    async fn serve(body: &'static [u8]) -> (rd_testkit::TestServer, url::Url) {
         let app = Router::new().route("/doc", get(move || async move { body }));
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind");
-        let address = listener.local_addr().expect("address");
-        tokio::spawn(async move {
-            axum::serve(listener, app).await.expect("serve");
-        });
-        format!("http://{address}/doc").parse().expect("URL")
+        let server = rd_testkit::serve(app).await;
+        let address = server.addr();
+        (
+            server,
+            format!("http://{address}/doc").parse().expect("URL"),
+        )
     }
 
     #[tokio::test]
     async fn a_beginning_the_caller_wants_is_read_to_the_end() {
-        let url = serve(b"d8:announce and everything after it").await;
+        let (_server, url) = serve(b"d8:announce and everything after it").await;
         let client = reqwest::Client::new();
 
         let whole = fetch_sniffed(&client, url.clone(), &[], 4, 1024, |head| head == b"d8:a")
@@ -168,13 +166,8 @@ mod tests {
                 }
             }),
         );
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind");
-        let address = listener.local_addr().expect("address");
-        tokio::spawn(async move {
-            axum::serve(listener, app).await.expect("serve");
-        });
+        let server = rd_testkit::serve(app).await;
+        let address = server.addr();
         let url: url::Url = format!("http://{address}/file").parse().expect("URL");
         let sniff = tokio::time::timeout(
             std::time::Duration::from_secs(1),
@@ -189,7 +182,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_body_shorter_than_the_sniff_is_complete() {
-        let url = serve(b"d1:").await;
+        let (_server, url) = serve(b"d1:").await;
         let short = fetch_sniffed(&reqwest::Client::new(), url, &[], 1024, 4096, |_| false)
             .await
             .expect("read");

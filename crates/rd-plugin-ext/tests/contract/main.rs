@@ -8,6 +8,8 @@
 
 #[path = "../common/mod.rs"]
 mod common;
+/// The storage harness and the fixture table the modules share (RD-1280-05).
+mod support;
 
 mod auth_contract;
 mod box_contract;

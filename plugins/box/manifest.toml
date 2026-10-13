@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000135"
 name = "Box"
-version = "0.1.14"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.1.15"
 # The addresses a person pastes, plus the canonical per-file addresses the sibling crawler
 # emits. `*.app.box.com` is the enterprise subdomain Box gives every enterprise, and it is
 # listed beside the bare host because a `*.` pattern does not cover the host itself. Never `*`:
@@ -32,10 +28,6 @@ domains = ["api.box.com"]
 
 [metadata]
 description = "Resolves Box files and shared links through the official Box Content API."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 # The provider row every Box plugin hangs off. Only a resolver manifest may carry one, which is
 # why this plugin exists even though the folder walk and the sign-in are its siblings: without
@@ -72,5 +64,4 @@ filled_by = "flow"
 [limits]
 memory_bytes = 33554432
 fuel = 1000000000
-timeout_milliseconds = 15000
 max_response_bytes = 2097152

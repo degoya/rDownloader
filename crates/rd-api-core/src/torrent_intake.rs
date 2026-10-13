@@ -145,7 +145,7 @@ async fn enqueue_torrent_package(
 // Pre-existing, unrelated to this branch: each parameter is an independently optional piece of
 // caller-supplied metadata (source label, package name, category, priority, ...), not a natural
 // struct — a scoped allow is preferred here over a speculative refactor.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub async fn add_torrent_to_collector(
     database: &rd_db::Database,
     torrent: &rd_torrent::TorrentService,

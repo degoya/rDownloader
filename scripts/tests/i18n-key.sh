@@ -4,6 +4,9 @@
 # in the tree's format, an escaped dot stays inside one key, and the refusals — an existing
 # leaf, a group inside a flat group, a string in the way — are loud. Named languages
 # (RD-1100-09): any order, every required one, an in-progress one optional, an unknown refused.
+# The cases `crates/rdownloader/tests/i18n_key.rs` held besides the key order live here since
+# RD-1280-22: a code flat in all four languages, a sibling kept, a refusal that writes nothing,
+# a subgroup under an ordinary group.
 #
 #   scripts/tests/i18n-key.sh
 set -euo pipefail
@@ -58,15 +61,29 @@ expect "the tree's format: two spaces, order kept, a trailing newline" \
 key server 'codes.collector\.check_no_resolver' Kein None Ninguno Aucun
 expect_status "an escaped dot writes one literal key" 0
 expect "inside the flat group" "None" "$(value en codes collector.check_no_resolver)"
+expect "in German too" "Kein" "$(value de codes collector.check_no_resolver)"
+expect "in Spanish too" "Ninguno" "$(value es codes collector.check_no_resolver)"
+expect "in French too" "Aucun" "$(value fr codes collector.check_no_resolver)"
 
 key server codes.collector.other a b c d
 expect_status "a group inside a flat group is refused" 1
 expect_output "with the escaped form to use instead" "codes.collector\\.other"
+expect "and no catalogue is touched" "no" \
+    "$(python3 -c 'import json,sys; print("no" if sorted(json.load(open(sys.argv[1]))["codes"]) == ["auth.invalid", "collector.check_no_resolver"] else "yes")' "$RD_LOCALES_DIR/de/server.json")"
 
 key server actions.enable A B C D
 expect_status "an existing leaf is refused" 1
 expect_output "naming it" "actions.enable already exists"
 expect "and the value stays" "Enable" "$(value en actions enable)"
+
+key server actions.disable Deaktivieren Disable Desactivar Desactiver
+expect_status "a second key in a group" 0
+expect "lands beside the first" "Disable" "$(value en actions disable)"
+expect "which stays" "Enable" "$(value en actions enable)"
+
+key server actions.bulk.enable Alle All Todos Tous
+expect_status "a subgroup under an ordinary group is allowed" 0
+expect "and nests" "All" "$(value en actions bulk enable)"
 
 key server title.sub a b c d
 expect_status "a string where a group would go is refused" 1

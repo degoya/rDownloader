@@ -11,6 +11,7 @@ import { appendFileSync } from 'node:fs'
 import { fireEvent, render, waitFor } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -24,20 +25,18 @@ import torrent from '@/locales/en/torrent.json'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { useTransfersStore } from '@/stores/transfers'
 import { axeViolations } from '@/test/axe'
-import { uiStubs } from '@/test/mount'
+import { listViewStubs, mountComponent, passTime, settle } from '@/test/mount'
 import { setShowNzbHandOver } from '@/utils/nzbHandOver'
 import { setPackagesClosedByDefault } from '@/utils/packageGroups'
 
 import DownloadsView from './DownloadsView.vue'
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async () => ({ data: [] })),
-    POST: vi.fn(async () => ({ data: undefined })),
-    PUT: vi.fn(async () => ({ data: undefined })),
-    PATCH: vi.fn(async () => ({ data: undefined })),
-    DELETE: vi.fn(async () => ({ data: undefined }))
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async () => ({ data: [] })),
+  POST: vi.fn(async () => ({ data: undefined })),
+  PUT: vi.fn(async () => ({ data: undefined })),
+  PATCH: vi.fn(async () => ({ data: undefined })),
+  DELETE: vi.fn(async () => ({ data: undefined })),
   responseError: vi.fn(),
   errorMessage: vi.fn(),
   resultMessage: vi.fn()
@@ -45,16 +44,14 @@ vi.mock('@/api/client', () => ({
 // The dialogs run through Nuxt UI's overlay, which only exists inside the app shell. What was
 // asked is kept, and the answer is `false` unless a case says otherwise.
 const dialogs = vi.hoisted(() => ({ opened: [] as unknown[], answer: false as unknown, toasts: [] as { title?: string, color?: string }[] }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useOverlay: () => ({
-    create: () => ({
-      open: (props: unknown) => {
-        dialogs.opened.push(props)
-        return { result: Promise.resolve(dialogs.answer) }
-      }
-    })
-  }),
-  useToast: () => ({ add: (toast: { title?: string, color?: string }) => dialogs.toasts.push(toast) })
+vi.mock('@nuxt/ui/composables', () => toastMock({
+  overlay: {
+    open: (props: unknown) => {
+      dialogs.opened.push(props)
+      return { result: Promise.resolve(dialogs.answer) }
+    }
+  },
+  add: (toast: { title?: string, color?: string }) => dialogs.toasts.push(toast)
 }))
 // The filter and the search live in the address (RD-190-21); `useQueueFilter.test.ts` holds that
 // half, here the address only has to exist.
@@ -75,7 +72,7 @@ vi.mock('@/composables/useCopyLinks', () => ({
 // jsdom has no `EventSource`; the handlers are kept so the hand-over cases can announce an
 // account (RD-191-13).
 const stream = vi.hoisted(() => ({ handlers: {} as Record<string, ((event: MessageEvent) => void)[]> }))
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (registered: Record<string, (event: MessageEvent) => void>) => {
     for (const [name, handler] of Object.entries(registered)) (stream.handlers[name] ??= []).push(handler)
     return () => {}
@@ -84,32 +81,8 @@ vi.mock('@/composables/useEventStream', () => ({
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { common, downloads, torrent } } })
 
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
 const stubs = {
-  UAlert: { props: ['description'], template: '<div v-bind="$attrs">{{ description }}</div>' },
-  UBadge: passthrough,
-  UButton: {
-    props: ['label', 'ariaLabel', 'disabled'],
-    template: '<button type="button" v-bind="$attrs" :disabled="disabled" :aria-label="ariaLabel">{{ label }}<slot /></button>'
-  },
-  UCheckbox: {
-    props: ['modelValue', 'label', 'ariaLabel'],
-    emits: ['update:modelValue'],
-    template: '<input type="checkbox" v-bind="$attrs" :aria-label="ariaLabel" :checked="modelValue === true" @change="$emit(\'update:modelValue\', $event.target.checked)" />'
-  },
-  UDashboardNavbar: passthrough,
-  UDashboardPanel: { template: '<div><slot name="header" /><slot name="body" /></div>' },
-  UDashboardSidebarCollapse: true,
-  UEmpty: uiStubs.UEmpty,
-  // Without these four every row logged "Failed to resolve component" with the whole row list
-  // in its trace: 750 000 of the web stage's 817 000 log lines (RD-1120-08).
-  UFormField: uiStubs.UFormField,
-  ULink: uiStubs.ULink,
-  UModal: uiStubs.UModal,
-  USeparator: uiStubs.USeparator,
-  UDashboardToolbar: { template: '<div><slot name="left" /><slot name="right" /></div>' },
-  UDropdownMenu: passthrough,
-  UIcon: { template: '<span aria-hidden="true" />' },
+  ...listViewStubs,
   UInput: {
     inheritAttrs: false,
     props: ['modelValue', 'ariaLabel', 'placeholder'],
@@ -117,20 +90,6 @@ const stubs = {
     template: '<div><input v-bind="$attrs" :aria-label="ariaLabel" :placeholder="placeholder" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot name="trailing" /></div>'
   },
   UKbd: { props: ['value'], template: '<kbd>{{ value }}</kbd>' },
-  UProgress: { props: ['modelValue'], template: '<div role="progressbar" :aria-label="`${modelValue ?? 0}%`" v-bind="$attrs" />' },
-  USelect: {
-    props: ['modelValue', 'items'],
-    emits: ['update:modelValue'],
-    template: '<select v-bind="$attrs" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>'
-  },
-  /** A real checkbox with the switch's role, so a test flips it and reads it back (RD-150-19). */
-  USwitch: {
-    inheritAttrs: false,
-    props: ['modelValue', 'label'],
-    emits: ['update:modelValue'],
-    template: '<label>{{ label }}<input type="checkbox" role="switch" v-bind="$attrs" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /></label>'
-  },
-  UTooltip: passthrough,
   // Everything on the page that is not the list; none of it is what these cases are about.
   DirectAddModal: true,
   PowerCountdownAlert: true,
@@ -192,13 +151,7 @@ function seedQueue(packages: number, filesPerPackage: number, state = 'queued') 
 }
 
 function mountView() {
-  return render(DownloadsView, { global: { plugins: [i18n], stubs } })
-}
-
-/** Lets the handler chain — store write, re-render, focus restore — finish. */
-async function settle(): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, 0))
-  await nextTick()
+  return mountComponent(DownloadsView, { i18n, stubs, keepPinia: true })
 }
 
 function handleOf(container: Element, key: string): HTMLElement {
@@ -501,8 +454,7 @@ describe('DownloadsView package groups', () => {
     seedClosed(3, 1)
     useTransfersStore().packages[2]!.name = 'Holiday Photos'
     const { container, getByTestId } = mountView()
-    await fireEvent.update(getByTestId('downloads-search'), 'Package')
-    await new Promise(resolve => setTimeout(resolve, SEARCH_DEBOUNCE_MS + 20))
+    await passTime(SEARCH_DEBOUNCE_MS + 20, () => fireEvent.update(getByTestId('downloads-search'), 'Package'))
     await nextTick()
 
     expect(toggleAll(container).getAttribute('aria-label')).toBe(common.package_groups.open_all)
@@ -725,8 +677,7 @@ describe('DownloadsView search and filter', () => {
   const rowKeys = (container: Element) => [...container.querySelectorAll('[data-row-key]')].map(row => row.getAttribute('data-row-key'))
 
   async function typeSearch(field: HTMLElement, text: string): Promise<void> {
-    await fireEvent.update(field, text)
-    await new Promise(resolve => setTimeout(resolve, SEARCH_DEBOUNCE_MS + 20))
+    await passTime(SEARCH_DEBOUNCE_MS + 20, () => fireEvent.update(field, text))
     await nextTick()
   }
 
@@ -839,8 +790,9 @@ describe('DownloadsView NZB hand-over', () => {
       if (path === '/api/v1/providers') return { data: [{ slug: 'torbox', display_name: 'TorBox', credentials: 'api_key', kind: 'remote' }] }
       return { data: [] }
     }) as unknown as typeof api.GET)
-    for (const handler of stream.handlers['account.changed'] ?? []) handler(new MessageEvent('account.changed', { data: '{}' }))
-    await new Promise(resolve => setTimeout(resolve, 400))
+    await passTime(400, () => {
+      for (const handler of stream.handlers['account.changed'] ?? []) handler(new MessageEvent('account.changed', { data: '{}' }))
+    })
   }
 
   /** One failed NZB package, its import handed to TorBox, beside a package of plain links. */

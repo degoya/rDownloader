@@ -102,12 +102,9 @@ pub(crate) fn parse(body: &str, base: &Url) -> Result<RemoteListing, ParseError>
     }
 
     // Depth 1 on a file returns exactly one response: the file itself.
-    let single_file = entries.is_empty()
-        && self_entry
-            .as_ref()
-            .is_some_and(|response| !response.is_collection);
-    if single_file {
-        let response = self_entry.expect("checked above");
+    if entries.is_empty()
+        && let Some(response) = self_entry.filter(|response| !response.is_collection)
+    {
         let name = file_name(&normalize_path(resolve(base, &response.href)?.path()));
         if !is_safe_relative_path(&name) {
             return Err(ParseError::EscapesRoot {

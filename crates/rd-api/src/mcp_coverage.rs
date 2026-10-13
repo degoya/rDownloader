@@ -272,6 +272,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/notifications/targets"),
             any("/api/v1/notifications/targets/{id}"),
             any("/api/v1/notifications/rules"),
+            // RD-1280-02: the placeholders a rule's own title and text may name.
+            any("/api/v1/notifications/placeholders"),
         ],
     ),
     // RD-1240-13: the browsers a `web_push` destination sends to; a lost device is removed here.
@@ -1149,6 +1151,13 @@ pub(crate) static COVERAGE: &[Capability] = &[
          capture token, which no api: token is. What it ends in, links with their package and \
          password in the LinkGrabber, collect_links already gives an agent, without an encrypted \
          payload or a jk script to have evaluated.",
+    ),
+    // ---- RD-1280-01 ----
+    // Empties a store, so the tool asks the person first (`crate::confirm` in rd-api-mcp).
+    covered(
+        "Resetting an automation's version history",
+        "Automation > version history",
+        &[any("/api/v1/automations/{id}/versions/reset")],
     ),
 ];
 

@@ -24,7 +24,8 @@ use rd_db::NewObjectStorageProfile;
 use rd_object_storage::error::REDIRECT_REFUSED;
 use rd_scheduler::RunOutcome;
 
-use support::{Harness, lock, respond, serve};
+use rd_testkit::{lock, respond};
+use support::{Harness, serve};
 
 const BUCKET: &str = "redirect-bucket";
 
@@ -47,7 +48,7 @@ async fn target(State(seen): State<Seen>, uri: Uri) -> Response {
 }
 
 /// The endpoint: every request is redirected with `status` to the same path on `to`.
-async fn redirecting(status: StatusCode, to: SocketAddr) -> SocketAddr {
+async fn redirecting(status: StatusCode, to: SocketAddr) -> rd_testkit::TestServer {
     let app = Router::new().fallback(move |uri: Uri| async move {
         respond(status, &[("location", format!("http://{to}{uri}"))], "")
     });
@@ -82,12 +83,14 @@ async fn harness(endpoint: SocketAddr) -> Harness {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_redirect_is_never_followed_by_the_connection_test_or_a_download() {
     let seen = Seen::default();
-    let to = serve(Router::new().fallback(target).with_state(seen.clone())).await;
+    let to_server = serve(Router::new().fallback(target).with_state(seen.clone())).await;
+    let to = to_server.addr();
     for status in [
         StatusCode::MOVED_PERMANENTLY,
         StatusCode::TEMPORARY_REDIRECT,
     ] {
-        let harness = harness(redirecting(status, to).await).await;
+        let redirect = redirecting(status, to).await;
+        let harness = harness(redirect.addr()).await;
         let failure = harness
             .service
             .test_profile(&harness.profile)

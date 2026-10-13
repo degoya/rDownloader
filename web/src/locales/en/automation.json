@@ -140,7 +140,13 @@
     "restore": "Restore",
     "restore_title": "Restore version {version}?",
     "restore_description": "The trigger, condition and actions of version {version} become the definition of “{name}” again, saved as a new version. Name and the enabled switch stay as they are.",
-    "restored": "Version {version} is in force again, saved as version {current}."
+    "restored": "Version {version} is in force again, saved as version {current}.",
+    "reset": "Reset versions",
+    "reset_title": "Reset the versions of “{name}”?",
+    "reset_versions": "{count} older version | {count} older versions",
+    "reset_runs": "no runs | {count} run of them | {count} runs of them",
+    "reset_description": "{versions} and {runs} are deleted. Version {version} stays, becomes version 1 and keeps its own runs. This cannot be undone.",
+    "reset_done": "History reset: {versions} and {runs} were deleted, the current version is now version 1."
   },
   "schedule": {
     "heading": "Schedule",

@@ -4,15 +4,13 @@
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 
 import { useHistoryStore } from './history'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn() },
-  responseError: vi.fn(() => 'The service did not answer')
-}))
+vi.mock('@/api/client', () => apiClientMock())
 
 function entry(id: number) {
   return { id, name: `Package ${id}`, outcome: 'completed' } as never

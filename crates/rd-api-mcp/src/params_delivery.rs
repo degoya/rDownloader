@@ -180,6 +180,12 @@ pub(crate) struct CreateNotificationRuleParams {
     pub category_id: Option<String>,
     pub min_severity: Option<SeverityParam>,
     pub enabled: Option<bool>,
+    /// The rule's own title, at most 200 characters: text with `{placeholder}` holes such as
+    /// `{package} done at {time}` (list_notification_placeholders names them per event; `{{` and
+    /// `}}` write a brace). Left out or empty sends the built-in title.
+    pub title_template: Option<String>,
+    /// The rule's own text, at most 2000 characters, like title_template.
+    pub body_template: Option<String>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -191,7 +197,14 @@ pub(crate) struct UpdateNotificationRuleParams {
     pub category_id: Option<String>,
     pub min_severity: Option<SeverityParam>,
     pub enabled: Option<bool>,
-    /// Fields to drop: category_id (the rule then matches every category).
+    /// The rule's own title, at most 200 characters: text with `{placeholder}` holes such as
+    /// `{package} done at {time}` (list_notification_placeholders names them per event; `{{` and
+    /// `}}` write a brace). Left out or empty sends the built-in title.
+    pub title_template: Option<String>,
+    /// The rule's own text, at most 2000 characters, like title_template.
+    pub body_template: Option<String>,
+    /// Fields to drop: category_id (the rule then matches every category), title_template and
+    /// body_template (the rule then sends the built-in wording).
     pub clear: Option<Vec<String>>,
 }
 

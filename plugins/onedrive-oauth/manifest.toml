@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "oauth"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000116"
 name = "Microsoft sign-in"
-version = "0.1.13"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.1.14"
 
 # Both ways in, because Microsoft offers both (RD-106-01). The browser redirect is first, so it
 # is what a sign-in takes where a browser can reach this application; the device code is what
@@ -29,13 +25,8 @@ claims = ["onedrive"]
 
 [metadata]
 description = "Signs a OneDrive or SharePoint account in through Microsoft's own authorization endpoint, by browser or by device code."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432
 fuel = 500000000
-timeout_milliseconds = 15000
 max_response_bytes = 1048576

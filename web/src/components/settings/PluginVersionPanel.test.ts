@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import pluginsCatalogue from '@/locales/en/plugins.json'
 import { mountComponent } from '@/test/mount'
@@ -12,12 +13,10 @@ import { mountComponent } from '@/test/mount'
 const post = vi.fn(async () => ({ data: { code: 'ok', message: 'ok' } }))
 const put = vi.fn(async () => ({ data: { code: 'ok', message: 'ok' } }))
 const remove = vi.fn(async () => ({ data: { code: 'ok', message: 'ok' } }))
-vi.mock('@/api/client', () => ({
-  api: {
-    POST: (...args: unknown[]) => post(...(args as [])),
-    PUT: (...args: unknown[]) => put(...(args as [])),
-    DELETE: (...args: unknown[]) => remove(...(args as []))
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  POST: (...args: unknown[]) => post(...(args as [])),
+  PUT: (...args: unknown[]) => put(...(args as [])),
+  DELETE: (...args: unknown[]) => remove(...(args as [])),
   responseError: () => 'refused',
   resultMessage: () => 'saved'
 }))

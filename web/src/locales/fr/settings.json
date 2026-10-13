@@ -557,7 +557,6 @@
       }
     },
     "indexer_images": {
-      "eyebrow": "Résultats de l'indexeur",
       "title": "Images de couverture",
       "description": "Un indexeur fournit l'adresse d'une couverture avec chaque résultat, dans la même réponse de recherche que l'abonnement effectue déjà. L'afficher ne coûte aucune requête supplémentaire ; l'image est chargée par le navigateur.",
       "enabled": {

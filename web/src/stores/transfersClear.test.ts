@@ -1,15 +1,12 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 
 import { useTransfersStore } from './transfers'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn() },
-  responseError: vi.fn(() => 'The request failed'),
-  resultMessage: vi.fn(() => 'Done')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The request failed'), resultMessage: vi.fn(() => 'Done') }))
 
 /**
  * "Clear the list" is a decision about whole packages, and the server makes it.

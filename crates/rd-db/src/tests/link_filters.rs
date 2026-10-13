@@ -5,12 +5,6 @@ use rd_core::{IngressSource, LinkFilterAction, LinkFilterNameSyntax, LinkFilterR
 use super::{routing_category, routing_root};
 use crate::{Database, NewCollectorBatch, NewLinkFilterRule};
 
-async fn open(directory: &tempfile::TempDir) -> Database {
-    Database::open(directory.path().join("filters.sqlite"))
-        .await
-        .expect("database")
-}
-
 fn hide(name: &str, pattern: &str) -> NewLinkFilterRule {
     NewLinkFilterRule {
         name: name.to_owned(),
@@ -79,7 +73,7 @@ fn by_name<'a>(candidates: &'a [rd_core::LinkCandidate], name: &str) -> &'a rd_c
 #[tokio::test]
 async fn a_hiding_rule_keeps_the_link_and_a_whole_package_enqueue_leaves_it_behind() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let rule = create(&database, hide("Info files", "*.NFO")).await;
     let candidates = release(&database).await;
     let nfo = by_name(&candidates, "Show.S01E01.nfo");
@@ -117,7 +111,7 @@ async fn a_hiding_rule_keeps_the_link_and_a_whole_package_enqueue_leaves_it_behi
 #[tokio::test]
 async fn a_hidden_link_named_by_the_enqueue_is_claimed() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     create(&database, hide("Info files", "*.nfo")).await;
     let candidates = release(&database).await;
     let nfo = by_name(&candidates, "Show.S01E01.nfo");
@@ -132,7 +126,7 @@ async fn a_hidden_link_named_by_the_enqueue_is_claimed() {
 #[tokio::test]
 async fn an_accept_above_a_hide_keeps_the_link_and_order_is_the_position() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let hiding = create(&database, hide("Everything", "*")).await;
     let accept = create(
         &database,
@@ -176,7 +170,7 @@ async fn an_accept_above_a_hide_keeps_the_link_and_order_is_the_position() {
 #[tokio::test]
 async fn applying_hides_what_arrived_before_the_rule_and_deleting_it_shows_it_again() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     release(&database).await;
     let rule = create(&database, hide("Info files", "*.nfo")).await;
     // A rule changes nothing that is already listed until it is applied.
@@ -208,7 +202,7 @@ async fn applying_hides_what_arrived_before_the_rule_and_deleting_it_shows_it_ag
 #[tokio::test]
 async fn showing_a_hidden_link_lasts_until_the_rules_are_applied_again() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     create(&database, hide("Info files", "*.nfo")).await;
     let candidates = release(&database).await;
     let nfo = by_name(&candidates, "Show.S01E01.nfo").id;
@@ -234,7 +228,7 @@ async fn showing_a_hidden_link_lasts_until_the_rules_are_applied_again() {
 #[tokio::test]
 async fn a_route_rule_files_the_link_at_intake_and_when_applied() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let root = routing_root(&database, directory.path()).await;
     let extras = routing_category(&database, root, "Extras", false).await;
     // Listed before the rule: only the re-application can file it.
@@ -283,7 +277,7 @@ async fn a_route_rule_files_the_link_at_intake_and_when_applied() {
 #[tokio::test]
 async fn a_rule_changes_no_queued_download() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let candidates = release(&database).await;
     let package = candidates[0].package_id.expect("package");
     let claimed = database

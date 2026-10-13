@@ -6,13 +6,14 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 import { reactive } from 'vue'
 
 import subscriptions from '@/locales/en/subscriptions.json'
 import { mountComponent } from '@/test/mount'
 import { emptyForm, formBody } from '@/utils/subscriptionForm'
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn(async () => ({ data: [] })) }, responseError: () => '' }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })), responseError: () => '' }))
 
 import SubscriptionIndexerSearch from './SubscriptionIndexerSearch.vue'
 

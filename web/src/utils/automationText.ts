@@ -41,7 +41,7 @@ export function describeAction(action: AutomationAction, t: Translate, names: (i
 }
 
 /** A time trigger's schedule as text: "every 60 minutes", or the cron line itself. */
-export function describeSchedule(schedule: AutomationSchedule, t: Translate): string {
+function describeSchedule(schedule: AutomationSchedule, t: Translate): string {
   if (schedule.kind === 'interval') return t('automation.schedule.every_minutes', { minutes: schedule.minutes })
   return schedule.expression
 }

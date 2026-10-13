@@ -557,7 +557,6 @@
       }
     },
     "indexer_images": {
-      "eyebrow": "Resultados del indexador",
       "title": "Imágenes de portada",
       "description": "Un indexador envía la dirección de una portada con cada resultado, en la misma respuesta de búsqueda que la suscripción ya realiza. Mostrarla no cuesta ninguna petición adicional; la imagen la carga el navegador.",
       "enabled": {

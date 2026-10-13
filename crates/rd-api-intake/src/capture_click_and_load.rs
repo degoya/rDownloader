@@ -31,13 +31,13 @@ pub const BODY_LIMIT_BYTES: usize = 20 * 1024 * 1024;
 pub const MAX_JK_BYTES: usize = 32 * 1024;
 
 /// The longest list of links in the clear, the agent's limit for `/flash/add`.
-pub const MAX_URLS_BYTES: usize = 1024 * 1024;
+pub(crate) const MAX_URLS_BYTES: usize = 1024 * 1024;
 
 /// The longest `passwords` and `package` fields as sent, before the first line or the cut.
-pub const MAX_FIELD_BYTES: usize = 64 * 1024;
+pub(crate) const MAX_FIELD_BYTES: usize = 64 * 1024;
 
 /// The longest `source` address.
-pub const MAX_SOURCE_BYTES: usize = 2048;
+pub(crate) const MAX_SOURCE_BYTES: usize = 2048;
 
 /// The label a batch carries when the page named no address of its own.
 const FALLBACK_LABEL: &str = "Browser";
@@ -47,7 +47,7 @@ pub mod code {
     /// The payload could not be read, or the request mixes the two shapes.
     pub const INVALID_PAYLOAD: &str = "cnl.invalid_payload";
     /// `jk` is missing, ambiguous, or the sandbox refused its script.
-    pub const JK_REFUSED: &str = "cnl.jk_refused";
+    pub(crate) const JK_REFUSED: &str = "cnl.jk_refused";
     /// The request named no link the LinkGrabber takes.
     pub const NO_LINKS: &str = "cnl.no_links";
     /// The payload or a field exceeds its limit.

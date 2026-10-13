@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -14,17 +15,13 @@ import common from '@/locales/en/common.json'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import subscriptions from '@/locales/en/subscriptions.json'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
-import { uiStubs } from '@/test/mount'
+import { mountComponent, passthrough, uiStubs } from '@/test/mount'
 
 import IndexerReviewList from './IndexerReviewList.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), PUT: vi.fn(), POST: vi.fn() },
-  responseError: vi.fn(() => 'The subscription could not be reached'),
-  errorMessage: vi.fn()
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The subscription could not be reached'), errorMessage: vi.fn() }))
 let subscriptionEvent: ((event: MessageEvent<string>) => void) | null = null
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, (event: MessageEvent<string>) => void>) => {
     subscriptionEvent = handlers['subscription.changed'] ?? null
     return () => { subscriptionEvent = null }
@@ -32,11 +29,11 @@ vi.mock('@/composables/useEventStream', () => ({
 }))
 
 /** Both bulk actions ask first; the tests drive the answer. */
-const confirmed = vi.fn(async (_options: ConfirmOptions) => true)
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
+const confirmed = vi.hoisted(() => vi.fn(async (_options: ConfirmOptions) => true))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirmed))
 
-const toasted = vi.fn()
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: toasted }) }))
+const toasted = vi.hoisted(() => vi.fn())
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toasted }))
 
 const i18n = createI18n({
   legacy: false,
@@ -48,7 +45,6 @@ const i18n = createI18n({
 })
 
 /** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
 const components = {
   // The shared stubs for the wrappers these cases do not look into (RD-1120-08: 840 warnings).
   UAlert: uiStubs.UAlert,
@@ -164,7 +160,7 @@ beforeEach(() => {
  * unfolded itself on arrival is exactly what moved the rows underneath it about.
  */
 async function openList(expectedItem = 'Deep Ocean S01E01'): Promise<void> {
-  render(IndexerReviewList, { global: { plugins: [i18n], components } })
+  mountComponent(IndexerReviewList, { i18n, stubs: components, keepPinia: true })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Review' })).toBeTruthy())
   await fireEvent.click(screen.getByRole('button', { name: 'Review' }))
   await waitFor(() => expect(screen.getByText('Weekly documentaries')).toBeTruthy())

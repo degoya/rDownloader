@@ -8,7 +8,6 @@
 //! This plugin reaches exactly one host — the one the pasted address names. Its manifest says
 //! `*` because an open listing is any web server at all; the host narrows that to the crawled
 //! address for the duration of the call, and a redirect off it is refused (RD-107-05).
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_crawler::{
     CrawledLink, Guest, host,

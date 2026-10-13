@@ -1,5 +1,4 @@
 //! The component: a YouTube link in, a summary of its sponsor segments out.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_enricher::{
     EnrichField, EnrichSubject, Guest,

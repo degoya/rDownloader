@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import routing from '@/locales/en/routing.json'
 import { mountComponent } from '@/test/mount'
@@ -8,13 +9,14 @@ import RoutingBackupButtons from './RoutingBackupButtons.vue'
 
 const get = vi.fn()
 const post = vi.fn()
-const confirm = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...args), POST: (...args: unknown[]) => post(...args) },
+const confirm = vi.hoisted(() => vi.fn())
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  POST: (...args: unknown[]) => post(...args),
   responseError: vi.fn()
 }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirm))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 function mount() {
   return mountComponent(RoutingBackupButtons, { messages: { routing } })

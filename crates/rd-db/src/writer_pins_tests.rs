@@ -5,12 +5,6 @@ use rd_core::{DownloadId, DownloadState, PackageId, PluginId, ResolverPin};
 
 use crate::{Database, NewDownload, NewPackage, NewPluginDigestRevocation, NewPluginVersionChoice};
 
-async fn database(directory: &std::path::Path) -> Database {
-    Database::open(directory.join("pins.sqlite"))
-        .await
-        .expect("database")
-}
-
 async fn download(database: &Database, state: DownloadState) -> DownloadId {
     let package_id = PackageId::new();
     database
@@ -89,7 +83,7 @@ async fn state_and_code(database: &Database, id: DownloadId) -> (DownloadState, 
 #[tokio::test]
 async fn a_pin_on_a_withdrawn_version_is_released_visibly() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let plugin = PluginId::new();
     let queued = download(&database, DownloadState::Queued).await;
     let paused = download(&database, DownloadState::Paused).await;
@@ -148,7 +142,7 @@ async fn a_pin_on_a_withdrawn_version_is_released_visibly() {
 #[tokio::test]
 async fn a_download_is_pinned_to_the_staged_version_only_while_it_is_not_running() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let plugin = PluginId::new();
     let job = download(&database, DownloadState::Queued).await;
     database
@@ -187,7 +181,7 @@ async fn a_download_is_pinned_to_the_staged_version_only_while_it_is_not_running
 #[tokio::test]
 async fn a_version_choice_is_stored_whole_and_refuses_the_same_version_twice() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let choice = |active: Option<&str>, staged: Option<&str>| NewPluginVersionChoice {
         plugin_id: "plugin".to_owned(),
         active_version: active.map(str::to_owned),
@@ -247,7 +241,7 @@ async fn a_version_choice_is_stored_whole_and_refuses_the_same_version_twice() {
 #[tokio::test]
 async fn a_resolution_writes_name_size_and_error_and_keeps_the_state() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let id = download(&database, DownloadState::Paused).await;
 
     let offline = rd_core::Failure::coded(
@@ -283,7 +277,7 @@ async fn a_resolution_writes_name_size_and_error_and_keeps_the_state() {
 #[tokio::test]
 async fn a_resolution_keeps_the_size_of_a_started_transfer_and_refuses_a_running_file() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let id = download(&database, DownloadState::Paused).await;
     let chunk = rd_core::ChunkId::new();
     database

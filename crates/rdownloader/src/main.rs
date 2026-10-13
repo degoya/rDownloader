@@ -284,7 +284,7 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
     // it (RA-IN-03).
     let probe = instance_lock::probe(data_directory).await;
     let database = Database::open(&args.paths.database).await?;
-    if matches!(probe, instance_lock::Probe::Free(_)) {
+    if matches!(probe, instance_lock::Probe::Free { .. }) {
         database.checkpoint_wal().await?;
     }
     println!("rDownloader doctor: OK");
@@ -301,7 +301,7 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
         instance_lock::Probe::Held(None) => {
             println!("service: running (starting, or not answering yet)");
         }
-        instance_lock::Probe::Free(_) => println!("service: not running"),
+        instance_lock::Probe::Free { .. } => println!("service: not running"),
     }
     // Field by field and never refusing: the doctor is where a start that refuses its settings
     // is explained (RA-DB-02).

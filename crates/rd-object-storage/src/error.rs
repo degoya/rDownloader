@@ -9,11 +9,11 @@ use rd_core::{Failure, FailureKind, ProfileChoiceError};
 /// No enabled profile can serve the link's bucket.
 pub const NO_PROFILE: &str = "object_storage.no_profile";
 /// More than one profile could serve it, and none is bound to the bucket.
-pub const PROFILE_AMBIGUOUS: &str = "object_storage.profile_ambiguous";
+pub(crate) const PROFILE_AMBIGUOUS: &str = "object_storage.profile_ambiguous";
 /// The link names a profile that is switched off.
 pub const PROFILE_DISABLED: &str = "object_storage.profile_disabled";
 /// The link is not a valid object storage address.
-pub const ADDRESS_INVALID: &str = "object_storage.address_invalid";
+pub(crate) const ADDRESS_INVALID: &str = "object_storage.address_invalid";
 /// The object or the bucket does not exist.
 pub const NOT_FOUND: &str = "object_storage.not_found";
 /// The credentials are valid but not allowed to do this.
@@ -27,7 +27,7 @@ pub const OBJECT_CHANGED: &str = "object_storage.object_changed";
 /// A key in a listing would escape the download folder.
 pub const UNSAFE_PATH: &str = "object_storage.unsafe_path";
 /// The download did not deliver the object's size.
-pub const LENGTH_MISMATCH: &str = "object_storage.length_mismatch";
+pub(crate) const LENGTH_MISMATCH: &str = "object_storage.length_mismatch";
 /// Anything else the service answered with.
 pub const REQUEST_FAILED: &str = "object_storage.request_failed";
 /// An upload could not be finished or verified.
@@ -45,7 +45,7 @@ const fn transient() -> FailureKind {
 
 /// Why no profile was chosen, as a queue failure.
 #[must_use]
-pub fn no_profile(choice: ProfileChoiceError, bucket: &str, hint: Option<&str>) -> Failure {
+pub(crate) fn no_profile(choice: ProfileChoiceError, bucket: &str, hint: Option<&str>) -> Failure {
     match choice {
         ProfileChoiceError::None => Failure::coded(
             FailureKind::AuthRequired,
@@ -69,7 +69,7 @@ pub fn no_profile(choice: ProfileChoiceError, bucket: &str, hint: Option<&str>) 
 }
 
 #[must_use]
-pub fn address_invalid() -> Failure {
+pub(crate) fn address_invalid() -> Failure {
     Failure::coded(
         FailureKind::Permanent,
         ADDRESS_INVALID,
@@ -78,7 +78,7 @@ pub fn address_invalid() -> Failure {
 }
 
 #[must_use]
-pub fn object_changed() -> Failure {
+pub(crate) fn object_changed() -> Failure {
     Failure::coded(
         FailureKind::Permanent,
         OBJECT_CHANGED,

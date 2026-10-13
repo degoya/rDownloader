@@ -54,11 +54,13 @@ pub use locales::{
 };
 pub use log_budget::MAX_LOG_LINES_PER_CALL;
 pub use manifest::{
-    Capabilities, CredentialKindManifest, MANIFEST_VERSION, MAX_SETTING_LINE_CHARS,
-    MAX_SETTING_TEXT_CHARS, ManifestHeader, ManifestRejection, NetHttpCapability,
-    OAuthFlowManifest, PluginManifest, PluginMetadata, PluginType, ProviderKindManifest,
-    ProviderManifest, SUPPORTED_API_VERSIONS, SecretFilledByManifest, SettingManifest,
-    check_app_version, decode_public_key, provider_spec_from_manifest,
+    Capabilities, CredentialKindManifest, MANIFEST_VERSION, MAX_FUEL, MAX_MEMORY_BYTES,
+    MAX_RESPONSE_BYTES, MAX_SETTING_LINE_CHARS, MAX_SETTING_TEXT_CHARS, MAX_TIMEOUT_MILLISECONDS,
+    MAX_WAIT_BUDGET_MILLISECONDS, ManifestDefaults, ManifestHeader, ManifestRejection,
+    NetHttpCapability, OAuthFlowManifest, PluginManifest, PluginMetadata, PluginType,
+    ProviderKindManifest, ProviderManifest, SUPPORTED_API_VERSIONS, SecretFilledByManifest,
+    SettingManifest, check_app_version, complete_manifest, decode_public_key,
+    provider_spec_from_manifest,
 };
 pub use native::{
     CLIENT_ID_MARKER, ResolverService, client_not_configured, provider_cookie_scope,
@@ -101,13 +103,31 @@ const SIGNATURE_MEMBER: &str = "signature.ed25519";
 /// page costs a few million instructions, so the budget is generous; the epoch
 /// timeout remains the wall-clock guard.
 pub const DEFAULT_FUEL: u64 = 2_000_000_000;
+/// Default linear memory of one invocation (64 MiB).
+pub const DEFAULT_MEMORY_BYTES: u64 = 64 * 1024 * 1024;
+/// Default compute time of one invocation (15 s).
+pub const DEFAULT_TIMEOUT_MILLISECONDS: u64 = 15_000;
+/// Default size of one HTTP answer a plugin may read (8 MiB).
+pub const DEFAULT_MAX_RESPONSE_BYTES: u64 = 8 * 1024 * 1024;
+/// Free downloads routinely wait a few minutes; ten minutes covers a countdown plus the
+/// captcha round trip without letting a broken plugin occupy a slot indefinitely.
+pub const DEFAULT_WAIT_BUDGET_MILLISECONDS: u64 = 10 * 60 * 1000;
 
 /// Resource limits applied by the component runtime.
+///
+/// Every field has a default (RD-1280-18), so a manifest names only the limits it changes:
+/// `[limits]` with `fuel` alone keeps the other four at the values below, and a manifest
+/// without `[limits]` runs on all five. `scripts/plugin-manifest-defaults.sh` reads these
+/// constants when it removes a stated default from a bundled manifest.
 #[derive(Clone, Copy, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize)]
 pub struct PluginLimits {
+    #[serde(default = "default_memory_bytes")]
     pub memory_bytes: u64,
+    #[serde(default = "default_fuel")]
     pub fuel: u64,
+    #[serde(default = "default_timeout_milliseconds")]
     pub timeout_milliseconds: u64,
+    #[serde(default = "default_max_response_bytes")]
     pub max_response_bytes: u64,
     /// Total time a resolver may spend in host-side waits (hoster countdowns) per
     /// invocation. Separate from `timeout_milliseconds`, which bounds compute time only.
@@ -115,20 +135,34 @@ pub struct PluginLimits {
     pub wait_budget_milliseconds: u64,
 }
 
-/// Free downloads routinely wait a few minutes; ten minutes covers a countdown plus the
-/// captcha round trip without letting a broken plugin occupy a slot indefinitely.
+const fn default_memory_bytes() -> u64 {
+    DEFAULT_MEMORY_BYTES
+}
+
+const fn default_fuel() -> u64 {
+    DEFAULT_FUEL
+}
+
+const fn default_timeout_milliseconds() -> u64 {
+    DEFAULT_TIMEOUT_MILLISECONDS
+}
+
+const fn default_max_response_bytes() -> u64 {
+    DEFAULT_MAX_RESPONSE_BYTES
+}
+
 const fn default_wait_budget() -> u64 {
-    10 * 60 * 1000
+    DEFAULT_WAIT_BUDGET_MILLISECONDS
 }
 
 impl Default for PluginLimits {
     fn default() -> Self {
         Self {
-            memory_bytes: 64 * 1024 * 1024,
+            memory_bytes: DEFAULT_MEMORY_BYTES,
             fuel: DEFAULT_FUEL,
-            timeout_milliseconds: 15_000,
-            max_response_bytes: 8 * 1024 * 1024,
-            wait_budget_milliseconds: default_wait_budget(),
+            timeout_milliseconds: DEFAULT_TIMEOUT_MILLISECONDS,
+            max_response_bytes: DEFAULT_MAX_RESPONSE_BYTES,
+            wait_budget_milliseconds: DEFAULT_WAIT_BUDGET_MILLISECONDS,
         }
     }
 }

@@ -6,7 +6,16 @@ use super::{ARGUMENTS, CREATE_SCRIPT, Place, REMOVE_SCRIPT, environment};
 /// Windows looks for it.
 #[test]
 fn each_shortcut_lies_in_its_folder_and_starts_open() {
-    assert_eq!(ARGUMENTS, "open");
+    let started = <crate::cli::Cli as clap::Parser>::try_parse_from([
+        "rdownloader-capture",
+        ARGUMENTS,
+        "dropped.nzb",
+    ])
+    .expect("the shortcut's arguments parse");
+    assert!(
+        matches!(started.command, Some(crate::cli::Command::Open(_))),
+        "the shortcut starts `open`"
+    );
     assert_eq!(Place::Desktop.folder(), "DesktopDirectory");
     assert_eq!(Place::SendTo.folder(), "SendTo");
     assert_eq!(Place::Desktop.file_name(), "Add to rDownloader.lnk");

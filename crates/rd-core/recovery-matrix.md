@@ -63,7 +63,8 @@ crate has no count recorded yet. RD-191-12 added one `rd-scheduler` case
 (`scheduler.before_auto_retry_requeued`), behind the feature; the count with it is measured with
 the next run. RD-1100-04 added one `rd-db` case in a binary of its own
 (`tests/download_history_crash.rs`, the history entry written with the package's outcome); its
-count is measured with the next run.
+count is measured with the next run. RD-1280-01 added a third (`tests/automation_reset_crash.rs`,
+the automation version reset), one case; its count is measured with the next run.
 
 the next run. RD-1100-05 added one `rd-usenet` case (`usenet.before_traffic_flushed`, in
 `src/traffic_crash_tests.rs`) behind the feature and four ordinary ones without it; both counts
@@ -106,6 +107,7 @@ row for a point that does not exist.
 | `archive_password.after_secret_removed` | rd-db | a sweep stopped after it removed released archive passwords from the vault and before it recorded that keeps the record and never the entry; the next start removes the record, and no row points at an entry that is gone |
 | `archive_password.before_reference_adopted` | rd-db | archive passwords written to the vault before any row points at them lose nothing: a stopped takeover keeps every plain value, the next start removes the entries the first attempt reserved and moves the values again, and the vault ends with exactly one entry per password; a stopped write keeps the row's previous password |
 | `automation.before_outcome_recorded` | rd-api-core | a run whose action took effect before its outcome was recorded is queued again by the next start at that same action, never left running and never moved past an action nobody recorded; the action runs again and the run completes |
+| `automation_versions.before_reset_committed` | rd-db | a version reset stopped after the older versions and their runs were deleted and the version in force renumbered, and before the transaction committed, leaves the history whole: every version and run is still there and the automation keeps its version number; the reset done again keeps exactly the version in force, as version 1, with its own runs, and that survives a restart |
 | `backup.after_database_snapshot` | rd-backup | a database copy staged for a run that stopped before its archive was sealed is removed by the next start with the rest of the staging; the run is recorded as interrupted and nothing reaches a destination |
 | `backup.after_retention_removal` | rd-backup | an archive retention removed at its destination before the ledger forgot it is forgotten by the next pass, which finds it gone; the ledger never lists fewer archives than the destination holds, and an archive the plan keeps is never removed |
 | `backup.before_archive_published` | rd-backup | an archive finished in staging but not yet at its destination never appears there under its final name; the next start records the run as interrupted and removes the staging |
@@ -456,6 +458,15 @@ else. Its case asserts that the run is not due until that recovery, that the rec
 at the same action — which therefore runs a second time: an action is carried out at least once,
 so a webhook's receiver or a script can see the same event twice after a stop — and that it then
 completes, never skipping an action whose outcome nobody recorded. The case runs with `rd-api-core/failpoints`.
+
+`automation_versions.before_reset_committed` is the reset of an automation's version history
+(RD-1280-01, `rd-db/src/automation_reset_store.rs`). One transaction deletes the runs of the older
+versions, the older versions, renumbers the version in force to 1 and announces the change, so a
+stop can never leave runs pointing at a version that is gone or an automation whose number names
+no version. The case stops it just before the commit, asserts after a restart that all three
+versions with their numbers, all three runs and the automation's number are still there, resets
+again and asserts that exactly the version in force is left, as version 1, with its one run, after
+another restart. It runs with `rd-db/failpoints` in `crates/rd-db/tests/automation_reset_crash.rs`.
 
 `subscription.after_items_archived` is a subscription poll between archiving its accepted items
 and handing them to the LinkGrabber (RD-190-13, `rd_api_core::subscription_service`). An accepted

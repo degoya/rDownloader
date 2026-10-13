@@ -7,27 +7,20 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
+import { apiClientMock, toastMock } from '@/test/mocks'
 import type { NavigationFailure } from 'vue-router'
 
 import { setShortcutFeedback, SHORTCUT_DEFINITIONS } from '@/composables/shortcutDefinitions'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import subscriptions from '@/locales/en/subscriptions.json'
 import { router } from '@/router'
-import { createTestI18n, mountComponent, uiStubs } from '@/test/mount'
+import { createTestI18n, mountComponent, settle, uiStubs } from '@/test/mount'
 
 import LinkGrabberNavbar from './LinkGrabberNavbar.vue'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...args), POST: vi.fn(), PUT: vi.fn(), PATCH: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => ''),
-  resultMessage: vi.fn(() => '')
-}))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: vi.fn() }) })
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args), responseError: vi.fn(() => '') }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ overlay: { open: vi.fn() } }))
 
 const { default: IndexerSearchDrawer } = await import('./IndexerSearchDrawer.vue')
 
@@ -55,10 +48,6 @@ const stubs = {
 
 function answerIndexers(rows: unknown[]): void {
   get.mockImplementation((path: string) => Promise.resolve({ data: path === '/api/v1/indexers' ? rows : [] }))
-}
-
-async function settle(): Promise<void> {
-  for (let round = 0; round < 4; round += 1) await nextTick()
 }
 
 function mount() {

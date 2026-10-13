@@ -58,7 +58,10 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
 
   function setFiles(ids: string[], selected: boolean): void {
     const next = new Set(selectedFiles.value)
-    for (const id of ids) selected ? next.add(id) : next.delete(id)
+    for (const id of ids) {
+      if (selected) next.add(id)
+      else next.delete(id)
+    }
     selectedFiles.value = next
   }
 
@@ -140,7 +143,8 @@ export function useQueueSelection(groups: Ref<QueueGroup[]>, allDownloads: Ref<D
   })
 
   function toggleAll(): void {
-    state.value === 'all' ? clear() : selectAll()
+    if (state.value === 'all') clear()
+    else selectAll()
   }
 
   return { selectedFiles, selectedDownloads, selectedIds, fullySelectedPackageIds, count, parts, size, state, anchor, noteModifier: range.noteModifier, setFiles, pickFile, pickPackage, togglePackage, packageState, selectAll, toggleAll, clear }

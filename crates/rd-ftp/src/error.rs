@@ -122,16 +122,6 @@ fn from_status(status: Status) -> Failure {
     }
 }
 
-/// The failure raised when a resumed transfer no longer matches what was downloaded.
-#[must_use]
-pub(crate) fn file_changed() -> Failure {
-    Failure::coded(
-        FailureKind::Permanent,
-        FILE_CHANGED,
-        "The remote file changed since the partial download was written",
-    )
-}
-
 /// The failure raised when the server cannot continue an interrupted transfer.
 #[must_use]
 pub(crate) fn resume_unsupported() -> Failure {

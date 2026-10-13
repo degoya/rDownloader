@@ -15,7 +15,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use serde::{Deserialize, Serialize};
 
 /// How long nothing may have run before an update is installed.
-pub const QUIET_PERIOD: TimeDelta = TimeDelta::minutes(5);
+pub(crate) const QUIET_PERIOD: TimeDelta = TimeDelta::minutes(5);
 /// Minutes in a day; a window's bounds lie below it.
 pub const MINUTES_PER_DAY: u16 = 24 * 60;
 

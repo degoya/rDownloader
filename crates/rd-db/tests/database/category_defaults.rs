@@ -7,13 +7,6 @@
 
 use rd_core::StorageRootId;
 use rd_db::{Database, NewCategory, NewStorageRoot};
-use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("categories.sqlite"))
-        .await
-        .expect("database")
-}
 
 /// The storage root every category needs; its own default flag is not what is under test.
 async fn root(database: &Database) -> StorageRootId {
@@ -71,7 +64,7 @@ async fn defaults(database: &Database) -> Vec<String> {
 #[tokio::test]
 async fn first_category_becomes_default_even_when_not_requested() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let root_id = root(&database).await;
 
     let created = database
@@ -89,7 +82,7 @@ async fn first_category_becomes_default_even_when_not_requested() {
 #[tokio::test]
 async fn a_second_category_does_not_steal_the_default() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let root_id = root(&database).await;
     database
         .create_category(category("Movies", root_id, false))
@@ -108,7 +101,7 @@ async fn a_second_category_does_not_steal_the_default() {
 #[tokio::test]
 async fn a_second_category_may_take_the_default_when_asked() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let root_id = root(&database).await;
     database
         .create_category(category("Movies", root_id, false))
@@ -126,7 +119,7 @@ async fn a_second_category_may_take_the_default_when_asked() {
 #[tokio::test]
 async fn unticking_the_only_default_is_coerced_back() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let root_id = root(&database).await;
     let only = database
         .create_category(category("Movies", root_id, false))
@@ -148,7 +141,7 @@ async fn unticking_the_only_default_is_coerced_back() {
 #[tokio::test]
 async fn unticking_the_default_is_coerced_back_even_with_other_categories() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let root_id = root(&database).await;
     let first = database
         .create_category(category("Movies", root_id, false))
@@ -174,7 +167,7 @@ async fn unticking_the_default_is_coerced_back_even_with_other_categories() {
 #[tokio::test]
 async fn editing_a_non_default_category_leaves_the_default_alone() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let root_id = root(&database).await;
     database
         .create_category(category("Movies", root_id, false))
@@ -197,7 +190,7 @@ async fn editing_a_non_default_category_leaves_the_default_alone() {
 #[tokio::test]
 async fn deleting_the_default_promotes_the_alphabetically_first_survivor() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let root_id = root(&database).await;
     let bravo = database
         .create_category(category("Bravo", root_id, false))
@@ -221,7 +214,7 @@ async fn deleting_the_default_promotes_the_alphabetically_first_survivor() {
 #[tokio::test]
 async fn deleting_a_non_default_category_does_not_move_the_default() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let root_id = root(&database).await;
     database
         .create_category(category("Bravo", root_id, false))
@@ -242,7 +235,7 @@ async fn deleting_a_non_default_category_does_not_move_the_default() {
 #[tokio::test]
 async fn deleting_the_last_category_leaves_an_empty_table() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let root_id = root(&database).await;
     let only = database
         .create_category(category("Movies", root_id, false))
@@ -266,7 +259,7 @@ async fn deleting_the_last_category_leaves_an_empty_table() {
 #[tokio::test]
 async fn the_default_category_is_always_selectable() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let root_id = root(&database).await;
     let hidden = |name: &str, is_default: bool| NewCategory {
         selectable: false,

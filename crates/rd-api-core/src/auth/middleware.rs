@@ -280,7 +280,7 @@ pub fn request_host(uri: &axum::http::Uri, headers: &HeaderMap) -> Option<String
 /// machine, where every caller here is the administrator. A safe method changes nothing and
 /// passes; so does a request without `Origin` and `Sec-Fetch-Site`, which no browser sends.
 /// `host` is [`request_host`] of the request.
-pub async fn refuse_foreign_site(
+pub(crate) async fn refuse_foreign_site(
     state: &AppState,
     method: &Method,
     host: Option<&str>,

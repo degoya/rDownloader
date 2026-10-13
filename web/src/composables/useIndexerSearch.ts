@@ -260,7 +260,7 @@ export function useIndexerSearch() {
   }
 }
 
-export type IndexerSearchState = ReturnType<typeof useIndexerSearch>
+type IndexerSearchState = ReturnType<typeof useIndexerSearch>
 
 export const INDEXER_SEARCH_STATE: InjectionKey<IndexerSearchState> = Symbol('indexer-search')
 

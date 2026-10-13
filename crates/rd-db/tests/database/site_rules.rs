@@ -5,14 +5,7 @@
 //! on, so a list can be drawn without parsing every body.
 
 use rd_core::EventKind;
-use rd_db::{Database, NewSiteRuleCheck, NewUserSiteRule, SiteRuleOriginKind};
-use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("rules.sqlite"))
-        .await
-        .expect("database")
-}
+use rd_db::{NewSiteRuleCheck, NewUserSiteRule, SiteRuleOriginKind};
 
 fn rule(id: &str) -> NewUserSiteRule {
     NewUserSiteRule {
@@ -41,7 +34,7 @@ fn drain(
 async fn a_user_rule_is_still_there_after_a_restart() {
     let directory = tempfile::tempdir().expect("tempdir");
     {
-        let database = database(&directory).await;
+        let database = rd_testkit::temp_database(directory.path()).await;
         let stored = database
             .upsert_site_rule(rule("my-board"))
             .await
@@ -49,7 +42,7 @@ async fn a_user_rule_is_still_there_after_a_restart() {
         assert_eq!(stored.id, "my-board");
         assert_eq!(stored.created_at, stored.updated_at);
     }
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let rules = database.list_site_rules().await.expect("list");
     assert_eq!(rules.len(), 1);
     assert_eq!(rules[0].id, "my-board");
@@ -61,7 +54,7 @@ async fn a_user_rule_is_still_there_after_a_restart() {
 #[tokio::test]
 async fn an_upsert_replaces_the_body_and_keeps_the_creation_time() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let first = database
         .upsert_site_rule(rule("my-board"))
         .await
@@ -80,7 +73,7 @@ async fn an_upsert_replaces_the_body_and_keeps_the_creation_time() {
 #[tokio::test]
 async fn rules_are_listed_by_id_and_a_delete_says_whether_it_removed_one() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .upsert_site_rule(rule("zeta"))
         .await
@@ -107,7 +100,7 @@ async fn rules_are_listed_by_id_and_a_delete_says_whether_it_removed_one() {
 #[tokio::test]
 async fn every_write_announces_exactly_one_change() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut events = database.subscribe();
     database
         .upsert_site_rule(rule("mine"))
@@ -132,12 +125,12 @@ async fn every_write_announces_exactly_one_change() {
 async fn a_rule_keeps_where_it_came_from_until_its_body_is_replaced() {
     let directory = tempfile::tempdir().expect("tempdir");
     {
-        let database = database(&directory).await;
+        let database = rd_testkit::temp_database(directory.path()).await;
         let mut example = rule("debian-cd");
         example.origin = SiteRuleOriginKind::Example;
         database.upsert_site_rule(example).await.expect("upsert");
     }
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let stored = database.list_site_rules().await.expect("list");
     assert_eq!(stored[0].origin, SiteRuleOriginKind::Example);
     let mut edited = rule("debian-cd");
@@ -170,7 +163,7 @@ fn every_origin_word_reads_back_and_a_retired_one_is_unknown() {
 #[tokio::test]
 async fn deleting_every_rule_takes_the_checks_and_keeps_the_group_switches() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     for id in ["alpha", "beta", "gamma"] {
         database.upsert_site_rule(rule(id)).await.expect("upsert");
     }

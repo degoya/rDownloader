@@ -2,14 +2,8 @@
 //! validators an options edit must drop, and a first poll that failed priming nothing.
 
 use chrono::Utc;
-use rd_db::{Database, NewSubscription, PollResult};
+use rd_db::{NewSubscription, PollResult};
 use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("subscriptions.sqlite"))
-        .await
-        .expect("database")
-}
 
 fn subscription() -> NewSubscription {
     NewSubscription {
@@ -57,7 +51,7 @@ fn result(error: Option<&str>, etag: Option<&str>) -> PollResult {
 #[tokio::test]
 async fn the_options_are_stored_and_read_back_with_the_kind() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let created = database
         .create_subscription(subscription())
         .await
@@ -76,7 +70,7 @@ async fn the_options_are_stored_and_read_back_with_the_kind() {
 #[tokio::test]
 async fn a_failed_first_poll_leaves_the_backlog_decision_to_the_next() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let created = database
         .create_subscription(subscription())
         .await
@@ -110,7 +104,7 @@ async fn a_failed_first_poll_leaves_the_backlog_decision_to_the_next() {
 #[tokio::test]
 async fn an_options_edit_drops_the_validators_and_another_edit_keeps_them() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let created = database
         .create_subscription(subscription())
         .await

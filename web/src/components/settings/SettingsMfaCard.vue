@@ -8,6 +8,7 @@ import { api, responseError } from '@/api/client'
 import type { components } from '@/api/schema'
 import { useConfirm } from '@/composables/useConfirm'
 import { useCopy } from '@/composables/useCopy'
+import { useMfaCredentials } from '@/composables/useMfaCredentials'
 import { formatMoment } from '@/utils/format'
 import CopyField from '@/components/CopyField.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
@@ -111,25 +112,16 @@ async function confirmEnrolment(): Promise<void> {
   toast.add({ title: t('system.mfa.enabled_toast'), color: 'success', icon: 'i-lucide-shield-check' })
 }
 
-async function removeCredential(credential: MfaCredential): Promise<void> {
-  const confirmed = await confirm({
+const credentialRemoval = useMfaCredentials({ confirm, password, error, reload: load })
+
+function removeCredential(credential: MfaCredential): Promise<void> {
+  return credentialRemoval.remove(credential, {
     title: t('system.mfa.remove.title'),
     description: t('system.mfa.remove.description', { label: credential.label }),
     confirmLabel: t('system.mfa.remove.confirm'),
     confirmIcon: 'i-lucide-shield-off',
     destructive: true
   })
-  if (!confirmed) return
-  const response = await api.DELETE('/api/v1/mfa/credentials/{id}', {
-    params: { path: { id: credential.id } },
-    body: { password: password.value }
-  })
-  if (!response.data) {
-    error.value = responseError(response)
-    return
-  }
-  password.value = ''
-  await load()
 }
 
 async function disable(): Promise<void> {

@@ -8,6 +8,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 
 import type { Account } from '@/api/types'
 import en from '@/locales/en/remote_jobs.json'
@@ -41,25 +42,23 @@ const state = vi.hoisted(() => ({
   answer: null as unknown
 }))
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async (path: string) => {
-      if (path === '/api/v1/remote-jobs') return { data: state.jobs }
-      if (path === '/api/v1/remote-jobs/providers') return { data: ['realdebrid', 'torbox'] }
-      if (path === '/api/v1/providers') {
-        return { data: [{ slug: 'realdebrid', display_name: 'Real-Debrid', credentials: 'secret', kind: 'hoster' }, { slug: 'torbox', display_name: 'TorBox', credentials: 'secret', kind: 'hoster' }] }
-      }
-      return { data: [] }
-    }),
-    POST: vi.fn(async (path: string, init: { body: unknown }) => {
-      state.posts.push({ path, init })
-      return state.answer
-    }),
-    DELETE: vi.fn(async () => ({ data: {} }))
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async (path: string) => {
+    if (path === '/api/v1/remote-jobs') return { data: state.jobs }
+    if (path === '/api/v1/remote-jobs/providers') return { data: ['realdebrid', 'torbox'] }
+    if (path === '/api/v1/providers') {
+      return { data: [{ slug: 'realdebrid', display_name: 'Real-Debrid', credentials: 'secret', kind: 'hoster' }, { slug: 'torbox', display_name: 'TorBox', credentials: 'secret', kind: 'hoster' }] }
+    }
+    return { data: [] }
+  }),
+  POST: vi.fn(async (path: string, init: { body: unknown }) => {
+    state.posts.push({ path, init })
+    return state.answer
+  }),
+  DELETE: vi.fn(async () => ({ data: {} })),
   responseError: () => 'failed'
 }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 /** The route the filter reads and writes (`useRemoteJobsFilter`, RD-1200-01), reactive like the real one. */
 const router = vi.hoisted(() => ({
   route: null as unknown as { path: string, hash: string, query: Record<string, string | undefined> },
@@ -73,16 +72,13 @@ vi.mock('vue-router', async () => {
   })
   return { useRoute: () => router.route, useRouter: () => ({ replace: router.replace }) }
 })
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({
-    create: () => ({
-      open: (options: { title: string, description: string }) => {
-        state.asked.push(options)
-        return { result: Promise.resolve(state.confirm) }
-      }
-    })
-  })
+vi.mock('@nuxt/ui/composables', () => toastMock({
+  overlay: {
+    open: (options: { title: string, description: string }) => {
+      state.asked.push(options)
+      return { result: Promise.resolve(state.confirm) }
+    }
+  }
 }))
 
 function mount(jobs: unknown[], query: Record<string, string> = {}) {

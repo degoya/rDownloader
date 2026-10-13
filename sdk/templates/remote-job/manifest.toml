@@ -28,8 +28,10 @@ slug = "{{PLUGIN_SLUG}}"
 claims = ["example"]
 # The container formats the provider takes as `job-source::container`: any of "torrent", "nzb",
 # "dlc", "rsdf". The LinkGrabber offers an NZB to an account only when its plugin names `nzb`
-# here. Leave it out for a provider that takes no file.
-# containers = ["torrent", "nzb"]
+# here. Leave it out for a provider that takes no file. Name exactly what `claims` takes:
+# `plugin conformance` hands it a `.torrent` and an `.nzb` and checks the answers against this
+# list (`remote_job_containers`). This example reads `.torrent` files (`src/source.rs`).
+containers = ["torrent"]
 
 [metadata]
 description = "Runs magnets and torrent files as jobs on a {{PLUGIN_NAME}} account."
@@ -37,7 +39,7 @@ author = "Your name"
 license = "MIT"
 # The release this SDK came with, whose contract `wit/` is (scripts/set-version.sh writes it in
 # rDownloader's tree); an older core refuses this manifest rather than half-loading it.
-min_app_version = "1.27.0"
+min_app_version = "1.28.0"
 
 [limits]
 memory_bytes = 33554432

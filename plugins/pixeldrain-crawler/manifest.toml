@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "crawler"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000171"
 name = "Pixeldrain lists"
-version = "0.1.13"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.1.14"
 
 # One endpoint on the provider's own host: `GET /api/list/{id}`, measured 2026-09-22
 # (RD-120-07). Nothing else is reached -- the file links this answers with are handed back for
@@ -22,15 +18,9 @@ claims = []
 
 [metadata]
 description = "Lists the files behind a Pixeldrain list address."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432
-fuel = 2000000000
-timeout_milliseconds = 15000
 # One JSON list and nothing else. A list's entries each carry a full metadata record, so the
 # budget is larger than a crawler that reads one page: four megabytes holds thousands of them.
 max_response_bytes = 4194304

@@ -17,16 +17,10 @@ fn browser(endpoint: &str, device: &str) -> NewWebPushSubscription {
     }
 }
 
-async fn database(directory: &tempfile::TempDir) -> Database {
-    Database::open(directory.path().join("push.sqlite3"))
-        .await
-        .expect("database")
-}
-
 #[tokio::test]
 async fn subscribing_again_updates_the_row_and_survives_a_reopen() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let path = directory.path().join("push.sqlite3");
+    let path = directory.path().join(crate::tests::DATABASE_FILE);
     let database = Database::open(&path).await.expect("database");
     assert!(
         database
@@ -66,7 +60,7 @@ async fn subscribing_again_updates_the_row_and_survives_a_reopen() {
 #[tokio::test]
 async fn the_first_subscription_makes_the_target_and_its_rule_once() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     // A target of another kind already holds the name.
     database
         .upsert_notification_target(
@@ -112,7 +106,7 @@ async fn the_first_subscription_makes_the_target_and_its_rule_once() {
 #[tokio::test]
 async fn a_deleted_subscription_is_gone_and_a_second_delete_is_not_found() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let subscription = database
         .upsert_web_push_subscription(browser("https://push.example.org/a", "Phone"))
         .await
@@ -150,7 +144,7 @@ fn key(reference: &str) -> WebPushKey {
 #[tokio::test]
 async fn the_first_key_wins_and_a_replaced_key_takes_the_subscriptions_along() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     assert_eq!(database.web_push_key().await.expect("read"), None);
 
     let first = database

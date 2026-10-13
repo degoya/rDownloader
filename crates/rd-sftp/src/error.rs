@@ -104,16 +104,6 @@ fn from_status(status: StatusCode) -> Failure {
     }
 }
 
-/// The failure raised when a resumed transfer no longer matches what was downloaded.
-#[must_use]
-pub(crate) fn file_changed() -> Failure {
-    Failure::coded(
-        FailureKind::Permanent,
-        FILE_CHANGED,
-        "The remote file changed since the partial download was written",
-    )
-}
-
 /// The failure raised when a stored private key cannot be used.
 #[must_use]
 pub(crate) fn key_invalid() -> Failure {

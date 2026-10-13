@@ -27,6 +27,7 @@
     "keep2share.password_missing": "Keep2Share password is missing",
     "keep2share.premium_required": "Keep2Share premium account is required to download this file",
     "keep2share.private_file": "Keep2Share file can only be downloaded by its owner",
+    "keep2share.request_encoding": "Keep2Share request could not be encoded: {error}",
     "keep2share.server_error": "Keep2Share server error",
     "keep2share.session_invalid": "Keep2Share reported the auth token as invalid",
     "keep2share.temporarily_unavailable": "Keep2Share reported the download as temporarily unavailable",

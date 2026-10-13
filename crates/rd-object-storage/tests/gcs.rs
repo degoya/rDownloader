@@ -29,7 +29,8 @@ use rd_db::NewObjectStorageProfile;
 use rd_extract::UploadReport;
 use rd_object_storage::error::{AUTH_FAILED, OBJECT_CHANGED, RATE_LIMITED};
 use rd_scheduler::RunOutcome;
-use support::{Harness, decode, lock, payload, respond};
+use rd_testkit::{lock, payload, respond};
+use support::{Harness, decode};
 
 const BUCKET: &str = "media_bucket";
 const LAST_MODIFIED: &str = "Sun, 27 Sep 2026 10:00:00 GMT";
@@ -238,9 +239,13 @@ fn list(fixture: &Fixture, query: &BTreeMap<String, String>) -> Response {
     )
 }
 
-async fn start(source: ObjectCredentialSource, secret: Option<&str>) -> (Harness, Fixture) {
+async fn start(
+    source: ObjectCredentialSource,
+    secret: Option<&str>,
+) -> (rd_testkit::TestServer, Harness, Fixture) {
     let fixture = Fixture::default();
-    let address = support::serve(Router::new().fallback(handle).with_state(fixture.clone())).await;
+    let server = support::serve(Router::new().fallback(handle).with_state(fixture.clone())).await;
+    let address = server.addr();
     let harness = Harness::start(
         NewObjectStorageProfile {
             name: "gcs".to_owned(),
@@ -263,12 +268,12 @@ async fn start(source: ObjectCredentialSource, secret: Option<&str>) -> (Harness
         BUCKET,
     )
     .await;
-    (harness, fixture)
+    (server, harness, fixture)
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_public_bucket_is_listed_and_downloaded_without_any_credential() {
-    let (harness, fixture) = start(ObjectCredentialSource::Anonymous, None).await;
+    let (_server, harness, fixture) = start(ObjectCredentialSource::Anonymous, None).await;
     fixture.put("shows/e01.mkv", payload(70_000));
     fixture.put("shows/e02.mkv", payload(10));
 
@@ -299,7 +304,7 @@ async fn a_public_bucket_is_listed_and_downloaded_without_any_credential() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_resume_continues_the_same_generation_and_refuses_a_new_one() {
-    let (harness, fixture) = start(ObjectCredentialSource::Anonymous, None).await;
+    let (_server, harness, fixture) = start(ObjectCredentialSource::Anonymous, None).await;
     let body = payload(80_000);
     let generation = fixture.put("shows/e03.mkv", body.clone());
     let validator = format!("\"g{generation}\"; version={generation}");
@@ -333,7 +338,7 @@ async fn a_resume_continues_the_same_generation_and_refuses_a_new_one() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_multipart_upload_reaches_the_endpoint_and_is_verified() {
-    let (harness, fixture) = start(ObjectCredentialSource::Anonymous, None).await;
+    let (_server, harness, fixture) = start(ObjectCredentialSource::Anonymous, None).await;
     let body = payload(20 * 1024 * 1024);
     let report = harness.upload(&body).await;
     assert_eq!(
@@ -348,7 +353,7 @@ async fn a_multipart_upload_reaches_the_endpoint_and_is_verified() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_throttled_bucket_is_retried_later_under_its_own_code() {
-    let (harness, fixture) = start(ObjectCredentialSource::Anonymous, None).await;
+    let (_server, harness, fixture) = start(ObjectCredentialSource::Anonymous, None).await;
     *lock(&fixture.refuse_with) = Some((StatusCode::TOO_MANY_REQUESTS, "rateLimitExceeded"));
     let failure = harness
         .service
@@ -362,7 +367,7 @@ async fn a_throttled_bucket_is_retried_later_under_its_own_code() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_key_that_is_not_a_service_account_key_is_refused_before_any_request() {
-    let (harness, fixture) = start(
+    let (_server, harness, fixture) = start(
         ObjectCredentialSource::Static,
         Some("-----BEGIN PRIVATE KEY-----"),
     )

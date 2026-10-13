@@ -1,7 +1,7 @@
 import type { SubscriptionItem } from '@/api/types'
 
 /** What a re-read under the reader's hand may change, and what it holds back (RD-1250-13). */
-export interface HeldMerge {
+interface HeldMerge {
   /** The rows on screen: the same ones in the same order, each with its fresh content. */
   items: SubscriptionItem[]
   /** The ids the re-read found that are not on screen. */

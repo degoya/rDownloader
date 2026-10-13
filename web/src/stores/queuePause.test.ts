@@ -4,16 +4,14 @@
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 
 import { nextOccurrence, useQueuePauseStore } from './queuePause'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'The pause needs an end ahead, at most 30 days away')
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: vi.fn(() => () => {}) }))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The pause needs an end ahead, at most 30 days away') }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const NOW = new Date('2026-10-02T12:00:00Z')
 

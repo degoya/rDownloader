@@ -256,7 +256,7 @@ pub async fn enqueue_collector_packages(
     ))
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn package_change(
     state: &AppState,
     name: Option<String>,

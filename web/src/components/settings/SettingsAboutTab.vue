@@ -274,7 +274,7 @@ const anyOpen = computed(() => open.rust || open.npm)
                     />
                     <template #content>
                       <div class="mt-1 max-h-96 overflow-auto border border-muted">
-                        <p v-if="!visible(ecosystem).length" class="p-3 text-sm text-muted">{{ t('settings.about.licenses.no_match') }}</p>
+                        <UEmpty v-if="!visible(ecosystem).length" :description="t('settings.about.licenses.no_match')" />
                         <UTable
                           v-else
                           sticky

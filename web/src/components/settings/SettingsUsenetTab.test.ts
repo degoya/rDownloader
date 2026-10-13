@@ -9,6 +9,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import type { Settings } from '@/api/types'
@@ -41,31 +42,26 @@ const BLOCK_QUOTA = { limit_bytes: GIB, action: 'pause', used_bytes: GIB, reset_
 const put = vi.hoisted(() => vi.fn())
 const quotaPut = vi.hoisted(() => vi.fn())
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async (path: string) => ({
-      data: path === '/api/v1/stats/usenet-servers' ? TRAFFIC : path.includes('usenet/servers') ? SERVERS : []
-    })),
-    PUT: (path: string, init: { params: { path: { id: string } }, body: { priority: number } }) => {
-      if (path.endsWith('/quota')) {
-        quotaPut(init.params.path.id, init.body)
-        return Promise.resolve({ data: { ...SERVERS[1], quota: { ...BLOCK_QUOTA, limit_bytes: 5 * GIB, used_bytes: 0, reached_at: null } } })
-      }
-      put(init.params.path.id, init.body.priority)
-      return Promise.resolve({ data: SERVERS[0] })
-    },
-    POST: vi.fn(async () => ({ data: SERVERS[0] })),
-    DELETE: vi.fn(async () => ({ data: { message: 'gone' } }))
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async (path: string) => ({
+    data: path === '/api/v1/stats/usenet-servers' ? TRAFFIC : path.includes('usenet/servers') ? SERVERS : []
+  })),
+  PUT: (path: string, init: { params: { path: { id: string } }, body: { priority: number } }) => {
+    if (path.endsWith('/quota')) {
+      quotaPut(init.params.path.id, init.body)
+      return Promise.resolve({ data: { ...SERVERS[1], quota: { ...BLOCK_QUOTA, limit_bytes: 5 * GIB, used_bytes: 0, reached_at: null } } })
+    }
+    put(init.params.path.id, init.body.priority)
+    return Promise.resolve({ data: SERVERS[0] })
   },
+  POST: vi.fn(async () => ({ data: SERVERS[0] })),
+  DELETE: vi.fn(async () => ({ data: { message: 'gone' } })),
   responseError: () => 'failed',
   resultMessage: () => 'done'
 }))
 // The shared lists follow the event stream (WEB-3); jsdom has no `EventSource`.
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(true) }) }) })
-}))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
+vi.mock('@nuxt/ui/composables', () => toastMock({ answer: true }))
 
 async function mount() {
   const view = mountComponent(SettingsUsenetTab, {

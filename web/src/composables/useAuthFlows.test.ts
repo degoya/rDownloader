@@ -5,6 +5,7 @@
  */
 import { render } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 import { defineComponent } from 'vue'
 
 import { api } from '@/api/client'
@@ -12,10 +13,7 @@ import type { AuthFlow } from '@/api/types'
 
 import { isOpenFlow, useAuthFlows } from './useAuthFlows'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'The provider refused the sign-in')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The provider refused the sign-in') }))
 
 const ACCOUNT = 'account-1'
 

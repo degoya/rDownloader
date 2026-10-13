@@ -13,9 +13,7 @@ use crate::{
 };
 
 async fn open(directory: &Path) -> Database {
-    let database = Database::open(directory.join("rdownloader.sqlite3"))
-        .await
-        .expect("database");
+    let database = crate::tests::temp_database(directory).await;
     database
         .install_file_vault(directory.join("secrets"))
         .await
@@ -387,7 +385,7 @@ async fn the_takeover_moves_every_plain_password_into_the_vault_and_out_of_the_f
 #[tokio::test]
 async fn without_a_vault_nothing_moves_and_nothing_is_written_in_plain() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = Database::open(directory.path().join("rdownloader.sqlite3"))
+    let database = Database::open(directory.path().join(crate::tests::DATABASE_FILE))
         .await
         .expect("database");
     let queued = package(&database, directory.path(), "Queued").await;

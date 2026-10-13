@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock } from '@/test/mocks'
 
 import type { Category, CategoryRule } from '@/api/types'
 import common from '@/locales/en/common.json'
@@ -13,12 +14,12 @@ import { mountComponent } from '@/test/mount'
 const post = vi.fn()
 const put = vi.fn()
 const editRegex = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: (...args: unknown[]) => post(...args), PUT: (...args: unknown[]) => put(...args), PATCH: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'rejected'),
-  resultMessage: vi.fn(() => '')
+vi.mock('@/api/client', () => apiClientMock({
+  POST: (...args: unknown[]) => post(...args),
+  PUT: (...args: unknown[]) => put(...args),
+  responseError: vi.fn(() => 'rejected')
 }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
 vi.mock('@/composables/useRegexEditor', () => ({ useRegexEditor: () => (...args: unknown[]) => editRegex(...args) }))
 
 const { default: RoutingCategoryRules } = await import('./RoutingCategoryRules.vue')

@@ -1,5 +1,4 @@
 //! The component: Real-Debrid's open-source device flow, and the renewal that outlives it.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_oauth::{
     AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome, accept_json, credentials, host,

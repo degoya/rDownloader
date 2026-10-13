@@ -1,0 +1,31 @@
+name: Host liveness
+
+# Whether the hoster domains the plugins claim still exist (RD-1280-20): DNS and an HTTPS HEAD per
+# domain of every resolver and crawler manifest, from a runner outside the owner's network. By
+# hand only — it asks the network, so no push, schedule or check runs it. The artifact holds the
+# Markdown result for docs/plugins-liveness.md and the same as JSON; before a release the dead
+# hosts go into a job of the next milestone (release skill).
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  liveness:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: dig
+        run: command -v dig || { sudo apt-get update && sudo apt-get install -y bind9-dnsutils; }
+      - name: Ask every domain
+        run: scripts/host-liveness.sh --json > plugins-liveness.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugins-liveness
+          path: |
+            docs/plugins-liveness.md
+            plugins-liveness.json
+          if-no-files-found: error

@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { confirmMock, toastMock } from '@/test/mocks'
 
 import type { RestartStatus } from '@/api/restart'
 import server from '@/locales/en/server.json'
@@ -17,8 +18,8 @@ vi.mock('@/api/restart', () => ({
   fetchRestartStatus: () => fetchRestartStatus(),
   requestRestart: (allowActive?: boolean) => requestRestart(allowActive)
 }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 const { default: RestartPendingNotice } = await import('./RestartPendingNotice.vue')
 const { useRestartStatus } = await import('@/composables/useRestartStatus')

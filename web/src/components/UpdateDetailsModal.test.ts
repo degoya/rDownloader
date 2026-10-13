@@ -8,18 +8,20 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { confirmMock, toastMock } from '@/test/mocks'
 
 import type { UpdateDownload, UpdateInstall, UpdateOffer, UpdateStatus } from '@/api/updates'
 import server from '@/locales/en/server.json'
 import system from '@/locales/en/system.json'
+import { updateOffer, updateStatus } from '@/test/fixtures/updates'
 import { mountComponent } from '@/test/mount'
 
 const fetchUpdateStatus = vi.fn()
 const installUpdate = vi.fn()
 const downloadUpdate = vi.fn()
-const confirm = vi.fn()
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+const confirm = vi.hoisted(() => vi.fn())
+vi.mock('@/composables/useConfirm', () => confirmMock(confirm))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 vi.mock('@/api/updates', async (original) => ({
   ...(await original<typeof import('@/api/updates')>()),
   fetchUpdateStatus: () => fetchUpdateStatus(),
@@ -35,21 +37,7 @@ const modal = {
   template: '<div v-if="open" data-testid="modal"><h2>{{ title }}</h2><slot name="body" /><slot name="footer" /></div>'
 }
 
-const offer: UpdateOffer = {
-  version: '1.8.0',
-  channel: 'stable',
-  released_at: '2026-10-10T12:00:00Z',
-  notes: '',
-  release_url: 'https://github.com/degoya/rDownloader/releases/tag/v1.8.0',
-  changelog_url: 'https://github.com/degoya/rDownloader/blob/v1.8.0/CHANGELOG.md#180---2026-10-10',
-  action: 'install',
-  command: null,
-  hint: null,
-  download_url: 'https://github.com/degoya/rDownloader/releases/download/v1.8.0/rdownloader-linux-x86_64.tar.gz',
-  download_size: 4096,
-  download_sha256: 'ab'.repeat(32),
-  rollback_available: true
-}
+const offer = updateOffer('1.8.0', '2026-10-10T12:00:00Z')
 
 function install(state: UpdateInstall['state'], reason: string | null = null): UpdateInstall {
   return {
@@ -67,24 +55,7 @@ function downloaded(state: UpdateDownload['state'], received = 4096, reason: str
 }
 
 function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
-  return {
-    current_version: '1.8.0-beta.2',
-    configured: true,
-    check_enabled: true,
-    channel: 'stable',
-    effective_channel: 'stable',
-    interval_hours: 24,
-    install_kind: 'portable',
-    checking: false,
-    last_checked_at: '2026-10-10T13:00:00Z',
-    next_check_at: null,
-    error_code: null,
-    available: offer,
-    install: null,
-    download: null,
-    capture_agents: [],
-    ...patch
-  }
+  return updateStatus({ current_version: '1.8.0-beta.2', last_checked_at: '2026-10-10T13:00:00Z', available: offer, ...patch })
 }
 
 function mount(shown: UpdateOffer = offer, kind: UpdateStatus['install_kind'] = 'portable') {

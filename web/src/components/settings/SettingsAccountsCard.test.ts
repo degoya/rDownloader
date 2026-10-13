@@ -9,6 +9,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock, toastMock } from '@/test/mocks'
 
 import { i18n } from '@/i18n'
 import network from '@/locales/en/network.json'
@@ -16,20 +17,10 @@ import { mountComponent } from '@/test/mount'
 
 const get = vi.fn()
 const post = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: vi.fn(),
-    PATCH: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
-}))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args), POST: (...args: unknown[]) => post(...args) }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
 // The pairing dialog behind a waiting browser session reaches Nuxt UI's toast (RD-150-17).
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 /** The shared event stream, reduced to the one handler this tab registers. */
 let pluginEvent: ((event: MessageEvent<string>) => void) | null = null
@@ -41,7 +32,7 @@ const released = vi.fn()
  * never served.
  */
 let subscribedNames: string[] = []
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, (event: MessageEvent<string>) => void>) => {
     subscribedNames = Object.keys(handlers)
     pluginEvent = handlers['plugin_catalog.changed'] ?? null

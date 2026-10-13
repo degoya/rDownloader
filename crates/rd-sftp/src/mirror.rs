@@ -80,7 +80,7 @@ impl RangeSource for SftpMirror {
             .await
             .map_err(|error| error::classify_sftp(&error))?;
         if offset > 0 && file.seek(SeekFrom::Start(offset)).await.is_err() {
-            return Err(error::file_changed());
+            return Err(rd_transfer_file::file_changed(error::FILE_CHANGED));
         }
         Ok(Box::new(Holding {
             file,

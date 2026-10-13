@@ -10,7 +10,7 @@ import type { Settings } from './types'
 import { call, type CallPath } from './call'
 
 /** What made the restart necessary; `name`/`version`/`from_version` as the change has them. */
-export type RestartReasonCode =
+type RestartReasonCode =
   | 'plugin_installed' | 'plugin_updated' | 'plugin_staged' | 'plugin_unstaged' | 'plugin_enabled'
   | 'plugin_disabled' | 'plugin_removed' | 'plugin_key_revoked' | 'plugin_digest_revoked'
   | 'plugin_digest_unrevoked'
@@ -25,9 +25,9 @@ export interface RestartReason {
 }
 
 /** `self`: rDownloader starts itself again; `supervisor`: systemd or the container does; `manual`: the person does. */
-export type RestartHow = 'self' | 'supervisor' | 'manual'
+type RestartHow = 'self' | 'supervisor' | 'manual'
 
-export type RestartSupervisor = 'systemd' | 'container'
+type RestartSupervisor = 'systemd' | 'container'
 
 export interface RestartStatus {
   pending: boolean
@@ -45,7 +45,7 @@ export interface RestartStatus {
   started_at: string
 }
 
-export interface RestartAccepted {
+interface RestartAccepted {
   how: RestartHow
   supervisor: RestartSupervisor | null
 }

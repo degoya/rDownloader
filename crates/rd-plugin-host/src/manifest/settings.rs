@@ -25,7 +25,7 @@ pub const MAX_SETTING_TEXT_CHARS: usize = 4096;
 impl SettingManifest {
     /// Whether the setting is free text rather than a choice: it lists no values.
     #[must_use]
-    pub fn is_free_text(&self) -> bool {
+    pub(crate) fn is_free_text(&self) -> bool {
         self.choices.is_empty()
     }
 

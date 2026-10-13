@@ -6,16 +6,13 @@
  */
 import { fireEvent, screen, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import commonCatalogue from '@/locales/en/common.json'
 import pluginsCatalogue from '@/locales/en/plugins.json'
 import { mountComponent } from '@/test/mount'
 
-vi.mock('@/api/client', () => ({
-  api: { POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: () => 'refused',
-  resultMessage: () => 'saved'
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: () => 'refused', resultMessage: () => 'saved' }))
 vi.mock('@/i18n', () => ({
   currentLocale: () => 'en',
   i18n: { global: { d: (value: Date) => value.toISOString(), t: (key: string) => key } }

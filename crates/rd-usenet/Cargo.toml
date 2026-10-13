@@ -8,6 +8,9 @@ license.workspace = true
 [features]
 # Forwards rd-core's deterministic crash points; see crates/rd-core/src/failpoint.rs.
 failpoints = ["rd-core/failpoints"]
+# The throughput measurements, `examples/usenet_bench.rs` (RD-1280-22): compiles the scripted
+# NNTP fixture and `throughput_bench` into the library. Never on in a build that ships.
+bench = ["dep:rd-limits", "dep:tempfile"]
 
 [dependencies]
 anyhow.workspace = true
@@ -22,10 +25,13 @@ rd-files = { path = "../rd-files" }
 # For `tls_client_config`: the trust decision for a news server is the same decision HTTP and
 # FTPS make, and it is made in exactly one place (rd-http/src/tls.rs).
 rd-http = { path = "../rd-http" }
+# The measurements' run limits and scratch folder (feature `bench`).
+rd-limits = { path = "../rd-limits", optional = true }
 rd-scheduler = { path = "../rd-scheduler" }
 rd-secrets = { path = "../rd-secrets" }
 rustls.workspace = true
 secrecy.workspace = true
+tempfile = { workspace = true, optional = true }
 tokio.workspace = true
 tokio-rustls.workspace = true
 tokio-util.workspace = true
@@ -35,6 +41,7 @@ tracing.workspace = true
 workspace = true
 
 [dev-dependencies]
+rd-testkit = { path = "../rd-testkit" }
 # The crash point registry, which the crash cases check their points against (RD-1120-12).
 rd-crash-points = { path = "../rd-crash-points" }
 chrono.workspace = true
@@ -43,3 +50,7 @@ rd-limits = { path = "../rd-limits" }
 serde_json.workspace = true
 tempfile.workspace = true
 zip.workspace = true
+
+[[example]]
+name = "usenet_bench"
+required-features = ["bench"]

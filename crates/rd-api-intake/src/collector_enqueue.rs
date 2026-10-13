@@ -440,7 +440,7 @@ fn is_registry_hoster(candidate: &LinkCandidate) -> bool {
 }
 
 /// Provider account for a link: explicit route → matching provider → Premiumize catalogue.
-pub async fn account_for_candidate(
+pub(crate) async fn account_for_candidate(
     state: &AppState,
     accounts: &[Account],
     candidate: &LinkCandidate,

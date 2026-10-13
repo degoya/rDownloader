@@ -5,6 +5,7 @@
  */
 import { screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { eventStreamMock } from '@/test/mocks'
 
 import type { RestartStatus } from '@/api/restart'
 import system from '@/locales/en/system.json'
@@ -13,12 +14,11 @@ import { mountComponent } from '@/test/mount'
 const fetchRestartStatus = vi.fn()
 const handlers: Record<string, () => void> = {}
 vi.mock('@/api/restart', () => ({ fetchRestartStatus: () => fetchRestartStatus(), requestRestart: vi.fn() }))
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (subscribed: Record<string, () => void>) => {
     Object.assign(handlers, subscribed)
     return () => {}
-  },
-  onEventStreamOpened: () => () => {}
+  }
 }))
 
 const { default: RestartNotice } = await import('./RestartNotice.vue')

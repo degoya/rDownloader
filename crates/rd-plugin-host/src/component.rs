@@ -10,7 +10,7 @@ use rd_plugin_api::{
     ResolverMetadata,
 };
 use url::Url;
-use wasmtime::component::{HasSelf, Linker};
+use wasmtime::component::Linker;
 
 use crate::{PluginManifest, SandboxEngine, domain_allowed, runtime::PluginStoreState};
 
@@ -28,6 +28,7 @@ use rdownloader::plugin::{
 
 mod convert;
 mod host_impls;
+mod link;
 #[cfg(test)]
 mod redaction_tests;
 
@@ -35,6 +36,7 @@ use convert::permanent;
 pub(crate) use convert::{
     component_failure, from_wit_download, from_wit_failure, to_wit_failure, to_wit_identity,
 };
+pub(crate) use link::link_granted;
 
 /// Smallest reservation worth making for a captcha; below this no service answers and
 /// nobody types in time, so the plugin is told its budget is gone instead.
@@ -71,23 +73,8 @@ impl ComponentResolver {
         let sandbox = SandboxEngine::new(manifest.limits)?;
         let component = sandbox.compile_component(component_bytes, &manifest)?;
         let mut linker = Linker::new(sandbox.engine());
-        // One grant, one interface. Only what the manifest asks for is linked, so a
-        // component that imports an interface it was not granted fails to instantiate
-        // instead of being turned away later, at a call the user is already waiting on.
-        rdownloader::plugin::host::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
-        if manifest.capabilities.net_http.is_some() {
-            rdownloader::plugin::http::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
-        }
-        if manifest.capabilities.cookies {
-            rdownloader::plugin::cookies::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| {
-                state
-            })?;
-        }
-        if manifest.capabilities.captcha {
-            rdownloader::plugin::captcha::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| {
-                state
-            })?;
-        }
+        // One grant, one interface: only what the manifest asks for is linked.
+        link_granted(&manifest, &mut linker)?;
         let pre = ResolverPluginPre::new(linker.instantiate_pre(&component)?)?;
         let host_domains = manifest.domains().to_vec();
         let provider_slug = manifest.message_slug().to_owned();

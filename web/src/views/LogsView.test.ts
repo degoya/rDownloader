@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import logsDe from '@/locales/de/logs.json'
@@ -22,16 +23,7 @@ function sentences(group: unknown): string[] {
 
 const get = vi.fn()
 const post = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args), POST: (...args: unknown[]) => post(...args) }))
 // The level panel has its own test (`LogLevelPanel.test.ts`, RD-1260-12) and its own routes.
 vi.mock('@/components/logs/LogLevelPanel.vue', () => ({ default: { name: 'LogLevelPanel', render: () => null } }))
 

@@ -14,6 +14,7 @@
  */
 import { screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import type { NzbFileStatus } from '@/api/types'
 import downloads from '@/locales/en/downloads.json'
@@ -37,10 +38,7 @@ const files: NzbFileStatus[] = [{
   ]
 }] as unknown as NzbFileStatus[]
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: files })) },
-  responseError: () => 'failed'
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: files })), responseError: () => 'failed' }))
 
 const { default: NzbFileList } = await import('./NzbFileList.vue')
 

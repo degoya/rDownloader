@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import system from '@/locales/en/system.json'
@@ -7,13 +8,10 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsPasswordCard from './SettingsPasswordCard.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { POST: vi.fn() },
-  responseError: () => 'refused'
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: () => 'refused' }))
 // Same treatment as SettingsMfaCard.test.ts: useToast reaches for Nuxt's auto-import alias,
 // which Vitest cannot resolve.
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 const stubs = {
   // The error sits *outside* the label on purpose: inside, it would join the field's

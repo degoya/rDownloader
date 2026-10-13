@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import type { StorageRoot } from '@/api/types'
@@ -8,12 +9,8 @@ import { mountComponent } from '@/test/mount'
 
 import RoutingStorageRoots from './RoutingStorageRoots.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'rejected'),
-  resultMessage: vi.fn(() => 'Storage root deleted')
-}))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'rejected'), resultMessage: vi.fn(() => 'Storage root deleted') }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
 
 /** The field with its error under the control, where the protected-path refusal is read. */
 const UFormField = {

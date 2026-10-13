@@ -143,16 +143,15 @@ mod tests {
 
     #[test]
     fn an_address_belonging_to_somebody_else_is_never_claimed() {
-        for foreign in [
-            "https://app.box.com.evil.test/folder/1",
-            "https://x@app.box.com/folder/1",
-            "ftp://app.box.com/folder/1",
-            "https://ddownload.com/f/abc",
+        for foreign in plugin_common::foreign::around("https://app.box.com/folder/1") {
+            assert_eq!(claim(&foreign), None, "{foreign}");
+        }
+        for own_but_not_this in [
             "https://app.box.com/",
             "https://app.box.com/folder/abc",
             "https://app.box.com/s/a%2Fb",
         ] {
-            assert_eq!(claim(foreign), None, "{foreign}");
+            assert_eq!(claim(own_but_not_this), None, "{own_but_not_this}");
         }
     }
 

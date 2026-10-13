@@ -44,10 +44,10 @@ pub const DIRECTORY: &str = "pre-migration";
 pub const KEPT: usize = 3;
 
 /// A migration failed; the database was put back from the copy, or could not be.
-pub const MIGRATION_FAILED: &str = "db.migration_failed";
+pub(crate) const MIGRATION_FAILED: &str = "db.migration_failed";
 
 /// The copy could not be written, so nothing was migrated.
-pub const SNAPSHOT_FAILED: &str = "db.pre_migration_snapshot_failed";
+pub(crate) const SNAPSHOT_FAILED: &str = "db.pre_migration_snapshot_failed";
 
 const PREFIX: &str = "rdownloader-";
 const EXTENSION: &str = ".sqlite3";

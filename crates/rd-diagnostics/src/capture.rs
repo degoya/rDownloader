@@ -200,16 +200,12 @@ pub fn redact_field(name: &str, value: &str) -> String {
     redact_header_value(name, value)
 }
 
-fn truncate(mut value: String) -> String {
-    if value.len() > MAX_VALUE_LENGTH {
-        let mut end = MAX_VALUE_LENGTH;
-        while !value.is_char_boundary(end) {
-            end -= 1;
-        }
-        value.truncate(end);
-        value.push_str("...");
+fn truncate(value: String) -> String {
+    let kept = rd_core::text::truncate(&value, MAX_VALUE_LENGTH);
+    if kept.len() == value.len() {
+        return value;
     }
-    value
+    format!("{kept}...")
 }
 
 fn level_of(level: &Level) -> LogLevel {

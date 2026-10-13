@@ -118,7 +118,7 @@ impl PluginRepositoryService {
     /// Whether the host of `url` answered the last fetch, or failed it more than
     /// [`UNREACHABLE_FOR`] ago.
     #[must_use]
-    pub fn host_reachable(&self, url: &url::Url) -> bool {
+    pub(crate) fn host_reachable(&self, url: &url::Url) -> bool {
         let Some(host) = url.host_str() else {
             return false;
         };

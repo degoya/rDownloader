@@ -62,7 +62,7 @@ pub(crate) fn parse_object_remote(remote: &str) -> Option<ObjectRemote<'_>> {
 /// paths do; `configured` is the remote the step was planned under.
 // The same inputs the plugin upload path takes plus the package name the object keys start
 // with; a struct would exist only for this one call.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub(crate) async fn run(
     inner: &crate::Inner,
     owner: &str,

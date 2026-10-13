@@ -21,14 +21,14 @@ use crate::{AppState, auth};
 
 /// How often an open stream checks its credential by default: well inside a minute, and rare
 /// enough to cost nothing next to the events it carries.
-pub const STREAM_RECHECK: Duration = Duration::from_secs(30);
+pub(crate) const STREAM_RECHECK: Duration = Duration::from_secs(30);
 
 /// The API scopes the credential on `headers` carries now.
 ///
 /// The same answer `auth::credential` gives, read without touching the session, the token's
 /// last use or the audit log. A store that cannot be read answers "nothing": the stream ends
 /// and its reconnect meets the ordinary check.
-pub async fn standing_scopes(
+pub(crate) async fn standing_scopes(
     state: &AppState,
     headers: &HeaderMap,
     from_this_machine: bool,

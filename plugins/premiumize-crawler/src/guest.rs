@@ -5,7 +5,6 @@
 //! be asked again. What keeps that from being unbounded is [`crate::walk`]: depth, breadth
 //! and cycles are refused there, and the manifest's fuel and time budget sit underneath as
 //! the last resort rather than as the plan.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_crawler::{
     CrawledLink, Guest, bearer_accept_json, host,

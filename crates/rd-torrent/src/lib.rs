@@ -62,7 +62,7 @@ pub type SharedTorrentSettings = Arc<RwLock<TorrentSettings>>;
 /// Read once at start-up, field by field (owner, 2026-10-04, RA-DB-02): a value that does not
 /// parse reads as its default with a warning naming it, instead of refusing the start; only
 /// the scheduler's runtime values refuse one.
-pub async fn load_torrent_settings(database: &Database) -> Result<TorrentSettings> {
+pub(crate) async fn load_torrent_settings(database: &Database) -> Result<TorrentSettings> {
     database.service_settings_per_field().await
 }
 

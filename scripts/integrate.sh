@@ -35,13 +35,19 @@
 #      the wave's own are the newest, and only when no build holds the target's lock (RD-160-06).
 #
 # With --public-ci (RD-1120-06, audit P4) step 6 also starts scripts/public-ci.sh <integration>
-# --platforms linux,windows --release-workflows, detached beside --windows and --full instead of
-# after them: the gate is green and the generators' commit is the content --full checks, so
-# GitHub's hour runs in parallel with the local one. Beside ci.yml it runs the release workflows —
-# e2e, recovery, self-update, installers — and records their greens per file and tree, so the
-# release candidate, the same content plus documentation and a version bump, finds them on record
-# and its `public-ci` step starts only what is left (RD-1270-10). Its log is public-ci.log, its
-# exit the status file's public-ci=.
+# --platforms windows --release-workflows, detached beside --windows and --full instead of after
+# them: the gate is green and the generators' commit is the content --full checks, so GitHub's
+# hour runs in parallel with the local one. Beside ci.yml it runs the release workflows — e2e,
+# recovery, self-update, installers — and records their greens per file and tree, so the release
+# candidate, the same content plus documentation and a version bump, finds them on record and its
+# `public-ci` step starts only what is left (RD-1270-10). Linux is not run on GitHub a second time
+# (RD-1280-14; owner, 2026-10-13: "Linux nur auf GitHub beim Release-Kandidaten"): after --full
+# the run derives the platforms still due from the recorded green (rd_integrate_ci_platforms) —
+# `windows` when the Rust half's local green covers the tree, and nothing more is started;
+# `linux,windows` without one, and scripts/public-ci.sh then runs Linux, Windows being on record
+# — and names the list in public-ci.log. A red Windows run starts no Linux one; it holds the merge
+# already. The release candidate runs Linux on GitHub. Its log is public-ci.log, ending on
+# "REAL EXIT", its exit the status file's public-ci=.
 #
 # run.sh in the log directory is this script's (step 6): one it did not write — a wrapper of the
 # coordinator's — is moved aside with a warning instead of being overwritten (RD-1270-17), and its
@@ -62,8 +68,8 @@
 # skipped, and so is everything that has nothing to do. An integration branch gets no
 # branch-level check round of its own — after a fix, this is the round. What it does not do: push,
 # or merge into development. Without --public-ci it does not run the public CI either — that is
-# then scripts/public-ci.sh <integration-branch> --platforms linux,windows --release-workflows once
-# the check is green;
+# then scripts/public-ci.sh <integration-branch> --platforms windows --release-workflows once the
+# check is green (linux,windows when no green covers the Rust half, RD-1280-14);
 # its green is what lets the wave into development either way.
 #
 set -euo pipefail
@@ -96,7 +102,7 @@ while [[ $# -gt 0 ]]; do
         --no-gate) gate=0; shift ;;
         --no-windows) windows=0; shift ;;
         --public-ci) public_ci=1; shift ;;
-        -h|--help) sed -n '2,66p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,73p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; usage ;;
         *) if [[ -z "$integration" ]]; then integration="$1"; else branches+=("$1"); fi; shift ;;
     esac
@@ -230,9 +236,10 @@ fi
     echo "$run_marker"
     echo "cd '$tree'"
     echo "export RD_CHECK_LOGS='$logs'"
-    # GitHub first, detached within the run, so its hour overlaps the local one (--public-ci).
+    # GitHub's Windows first, detached within the run, so its hour overlaps the local one
+    # (--public-ci); Linux only after --full, without its green (RD-1280-14, below).
     if [[ "$public_ci" -eq 1 ]]; then
-        echo "( scripts/public-ci.sh '$integration' --platforms linux,windows --release-workflows; status=\$?; echo \"REAL EXIT: \$status\"; exit \$status ) > '$logs/public-ci.log' 2>&1 &"
+        echo "scripts/public-ci.sh '$integration' --platforms windows --release-workflows > '$logs/public-ci.log' 2>&1 &"
         echo "public_ci_pid=\$!"
     fi
     if [[ "$windows" -eq 1 ]]; then
@@ -252,6 +259,17 @@ fi
     echo "fi"
     if [[ "$public_ci" -eq 1 ]]; then
         echo "wait \$public_ci_pid; public_ci=\$?"
+        echo "if [[ \$public_ci == 0 ]]; then"
+        echo "    source scripts/lib/integrate.sh"
+        echo "    ci_platforms=\"\$(rd_integrate_ci_platforms '$tree')\""
+        echo "    if [[ \$ci_platforms == windows ]]; then"
+        echo "        echo \"==> platforms derived from the recorded green: windows — the local Rust green covers this tree; Linux runs on GitHub with the release candidate (RD-1280-14)\" >> '$logs/public-ci.log'"
+        echo "    else"
+        echo "        echo \"==> platforms derived from the recorded green: \$ci_platforms — no local Rust green covers this tree (RD-1280-14)\" >> '$logs/public-ci.log'"
+        echo "        scripts/public-ci.sh '$integration' --platforms \"\$ci_platforms\" >> '$logs/public-ci.log' 2>&1; public_ci=\$?"
+        echo "    fi"
+        echo "fi"
+        echo "echo \"REAL EXIT: \$public_ci\" >> '$logs/public-ci.log'"
     else
         echo "public_ci=skipped"
     fi
@@ -263,7 +281,7 @@ mv -f "$logs/run.sh.new" "$logs/run.sh"
 setsid nohup "$logs/run.sh" > /dev/null 2>&1 < /dev/null &
 echo "$!" > "$logs/check.pid"
 cat <<INFO
-==> started, detached: $([[ "$windows" -eq 1 ]] && echo "scripts/check.sh --windows, then --full (only after a green)" || echo "scripts/check.sh --full")$([[ "$public_ci" -eq 1 ]] && echo ", and beside them scripts/public-ci.sh $integration --platforms linux,windows --release-workflows")
+==> started, detached: $([[ "$windows" -eq 1 ]] && echo "scripts/check.sh --windows, then --full (only after a green)" || echo "scripts/check.sh --full")$([[ "$public_ci" -eq 1 ]] && echo ", and beside them scripts/public-ci.sh $integration --platforms windows --release-workflows; Linux on GitHub after --full only without its green")
     PID      $(cat "$logs/check.pid") (in $logs/check.pid)
     logs     $([[ "$windows" -eq 1 ]] && echo "$logs/windows.log and check.log" || echo "$logs/check.log")$([[ "$public_ci" -eq 1 ]] && echo ", public-ci.log")
     failures $logs/failures — every failed stage with its failing tests, written as they fail
@@ -272,5 +290,5 @@ cat <<INFO
     follow   scripts/watch-run.sh $(cat "$logs/check.pid") $logs/check.log — stage starts, failures, the end
 
     Judge each log by its closing line "==> all requested checks passed", not by an exit code
-    alone. $([[ "$public_ci" -eq 1 ]] && echo "GitHub's verdict is public-ci.log's last lines; red holds the merge." || echo "Then: scripts/public-ci.sh $integration --platforms linux,windows --release-workflows")
+    alone. $([[ "$public_ci" -eq 1 ]] && echo "GitHub's verdict is public-ci.log's last lines, the derived platforms among them; red holds the merge." || echo "Then, after a green --full: scripts/public-ci.sh $integration --platforms windows --release-workflows (linux,windows without one)")
 INFO

@@ -124,12 +124,15 @@ mod tests {
 
     #[test]
     fn an_address_belonging_to_somebody_else_is_never_claimed() {
-        assert_eq!(claim("https://dropbox.com.evil.test/s/abc/x.bin"), None);
-        assert_eq!(claim("https://x@www.dropbox.com/s/abc/x.bin"), None);
-        assert_eq!(claim("ftp://www.dropbox.com/s/abc/x.bin"), None);
-        assert_eq!(claim("https://ddownload.com/f/abc"), None);
-        assert_eq!(claim("https://www.dropbox.com/"), None);
-        assert_eq!(claim("https://api.dropboxapi.com/2/files/download"), None);
+        for foreign in plugin_common::foreign::around("https://www.dropbox.com/s/abc/x.bin") {
+            assert_eq!(claim(&foreign), None, "{foreign}");
+        }
+        for own_but_not_this in [
+            "https://www.dropbox.com/",
+            "https://api.dropboxapi.com/2/files/download",
+        ] {
+            assert_eq!(claim(own_but_not_this), None, "{own_but_not_this}");
+        }
     }
 
     #[test]

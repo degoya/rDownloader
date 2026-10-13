@@ -4,6 +4,7 @@
  */
 import { screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { defineComponent } from 'vue'
 
 import nav from '@/locales/en/nav.json'
@@ -13,16 +14,10 @@ import { axeViolations } from '@/test/axe'
 
 const ACCOUNT = { id: 'a1', provider: 'realdebrid', label: 'Real-Debrid', enabled: true }
 const get = vi.fn(async () => ({ data: [ACCOUNT] }))
-vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...(args as [])) },
-  responseError: () => 'failed'
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...(args as [])), responseError: () => 'failed' }))
 // The card, even stubbed, is imported by the view and pulls the Nuxt UI barrel in.
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(true) }) }) })
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ answer: true }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 /** Records what the card is handed, so the test asserts the hand-over and not the card itself. */
 const cardProps: { accounts: unknown, accountsLoading?: boolean }[] = []

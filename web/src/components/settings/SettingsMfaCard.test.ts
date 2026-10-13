@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import common from '@/locales/en/common.json'
@@ -8,14 +9,11 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsMfaCard from './SettingsMfaCard.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn() },
-  responseError: () => 'failed'
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: () => 'failed' }))
 // The card pulls in useToast, which reaches for Nuxt's auto-import alias that Vitest cannot
 // resolve. Same treatment as IndexerReviewList.test.ts.
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
+vi.mock('@/composables/useConfirm', () => confirmMock())
 
 const OTPAUTH = 'otpauth://totp/rDownloader:administrator?secret=JBSWY3DPEHPK3PXP&issuer=rDownloader'
 

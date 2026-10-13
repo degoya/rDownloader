@@ -111,7 +111,7 @@ impl PluginStoreState {
 
     /// Remaining waiting time, for diagnostics and tests.
     #[must_use]
-    pub fn wait_budget(&self) -> Duration {
+    pub(crate) fn wait_budget(&self) -> Duration {
         self.wait_budget
     }
 
@@ -129,12 +129,12 @@ impl PluginStoreState {
 impl PluginStoreState {
     /// Domains declared by the pinned plugin manifest.
     #[must_use]
-    pub fn allowed_domains(&self) -> &[String] {
+    pub(crate) fn allowed_domains(&self) -> &[String] {
         &self.allowed_domains
     }
 
     /// Accounts bytes returned through controlled HTTP host calls.
-    pub fn account_response_bytes(&mut self, bytes: usize) -> Result<()> {
+    pub(crate) fn account_response_bytes(&mut self, bytes: usize) -> Result<()> {
         let bytes = u64::try_from(bytes).context("plugin response length exceeds u64")?;
         self.response_bytes = self
             .response_bytes
@@ -275,7 +275,7 @@ impl SandboxEngine {
     /// This is the first of the two places a grant is enforced — the linker is the second.
     /// Checking here means a package that reaches beyond its manifest is refused at install
     /// and packaging time, where its author sees it, rather than mid-download.
-    pub fn compile_component(
+    pub(crate) fn compile_component(
         &self,
         bytes: &[u8],
         manifest: &crate::PluginManifest,
@@ -307,7 +307,7 @@ impl SandboxEngine {
     }
 
     /// Creates a fresh store connected only to the controlled resolver host capabilities.
-    pub fn create_invocation_store(
+    pub(crate) fn create_invocation_store(
         &self,
         allowed_domains: Vec<String>,
         host: Arc<dyn ResolverHost>,
@@ -378,7 +378,7 @@ impl SandboxEngine {
     }
 
     /// Creates a store for one transfer attempt, carrying its destination and limits.
-    pub fn create_transfer_store(
+    pub(crate) fn create_transfer_store(
         &self,
         transfer: crate::transfer::TransferState,
     ) -> Result<Store<PluginStoreState>> {
@@ -396,7 +396,7 @@ impl SandboxEngine {
     }
 
     /// A store for an extension invocation that reads one package.
-    pub fn create_source_store(
+    pub(crate) fn create_source_store(
         &self,
         allowed_domains: Vec<String>,
         host: Option<Arc<dyn ResolverHost>>,
@@ -419,7 +419,7 @@ impl SandboxEngine {
     /// confined to the domains its own manifest declares — so it is given the same two things
     /// rather than an empty list, which would have left every type but intake unable to do
     /// the one thing it exists for.
-    pub fn create_extension_store(
+    pub(crate) fn create_extension_store(
         &self,
         allowed_domains: Vec<String>,
         host: Option<Arc<dyn ResolverHost>>,

@@ -30,7 +30,7 @@ use crate::{
 pub const OFFICIAL_REPOSITORY: &str = "degoya/rDownloader";
 /// Releases the beta channel reads per list. Each version publishes two since 1.9.1, the
 /// application's and `plugins-vX.Y.Z`, so sixty keep the window at thirty versions.
-pub const RELEASE_LIST_PAGE: u32 = 60;
+pub(crate) const RELEASE_LIST_PAGE: u32 = 60;
 /// Largest release list read. Measured 2026-10-04: a release with the plugins among its ~90
 /// assets is ~144 KB in the list, so even sixty of those come to ~8.6 MB.
 pub const MAX_RELEASE_LIST_BYTES: u64 = 16 * 1024 * 1024;
@@ -49,25 +49,27 @@ pub struct Sources {
 
 impl Sources {
     /// The official repository's addresses.
-    #[must_use]
-    pub fn official() -> Self {
+    ///
+    /// # Errors
+    ///
+    /// [`UpdateError::Other`] when an address does not parse, which only a broken build meets.
+    pub fn official() -> Result<Self, UpdateError> {
         Self::for_repository(OFFICIAL_REPOSITORY)
+            .map_err(|error| UpdateError::Other(anyhow::anyhow!("update source address: {error}")))
     }
 
     /// The addresses of `repository` (`owner/name`) on github.com.
-    fn for_repository(repository: &str) -> Self {
-        // A constant repository name: these parse, or the build is broken.
-        let parse = |text: String| url::Url::parse(&text).expect("a github.com address parses");
-        Self {
-            stable: parse(format!(
+    fn for_repository(repository: &str) -> Result<Self, url::ParseError> {
+        Ok(Self {
+            stable: url::Url::parse(&format!(
                 "https://github.com/{repository}/releases/latest/download/{}",
                 Channel::Stable.file_name()
-            )),
-            releases: parse(format!(
+            ))?,
+            releases: url::Url::parse(&format!(
                 "https://api.github.com/repos/{repository}/releases?per_page={RELEASE_LIST_PAGE}"
-            )),
+            ))?,
             download_prefix: format!("https://github.com/{repository}/releases/download/"),
-        }
+        })
     }
 }
 
@@ -245,7 +247,7 @@ struct Asset {
 
 /// The beta manifest of the highest-versioned release in GitHub's release list, if any carries
 /// one under `download_prefix`.
-pub fn beta_manifest_url(
+pub(crate) fn beta_manifest_url(
     list: &[u8],
     download_prefix: &str,
 ) -> Result<Option<url::Url>, UpdateError> {

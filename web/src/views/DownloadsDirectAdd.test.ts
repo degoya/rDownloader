@@ -5,6 +5,7 @@
  */
 import { fireEvent, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { nextTick } from 'vue'
 
 import { api } from '@/api/client'
@@ -18,29 +19,24 @@ import { mountComponent } from '@/test/mount'
 
 import DownloadsView from './DownloadsView.vue'
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async () => ({ data: [] })),
-    POST: vi.fn(async () => ({ data: undefined })),
-    PUT: vi.fn(async () => ({ data: undefined })),
-    PATCH: vi.fn(async () => ({ data: undefined })),
-    DELETE: vi.fn(async () => ({ data: undefined }))
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async () => ({ data: [] })),
+  POST: vi.fn(async () => ({ data: undefined })),
+  PUT: vi.fn(async () => ({ data: undefined })),
+  PATCH: vi.fn(async () => ({ data: undefined })),
+  DELETE: vi.fn(async () => ({ data: undefined })),
   responseError: vi.fn(() => 'The address is not supported'),
   errorMessage: vi.fn(),
   resultMessage: vi.fn()
 }))
 const toasts = vi.hoisted(() => ({ added: [] as Record<string, unknown>[] }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(false) }) }) }),
-  useToast: () => ({ add: (toast: Record<string, unknown>) => toasts.added.push(toast) })
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: (toast: Record<string, unknown>) => toasts.added.push(toast) }))
 vi.mock('vue-router', async importOriginal => ({
   ...await importOriginal<typeof import('vue-router')>(),
   useRoute: () => ({ path: '/downloads', hash: '', query: {} }),
   useRouter: () => ({ replace: vi.fn(async () => undefined), push: vi.fn() })
 }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 /** A dialog that is in the page only while it is open, as the real one's content is. */
 const UModal = {

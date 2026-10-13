@@ -135,7 +135,11 @@ impl PluginRepositoryService {
     ) -> Result<PreparedPlugins, RepositoryError> {
         let root = self.0.root.join(PREPARED);
         // An earlier preparation is replaced whole, whichever version it was for.
-        let _ = tokio::fs::remove_dir_all(&root).await;
+        if let Err(error) = tokio::fs::remove_dir_all(&root).await
+            && error.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::debug!(%error, folder = %root.display(), "an earlier update preparation could not be removed");
+        }
         if !plain_version(target.version) {
             return Err(RepositoryError::Other(anyhow::anyhow!(
                 "{:?} names no folder",
@@ -202,7 +206,9 @@ impl PluginRepositoryService {
             });
         }
         if sources.is_empty() {
-            let _ = tokio::fs::remove_dir_all(&root).await;
+            if let Err(error) = tokio::fs::remove_dir_all(&root).await {
+                tracing::debug!(%error, folder = %root.display(), "an empty update preparation could not be removed");
+            }
             return Ok(outcome);
         }
         let listed = serde_json::to_vec_pretty(&sources).map_err(anyhow::Error::from)?;

@@ -3,7 +3,6 @@
 //! A guest is instantiated fresh for every invocation and remembers nothing of its own, so the
 //! device code `begin` obtained travels back through `flow-state`: the host stores it verbatim
 //! and hands it to `poll`. That is what makes a sign-in survive a service restart.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_auth::{
     AuthState, Guest, UserPrompt, credentials, form,

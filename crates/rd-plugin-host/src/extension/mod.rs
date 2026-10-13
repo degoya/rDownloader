@@ -98,22 +98,7 @@ fn linker_for(
     manifest: &PluginManifest,
 ) -> Result<Linker<PluginStoreState>> {
     let mut linker: Linker<PluginStoreState> = Linker::new(sandbox.engine());
-    crate::component::rdownloader::plugin::host::add_to_linker::<_, HasSelf<_>>(
-        &mut linker,
-        |state| state,
-    )?;
-    if manifest.capabilities.net_http.is_some() {
-        crate::component::rdownloader::plugin::http::add_to_linker::<_, HasSelf<_>>(
-            &mut linker,
-            |state| state,
-        )?;
-    }
-    if manifest.capabilities.net_stream.is_some() {
-        crate::transfer::rdownloader::plugin::net::add_to_linker::<_, HasSelf<_>>(
-            &mut linker,
-            |state| state,
-        )?;
-    }
+    crate::component::link_granted(manifest, &mut linker)?;
     if matches!(
         manifest.plugin_type,
         PluginType::Postprocess | PluginType::Storage
@@ -125,28 +110,6 @@ fn linker_for(
         // The same `read-at` once more, with the store in hand, so a read pays for the work
         // the bytes cost the guest (PLUG-01).
         source::add_metered_read_to_linker(&mut linker)?;
-    }
-    // Two grants no extension type needed before the crawler: a folder behind a sign-in is
-    // reached with the account's cookies, and a share behind a challenge with the captcha
-    // broker. Linked from the manifest rather than from the type, exactly as the resolver
-    // does it, so what a plugin can reach stays the list it declared.
-    if manifest.capabilities.cookies {
-        crate::component::rdownloader::plugin::cookies::add_to_linker::<_, HasSelf<_>>(
-            &mut linker,
-            |state| state,
-        )?;
-    }
-    if manifest.capabilities.captcha {
-        crate::component::rdownloader::plugin::captcha::add_to_linker::<_, HasSelf<_>>(
-            &mut linker,
-            |state| state,
-        )?;
-    }
-    // Computing over a credential the guest never sees (RD-120-20). A declared grant like
-    // any other, and hand-wired rather than generated because the charge it makes needs the
-    // store and not the store's data.
-    if manifest.capabilities.key_derivation {
-        crate::keyderive::add_to_linker(&mut linker)?;
     }
     // Writing a token back is not a capability but a definition: it is what an authentication
     // plugin does, and no other type can even name the interface.

@@ -149,7 +149,9 @@ fn a_time_is_shown_to_the_second() {
 }
 
 /// Serves `body` as the event stream and records the `Last-Event-ID` of every request.
-async fn recorded_server(body: String) -> (String, Arc<Mutex<Vec<Option<String>>>>) {
+async fn recorded_server(
+    body: String,
+) -> (rd_testkit::TestServer, Arc<Mutex<Vec<Option<String>>>>) {
     let seen = Arc::new(Mutex::new(Vec::new()));
     let record = Arc::clone(&seen);
     let router = axum::Router::new().route(
@@ -171,19 +173,13 @@ async fn recorded_server(body: String) -> (String, Arc<Mutex<Vec<Option<String>>
             }
         }),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        axum::serve(listener, router).await.expect("serve");
-    });
-    (format!("http://{address}"), seen)
+    (rd_testkit::serve(router).await, seen)
 }
 
 #[tokio::test]
 async fn a_recorded_stream_is_printed_and_resumed_from_its_last_id() {
-    let (server, seen) = recorded_server(recorded()).await;
+    let (service, seen) = recorded_server(recorded()).await;
+    let server = service.url("");
     let client = Client::streaming(&server, Some("token".to_owned()), 5).expect("client");
     let mut follower = Follower::new(Format::Text);
 
@@ -213,7 +209,8 @@ async fn a_recorded_stream_is_printed_and_resumed_from_its_last_id() {
 
 #[tokio::test]
 async fn the_json_form_is_one_document_per_line() {
-    let (server, _) = recorded_server(recorded()).await;
+    let (service, _) = recorded_server(recorded()).await;
+    let server = service.url("");
     let client = Client::streaming(&server, None, 5).expect("client");
     let mut out = Vec::new();
     Follower::new(Format::Json)
@@ -244,7 +241,8 @@ async fn a_closed_output_ends_the_command_without_an_error() {
             Ok(())
         }
     }
-    let (server, seen) = recorded_server(recorded()).await;
+    let (service, seen) = recorded_server(recorded()).await;
+    let server = service.url("");
     let client = Client::streaming(&server, None, 5).expect("client");
     Follower::new(Format::Text)
         .run(&client, &mut Closed)
@@ -268,13 +266,8 @@ async fn a_refusal_or_a_dead_address_ends_the_command_with_its_exit_code() {
             )
         }),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        axum::serve(listener, router).await.expect("serve");
-    });
+    let server = rd_testkit::serve(router).await;
+    let address = server.addr();
 
     let failure_of = |error: anyhow::Error| {
         error

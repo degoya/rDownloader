@@ -6,6 +6,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import common from '@/locales/en/common.json'
 import server from '@/locales/en/server.json'
@@ -54,11 +55,14 @@ const calls = vi.hoisted(() => ({
   delete: vi.fn()
 }))
 
-vi.mock('@/api/client', () => ({
-  api: { GET: calls.get, POST: calls.post, PUT: calls.put, DELETE: calls.delete },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: calls.get,
+  POST: calls.post,
+  PUT: calls.put,
+  DELETE: calls.delete,
   responseError: () => 'failed'
 }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 function answer(verifications: unknown[] = []) {
   calls.get.mockImplementation(async (path: string) => {

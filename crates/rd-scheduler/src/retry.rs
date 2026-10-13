@@ -298,7 +298,6 @@ mod tests {
     fn the_limit_waits_end_after_their_own_bound() {
         assert!(retry_at(&daily_limit(), 0, MAX_LIMIT_WAITS - 1, 8).is_some());
         assert!(retry_at(&daily_limit(), 0, MAX_LIMIT_WAITS, 8).is_none());
-        assert_eq!(MAX_LIMIT_WAITS, 48);
         assert!(limit_waits_spent(&daily_limit(), MAX_LIMIT_WAITS));
         assert!(!limit_waits_spent(&daily_limit(), MAX_LIMIT_WAITS - 1));
         assert!(!limit_waits_spent(&transient(), MAX_LIMIT_WAITS));

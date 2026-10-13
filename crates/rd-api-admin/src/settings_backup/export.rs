@@ -4,7 +4,7 @@ use super::*;
 use crate::settings_backup_secrets::ExportSlots;
 
 /// How a settings bundle carries its credentials.
-pub enum SecretSealing<'a> {
+pub(crate) enum SecretSealing<'a> {
     /// Not at all.
     Omit,
     /// Sealed under a key derived from this passphrase.
@@ -15,7 +15,7 @@ pub enum SecretSealing<'a> {
 }
 
 /// The settings bundle, as the export route and the full backup build it.
-pub async fn build_settings_bundle(
+pub(crate) async fn build_settings_bundle(
     state: &AppState,
     sealing: SecretSealing<'_>,
 ) -> Result<SettingsBundle, ApiError> {

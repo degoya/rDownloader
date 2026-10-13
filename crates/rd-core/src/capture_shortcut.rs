@@ -31,7 +31,7 @@ pub enum Family {
 }
 
 impl Family {
-    pub const BOTH: [Self; 2] = [Self::Pc, Self::Mac];
+    pub(crate) const BOTH: [Self; 2] = [Self::Pc, Self::Mac];
 }
 
 /// The keys a shortcut presses on one platform family, with `CmdOrCtrl` resolved.

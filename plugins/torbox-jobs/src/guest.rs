@@ -10,7 +10,6 @@
 //! One state machine, three sets of paths. The kind travels twice: inside the content key, so
 //! that `adopt` knows which list to read from the key alone, and inside the handle's
 //! `job-state`, so that `poll` and `discard` know it without deriving anything.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteEntry,

@@ -26,8 +26,8 @@ fn package(directory: &str) -> Vec<u8> {
     let root = std::path::Path::new(&crate_root)
         .join("../../plugins")
         .join(directory);
-    let manifest = std::fs::read_to_string(root.join("manifest.toml"))
-        .expect("the bundled manifest")
+    // As a package carries it: `plugins/metadata.toml`'s shared fields filled in (RD-1280-18).
+    let manifest = rd_plugin_host::artifact::bundled_manifest(directory)
         .lines()
         .map(|line| {
             if line.starts_with("key_id = ") {

@@ -9,6 +9,7 @@
  */
 import { fireEvent, screen, within } from '@testing-library/vue'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { toastMock } from '@/test/mocks'
 
 import type { DownloadPackage, PostprocessStep } from '@/api/types'
 import { i18n } from '@/i18n'
@@ -19,7 +20,7 @@ import { mountComponent, passthrough } from '@/test/mount'
 import PackageGroup from './PackageGroup.vue'
 
 // The stop mark's menu entry reports a refusal as a toast (RD-1210-02).
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 interface MenuItem { label: string, onSelect?: () => void }
 

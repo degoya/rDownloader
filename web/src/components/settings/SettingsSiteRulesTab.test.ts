@@ -10,6 +10,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import common from '@/locales/en/common.json'
 import server from '@/locales/en/server.json'
@@ -23,27 +24,19 @@ const post = vi.fn()
 const del = vi.fn()
 const state = { confirm: false, asked: [] as { title: string, description: string }[] }
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    PUT: (...args: unknown[]) => put(...args),
-    POST: (...args: unknown[]) => post(...args),
-    DELETE: (...args: unknown[]) => del(...args)
-  },
-  responseError: () => 'The service did not answer',
-  resultMessage: () => ''
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  PUT: (...args: unknown[]) => put(...args),
+  POST: (...args: unknown[]) => post(...args),
+  DELETE: (...args: unknown[]) => del(...args)
 }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({
-    create: () => ({
-      open: (options: { title: string, description: string }) => {
-        state.asked.push(options)
-        return { result: Promise.resolve(state.confirm) }
-      }
-    }),
-    overlays: []
-  })
+vi.mock('@nuxt/ui/composables', () => toastMock({
+  overlay: {
+    open: (options: { title: string, description: string }) => {
+      state.asked.push(options)
+      return { result: Promise.resolve(state.confirm) }
+    }
+  }
 }))
 vi.mock('@/utils/jsonFile', async importOriginal => ({
   ...await importOriginal<typeof import('@/utils/jsonFile')>(),

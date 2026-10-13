@@ -35,9 +35,9 @@ use tokio::sync::mpsc;
 /// Spans the channel holds before the layer starts dropping.
 pub const CHANNEL_CAPACITY: usize = 2048;
 /// Spans per export request.
-pub const EXPORT_BATCH: usize = 512;
+pub(crate) const EXPORT_BATCH: usize = 512;
 /// How long a span waits in the buffer at most.
-pub const EXPORT_INTERVAL: Duration = Duration::from_secs(2);
+pub(crate) const EXPORT_INTERVAL: Duration = Duration::from_secs(2);
 /// The `service.name` resource attribute every exported span carries.
 pub const SERVICE_NAME: &str = "rdownloader";
 
@@ -243,7 +243,7 @@ pub fn spawn(
 }
 
 async fn run(mut stream: SpanStream, database: rd_db::Database, version: String) {
-    let client = match reqwest::Client::builder().build() {
+    let client = match rd_http::client_builder(rd_http::ClientPurpose::Service).build() {
         Ok(client) => client,
         Err(error) => {
             tracing::warn!(%error, "the OTLP exporter could not build its HTTP client");

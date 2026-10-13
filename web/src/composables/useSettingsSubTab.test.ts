@@ -1,9 +1,10 @@
 import { render } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
-import { defineComponent, h, nextTick } from 'vue'
+import { defineComponent, h } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import { subTabItems, useSettingsSubTab } from './useSettingsSubTab'
+import { settle as settled } from '@/test/mount'
 
 /**
  * The sub-tab lives in the address and nowhere else (RD-180-15). These run the composable
@@ -32,12 +33,6 @@ async function open(path: string): Promise<ReturnType<typeof useSettingsSubTab>>
   render({ render: () => h(Page) }, { global: { plugins: [router] } })
   if (!exposed) throw new Error('the page did not mount')
   return exposed
-}
-
-/** `router.back()` resolves before the navigation it starts has landed. */
-async function settled(): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, 0))
-  await nextTick()
 }
 
 describe('useSettingsSubTab', () => {

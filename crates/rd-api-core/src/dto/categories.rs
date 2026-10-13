@@ -124,7 +124,7 @@ pub struct CategoryPostprocessRequest {
 }
 
 /// Most example names one preview expands; the rest of a longer list is left out.
-pub const MAX_SORT_PREVIEW_NAMES: usize = 20;
+pub(crate) const MAX_SORT_PREVIEW_NAMES: usize = 20;
 
 /// The templates of a category editor, saved or not, and the names to try them on.
 #[derive(Deserialize, ToSchema)]
@@ -159,7 +159,7 @@ pub struct SortPreviewResponse {
 }
 
 /// Longest example name a package-name preview reads; the rest of a longer one is cut off.
-pub const MAX_PACKAGE_NAME_PREVIEW_CHARS: usize = 500;
+pub(crate) const MAX_PACKAGE_NAME_PREVIEW_CHARS: usize = 500;
 
 /// An example name and the rules to try on it (RD-1140-05).
 #[derive(Deserialize, ToSchema)]

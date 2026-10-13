@@ -29,7 +29,7 @@ impl PluginInstaller {
     /// Removes what installs that stopped before their rename left behind; returns how many.
     /// Called once at start, before anything installs: a staging directory is never the only
     /// copy of anything, the package it holds is fetched again by the next update pass.
-    pub async fn sweep_install_staging(&self) -> usize {
+    pub(crate) async fn sweep_install_staging(&self) -> usize {
         let root = self.root.clone();
         let listed = tokio::task::spawn_blocking(move || install_stagings(&root))
             .await
@@ -184,7 +184,9 @@ impl PluginInstaller {
     /// By id, then default, retained and staged, each group newest first — so a consumer that
     /// keeps the first entry per id keeps the default version, and one that wants a pinned
     /// version still finds it further down.
-    pub async fn load_verified_with_roles(&self) -> Result<Vec<(VerifiedPackage, VersionRole)>> {
+    pub(crate) async fn load_verified_with_roles(
+        &self,
+    ) -> Result<Vec<(VerifiedPackage, VersionRole)>> {
         let root = self.root.clone();
         let verifier = self.verifier.clone();
         let disabled = self
@@ -218,7 +220,7 @@ impl PluginInstaller {
             )?;
             Ok(packages
                 .iter()
-                .map(|(package, _)| crate::compile_cache::hex_digest(&package.component))
+                .map(|(package, _)| rd_sign::hex_sha256(&package.component))
                 .collect::<std::collections::BTreeSet<_>>())
         })
         .await?

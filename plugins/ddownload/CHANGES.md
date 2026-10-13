@@ -1,5 +1,9 @@
 # Changes
 
+## 0.10.24
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.10.23
 
 Maintenance release: internal changes only, no change in behaviour.

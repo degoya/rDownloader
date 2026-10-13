@@ -85,6 +85,6 @@ const { t } = useI18n()
         <span v-if="run.message" class="truncate">{{ run.message }}</span>
       </li>
     </ul>
-    <p v-else class="mt-3 text-xs text-muted">{{ t('automation.no_runs') }}</p>
+    <UEmpty v-else class="mt-3" :description="t('automation.no_runs')" />
   </article>
 </template>

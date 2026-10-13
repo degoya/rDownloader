@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import common from '@/locales/en/common.json'
 import server from '@/locales/en/server.json'
@@ -14,10 +15,7 @@ import BackupPassphraseCheck from './BackupPassphraseCheck.vue'
 
 const calls = vi.hoisted(() => ({ get: vi.fn(), preview: vi.fn() }))
 
-vi.mock('@/api/client', () => ({
-  api: { GET: calls.get },
-  responseError: () => 'failed'
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: calls.get, responseError: () => 'failed' }))
 vi.mock('@/api/fullRestore', () => ({ previewRestore: calls.preview }))
 
 const modal = { UModal: { template: '<div><slot name="body" /></div>' } }

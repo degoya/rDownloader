@@ -46,3 +46,6 @@ zip.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+rd-testkit = { path = "../rd-testkit", default-features = false }

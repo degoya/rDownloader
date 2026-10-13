@@ -214,7 +214,6 @@ impl Connection {
     }
 
     /// Streams `path` from the offset a preceding [`Self::resume_from`] established.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn retrieve(
         &mut self,
         path: &str,
@@ -267,13 +266,12 @@ pub(crate) fn advertises_rest(features: &Features) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{ANONYMOUS_PASSWORD, ANONYMOUS_USER};
+    use super::ANONYMOUS_PASSWORD;
 
     #[test]
     fn the_anonymous_password_is_not_a_real_address() {
         // Sending a plausible mail address would publish someone's data to every server
         // an anonymous link points at.
-        assert_eq!(ANONYMOUS_USER, "anonymous");
         assert!(ANONYMOUS_PASSWORD.ends_with(".invalid"));
     }
 }

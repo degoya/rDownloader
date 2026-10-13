@@ -43,6 +43,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/render-template.sh
+source "$ROOT/scripts/lib/render-template.sh"
 # Bash 5.2 would put the matched text in place of a `&` in a substitution's replacement.
 shopt -u patsub_replacement 2> /dev/null || true
 
@@ -148,17 +150,8 @@ done
 [[ "$missing" -eq 0 ]] || exit 1
 
 render() {
-    local template="$1" output="$2" content pair
-    content="$(< "$template")"
-    for pair in "${values[@]}"; do
-        content="${content//@${pair%%=*}@/${pair#*=}}"
-    done
-    if [[ "$content" =~ @[A-Z0-9_]+@ ]]; then
-        echo "error: $template keeps ${BASH_REMATCH[0]} after rendering" >&2
-        exit 1
-    fi
-    printf '%s\n' "$content" > "$output"
-    echo "wrote $output"
+    rd_render_template "$1" "$2" "${values[@]}" || exit 1
+    echo "wrote $2"
 }
 
 mkdir -p "$outdir"

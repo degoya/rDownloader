@@ -150,14 +150,11 @@ fn insert_within(
 
 /// Shortens to at most `max` bytes without splitting a character.
 fn truncate(value: &str, max: usize) -> String {
-    if value.len() <= max {
+    let kept = rd_core::text::truncate(value, max);
+    if kept.len() == value.len() {
         return value.to_owned();
     }
-    let mut end = max;
-    while end > 0 && !value.is_char_boundary(end) {
-        end -= 1;
-    }
-    value[..end].trim_end().to_owned()
+    kept.trim_end().to_owned()
 }
 
 #[cfg(test)]

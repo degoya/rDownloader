@@ -45,6 +45,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "a run whose action took effect before its outcome was recorded is queued again by the next start at that same action, never left running and never moved past an action nobody recorded; the action runs again and the run completes",
     },
     CrashPoint {
+        name: "automation_versions.before_reset_committed",
+        owner: "rd-db",
+        invariant: "a version reset stopped after the older versions and their runs were deleted and the version in force renumbered, and before the transaction committed, leaves the history whole: every version and run is still there and the automation keeps its version number; the reset done again keeps exactly the version in force, as version 1, with its own runs, and that survives a restart",
+    },
+    CrashPoint {
         name: "backup.after_database_snapshot",
         owner: "rd-backup",
         invariant: "a database copy staged for a run that stopped before its archive was sealed is removed by the next start with the rest of the staging; the run is recorded as interrupted and nothing reaches a destination",

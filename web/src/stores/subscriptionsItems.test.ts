@@ -4,16 +4,13 @@
  * `noteChange` (RD-110-30).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 
 import { useSubscriptionItems } from './subscriptionsItems'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn() },
-  responseError: vi.fn(() => 'The subscription does not exist'),
-  errorMessage: vi.fn(() => 'The service did not answer')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The subscription does not exist') }))
 
 function hits(ids: string[], total: number) {
   return { data: { items: ids.map(id => ({ id })), total } } as never

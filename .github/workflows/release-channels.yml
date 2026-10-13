@@ -131,6 +131,7 @@ jobs:
       # GitHub's own merge-upstream, and a refused branch — nothing is created then — is tried
       # again after a pause, synced again; any other failure is not, so no pull request doubles.
       - name: Submit the manifests to winget-pkgs
+        id: winget
         if: ${{ !cancelled() && steps.render.outcome == 'success' && steps.gate.outputs.winget == 'true' }}
         shell: bash
         env:
@@ -141,6 +142,15 @@ jobs:
           KOMAC_CREATED_WITH: rDownloader release workflow
           KOMAC_CREATED_WITH_URL: https://github.com/${{ github.repository }}/blob/main/.github/workflows/release.yml
         run: scripts/release-channels.sh winget
+      # komac closes nothing: the account's own open pull requests for an older version are
+      # closed as superseded by the new one (RD-1280-03), with the same token. Warnings only.
+      - name: Close the superseded winget pull requests
+        if: ${{ !cancelled() && steps.winget.outcome == 'success' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+        run: scripts/winget-supersede.sh "${REF_NAME#v}" "${RUNNER_TEMP}/komac.log"
       # The AUR accepts only its own host key; the fingerprint is the one aur.archlinux.org
       # publishes. The key file lives in the runner's temporary folder and is never printed.
       - name: Push the package to the AUR

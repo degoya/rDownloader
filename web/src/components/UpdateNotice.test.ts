@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { confirmMock, toastMock } from '@/test/mocks'
 
 import type { UpdateOffer, UpdateStatus } from '@/api/updates'
 import system from '@/locales/en/system.json'
@@ -11,9 +12,9 @@ import { mountComponent } from '@/test/mount'
 
 const fetchUpdateStatus = vi.fn()
 // The details' install button asks through Nuxt UI's overlay, which exists only in a Nuxt build.
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
 // The update dialog's copy button reports a refused clipboard with a toast.
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 vi.mock('@/api/updates', async (original) => ({
   ...(await original<typeof import('@/api/updates')>()),
   fetchUpdateStatus: () => fetchUpdateStatus()

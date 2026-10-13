@@ -9,26 +9,17 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock, toastMock } from '@/test/mocks'
 
 import common from '@/locales/en/common.json'
 import network from '@/locales/en/network.json'
 import { mountComponent } from '@/test/mount'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: vi.fn(),
-    PUT: vi.fn(),
-    PATCH: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
-}))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
+vi.mock('@nuxt/ui/composables', () => toastMock())
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const { default: SettingsAccountsCard } = await import('./SettingsAccountsCard.vue')
 

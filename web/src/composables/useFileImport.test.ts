@@ -4,9 +4,10 @@
  * and the batch ended without a report.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 import { ref } from 'vue'
 
-const add = vi.fn()
+const add = vi.hoisted(() => vi.fn())
 const refresh = vi.fn(async () => {})
 const entries = [
   { file: new File(['d'], 'one.torrent'), name: '' },
@@ -14,7 +15,7 @@ const entries = [
   { file: new File(['d'], 'links.dlc'), name: '' }
 ]
 
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add }))
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => `${key} ${JSON.stringify(values ?? {})}` })
 }))
@@ -23,10 +24,7 @@ vi.mock('@/composables/useNzbImportModal', () => ({
 }))
 vi.mock('@/stores/collector', () => ({ useCollectorStore: () => ({ refresh }) }))
 vi.mock('@/stores/nzbImports', () => ({ useNzbImportsStore: () => ({ importMany: vi.fn(), importNzb: vi.fn() }) }))
-vi.mock('@/api/client', () => ({
-  api: { POST: vi.fn() },
-  errorMessage: (error: unknown) => typeof error === 'string' ? error : 'failed'
-}))
+vi.mock('@/api/client', () => apiClientMock({ errorMessage: (error: unknown) => typeof error === 'string' ? error : 'failed' }))
 
 const { api } = await import('@/api/client')
 const { useFileImport } = await import('./useFileImport')

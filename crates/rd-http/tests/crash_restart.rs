@@ -169,7 +169,7 @@ struct Origin {
     ranges: Mutex<Vec<Option<String>>>,
 }
 
-async fn serve_payload(origin: Arc<Origin>) -> SocketAddr {
+async fn serve_payload(origin: Arc<Origin>) -> rd_testkit::TestServer {
     async fn handler(State(origin): State<Arc<Origin>>, headers: HeaderMap) -> Response {
         origin.requests.fetch_add(1, Ordering::SeqCst);
         let range = headers
@@ -206,17 +206,10 @@ async fn serve_payload(origin: Arc<Origin>) -> SocketAddr {
             .body(axum::body::Body::from(slice))
             .expect("response")
     }
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("addr");
     let app = Router::new()
         .route("/payload", get(handler))
         .with_state(origin);
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    address
+    rd_testkit::serve(app).await
 }
 
 /// Runs one transfer attempt, resuming from `committed`.
@@ -318,7 +311,8 @@ fn assert_invariants(
 #[tokio::test]
 async fn a_crash_after_writing_but_before_recording_re_fetches_the_unrecorded_tail() {
     let origin = Arc::new(Origin::default());
-    let address = serve_payload(Arc::clone(&origin)).await;
+    let server = serve_payload(Arc::clone(&origin)).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let part_path = directory.path().join("payload.part");
     let chunk = ChunkId::new();
@@ -382,7 +376,8 @@ async fn a_crash_after_writing_but_before_recording_re_fetches_the_unrecorded_ta
 #[tokio::test]
 async fn a_crash_between_the_sync_and_the_commit_falls_back_to_the_older_checkpoint() {
     let origin = Arc::new(Origin::default());
-    let address = serve_payload(Arc::clone(&origin)).await;
+    let server = serve_payload(Arc::clone(&origin)).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let part_path = directory.path().join("payload.part");
     let chunk = ChunkId::new();
@@ -415,7 +410,8 @@ async fn a_crash_between_the_sync_and_the_commit_falls_back_to_the_older_checkpo
 #[tokio::test]
 async fn a_crash_after_the_commit_resumes_from_exactly_that_offset() {
     let origin = Arc::new(Origin::default());
-    let address = serve_payload(Arc::clone(&origin)).await;
+    let server = serve_payload(Arc::clone(&origin)).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let part_path = directory.path().join("payload.part");
     let chunk = ChunkId::new();
@@ -468,7 +464,8 @@ async fn a_finished_chunk_mac_that_was_never_recorded_is_computed_again() {
     use rd_http::{TransformCheckpoint, TransformPlan};
 
     let origin = Arc::new(Origin::default());
-    let address = serve_payload(Arc::clone(&origin)).await;
+    let server = serve_payload(Arc::clone(&origin)).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let part_path = directory.path().join("payload.part");
     let chunk = ChunkId::new();
@@ -614,7 +611,7 @@ fn crate_sources() -> String {
 /// A range server over a small payload for the multi-source case, lying on request: with
 /// `flip` every byte it sends is inverted, which is what a mirror serving a different file
 /// looks like to a piece hash.
-async fn serve_mirror(payload: Arc<Vec<u8>>, flip: bool) -> SocketAddr {
+async fn serve_mirror(payload: Arc<Vec<u8>>, flip: bool) -> rd_testkit::TestServer {
     async fn handler(
         State((payload, flip)): State<(Arc<Vec<u8>>, bool)>,
         headers: HeaderMap,
@@ -644,17 +641,10 @@ async fn serve_mirror(payload: Arc<Vec<u8>>, flip: bool) -> SocketAddr {
             .body(axum::body::Body::from(slice))
             .expect("response")
     }
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("addr");
     let app = Router::new()
         .route("/payload", get(handler))
         .with_state((payload, flip));
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    address
+    rd_testkit::serve(app).await
 }
 
 /// What a multi-source run told its ledger, kept the way the database would keep it.
@@ -734,8 +724,10 @@ async fn a_chunk_confirmed_but_unchecked_is_checked_before_the_file_completes() 
         .map(|index| (index % 251) as u8)
         .collect();
     let payload = Arc::new(bytes);
-    let liar = serve_mirror(Arc::clone(&payload), true).await;
-    let honest = serve_mirror(Arc::clone(&payload), false).await;
+    let liar_server = serve_mirror(Arc::clone(&payload), true).await;
+    let liar = liar_server.addr();
+    let honest_server = serve_mirror(Arc::clone(&payload), false).await;
+    let honest = honest_server.addr();
     let pieces = Arc::new(rd_core::PieceHashes {
         algorithm: rd_core::ChecksumAlgorithm::Sha256,
         length: PIECE,

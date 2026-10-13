@@ -17,6 +17,10 @@
 # RDOWNLOADER_PLUGIN_SIGNING_KEY through the packager.
 set -euo pipefail
 
+# manifest_version: the version a plugin's manifest declares, the one copy of build-plugins.sh's.
+# shellcheck source=lib/plugin-drift.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/plugin-drift.sh"
+
 component() {
     echo "target/wasm32-unknown-unknown/release/rd_plugin_${1//-/_}.wasm"
 }
@@ -72,6 +76,7 @@ package_dev() {
     for plugin in "$@"; do
         target/debug/rd-pack plugin package --development \
             --manifest "plugins/${plugin}/manifest.toml" \
+            --defaults plugins/metadata.toml \
             --component "$(component "${plugin}")" \
             --locales "plugins/${plugin}/locales" \
             --output "dist/plugins/${plugin}.rdplug"
@@ -150,7 +155,7 @@ package_signed() {
     local plugin version notes
     mkdir -p dist/plugins dist/plugin-notes
     for plugin in "$@"; do
-        version=$(sed -n 's/^version = "\(.*\)"/\1/p' "plugins/${plugin}/manifest.toml" | head -n 1)
+        version="$(manifest_version "${plugin}")"
         # RD-1140-03: the section of this version in the plugin's CHANGES.md is its notes in the index.
         notes=$(scripts/plugin-release-notes.sh "${plugin}" "${version}")
         if [[ -n "${notes}" ]]; then
@@ -158,6 +163,7 @@ package_signed() {
         fi
         target/release-test/rd-pack plugin package \
             --manifest "plugins/${plugin}/manifest.toml" \
+            --defaults plugins/metadata.toml \
             --component "$(component "${plugin}")" \
             --locales "plugins/${plugin}/locales" \
             --output "dist/plugins/${plugin}-${version}.rdplug"

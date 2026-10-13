@@ -50,6 +50,7 @@ members = [
   "crates/rd-siterules",
   "crates/rd-stream",
   "crates/rd-subscription",
+  "crates/rd-testkit",
   "crates/rd-tools",
   "crates/rd-torrent",
   "crates/rd-transfer-file",
@@ -163,7 +164,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.27.0"
+version = "1.28.0"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.99"
@@ -213,12 +214,20 @@ global-hotkey = "0.8"
 governor = "0.10"
 hex = "0.4"
 hmac = "0.13"
+http-body-util = "0.1"
 httpdate = "1"
 # The provider is pinned to aws-lc-rs on purpose: lettre's `rustls-tls` would pull in
 # `ring` alongside the `aws-lc-rs` reqwest already uses, and rustls then refuses to pick a
 # process-wide provider at all.
 lettre = { version = "0.11", default-features = false, features = ["aws-lc-rs", "builder", "hostname", "smtp-transport", "tokio1", "tokio1-rustls", "webpki-roots"] }
 keyring = "4.1.6"
+# `rust-tls` rather than `default-tls`: it puts librqbit on the same rustls/aws-lc-rs stack
+# the rest of the workspace uses, and picks the `sha1-ring` info-hash backend instead of
+# `sha1-crypto-hash`, which drags in the unmaintained crypto-hash crate and all of OpenSSL.
+# `disable-upload` is what makes leech-only possible at all: the engine uploads to peers while
+# a torrent downloads, and no rate limit can express "none" — its limit type is a `NonZeroU32`,
+# so zero would read as unlimited.
+librqbit = { version = "9", default-features = false, features = ["rust-tls", "disable-upload"] }
 # XZ decompression for the managed-tool archives (RD-102-04). Pure Rust and decoder-only:
 # unpacking bytes fetched from a release host is exactly the place not to link liblzma.
 lzma-rust2 = { version = "0.21", default-features = false, features = ["std", "xz"] }

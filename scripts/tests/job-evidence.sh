@@ -22,12 +22,14 @@ trap 'rm -rf "$SCRATCH"' EXIT
 source "$ROOT/scripts/tests/lib/expect.sh"
 
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid
+# The local greens job-evidence.sh reads for Linux (RD-1280-14) live here, never in a real target.
+export CARGO_TARGET_DIR="$SCRATCH/target"
 export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 TREE="$SCRATCH/tree"
 JOBS="$TREE/docs/roadmap/jobs"
 mkdir -p "$TREE/scripts/lib" "$JOBS" "$TREE/web" "$TREE/crates/rd-api/licenses"
 cp "$ROOT/scripts/job-evidence.sh" "$TREE/scripts/"
-cp "$ROOT/scripts/lib/"{verified,lanes,inert-paths,workspace-version}.sh "$TREE/scripts/lib/"
+cp "$ROOT/scripts/lib/"{verified,verified-ci,lanes,inert-paths,workspace-version}.sh "$TREE/scripts/lib/"
 for file in "$FIXTURES"/jobs/*.in; do
     cp "$file" "$JOBS/$(basename "${file%.in}")"
 done
@@ -122,6 +124,8 @@ sed -i '/^windows-2025 /d' "$TREE/.git/rd-verified-ci"
 refused "no Windows green on record" "no GitHub green on Linux and Windows recorded" 1299-01
 printf '%s %s 2026-10-12T12:00:00+02:00\n' ubuntu-24.04 "$OTHER_TREE" windows-2025 "$OTHER_TREE" > "$TREE/.git/rd-verified-ci"
 refused "greens for another tree only" "no GitHub green on Linux and Windows recorded" 1299-01
+sed -i '/^ubuntu-24.04 /d' "$TREE/.git/rd-verified-ci"
+refused "no Linux green on GitHub and none local" "no GitHub green on Linux and Windows recorded" 1299-01
 sed -i "s/recorded green at $COMMIT/recorded green at 0123456789ab/" "$LOGS/check.log"
 refused "a commit this repository does not have" "is not in" 1299-01
 refused "an unknown job" "RD-1299-09: 0 job files match" 1299-01 1299-09
@@ -142,6 +146,21 @@ if [[ "$line" == *", GitHub CI grün auf ubuntu-24.04 und windows-2025 (dazu e2e
     ok "names the GitHub greens without a run id"
 else
     fail "names the GitHub greens without a run id" "$line"
+fi
+
+# --- Linux by the local --full green of the Rust half (RD-1280-14) ----------------------------
+reset_logs
+for file in "$FIXTURES"/jobs/*.in; do cp "$file" "$JOBS/$(basename "${file%.in}")"; done
+sed -i '/^ubuntu-24.04 /d' "$TREE/.git/rd-verified-ci"
+(source "$TREE/scripts/lib/verified.sh" && rd_record_full "$TREE" rust "$TREE_ID")
+run_status evidence 1299-02
+expect_status "Windows on GitHub, Linux by the local --full green" 0
+expect_output "naming it" "--full, GitHub windows-2025 (run 123456), Linux by the local --full"
+line="$(grep '^— Nachweis der Welle' "$JOBS/1299-02-beta.md" | tail -1)"
+if [[ "$line" == *", GitHub CI 123456 grün auf windows-2025, Linux durch das lokale \`--full\` (dazu e2e.yml);"* ]]; then
+    ok "the evidence line says so"
+else
+    fail "the evidence line says so" "$line"
 fi
 
 finish_tests "job-evidence"

@@ -128,5 +128,38 @@
   "desktop": {
     "quiet_summary_title": "Pendant les heures calmes : {count} notifications",
     "quiet_summary_more": "et {count} de plus"
+  },
+  "template": {
+    "title_label": "Titre personnalisé",
+    "body_label": "Texte personnalisé",
+    "description": "Facultatif ; vide, le texte intégré est envoyé. Écrivez une variable sous la forme {example} et une accolade doublée : {pair}.",
+    "placeholders_label": "Variables",
+    "placeholders_hint": "Un clic l’ajoute au dernier champ utilisé. Ce qu’un événement ne remplit pas reste vide.",
+    "summary_only": "Les événements choisis arrivent regroupés en un résumé et gardent leur texte.",
+    "preview_label": "Aperçu avec des données d’exemple",
+    "built_in": "Texte intégré",
+    "unknown": "« {name} » n’est pas une variable.",
+    "syntax": "Une accolade n’est pas fermée ou pas ouverte. Pour écrire une accolade, doublez-la : {pair}.",
+    "insert": "Ajouter {placeholder} : {description}",
+    "badge": "Texte personnalisé"
+  },
+  "placeholder": {
+    "event": "Code de l’événement, p. ex. package_completed",
+    "severity": "info, warning ou error",
+    "time": "Heure, HH:MM dans le fuseau horaire du service",
+    "date": "Date, AAAA-MM-JJ dans le fuseau horaire du service",
+    "title": "Titre intégré",
+    "message": "Texte intégré du message",
+    "package": "Nom du paquet",
+    "file": "Nom du fichier",
+    "category": "Nom de la catégorie",
+    "state": "État du paquet, p. ex. completed",
+    "size": "Taille, p. ex. 1.4 GiB",
+    "path": "Dossier sur le disque",
+    "error": "Ce qui a échoué",
+    "storage_target": "Stockage ou destination de la sauvegarde",
+    "version": "Version",
+    "plugin": "Nom du plugin",
+    "account": "Libellé et fournisseur du compte, jamais l’identifiant"
   }
 }

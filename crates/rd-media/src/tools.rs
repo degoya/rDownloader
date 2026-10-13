@@ -65,10 +65,9 @@ pub struct FfmpegTools {
     /// Leases on the managed versions these paths belong to, held for as long as this value
     /// lives (RD-102-02). Empty when neither binary came from the managed store.
     ///
-    /// Held and then dropped, never read: that is the whole mechanism, and it is precisely
-    /// the shape `dead_code` cannot see.
-    #[allow(dead_code)]
-    leases: Vec<rd_core::ToolLease>,
+    /// Held and then dropped, never read: that is the whole mechanism, which the leading
+    /// underscore tells `dead_code`.
+    _leases: Vec<rd_core::ToolLease>,
 }
 
 impl FfmpegTools {
@@ -170,7 +169,7 @@ impl FfmpegTools {
         Self {
             ffmpeg,
             ffprobe,
-            leases,
+            _leases: leases,
         }
     }
 
@@ -185,7 +184,7 @@ impl FfmpegTools {
     /// The same flag the interface reads, derived in one place: "is ffmpeg complete?" was
     /// already the single source for merging and MP3 output, and RD-102-03 only adds "and is
     /// the version one this build supports?" to it rather than inventing a second gate.
-    pub async fn media_capabilities(&self) -> MediaCapabilities {
+    pub(crate) async fn media_capabilities(&self) -> MediaCapabilities {
         // Without a location yt-dlp cannot find ffmpeg, and a merge it was asked for would
         // leave the streams as separate files.
         if !self.is_complete() || self.location().is_none() {
@@ -200,7 +199,7 @@ impl FfmpegTools {
     }
 
     /// The compatibility verdict of each binary that resolved.
-    pub async fn assessments(&self) -> Vec<Assessment> {
+    pub(crate) async fn assessments(&self) -> Vec<Assessment> {
         let mut assessments = Vec::with_capacity(2);
         for (name, tool) in [("ffmpeg", &self.ffmpeg), ("ffprobe", &self.ffprobe)] {
             if let Some(tool) = tool {

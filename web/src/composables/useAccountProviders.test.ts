@@ -6,11 +6,12 @@
  */
 import { waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 type Provider = { slug: string, credentials: string, kind: string }
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({ api: { GET: (...args: unknown[]) => get(...args) } }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
 
 /** The shared event stream, reduced to the one handler this composable registers. */
 let pluginEvent: ((event: MessageEvent<string>) => void) | null = null
@@ -21,7 +22,7 @@ let pluginEvent: ((event: MessageEvent<string>) => void) | null = null
  * never served.
  */
 let subscribedNames: string[] = []
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, (event: MessageEvent<string>) => void>) => {
     subscribedNames = Object.keys(handlers)
     pluginEvent = handlers['plugin_catalog.changed'] ?? null

@@ -5,14 +5,7 @@ use std::collections::BTreeMap;
 
 use chrono::{Duration, Utc};
 use rd_core::LogLevel;
-use rd_db::{Database, LogQuery, NewLogRecord};
-use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("logs.sqlite"))
-        .await
-        .expect("database")
-}
+use rd_db::{LogQuery, NewLogRecord};
 
 fn record(level: LogLevel, component: &str, message: &str) -> NewLogRecord {
     NewLogRecord {
@@ -37,7 +30,7 @@ fn query() -> LogQuery {
 async fn records_survive_a_restart_and_come_back_newest_first() {
     let directory = tempfile::tempdir().expect("tempdir");
     {
-        let database = database(&directory).await;
+        let database = rd_testkit::temp_database(directory.path()).await;
         let mut first = record(LogLevel::Info, "rd_http::engine", "first");
         first.code = Some("http.started".to_owned());
         first.correlation_id = Some("dl-1".to_owned());
@@ -48,7 +41,7 @@ async fn records_survive_a_restart_and_come_back_newest_first() {
             .expect("append");
         assert_eq!(stored, 2);
     }
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let records = database.query_log_records(&query()).await.expect("query");
     assert_eq!(records.len(), 2);
     assert_eq!(records[0].message, "second");
@@ -66,7 +59,7 @@ async fn records_survive_a_restart_and_come_back_newest_first() {
 #[tokio::test]
 async fn the_read_filters_by_level_component_code_correlation_text_and_time() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut tagged = record(
         LogLevel::Error,
         "rd_http::engine",
@@ -175,7 +168,7 @@ async fn the_read_filters_by_level_component_code_correlation_text_and_time() {
 #[tokio::test]
 async fn the_prune_keeps_the_newest_records_and_deletes_in_bounded_batches() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     for chunk in 0..25 {
         let batch = (0..200)
             .map(|index| {
@@ -235,7 +228,7 @@ async fn the_prune_keeps_the_newest_records_and_deletes_in_bounded_batches() {
 #[tokio::test]
 async fn the_prune_removes_records_older_than_the_cutoff_whatever_the_count() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut stale = record(LogLevel::Info, "rd_http", "stale");
     stale.recorded_at = Utc::now() - Duration::days(30);
     database

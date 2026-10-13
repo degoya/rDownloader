@@ -5,8 +5,8 @@ import type { QueueGroup } from '@/composables/useQueueSelection'
 
 /** The columns the download list sorts by: the name and the four data columns (RD-1190-16). */
 export type QueueSortColumn = 'name' | 'state' | 'progress' | 'size' | 'meta'
-export const QUEUE_SORT_COLUMNS: readonly QueueSortColumn[] = ['name', 'state', 'progress', 'size', 'meta']
-export type QueueSortDirection = 'asc' | 'desc'
+const QUEUE_SORT_COLUMNS: readonly QueueSortColumn[] = ['name', 'state', 'progress', 'size', 'meta']
+type QueueSortDirection = 'asc' | 'desc'
 export interface QueueSort { column: QueueSortColumn, direction: QueueSortDirection }
 
 export const QUEUE_SORT_STORAGE_KEY = 'rdownloader-queue-sort-downloads'

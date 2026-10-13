@@ -51,10 +51,9 @@ pub(super) async fn http_client(state: &AppState) -> Result<reqwest::Client, Pro
         .await
         .custom_ca_pem
         .clone();
-    let mut builder = reqwest::Client::builder()
+    let mut builder = rd_http::client_builder(rd_http::ClientPurpose::Direct)
         .timeout(oidc::REQUEST_TIMEOUT)
-        .redirect(reqwest::redirect::Policy::none())
-        .no_proxy();
+        .redirect(reqwest::redirect::Policy::none());
     for pem in &custom_ca_pem {
         match reqwest::Certificate::from_pem(pem) {
             Ok(certificate) => builder = builder.add_root_certificate(certificate),

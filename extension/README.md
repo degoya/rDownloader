@@ -336,7 +336,7 @@ does not have to guess the module kind from the syntax; without it the run print
 warning pointing at a `package.json` outside this repository and failed outright on Node 20.
 
 `extension/test/fakes.mjs` is the one fake browser the suite drives everything through, plus the
-two setup helpers over it. It is deliberately not named `*.test.mjs`, so the glob above does not
+two setup helpers over it and `pageChrome`, the browser as a script injected into a page sees it. It is deliberately not named `*.test.mjs`, so the glob above does not
 try to run it as a test file.
 
 What the suite covers beyond the pure helpers: the background's wiring — that every listener is

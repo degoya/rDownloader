@@ -18,7 +18,7 @@ interface WindowMenuItem {
 }
 
 /** What the row's glyph says, or `null` when the package has no window that applies. */
-export interface WindowGlyph {
+interface WindowGlyph {
   /** Outside its window right now: its files wait. */
   closed: boolean
   title: string

@@ -6,7 +6,7 @@ import type { Category } from '@/api/types'
 import { sharedRead } from './sharedRead'
 
 /** The categories, read once for every view that lists or picks one (WEB-3). */
-export const useCategoriesStore = defineStore('categories', () => {
+const useCategoriesStore = defineStore('categories', () => {
   const shared = sharedRead(() => api.GET('/api/v1/categories'), [] as Category[], ['category.changed'])
   return { categories: shared.value, fetchCategories: shared.load, follow: shared.follow }
 })

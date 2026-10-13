@@ -21,26 +21,11 @@ use serde_json::json;
 use crate::backup_destinations::{ready, run};
 use crate::common;
 use crate::full_restore::PASSPHRASE;
+use rd_testkit::{lock, respond};
 
 const BUCKET: &str = "backup-bucket";
 
 type Objects = Arc<Mutex<BTreeMap<String, Vec<u8>>>>;
-
-fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    mutex
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
-fn respond(status: StatusCode, headers: &[(&str, String)], body: impl Into<Body>) -> Response {
-    let mut builder = Response::builder().status(status);
-    for (name, value) in headers {
-        builder = builder.header(*name, value);
-    }
-    builder
-        .body(body.into())
-        .unwrap_or_else(|_| Response::new(Body::empty()))
-}
 
 fn xml(status: StatusCode, body: String) -> Response {
     respond(
@@ -127,27 +112,22 @@ fn list(objects: &Objects, query: &str) -> Response {
 }
 
 /// The fixture's objects and its endpoint.
-async fn bucket() -> (Objects, String) {
+async fn bucket() -> (rd_testkit::TestServer, Objects, String) {
     let objects = Objects::default();
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
     let app = Router::new()
         .fallback(s3)
         .layer(axum::extract::DefaultBodyLimit::disable())
         .with_state(objects.clone());
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    (objects, format!("http://{address}"))
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
+    (server, objects, format!("http://{address}"))
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_run_kept_only_in_a_bucket_restores_by_its_id() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::test_harness(directory.path()).await;
-    let (objects, endpoint) = bucket().await;
+    let (_server, objects, endpoint) = bucket().await;
     let secret = harness
         .secrets
         .put_string("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_owned())

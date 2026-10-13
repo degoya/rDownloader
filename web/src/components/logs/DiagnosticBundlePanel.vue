@@ -28,7 +28,7 @@ const store = useLogsStore()
  */
 function noteText(note: BundleNote): string {
   const key = `logs.${note.code}`
-  return te(key) ? t(key, { ...(note.params ?? {}) }) : note.text
+  return te(key) ? t(key, { ...note.params }) : note.text
 }
 
 function downloadHref(fileName: string): string {

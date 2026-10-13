@@ -29,6 +29,7 @@ use rd_db::{Database, NewDownload, NewObjectStorageProfile, NewPackage};
 use rd_extract::{ObjectUpload, ObjectUploader, UploadReport};
 use rd_object_storage::ObjectStorageService;
 use rd_scheduler::{RunLimits, RunOutcome};
+use rd_testkit::{lock, payload, respond};
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
@@ -51,12 +52,6 @@ struct Fixture {
     refuse_with: Arc<Mutex<Option<&'static str>>>,
 }
 
-fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    mutex
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
 impl Fixture {
     fn put(&self, key: &str, body: Vec<u8>) {
         let mut next = lock(&self.next);
@@ -67,16 +62,6 @@ impl Fixture {
     fn object(&self, key: &str) -> Option<Vec<u8>> {
         lock(&self.objects).get(key).map(|(body, _)| body.clone())
     }
-}
-
-fn respond(status: StatusCode, headers: &[(&str, String)], body: impl Into<Body>) -> Response {
-    let mut builder = Response::builder().status(status);
-    for (name, value) in headers {
-        builder = builder.header(*name, value);
-    }
-    builder
-        .body(body.into())
-        .unwrap_or_else(|_| Response::new(Body::empty()))
 }
 
 fn xml(status: StatusCode, body: String) -> Response {
@@ -264,6 +249,8 @@ fn list(fixture: &Fixture, query: &BTreeMap<String, String>) -> Response {
 }
 
 struct Harness {
+    /// The fixture S3 endpoint, answering for as long as the harness lives.
+    _server: rd_testkit::TestServer,
     directory: tempfile::TempDir,
     database: Database,
     service: ObjectStorageService,
@@ -274,23 +261,16 @@ struct Harness {
 impl Harness {
     async fn start() -> Self {
         let fixture = Fixture::default();
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind");
-        let address = listener.local_addr().expect("address");
         // A part is at least 16 MiB; axum's default 2 MiB body limit would refuse every one.
         let app = Router::new()
             .fallback(handle)
             .layer(axum::extract::DefaultBodyLimit::disable())
             .with_state(fixture.clone());
-        tokio::spawn(async move {
-            let _ = axum::serve(listener, app).await;
-        });
+        let server = rd_testkit::serve(app).await;
+        let address = server.addr();
 
         let directory = tempfile::tempdir().expect("tempdir");
-        let database = Database::open(directory.path().join("objects.sqlite3"))
-            .await
-            .expect("database");
+        let database = rd_testkit::temp_database(directory.path()).await;
         let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
             .await
             .expect("secrets");
@@ -324,6 +304,7 @@ impl Harness {
             Arc::new(RwLock::new(rd_http::NetworkDefaults::default())),
         );
         Self {
+            _server: server,
             directory,
             database,
             service,
@@ -400,10 +381,6 @@ impl Harness {
             .await
             .expect("run")
     }
-}
-
-fn payload(length: usize) -> Vec<u8> {
-    (0..length).map(|index| (index % 253) as u8).collect()
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -617,9 +594,7 @@ async fn a_live_service_serves_a_download() {
         );
     };
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = Database::open(directory.path().join("live.sqlite3"))
-        .await
-        .expect("database");
+    let database = rd_testkit::temp_database(directory.path()).await;
     let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
         .await
         .expect("secrets");

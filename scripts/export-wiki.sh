@@ -291,7 +291,6 @@ PY
 rd_public_check_links "$STAGE" "$ROOT/scripts/public-exclude.txt" --wiki
 rd_public_scan "$STAGE"
 
-pub() { git -C "$WIKI_DIR" "$@"; }
 rd_public_prepare_clone "$WIKI_DIR" "$WIKI_REMOTE" "$WIKI_BRANCH"
 rd_public_replace_tree "$WIKI_DIR" "$STAGE"
 

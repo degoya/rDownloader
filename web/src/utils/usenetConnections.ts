@@ -55,7 +55,7 @@ export function packageConnections(
 }
 
 /** "5 + 3": the split when the files do not hold the same number. */
-export function splitLabel(perFile: number[]): string {
+function splitLabel(perFile: number[]): string {
   return perFile.join(' + ')
 }
 

@@ -5,6 +5,7 @@
  * labels are compared group by group.
  */
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 
 import type { CollectorPackage, Download, DownloadPackage, LinkCandidate } from '@/api/types'
 import common from '@/locales/en/common.json'
@@ -18,16 +19,9 @@ import CollectorPackageGroup from './CollectorPackageGroup.vue'
 import PackageGroup from './PackageGroup.vue'
 import TransferCard from './TransferCard.vue'
 
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(null) }) }) })
-}))
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: [] })) },
-  responseError: () => 'failed',
-  errorMessage: () => 'failed'
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ answer: null }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })), responseError: () => 'failed', errorMessage: () => 'failed' }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 interface MenuItem { label?: string }
 

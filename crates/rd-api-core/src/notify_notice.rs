@@ -12,10 +12,10 @@
 //! translates or filters on.
 
 use chrono::NaiveDate;
-use rd_notify::NotificationEvent;
+use rd_notify::{NotificationEvent, Placeholder as P, Values};
 
 /// How close a premium end is before an account check announces it.
-pub const EXPIRY_WARNING_DAYS: i64 = 7;
+pub(crate) const EXPIRY_WARNING_DAYS: i64 = 7;
 
 /// The account-label code a plugin states the premium end under (`plugin_common::label`).
 const PREMIUM_UNTIL: &str = "plugin.account.premium_until";
@@ -29,6 +29,9 @@ pub struct Notice {
     pub key: String,
     pub title: String,
     pub body: String,
+    /// What a rule's own wording may name beyond the event and the moment (RD-1280-02): the
+    /// version, the plugin, the account, the destination, the error.
+    pub values: Values,
 }
 
 impl Notice {
@@ -40,6 +43,7 @@ impl Notice {
             key: format!("backup_failed:{run_id}"),
             title: "Scheduled backup failed".to_owned(),
             body: format!("The scheduled backup failed ({code}): {detail}"),
+            values: Values::default().with(P::Error, rd_core::redact_text(detail)),
         }
     }
 
@@ -54,6 +58,7 @@ impl Notice {
                 "The scheduled backup was written, but not to every destination: {}",
                 failed.join("; ")
             ),
+            values: Values::default().with(P::Error, rd_core::redact_text(&failed.join("; "))),
         }
     }
 
@@ -74,6 +79,9 @@ impl Notice {
                 "The scheduled verification of {archive} at {destination} failed ({code}): \
                  {detail}"
             ),
+            values: Values::default()
+                .with(P::StorageTarget, destination)
+                .with(P::Error, rd_core::redact_text(detail)),
         }
     }
 
@@ -88,6 +96,7 @@ impl Notice {
                 "rDownloader {version} is available; this installation runs {current}. \
                  Settings -> System -> Updates shows the release notes and how to update."
             ),
+            values: Values::default().with(P::Version, version),
         }
     }
 
@@ -104,6 +113,7 @@ impl Notice {
                  automatically over {current}. The service stops and starts again as the new \
                  version; a version that does not start is taken back."
             ),
+            values: Values::default().with(P::Version, version),
         }
     }
 
@@ -115,6 +125,7 @@ impl Notice {
             key: format!("update_installed:{version}"),
             title: format!("rDownloader {version} is installed"),
             body: format!("rDownloader was updated from {from} to {version} and runs again."),
+            values: Values::default().with(P::Version, version),
         }
     }
 
@@ -129,6 +140,9 @@ impl Notice {
                 "The update to {version} did not go ahead ({code}); rDownloader {current} keeps \
                  running. Settings -> System -> Updates shows what happened."
             ),
+            values: Values::default()
+                .with(P::Version, version)
+                .with(P::Error, code),
         }
     }
 
@@ -150,6 +164,7 @@ impl Notice {
                 "{decided} to apply {why}. Running downloads are saved by the stop and continue \
                  once it is back."
             ),
+            values: Values::default(),
         }
     }
 
@@ -169,6 +184,9 @@ impl Notice {
                 "{name} {version} is available; {installed} is installed. Plugins -> Updates \
                  installs it."
             ),
+            values: Values::default()
+                .with(P::Plugin, name)
+                .with(P::Version, version),
         }
     }
 
@@ -184,6 +202,10 @@ impl Notice {
                 "The automatic update of {name} to {version} was not installed ({code}). The \
                  installed version keeps running; Plugins -> Updates offers it again."
             ),
+            values: Values::default()
+                .with(P::Plugin, name)
+                .with(P::Version, version)
+                .with(P::Error, code),
         }
     }
 
@@ -215,6 +237,7 @@ impl Notice {
             key: format!("account_expiring:{}:{when}", account.id),
             title: format!("Account expiring: {name}"),
             body,
+            values: Values::default().with(P::Account, name.as_str()),
         }
     }
 
@@ -227,6 +250,9 @@ impl Notice {
             key: format!("account_invalid:{}:{today}", account.id),
             title: format!("Account needs attention: {name}"),
             body: format!("{name} could not sign in: {reason}"),
+            values: Values::default()
+                .with(P::Account, name.as_str())
+                .with(P::Error, rd_core::redact_text(reason)),
         }
     }
 }
@@ -305,20 +331,38 @@ pub async fn announce(database: &rd_db::Database, notice: Notice) {
 }
 
 async fn queue(database: &rd_db::Database, notice: &Notice) -> anyhow::Result<u64> {
-    let deliveries: Vec<_> = database
+    let rules: Vec<_> = database
         .list_notification_rules()
         .await?
         .into_iter()
         // A notice belongs to no category, so a rule bound to one never takes it.
         .filter(|rule| rule.matches(notice.event, None))
-        .map(|rule| rd_db::NewDelivery {
-            rule_id: rule.id,
-            target_id: rule.target_id,
-            idempotency_key: rd_notify::idempotency_key(rule.id, &notice.key),
-            event: notice.event,
-            title: notice.title.clone(),
-            body: notice.body.clone(),
-            package_path: None,
+        .collect();
+    // A rule's own wording (RD-1280-02), stamped with the service's clock and zone.
+    let values = rules
+        .iter()
+        .any(rd_notify::NotificationRule::has_template)
+        .then(|| {
+            let mut values = Values::stamped(notice.event, &chrono::Local::now());
+            values.extend(&notice.values);
+            values
+        });
+    let deliveries: Vec<_> = rules
+        .into_iter()
+        .map(|rule| {
+            let (title, body) = values.as_ref().map_or_else(
+                || (notice.title.clone(), notice.body.clone()),
+                |values| rule.wording(&notice.title, &notice.body, values),
+            );
+            rd_db::NewDelivery {
+                rule_id: rule.id,
+                target_id: rule.target_id,
+                idempotency_key: rd_notify::idempotency_key(rule.id, &notice.key),
+                event: notice.event,
+                title,
+                body,
+                package_path: None,
+            }
         })
         .collect();
     if deliveries.is_empty() {

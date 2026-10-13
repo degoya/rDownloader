@@ -21,7 +21,7 @@ import {
 } from '@/composables/useRemoteCredentials'
 import { formatMoment } from '@/utils/format'
 import { PLAIN, WHOLE } from '@/utils/numberInput'
-import { editingRowClass } from '@/utils/editingRow'
+import ProfileListRow from '@/components/settings/ProfileListRow.vue'
 import FormFeedback from '@/components/FormFeedback.vue'
 
 const props = defineProps<{ settings: Settings }>()
@@ -304,50 +304,33 @@ async function confirmForget(key: SshHostKey): Promise<void> {
       </template>
 
       <template #list>
-        <div class="divide-y divide-muted border border-muted">
-          <div
+        <div v-if="credentials.length" class="divide-y divide-muted border border-muted">
+          <ProfileListRow
             v-for="credential in credentials"
             :key="credential.id"
-            class="flex flex-wrap items-center gap-3 p-3"
-            :class="editingRowClass(editingId === credential.id, 'outline')"
+            :icon="credential.protocol === 'sftp' ? 'i-lucide-shield' : 'i-lucide-folder-symlink'"
+            :name="credential.name"
+            :subtitle="endpointLabel(credential)"
+            :editing="editingId === credential.id"
+            :busy="busyId === credential.id"
+            :edit-label="t('remote.credentials.edit_title')"
+            @test="runTest(credential)"
+            @edit="startEdit(credential)"
+            @remove="confirmRemove(credential)"
           >
-            <UAvatar :icon="credential.protocol === 'sftp' ? 'i-lucide-shield' : 'i-lucide-folder-symlink'" color="primary" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-highlighted">{{ credential.name }}</p>
-              <p class="truncate font-mono text-2xs text-muted">{{ endpointLabel(credential) }}</p>
-            </div>
-            <UBadge v-if="editingId === credential.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
-            <UBadge color="neutral" variant="subtle">{{ t(`remote.protocols.${credential.protocol}`) }}</UBadge>
-            <UBadge color="neutral" variant="outline">{{ t(`remote.auth_modes.${credential.auth_mode}`) }}</UBadge>
-            <UBadge
-              v-if="incomplete.some(item => item.id === credential.id)"
-              color="warning"
-              variant="subtle"
-            >{{ t('remote.credentials.incomplete') }}</UBadge>
-            <UBadge v-else-if="!credential.enabled" color="neutral" variant="outline">{{ t('remote.credentials.enabled') }}</UBadge>
-            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('common.actions.test')" :loading="busyId === credential.id" @click="runTest(credential)" />
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-pencil"
-              :aria-label="t('remote.credentials.edit_title')"
-              :title="t('remote.credentials.edit_title')"
-              @click="startEdit(credential)"
-            />
-            <UButton
-              size="xs"
-              color="error"
-              variant="ghost"
-              icon="i-lucide-trash-2"
-              :aria-label="t('common.actions.delete')"
-              :title="t('common.actions.delete')"
-              :loading="busyId === credential.id"
-              @click="confirmRemove(credential)"
-            />
-          </div>
-          <p v-if="!loading && !credentials.length" class="p-5 text-center text-sm text-muted">{{ t('remote.credentials.empty') }}</p>
+            <template #badges>
+              <UBadge color="neutral" variant="subtle">{{ t(`remote.protocols.${credential.protocol}`) }}</UBadge>
+              <UBadge color="neutral" variant="outline">{{ t(`remote.auth_modes.${credential.auth_mode}`) }}</UBadge>
+              <UBadge
+                v-if="incomplete.some(item => item.id === credential.id)"
+                color="warning"
+                variant="subtle"
+              >{{ t('remote.credentials.incomplete') }}</UBadge>
+              <UBadge v-else-if="!credential.enabled" color="neutral" variant="outline">{{ t('remote.credentials.enabled') }}</UBadge>
+            </template>
+          </ProfileListRow>
         </div>
+        <UEmpty v-else-if="!loading" :description="t('remote.credentials.empty')" />
       </template>
     </FormListLayout>
 
@@ -373,7 +356,7 @@ async function confirmForget(key: SshHostKey): Promise<void> {
     <div class="mt-6">
       <p class="text-sm font-medium text-highlighted">{{ t('remote.host_keys.title') }}</p>
       <p class="mt-1 max-w-3xl text-xs leading-5 text-muted">{{ t('remote.host_keys.description') }}</p>
-      <div class="mt-3 divide-y divide-muted border border-muted">
+      <div v-if="hostKeys.length" class="mt-3 divide-y divide-muted border border-muted">
         <div v-for="key in hostKeys" :key="hostKeyId(key)" class="flex flex-wrap items-center gap-3 p-3">
           <UIcon name="i-lucide-key-round" class="text-success" />
           <div class="min-w-0 flex-1">
@@ -384,8 +367,8 @@ async function confirmForget(key: SshHostKey): Promise<void> {
           <span class="text-2xs text-muted">{{ formatMoment(key.first_seen) }}</span>
           <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :label="t('remote.host_keys.forget')" :loading="busyId === hostKeyId(key)" @click="confirmForget(key)" />
         </div>
-        <p v-if="!loading && !hostKeys.length" class="p-5 text-center text-sm text-muted">{{ t('remote.host_keys.empty') }}</p>
       </div>
+      <UEmpty v-else-if="!loading" class="mt-3" :description="t('remote.host_keys.empty')" />
     </div>
   </UCard>
 </template>

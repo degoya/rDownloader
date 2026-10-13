@@ -26,14 +26,9 @@ launcher_syntax() {
 }
 
 macos_helper() {
-    local helper_dir version
-    helper_dir="$(mktemp -d)"
-    osacompile -o "${helper_dir}/rDownloader Capture.app" resources/macos/rdownloader-capture.applescript
-    cp resources/macos/capture-helper-Info.plist "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
-    version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${version}" "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${version}" "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
-    plutil -lint "${helper_dir}/rDownloader Capture.app/Contents/Info.plist"
+    # shellcheck source=lib/macos-helper.sh
+    source scripts/lib/macos-helper.sh
+    rd_macos_capture_helper "$(mktemp -d)"
 }
 
 # One debug build of both binaries for this smoke and, on macOS, the Homebrew formula below:

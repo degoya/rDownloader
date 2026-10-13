@@ -6,6 +6,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/system.json'
@@ -23,22 +24,17 @@ const post = vi.fn(async () => ({
   data: { bearer: 'rdp_secret', token: { id: 't1', label: 'Claude', scopes: ['api:read'], created_at: '2026-09-18T10:00:00Z' } }
 }))
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async (path: string) => ({ data: path.endsWith('/scopes') ? AREAS : [] })),
-    POST: (...args: unknown[]) => post(...(args as [])),
-    PATCH: vi.fn(async () => ({ data: { id: 't1', label: 'Claude', scopes: ['api:read'], created_at: '2026-09-18T10:00:00Z', calls_per_minute: 30 } })),
-    PUT: vi.fn(async () => ({ data: { id: 't1', label: 'Claude', scopes: ['api:read'], created_at: '2026-09-18T10:00:00Z', calls_per_minute: 60 } })),
-    DELETE: vi.fn(async () => ({ data: { message: 'gone' } }))
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async (path: string) => ({ data: path.endsWith('/scopes') ? AREAS : [] })),
+  POST: (...args: unknown[]) => post(...(args as [])),
+  PATCH: vi.fn(async () => ({ data: { id: 't1', label: 'Claude', scopes: ['api:read'], created_at: '2026-09-18T10:00:00Z', calls_per_minute: 30 } })),
+  PUT: vi.fn(async () => ({ data: { id: 't1', label: 'Claude', scopes: ['api:read'], created_at: '2026-09-18T10:00:00Z', calls_per_minute: 60 } })),
+  DELETE: vi.fn(async () => ({ data: { message: 'gone' } })),
   responseError: () => 'failed'
 }))
 
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(true) }) }) })
-}))
+vi.mock('@/composables/useConfirm', () => confirmMock())
+vi.mock('@nuxt/ui/composables', () => toastMock({ answer: true }))
 
 function mount() {
   return mountComponent(SettingsMcpAccess, { messages: { system: en } })

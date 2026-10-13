@@ -44,9 +44,8 @@ const SAMPLE: Duration = Duration::from_millis(100);
 /// `0` is automatic, as in the setting.
 const MODES: [usize; 5] = [1, 2, 3, 4, 0];
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "prints a table of throughput numbers; run on purpose, on a quiet machine"]
-async fn parallel_files_sweep() {
+/// Prints the table of throughput numbers per mode.
+pub async fn parallel_files_sweep() {
     let files = usize::try_from(setting("RD_BENCH_FILES", SWEEP_FILES)).expect("file count");
     let per_file =
         usize::try_from(setting("RD_BENCH_ARTICLES", SWEEP_ARTICLES)).expect("article count");

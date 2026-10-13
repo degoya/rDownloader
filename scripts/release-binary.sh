@@ -26,17 +26,9 @@ version_file() {
 }
 
 macos_helper() {
-    local version
-    osacompile -o "stage/rDownloader Capture.app" resources/macos/rdownloader-capture.applescript
-    cp resources/macos/capture-helper-Info.plist "stage/rDownloader Capture.app/Contents/Info.plist"
-    version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
-    # Apple allows digits and periods only in both keys (at most three integers), so a beta's
-    # `-beta.N` stays out: 1.8.0-beta.2 is 1.8.0 here, as in the browser manifest.
-    version="${version%%[-+]*}"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${version}" "stage/rDownloader Capture.app/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${version}" "stage/rDownloader Capture.app/Contents/Info.plist"
-    plutil -lint "stage/rDownloader Capture.app/Contents/Info.plist"
-    codesign --force --deep --sign - "stage/rDownloader Capture.app"
+    # shellcheck source=lib/macos-helper.sh
+    source scripts/lib/macos-helper.sh
+    rd_macos_capture_helper stage --sign
 }
 
 # Everything but the plugins, which `packages` adds: an uncompressed tar, so the executable bits

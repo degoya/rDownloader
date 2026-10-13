@@ -294,7 +294,7 @@ fn category(packages: &[&BundledPackage]) -> ServiceCategory {
 
 impl PluginInstaller {
     /// Replaces the bundle this installer offers; called by the start-up sync.
-    pub fn set_bundled(&self, packages: Vec<BundledPackage>) {
+    pub(crate) fn set_bundled(&self, packages: Vec<BundledPackage>) {
         if let Ok(mut bundled) = self.bundled.write() {
             *bundled = packages;
         }

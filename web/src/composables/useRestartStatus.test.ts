@@ -4,6 +4,7 @@
  * about once with their count, and a service that does not come back is said.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { confirmMock, toastMock } from '@/test/mocks'
 import { defineComponent } from 'vue'
 
 import type { RestartStatus } from '@/api/restart'
@@ -13,14 +14,14 @@ import { mountComponent } from '@/test/mount'
 
 const fetchRestartStatus = vi.fn()
 const requestRestart = vi.fn()
-const confirm = vi.fn()
-const toastAdd = vi.fn()
+const confirm = vi.hoisted(() => vi.fn())
+const toastAdd = vi.hoisted(() => vi.fn())
 vi.mock('@/api/restart', () => ({
   fetchRestartStatus: () => fetchRestartStatus(),
   requestRestart: (allowActive?: boolean) => requestRestart(allowActive)
 }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: toastAdd }) }))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirm))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toastAdd }))
 
 const {
   pageReload, useRestartAction, useRestartStatus, RESTART_FOLLOW_INTERVAL_MS, RESTART_FOLLOW_LIMIT_MS

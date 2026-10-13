@@ -792,6 +792,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/automations/{id}/versions/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Keeps only the version in force, renumbered to 1, and deletes the older versions with their
+         *     runs (RD-1280-01). Refused with `409 automation.version_reset_run_active` while a run of an
+         *     older version is still queued, running or waiting for a retry.
+         */
+        post: operations["reset_automation_versions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/backups": {
         parameters: {
             query?: never;
@@ -3833,6 +3854,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["list_destinations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/placeholders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_notification_placeholders"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12735,8 +12772,33 @@ export interface components {
          * @enum {string}
          */
         NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending" | "backup_failed" | "backup_verify_failed" | "update_available" | "plugin_update_available" | "plugin_update_failed" | "update_installed" | "update_failed" | "service_restarting" | "account_expiring" | "account_invalid" | "usenet_job_hopeless" | "usenet_quota_reached" | "stop_mark_reached" | "download_started" | "links_added" | "stream_recorded" | "subscription_matched" | "automation";
+        /** @description What one event fills. */
+        NotificationEventPlaceholders: {
+            event: components["schemas"]["NotificationEvent"];
+            /** @description Empty when `takes_template` is false. */
+            placeholders: components["schemas"]["Placeholder"][];
+            /** @description False for the events whose bursts arrive as one summary: they keep their own text. */
+            takes_template: boolean;
+        };
+        /** @description One placeholder, written `{name}` in a template. */
+        NotificationPlaceholder: {
+            example: string;
+            name: components["schemas"]["Placeholder"];
+        };
+        /** @description The placeholders a rule's title and text may name, and which event fills which. */
+        NotificationPlaceholders: {
+            /** @description Every event a rule can name, with the placeholders it fills. */
+            events: components["schemas"]["NotificationEventPlaceholders"][];
+            /**
+             * @description Every placeholder, with a sample value for the editor's preview; `time` and `date` are
+             *     the service's clock, in its time zone and format.
+             */
+            placeholders: components["schemas"]["NotificationPlaceholder"][];
+        };
         /** @description Which events of which packages reach which target. */
         NotificationRule: {
+            /** @description The rule's own text, like [`Self::title_template`]. */
+            body_template?: string | null;
             category_id?: components["schemas"]["CategoryId"] | null;
             enabled: boolean;
             /** @description Empty means every event except the opt-in ones ([`NotificationEvent::is_opt_in`]). */
@@ -12745,10 +12807,17 @@ export interface components {
             min_severity: components["schemas"]["Severity"];
             name: string;
             target_id: components["schemas"]["NotificationTargetId"];
+            /**
+             * @description The rule's own title with `{placeholder}` holes (RD-1280-02); `None` sends the built-in
+             *     one. Which event fills which placeholder: [`NotificationEvent::placeholders`].
+             */
+            title_template?: string | null;
         };
         /** Format: uuid */
         NotificationRuleId: string;
         NotificationRuleRequest: {
+            /** @description The rule's own text, at most 2000 characters, like `title_template`. */
+            body_template?: string | null;
             category_id?: components["schemas"]["CategoryId"] | null;
             enabled?: boolean;
             /** @description Empty means every event. */
@@ -12756,6 +12825,12 @@ export interface components {
             min_severity?: components["schemas"]["Severity"];
             name: string;
             target_id: components["schemas"]["NotificationTargetId"];
+            /**
+             * @description The rule's own title with `{placeholder}` holes (RD-1280-02), at most 200 characters;
+             *     left out or blank sends the built-in one. `GET /api/v1/notifications/placeholders` lists
+             *     which event fills which placeholder; `{{` and `}}` write a brace.
+             */
+            title_template?: string | null;
         };
         /** @description A configured delivery destination. Credentials never live here — only a vault reference. */
         NotificationTarget: {
@@ -13401,6 +13476,11 @@ export interface components {
             piece_length: number;
             pieces: number;
         };
+        /**
+         * @description One value a template may name in braces, `{package}`.
+         * @enum {string}
+         */
+        Placeholder: "event" | "severity" | "time" | "date" | "title" | "message" | "package" | "file" | "category" | "state" | "size" | "path" | "error" | "storage_target" | "version" | "plugin" | "account";
         /** @description What a package asks for beyond the newest installed version of the same plugin (RD-160-09). */
         PluginAddedPermissionsResponse: {
             /** @description The installed version the package is compared with. */
@@ -18730,6 +18810,20 @@ export interface components {
          */
         Verdict: "supported" | "too_old" | "known_bad" | "unknown";
         /**
+         * @description What resetting an automation's version history removed (RD-1280-01).
+         *
+         *     Only the version in force stays, renumbered to 1; the older versions go with the runs that
+         *     point at them. The counts are what the confirmation promised, read back from the deletes.
+         */
+        VersionReset: {
+            /** @description The automation afterwards, at version 1. */
+            automation: components["schemas"]["Automation"];
+            /** Format: int32 */
+            removed_runs: number;
+            /** Format: int32 */
+            removed_versions: number;
+        };
+        /**
          * @description Video codec reduced to the family a person actually chooses by.
          * @enum {string}
          */
@@ -20560,7 +20654,12 @@ export interface operations {
     };
     list_automation_runs: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Only this automation's runs */
+                automation_id?: components["schemas"]["AutomationId"];
+                /** @description Newest runs to return, 1-500 */
+                limit?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -20719,6 +20818,42 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AutomationVersion"][];
                 };
+            };
+        };
+    };
+    reset_automation_versions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["AutomationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionReset"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -27792,6 +27927,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationDestination"][];
+                };
+            };
+        };
+    };
+    list_notification_placeholders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPlaceholders"];
                 };
             };
         };

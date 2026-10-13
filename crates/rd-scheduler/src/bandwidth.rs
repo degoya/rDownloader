@@ -157,7 +157,7 @@ impl BandwidthService {
 
     /// Whether the active profile's budget is used up; new transfers wait, running ones
     /// finish.
-    pub async fn budget_exceeded(&self) -> Option<BudgetExceeded> {
+    pub(crate) async fn budget_exceeded(&self) -> Option<BudgetExceeded> {
         self.state.read().await.exceeded
     }
 

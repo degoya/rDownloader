@@ -5,16 +5,13 @@
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { setLocale } from '@/i18n'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: [] })), POST: vi.fn(), PUT: vi.fn(), PATCH: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => ''),
-  resultMessage: vi.fn(() => '')
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })), responseError: vi.fn(() => '') }))
 const handlers: Record<string, (event: MessageEvent) => void> = {}
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (registered: Record<string, (event: MessageEvent) => void>) => {
     Object.assign(handlers, registered)
     return () => {}

@@ -37,6 +37,7 @@ import {
   TOKEN_MESSAGE
 } from './captcha-messages.js'
 import { STATE_KEYS, createCaptchaState } from './captcha-state.js'
+import { createCaptchaTabs } from './captcha-tabs.js'
 
 // Re-exported so the popup and the tests keep one import for the whole feature.
 export { answerWidget, listWidgets, reportPageWithoutWidget, skipWidget }
@@ -66,49 +67,7 @@ export function createCaptchaAnswerer({
 }) {
   const [TABS_KEY, GRANTS_KEY, ANNOUNCED_KEY, NOTIFICATIONS_KEY] = STATE_KEYS
   const { read, write, mutate, badge, setSendFailure, discardPersistedState } = createCaptchaState(api)
-
-  /**
-   * Drops the origin grant — unless another tracked tab or pending grant still needs it (two
-   * widgets from one hoster). Callers remove and write their own entry first.
-   */
-  async function release(origin) {
-    if (!origin) return
-    const tabs = await read(TABS_KEY, {})
-    const grants = await read(GRANTS_KEY, {})
-    const stillNeeded =
-      Object.values(tabs).some((entry) => entry.origin === origin) || Object.values(grants).includes(origin)
-    if (stillNeeded) return
-    try {
-      await api.permissions.remove({ origins: [origin] })
-    } catch {
-      // Chrome refuses to drop an origin another grant still covers; harmless.
-    }
-  }
-
-  async function clearNotification(notificationId) {
-    try {
-      await api.notifications?.clear?.(notificationId)
-    } catch {
-      // already closed by the person
-    }
-  }
-
-  async function closeTab(tabId) {
-    try {
-      await api.tabs.remove(Number(tabId))
-    } catch {
-      // already closed by the person
-    }
-  }
-
-  async function forget(tabId) {
-    return mutate(TABS_KEY, {}, (tabs) => {
-      const entry = tabs[String(tabId)]
-      if (!entry) return null
-      delete tabs[String(tabId)]
-      return entry
-    })
-  }
+  const { release, clearNotification, closeTab, forget, recordGrant, dropGrant } = createCaptchaTabs(api, { read, mutate })
 
   /** What the server said about an outcome, in the person's language where there is a word. */
   function reasonOf(result) {
@@ -185,14 +144,6 @@ export function createCaptchaAnswerer({
 
     await badge(result.widgets.length)
     return result
-  }
-
-  async function recordGrant(id, origin) {
-    await mutate(GRANTS_KEY, {}, (grants) => { grants[id] = origin })
-  }
-
-  async function dropGrant(id) {
-    await mutate(GRANTS_KEY, {}, (grants) => { delete grants[id] })
   }
 
   /**

@@ -33,7 +33,8 @@
 # tag, and a green is recorded under the workflow's file name, like an image. Since RD-1270-10 a
 # wave's integration branch runs them too (`scripts/public-ci.sh --release-workflows`, which
 # `integrate.sh --public-ci` passes), so their greens are on record before the candidate exists
-# and its step dispatches only what is left — as a rule macOS alone. Self-update builds the tree
+# and its step dispatches only what is left — as a rule Linux and macOS: since RD-1280-14 a wave
+# runs Linux on GitHub only without a local green of it, so the candidate is where it runs. Self-update builds the tree
 # twice, the second time with its own patch version raised, so the version a tree carries does not
 # matter to it: a green before the release's version bump covers the candidate like the others.
 #

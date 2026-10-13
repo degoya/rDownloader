@@ -1,14 +1,10 @@
-manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000006"
 name = "1fichier"
 # 0.3.0: free (account-less) downloads. The version must rise, or a running instance keeps
 # the installed package (`sync_bundled` only installs newer ones) and never picks the free
 # flow up. Pinned jobs are unaffected: the older version stays installed.
-version = "0.7.17"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.7.18"
 # IMPL-VERIFY: the account-less website flow must fetch the file page on the *same* domain the
 # link carried -- normalizing an alias such as alterupload.com to 1fichier.com turns files
 # restricted to that alias offline. Every alias therefore needs to be requestable, and each gets a
@@ -73,10 +69,6 @@ domains = [
 
 [metadata]
 description = "Resolves 1fichier links with an API key."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [provider]
 slug = "1fichier"
@@ -96,11 +88,3 @@ host_aliases = [
   ["piecejointe.net", "1fichier.com"],
   ["pjointe.com", "1fichier.com"],
 ]
-[limits]
-memory_bytes = 67108864
-fuel = 2000000000
-timeout_milliseconds = 15000
-max_response_bytes = 8388608
-# The account-less flow is normally captcha-free and needs no countdown, but the hoster can ask
-# for one; this budget is spent on waiting only and does not extend the compute timeout above.
-wait_budget_milliseconds = 600000

@@ -6,27 +6,25 @@
  */
 import { screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 
 import settingsCatalogue from '@/locales/en/settings.json'
 import { mountComponent } from '@/test/mount'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...args), POST: vi.fn(async () => ({ data: {} })) },
-  responseError: vi.fn(() => 'The service did not answer')
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args), POST: vi.fn(async () => ({ data: {} })) }))
 
 /** The shared event stream, reduced to the one handler this card registers. */
 let toolEvent: ((event: MessageEvent<string>) => void) | null = null
 const released = vi.fn()
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, (event: MessageEvent<string>) => void>) => {
     toolEvent = handlers['managed_tool.changed'] ?? null
     return () => { toolEvent = null; released() }
   }
 }))
 
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 const { default: SettingsManagedTools } = await import('./SettingsManagedTools.vue')
 

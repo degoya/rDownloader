@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { REQUIRED_LOCALES, i18n } from '@/i18n'
 import bandwidthGerman from '@/locales/de/bandwidth.json'
@@ -21,10 +22,7 @@ import { mountComponent } from '@/test/mount'
 const get = vi.hoisted(() => vi.fn())
 const put = vi.hoisted(() => vi.fn())
 const remove = vi.hoisted(() => vi.fn())
-vi.mock('@/api/client', () => ({
-  api: { GET: get, POST: vi.fn(), PUT: put, DELETE: remove },
-  responseError: () => ''
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: get, PUT: put, DELETE: remove, responseError: () => '' }))
 
 import BandwidthStatusCard from './BandwidthStatusCard.vue'
 

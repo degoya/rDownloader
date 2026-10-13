@@ -22,11 +22,11 @@ use chrono::Utc;
 use super::{exists, remove_any, rename};
 
 /// Beside the program files: the leftovers of earlier updates that could not be removed yet.
-pub const TRASH_DIR: &str = ".trash";
+pub(crate) const TRASH_DIR: &str = ".trash";
 
 /// `<install>/.trash`.
 #[must_use]
-pub fn trash_dir(install: &Path) -> PathBuf {
+pub(crate) fn trash_dir(install: &Path) -> PathBuf {
     install.join(TRASH_DIR)
 }
 

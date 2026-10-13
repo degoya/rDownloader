@@ -49,8 +49,9 @@ fn remote_job_directories() -> Vec<String> {
 /// here is the reading of a manifest, not the signature, which both paths check alike.
 fn install(root: &Path, directory: &str) {
     let source = plugins_root().join(directory);
-    let manifest_text =
-        std::fs::read_to_string(source.join("manifest.toml")).expect("the bundled manifest");
+    // As a package carries it: `plugins/metadata.toml`'s shared fields filled in (RD-1280-18),
+    // which loading an installed manifest validates.
+    let manifest_text = rd_plugin_host::artifact::bundled_manifest(directory);
     let manifest: rd_plugin_host::PluginManifest =
         toml::from_str(&manifest_text).expect("a valid manifest");
     let target = root.join(manifest.id.to_string()).join(&manifest.version);

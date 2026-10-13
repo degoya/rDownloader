@@ -4,16 +4,14 @@
  */
 import { screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import type { TorrentNetworkStatus } from '@/api/types'
 import settings from '@/locales/en/settings.json'
 import { mountComponent } from '@/test/mount'
 
 const get = vi.hoisted(() => vi.fn())
-vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...args) },
-  responseError: () => 'The service did not answer'
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
 
 const { default: SettingsTorrentNetworkStatus } = await import('./SettingsTorrentNetworkStatus.vue')
 

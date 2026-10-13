@@ -35,6 +35,8 @@ async fn a_notice_is_queued_once_per_rule_even_after_the_history_was_cleared() {
                 events: vec![NotificationEvent::UpdateAvailable],
                 category_id: None,
                 min_severity: Severity::Info,
+                title_template: None,
+                body_template: None,
             },
         )
         .await

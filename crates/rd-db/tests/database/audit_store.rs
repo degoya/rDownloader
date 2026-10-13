@@ -6,14 +6,7 @@ use std::collections::BTreeMap;
 
 use chrono::{Duration, Utc};
 use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome};
-use rd_db::{AuditQuery, Database, NewAuditRecord};
-use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("audit.sqlite"))
-        .await
-        .expect("database")
-}
+use rd_db::{AuditQuery, NewAuditRecord};
 
 fn record(action: AuditAction, outcome: AuditOutcome) -> NewAuditRecord {
     NewAuditRecord::new(action, outcome)
@@ -30,7 +23,7 @@ fn query() -> AuditQuery {
 async fn records_survive_a_restart_and_come_back_newest_first() {
     let directory = tempfile::tempdir().expect("tempdir");
     {
-        let database = database(&directory).await;
+        let database = rd_testkit::temp_database(directory.path()).await;
         database
             .append_audit_records(vec![
                 record(AuditAction::LoginFailed, AuditOutcome::Failure),
@@ -39,7 +32,7 @@ async fn records_survive_a_restart_and_come_back_newest_first() {
             .await
             .expect("append");
     }
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let records = database.query_audit_records(&query()).await.expect("query");
     assert_eq!(records.len(), 2);
     assert_eq!(records[0].action, AuditAction::LoginSucceeded);
@@ -50,7 +43,7 @@ async fn records_survive_a_restart_and_come_back_newest_first() {
 #[tokio::test]
 async fn the_table_refuses_an_update_whatever_issues_it() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .append_audit_record(record(AuditAction::TokenCreated, AuditOutcome::Success))
         .await
@@ -61,7 +54,7 @@ async fn the_table_refuses_an_update_whatever_issues_it() {
     // of it is somebody who is not in the workspace.
     let pool = sqlx::SqlitePool::connect(&format!(
         "sqlite://{}",
-        directory.path().join("audit.sqlite").display()
+        directory.path().join(rd_testkit::DATABASE_FILE).display()
     ))
     .await
     .expect("pool");
@@ -81,7 +74,7 @@ async fn the_table_refuses_an_update_whatever_issues_it() {
 #[tokio::test]
 async fn the_filters_answer_what_the_viewer_asks() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut login = record(AuditAction::LoginFailed, AuditOutcome::Failure);
     login.actor_kind = AuditActorKind::Anonymous;
     login.client_address = Some("203.0.113.9".to_owned());
@@ -156,7 +149,7 @@ async fn the_filters_answer_what_the_viewer_asks() {
 #[tokio::test]
 async fn the_channel_is_stored_and_filtered_on() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let own = record(AuditAction::SettingsReset, AuditOutcome::Success);
     assert_eq!(own.via, AuditChannel::Internal);
     let mut through_mcp = record(AuditAction::SettingsChanged, AuditOutcome::Success);
@@ -193,7 +186,7 @@ async fn the_channel_is_stored_and_filtered_on() {
 #[tokio::test]
 async fn retention_deletes_whole_records_in_bounded_batches() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut batch = Vec::new();
     for index in 0..250 {
         let mut entry = record(AuditAction::TokenUsed, AuditOutcome::Success);
@@ -232,7 +225,7 @@ async fn retention_deletes_whole_records_in_bounded_batches() {
 #[tokio::test]
 async fn an_expired_record_goes_whatever_the_count_says() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut old = record(AuditAction::SettingsChanged, AuditOutcome::Success);
     old.recorded_at = Utc::now() - Duration::days(400);
     database
@@ -255,7 +248,7 @@ async fn an_expired_record_goes_whatever_the_count_says() {
 #[tokio::test]
 async fn restoring_a_configuration_backup_leaves_the_audit_log_alone() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .append_audit_record(record(AuditAction::BackupRestored, AuditOutcome::Success))
         .await

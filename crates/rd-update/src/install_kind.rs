@@ -208,7 +208,7 @@ fn in_container() -> bool {
 
 /// [`InstallKind::detect`] from explicit inputs, so every rule is testable with a fixture.
 #[must_use]
-pub fn detect_from(
+pub(crate) fn detect_from(
     executable: Option<&Path>,
     named: Option<&str>,
     in_container: bool,

@@ -16,7 +16,7 @@ use crate::api::{
 
 /// Runs the account-less free flow and turns its result into a transfer.
 pub(super) async fn resolve<H: PluginHost>(host: &H, file_id: &str) -> Result<Resolved, Failure> {
-    let probe = free_geturl(host, api::free::geturl_probe_body(file_id)).await;
+    let probe = free_geturl(host, api::free::geturl_probe_body(file_id)?).await;
     let result = match probe {
         Ok(result) => result,
         // "You need send request for free download with captcha fields" — the only error the
@@ -56,7 +56,7 @@ async fn solve_and_submit<H: PluginHost>(
     let solution = host.solve_captcha(image).await?;
     free_geturl(
         host,
-        api::free::geturl_captcha_body(file_id, &challenge_id, &solution.token),
+        api::free::geturl_captcha_body(file_id, &challenge_id, &solution.token)?,
     )
     .await
     .map_err(free_error)
@@ -102,7 +102,7 @@ async fn wait_out_countdown<H: PluginHost>(
             }
             WaitStep::Wait(seconds) => host.wait(seconds).await?,
         }
-        result = free_geturl(host, api::free::geturl_free_key_body(file_id, &key))
+        result = free_geturl(host, api::free::geturl_free_key_body(file_id, &key)?)
             .await
             .map_err(free_error)?;
     }

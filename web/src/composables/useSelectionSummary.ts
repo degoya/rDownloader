@@ -10,7 +10,7 @@ export type Translate = (key: string, named: Record<string, unknown>, plural?: n
  * files in 1 package" while one package holds them all; the LinkGrabber's links likewise, its NZB
  * imports after them. A package counts as soon as one of its rows is ticked (`SelectionParts`).
  */
-export function selectionFigures(t: Translate, parts: SelectionParts): string {
+function selectionFigures(t: Translate, parts: SelectionParts): string {
   const figures: string[] = []
   if (parts.items) {
     const items = t(`common.units.${parts.unit}`, { count: parts.items }, parts.items)

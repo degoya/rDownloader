@@ -104,7 +104,7 @@ pub fn validate_bundle_section(len: usize) -> Result<(), ApiError> {
 /// A reorder carries the whole order of a list, so it cannot be sent in batches the way a bulk
 /// action can (500 ids each); with the bulk limit a queue of more than 500 packages could not be
 /// reordered at all. Ten thousand UUIDs stay well inside the JSON body limit.
-pub const MAX_REORDER: usize = 10_000;
+pub(crate) const MAX_REORDER: usize = 10_000;
 
 /// `400` unless a reorder list holds between 1 and [`MAX_REORDER`] entries.
 ///
@@ -253,7 +253,7 @@ pub const REPLAY_ORIGIN_NOT_APPROVED: &str = "replay.origin_not_approved";
 pub const MEDIA_SELECTION_MISSING: &str = "collector.media_selection_missing";
 /// An NZB link a document or a page proposed points at this machine or, unless the person
 /// handed the document over, into their network; it is not fetched (RD-150-03).
-pub const NZB_INTERNAL_ADDRESS: &str = "collector.nzb_internal_address";
+pub(crate) const NZB_INTERNAL_ADDRESS: &str = "collector.nzb_internal_address";
 
 #[cfg(test)]
 mod reorder_size_tests {

@@ -23,154 +23,41 @@ other systems `psutil` is required.
 from __future__ import annotations
 
 import argparse
-import csv
-import hashlib
-import http.cookiejar
 import json
 import os
 import platform
 import random
-import re
 import secrets
 import shutil
-import socket
 import subprocess
 import sys
 import time
 import tomllib
-import urllib.error
-import urllib.request
 from pathlib import Path
 
-# The two modules beside this one would otherwise leave a __pycache__ in the checkout.
+# The three modules beside this one would otherwise leave a __pycache__ in the checkout.
 sys.dont_write_bytecode = True
 import soak_budgets  # noqa: E402
 import soak_fixture  # noqa: E402
+from soak_service import (  # noqa: E402, F401 - re-exported: soak.RunError, soak.Api, ...
+    MIB,
+    Api,
+    Process,
+    RunError,
+    Samples,
+    database_mib,
+    file_sha256,
+    free_port,
+    parse_duration,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BUDGETS = ROOT / "scripts" / "soak-budgets.toml"
-MIB = 1024 * 1024
 TERMINAL_BAD = {"failed", "cancelled", "blocked"}
 # How long a package whose download the list calls finished may still be refused for removal as
 # active (RD-1120-07): the nightly run of 2026-10-06 (37430754724) stopped after 64 minutes on one
 # such refusal, a 409 `package.files_remove_failed`, while the next look would have removed it.
 REMOVE_GRACE_S = 120
-
-
-class RunError(Exception):
-    """The run could not be carried out; no verdict on the budgets."""
-
-
-def parse_duration(value: str) -> float:
-    match = re.fullmatch(r"(\d+(?:\.\d+)?)([smh]?)", value.strip())
-    if not match:
-        raise argparse.ArgumentTypeError(f"not a duration: {value!r} (e.g. 90s, 5m, 2h)")
-    return float(match[1]) * {"": 1, "s": 1, "m": 60, "h": 3600}[match[2]]
-
-
-def free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
-
-
-class Api:
-    """JSON over the service's REST API with a session cookie; signs in again on a 401."""
-
-    def __init__(self, base: str, password: str):
-        self.base = base
-        self.password = password
-        self.opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
-
-    def call(self, method: str, path: str, body: object = None,
-             relogin: bool = True) -> tuple[int, object]:
-        data = None if body is None else json.dumps(body).encode()
-        request = urllib.request.Request(self.base + path, data=data, method=method)
-        if data is not None:
-            request.add_header("Content-Type", "application/json")
-        try:
-            with self.opener.open(request, timeout=30) as response:
-                status, raw = response.status, response.read()
-        except urllib.error.HTTPError as error:
-            status, raw = error.code, error.read()
-        if status == 401 and relogin and not path.startswith("/api/v1/auth/"):
-            self.login()
-            return self.call(method, path, body, relogin=False)
-        try:
-            return status, json.loads(raw) if raw else None
-        except ValueError:
-            return status, raw.decode(errors="replace")
-
-    def expect(self, want: int, method: str, path: str, body: object = None) -> object:
-        status, answer = self.call(method, path, body)
-        if status != want:
-            raise RunError(f"{method} {path} -> {status} (expected {want}): {str(answer)[:300]}")
-        return answer
-
-    def login(self) -> None:
-        self.expect(200, "POST", "/api/v1/auth/login", {"password": self.password})
-
-
-class Process:
-    """Resident memory, open files and threads of one process."""
-
-    def __init__(self, pid: int):
-        self.pid = pid
-        self.proc = Path(f"/proc/{pid}")
-        self.psutil = None
-        if not self.proc.is_dir():
-            try:
-                import psutil  # noqa: PLC0415 - only where /proc is missing
-            except ImportError as error:
-                raise RunError("sampling needs /proc or the psutil module") from error
-            self.psutil = psutil.Process(pid)
-
-    def sample(self) -> tuple[float, int, int]:
-        if self.psutil is not None:
-            files = (self.psutil.num_handles() if hasattr(self.psutil, "num_handles")
-                     else self.psutil.num_fds())
-            return self.psutil.memory_info().rss / MIB, files, self.psutil.num_threads()
-        status = (self.proc / "status").read_text()
-        rss = int(re.search(r"^VmRSS:\s+(\d+) kB", status, re.M)[1]) / 1024
-        threads = int(re.search(r"^Threads:\s+(\d+)", status, re.M)[1])
-        return rss, len(os.listdir(self.proc / "fd")), threads
-
-
-class Samples(list):
-    """The samples of a run, each written to the CSV as it is taken: a run cut off by a job
-    timeout still leaves what it measured."""
-
-    def __init__(self, path: Path):
-        super().__init__()
-        self.handle = open(path, "w", newline="")  # noqa: SIM115 - held for the run
-        self.writer = csv.DictWriter(self.handle, fieldnames=soak_budgets.COLUMNS)
-        self.writer.writeheader()
-
-    def append(self, sample: dict[str, float]) -> None:
-        super().append(sample)
-        self.writer.writerow(sample)
-        self.handle.flush()
-
-    def close(self) -> None:
-        self.handle.close()
-
-
-def database_mib(database: Path) -> float:
-    total = 0
-    for suffix in ("", "-wal", "-shm"):
-        path = Path(f"{database}{suffix}")
-        if path.exists():
-            total += path.stat().st_size
-    return total / MIB
-
-
-def file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        while chunk := handle.read(MIB):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def run(args: argparse.Namespace) -> int:

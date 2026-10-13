@@ -143,7 +143,7 @@ export function toUpdateBody(form: ObjectStorageForm): UpdateObjectStorageProfil
  * Whether the form still names the host a stored secret was typed for: the same endpoint, and
  * on Azure the same account. The server sends a secret to no other host and asks for it again.
  */
-export function sameHost(form: ObjectStorageForm, stored: ObjectStorageProfile): boolean {
+function sameHost(form: ObjectStorageForm, stored: ObjectStorageProfile): boolean {
   const account = form.provider === 'azure' ? trimmed(form.account) : null
   return (stored.endpoint ?? null) === normalizedEndpoint(form.endpoint)
     && (stored.account ?? null) === account

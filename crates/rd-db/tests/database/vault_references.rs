@@ -11,9 +11,7 @@ use rd_core::{AccountId, AuthFlowState, RemoteJobSourceKind};
 use rd_db::{ClaimRemoteJob, Database, NewAccount, UpsertAuthFlow};
 
 async fn open(directory: &Path) -> Database {
-    let database = Database::open(directory.join("vault.sqlite"))
-        .await
-        .expect("database");
+    let database = rd_testkit::temp_database(directory).await;
     database
         .install_file_vault(directory.join("secrets"))
         .await

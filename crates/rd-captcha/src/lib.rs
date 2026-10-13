@@ -85,9 +85,8 @@ impl CaptchaBroker {
         secrets: rd_secrets::SecretStore,
         solver_timing: SolverTiming,
     ) -> Self {
-        let http = reqwest::Client::builder()
+        let http = rd_http::client_builder(rd_http::ClientPurpose::Service)
             .timeout(SOLVER_REQUEST_TIMEOUT)
-            .user_agent(rd_core::user_agent!())
             .build()
             .unwrap_or_default();
         Self {

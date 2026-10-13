@@ -23,7 +23,7 @@ use crate::{
 };
 
 /// The most entries one export holds; the newest of what the filters match.
-pub const MAX_HISTORY_EXPORT: u64 = 10_000;
+pub(crate) const MAX_HISTORY_EXPORT: u64 = 10_000;
 
 /// The two file formats of the history export.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
@@ -39,7 +39,7 @@ pub enum HistoryExportFormat {
 /// The file format of `GET /api/v1/history/export`, beside the list's filters.
 #[derive(Clone, Debug, Default, Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
-pub struct HistoryExportQuery {
+pub(crate) struct HistoryExportQuery {
     /// `csv` (the default) or `ndjson`.
     #[param(inline)]
     pub format: Option<HistoryExportFormat>,
@@ -47,7 +47,7 @@ pub struct HistoryExportQuery {
 
 /// `400` for a format other than the two, with a stable code like every REST refusal.
 #[must_use]
-pub fn history_export_format_invalid() -> ApiError {
+pub(crate) fn history_export_format_invalid() -> ApiError {
     ApiError::bad_request(
         "history.export_format_invalid",
         "The export format must be csv or ndjson",
@@ -160,7 +160,7 @@ const CSV_COLUMNS: [&str; 12] = [
 /// The entries as RFC 4180 CSV behind a byte order mark, so a spreadsheet reads the names'
 /// accents as UTF-8. The sources share one cell, separated by spaces.
 #[must_use]
-pub fn history_csv(entries: &[HistoryEntry]) -> String {
+pub(crate) fn history_csv(entries: &[HistoryEntry]) -> String {
     let mut body = String::from("\u{feff}");
     push_row(
         &mut body,

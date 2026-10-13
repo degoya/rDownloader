@@ -79,7 +79,10 @@ pub const fn groups_mirrors(kind: rd_core::DownloadKind) -> bool {
 /// gone, refused, limited, out of captchas. Only a plain `Transient` and a rejected captcha
 /// stay where they are, because those two genuinely mean "this mirror, in a moment".
 #[must_use]
-pub fn hands_over(failure: &Failure, retry_at: Option<chrono::DateTime<chrono::Utc>>) -> bool {
+pub(crate) fn hands_over(
+    failure: &Failure,
+    retry_at: Option<chrono::DateTime<chrono::Utc>>,
+) -> bool {
     if is_local(failure) {
         return false;
     }
@@ -105,13 +108,13 @@ pub(crate) fn is_local(failure: &Failure) -> bool {
 }
 
 /// The file was fetched but could not be put in its place on this machine.
-pub const LOCAL_PROMOTE_CODE: &str = "download.local_promote_failed";
+pub(crate) const LOCAL_PROMOTE_CODE: &str = "download.local_promote_failed";
 
 /// Recorded on a mirror that is given up while another member takes over.
-pub const HANDOVER_CODE: &str = "download.mirror_handover";
+pub(crate) const HANDOVER_CODE: &str = "download.mirror_handover";
 
 /// Recorded on the mirror the group started with once no member is left to try.
-pub const EXHAUSTED_CODE: &str = "download.mirrors_exhausted";
+pub(crate) const EXHAUSTED_CODE: &str = "download.mirrors_exhausted";
 
 /// The member of `group` that should run, out of those that could.
 ///
@@ -125,7 +128,7 @@ pub const EXHAUSTED_CODE: &str = "download.mirrors_exhausted";
 /// free-download limits the others would queue behind. Everything else is decided by the
 /// order the links were added, so the choice is predictable.
 #[must_use]
-pub fn best_candidate<'a>(candidates: &'a [&'a DownloadFile]) -> Option<&'a DownloadFile> {
+pub(crate) fn best_candidate<'a>(candidates: &'a [&'a DownloadFile]) -> Option<&'a DownloadFile> {
     candidates
         .iter()
         .min_by_key(|file| {
@@ -162,7 +165,10 @@ pub fn siblings<'a>(file: &DownloadFile, downloads: &'a [DownloadFile]) -> Vec<&
 /// of them are through, its reason is the one that counts, not whichever mirror happened to
 /// be tried last.
 #[must_use]
-pub fn leader<'a>(file: &'a DownloadFile, downloads: &'a [DownloadFile]) -> &'a DownloadFile {
+pub(crate) fn leader<'a>(
+    file: &'a DownloadFile,
+    downloads: &'a [DownloadFile],
+) -> &'a DownloadFile {
     siblings(file, downloads)
         .into_iter()
         .chain(std::iter::once(file))
@@ -177,7 +183,7 @@ pub fn leader<'a>(file: &'a DownloadFile, downloads: &'a [DownloadFile]) -> &'a 
 /// turn is held by nobody. Completed counts as holding it, because a finished group wants no
 /// second copy.
 #[must_use]
-pub const fn holds_the_group_open(state: DownloadState) -> bool {
+pub(crate) const fn holds_the_group_open(state: DownloadState) -> bool {
     has_taken_the_turn(state) || is_contending(state) || matches!(state, DownloadState::Blocked)
 }
 
@@ -186,13 +192,13 @@ pub const fn holds_the_group_open(state: DownloadState) -> bool {
 /// Distinct from merely being in the queue: two links added together are both queued, and
 /// neither has taken anything yet.
 #[must_use]
-pub const fn has_taken_the_turn(state: DownloadState) -> bool {
+pub(crate) const fn has_taken_the_turn(state: DownloadState) -> bool {
     state.holds_the_file() || matches!(state, DownloadState::Completed)
 }
 
 /// Whether the file is in the running for the group's turn without having taken it.
 #[must_use]
-pub const fn is_contending(state: DownloadState) -> bool {
+pub(crate) const fn is_contending(state: DownloadState) -> bool {
     matches!(
         state,
         DownloadState::Queued | DownloadState::RetryWait | DownloadState::Paused

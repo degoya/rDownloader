@@ -28,6 +28,11 @@ pub(crate) enum NotifyCommand {
         id: rd_core::AutomationId,
         reply: Reply<()>,
     },
+    /// Keeps only the version in force, as version 1 (RD-1280-01).
+    ResetAutomationVersions {
+        id: rd_core::AutomationId,
+        reply: Reply<rd_automation::VersionReset>,
+    },
     QueueAutomationRun {
         input: crate::automation_store::NewRun,
         reply: Reply<bool>,

@@ -25,7 +25,7 @@ const DOCUMENT: &str = r#"<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
 
 /// An indexer: `/api` answers with the NZB and its release name, `/refuse` with a refusal inside
 /// a `200 OK`, as an indexer at its API limit does.
-async fn indexer() -> std::net::SocketAddr {
+async fn indexer() -> rd_testkit::TestServer {
     let app = axum::Router::new()
         .route(
             "/api",
@@ -51,14 +51,7 @@ async fn indexer() -> std::net::SocketAddr {
                 )
             }),
         );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    address
+    rd_testkit::serve(app).await
 }
 
 /// A LinkGrabber package of two indexer hits — one delivered, one refused — and a hoster link.
@@ -133,7 +126,8 @@ async fn export_raw(
 
 #[tokio::test]
 async fn an_indexer_hit_travels_as_its_nzb_without_the_indexer_or_its_key() {
-    let address = indexer().await;
+    let server = indexer().await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = parked_harness(directory.path()).await;
     let package = indexer_package(&harness.database, address).await;
@@ -171,7 +165,8 @@ async fn an_indexer_hit_travels_as_its_nzb_without_the_indexer_or_its_key() {
 /// and nothing is left as an address no plugin resolves.
 #[tokio::test]
 async fn a_sealed_export_brings_the_nzb_back_as_an_nzb_import() {
-    let address = indexer().await;
+    let server = indexer().await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = parked_harness(directory.path()).await;
     let package = indexer_package(&harness.database, address).await;
@@ -308,7 +303,8 @@ async fn a_usenet_download_travels_as_its_nzb_and_comes_back_queued() {
 /// A crawljob export would carry the indexer's address; it carries nothing of the hit instead.
 #[tokio::test]
 async fn a_crawljob_fetches_no_nzb_and_counts_it_as_skipped() {
-    let address = indexer().await;
+    let server = indexer().await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = parked_harness(directory.path()).await;
     let package = indexer_package(&harness.database, address).await;

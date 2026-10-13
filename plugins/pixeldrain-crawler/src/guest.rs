@@ -3,7 +3,6 @@
 //! One `GET` against `/api/list/{id}` and nothing else. The candidates it produces are `/u/`
 //! addresses the sibling resolver handles one at a time, so no link here is ever followed and
 //! no byte of content is fetched.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_crawler::{
     CrawledLink, Guest,

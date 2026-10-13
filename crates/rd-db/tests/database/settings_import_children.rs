@@ -21,9 +21,7 @@ use rd_db::{
 };
 
 async fn open(directory: &Path) -> Database {
-    let database = Database::open(directory.join("import.sqlite"))
-        .await
-        .expect("database");
+    let database = rd_testkit::temp_database(directory).await;
     database
         .install_file_vault(directory.join("secrets"))
         .await

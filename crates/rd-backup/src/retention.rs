@@ -23,7 +23,7 @@ pub struct RetentionPolicy {
 impl RetentionPolicy {
     /// Whether the policy removes anything ever.
     #[must_use]
-    pub const fn is_unlimited(&self) -> bool {
+    pub(crate) const fn is_unlimited(&self) -> bool {
         self.keep_last.is_none() && self.keep_days.is_none()
     }
 }

@@ -21,6 +21,7 @@ mod params_insight;
 mod params_link_filters;
 mod params_remaining;
 mod params_storage;
+mod params_torrent;
 mod policy;
 mod script_gate;
 mod tools_backup;
@@ -149,7 +150,8 @@ category weekly download times and let it ignore a bandwidth profile that pauses
 get_torrent_details, the \
 seeding and tracker tools, list_postprocess_options, list_managed_tools and manage_tool, \
 and get_storage_capacity cover the rest; get_about says which build is running, get_update_status and check_for_updates whether a newer one is out, get_restart_status and restart_service whether a restart is pending and carry it out. The histories and catalogues beside the editors are \
-here too: automation runs, versions, vocabulary and dry run, notification deliveries, the \
+here too: automation runs, versions (reset_automation_versions keeps only the one in force), \
+vocabulary and dry run, notification deliveries, the \
 subscription review list and its polls, recording schedules and record-now, plugin runs, \
 power and reconnect status, metrics and the diagnostic bundle's preview. What happens when a \
 finished file meets a taken name is a collision policy (list_collision_policies and the set \

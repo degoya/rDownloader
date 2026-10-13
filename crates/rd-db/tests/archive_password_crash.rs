@@ -13,9 +13,7 @@ use rd_db::{Database, NewPackage, PackageChange};
 use sqlx::{Connection, SqliteConnection};
 
 async fn open(directory: &Path) -> Database {
-    let database = Database::open(directory.join("rdownloader.sqlite3"))
-        .await
-        .expect("database");
+    let database = rd_testkit::temp_database(directory).await;
     database
         .install_file_vault(directory.join("secrets"))
         .await
@@ -26,7 +24,7 @@ async fn open(directory: &Path) -> Database {
 async fn connect(directory: &Path) -> SqliteConnection {
     let mut connection = SqliteConnection::connect(&format!(
         "sqlite://{}",
-        directory.join("rdownloader.sqlite3").display()
+        directory.join(rd_testkit::DATABASE_FILE).display()
     ))
     .await
     .expect("connect");

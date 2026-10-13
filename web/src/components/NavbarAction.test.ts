@@ -10,7 +10,7 @@ import { SHORTCUT_DEFINITIONS, shortcutKeys, withShortcut } from '@/composables/
 import downloads from '@/locales/en/downloads.json'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import { axeViolations } from '@/test/axe'
-import { createTestI18n, mountComponent, uiStubs } from '@/test/mount'
+import { mountComponent, uiStubs } from '@/test/mount'
 
 import LinkGrabberNavbar from './LinkGrabberNavbar.vue'
 import NavbarAction from './NavbarAction.vue'
@@ -19,9 +19,10 @@ import QueueResetFailedMenu from './QueueResetFailedMenu.vue'
 const navbar = { template: '<header><slot name="right" /></header>' }
 
 function mountNavbar() {
-  return render(LinkGrabberNavbar, {
+  return mountComponent(LinkGrabberNavbar, {
     props: { importing: false, checking: false, canCheck: true, hasEntries: true, enqueuing: false },
-    global: { plugins: [createTestI18n({ linkgrabber })], stubs: { ...uiStubs, UDashboardNavbar: navbar } }
+    messages: { linkgrabber },
+    stubs: { UDashboardNavbar: navbar }
   })
 }
 

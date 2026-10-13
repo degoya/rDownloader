@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 import { defineComponent, ref } from 'vue'
 
 import { api } from '@/api/client'
@@ -8,10 +9,7 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsCaptchaCard from './SettingsCaptchaCard.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), PUT: vi.fn(), POST: vi.fn() },
-  responseError: vi.fn(() => 'The solver rejected the key')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The solver rejected the key') }))
 
 /**
  * The key field with its trailing slot, where the test button sits, and the notice as an

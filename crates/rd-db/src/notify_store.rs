@@ -42,6 +42,10 @@ pub struct NewNotificationRule {
     pub events: Vec<NotificationEvent>,
     pub category_id: Option<rd_core::CategoryId>,
     pub min_severity: Severity,
+    /// The rule's own title and text (RD-1280-02), checked by the caller; `None` keeps the
+    /// built-in wording.
+    pub title_template: Option<String>,
+    pub body_template: Option<String>,
 }
 
 /// A delivery about to be queued.
@@ -94,6 +98,8 @@ struct RuleRow {
     events_json: String,
     category_id: Option<String>,
     min_severity: String,
+    title_template: Option<String>,
+    body_template: Option<String>,
 }
 
 impl TryFrom<RuleRow> for NotificationRule {
@@ -108,6 +114,8 @@ impl TryFrom<RuleRow> for NotificationRule {
             events: serde_json::from_str(&row.events_json).context("stored rule events")?,
             category_id: row.category_id.as_deref().map(parse_id).transpose()?,
             min_severity: parse_json(&row.min_severity).context("stored severity")?,
+            title_template: row.title_template,
+            body_template: row.body_template,
         })
     }
 }
@@ -167,7 +175,8 @@ fn to_name<T: serde::Serialize>(value: &T) -> Result<String> {
 }
 
 const TARGET_COLUMNS: &str = "id, name, kind, enabled, endpoint, config_json, secret_ref";
-const RULE_COLUMNS: &str = "id, name, enabled, target_id, events_json, category_id, min_severity";
+const RULE_COLUMNS: &str = "id, name, enabled, target_id, events_json, category_id, min_severity, \
+     title_template, body_template";
 const DELIVERY_COLUMNS: &str = "id, rule_id, target_id, idempotency_key, event, title, body, \
      state, attempt, next_attempt_at, response_status, response_excerpt, created_at, updated_at, \
      package_path";
@@ -363,6 +372,8 @@ pub(crate) async fn upsert_rule(
         events: input.events,
         category_id: input.category_id,
         min_severity: input.min_severity,
+        title_template: input.title_template,
+        body_template: input.body_template,
     };
     let now = Utc::now();
     let event = changed_event("rule", value.id.to_string());
@@ -372,7 +383,8 @@ pub(crate) async fn upsert_rule(
     if id.is_some() {
         let updated = sqlx::query(
             "UPDATE notification_rules SET name = ?, enabled = ?, target_id = ?, \
-             events_json = ?, category_id = ?, min_severity = ?, updated_at = ? WHERE id = ?",
+             events_json = ?, category_id = ?, min_severity = ?, title_template = ?, \
+             body_template = ?, updated_at = ? WHERE id = ?",
         )
         .bind(&value.name)
         .bind(value.enabled)
@@ -380,6 +392,8 @@ pub(crate) async fn upsert_rule(
         .bind(&events_json)
         .bind(value.category_id.map(|id| id.to_string()))
         .bind(&severity)
+        .bind(&value.title_template)
+        .bind(&value.body_template)
         .bind(now)
         .bind(value.id.to_string())
         .execute(&mut *tx)
@@ -391,7 +405,8 @@ pub(crate) async fn upsert_rule(
     } else {
         sqlx::query(
             "INSERT INTO notification_rules (id, name, enabled, target_id, events_json, \
-             category_id, min_severity, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             category_id, min_severity, title_template, body_template, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(&value.name)
@@ -400,6 +415,8 @@ pub(crate) async fn upsert_rule(
         .bind(&events_json)
         .bind(value.category_id.map(|id| id.to_string()))
         .bind(&severity)
+        .bind(&value.title_template)
+        .bind(&value.body_template)
         .bind(now)
         .bind(now)
         .execute(&mut *tx)

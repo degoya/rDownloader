@@ -1,4 +1,12 @@
-//! Migration-forward: a database that stopped at an older release must upgrade cleanly.
+//! Migration-forward: a database that stopped at one of the last two releases must upgrade
+//! cleanly.
+//!
+//! A ratchet on the last two releases (owner, 2026-10-13, RD-1280-23): there is no installed base
+//! to keep compatible, but the owner's own installation goes along with every release, and an
+//! upgrade that loses its queue would lose that. So the suite holds the newest release of each of
+//! the two newest minor versions, and nothing older: before a release `scripts/migration-
+//! baselines.sh X.Y.Z` adds its row and drops the one that falls out, with its test (the `release`
+//! skill), and [`per_migration`] measures only migrations the older of the two did not ship yet.
 //!
 //! Part of the RD-140-04 recovery matrix, and the cheapest part by a wide margin. Every
 //! other test in this repository starts from an empty database, which means the migration
@@ -31,38 +39,27 @@
 //! cannot lose a row, and a fixture that tried to fill every table would stop being reviewable.
 //!
 //! The suite is one binary with a module per concern, like the `rd-api` suites (RD-150-10):
-//! [`baselines`] upgrades every release, [`per_migration`] measures single migrations on the
+//! [`baselines`] upgrades the two releases, [`per_migration`] measures single migrations on the
 //! schema right before them.
 
 mod baselines;
 mod fixture;
 mod per_migration;
-mod site_rule_origin;
 
 use std::borrow::Cow;
 
 use sqlx::{Connection, SqliteConnection, migrate::Migrator};
 
-/// Release baselines: the highest migration number each release shipped with.
-///
-/// Read off the tags with
-/// `git ls-tree -r --name-only <tag> crates/rd-db/migrations | tail -1`. The number is not the
-/// count once the chain has gaps — 1.1.0 stopped at `0087` with 85 migrations — and
-/// [`shipped_by`] checks the count against it. Add a row per release rather than only keeping
-/// the newest: the point is the *upgrade path*, and an installation that skipped three releases
-/// takes a path no single-step test covers. 1.5.0 is the head of the chain today and upgrades by
-/// nothing; it is here for the first release that adds a migration after it. Each row has its
-/// own test, a line of `every_release_baseline!` in `baselines.rs`; a test holds the two equal.
-const BASELINES: &[(&str, i64)] = &[
-    ("0.6.0", 33),
-    ("0.9.2", 47),
-    ("1.0.0", 55),
-    ("1.1.0", 87),
-    ("1.2.0", 93),
-    ("1.3.0", 96),
-    ("1.4.0", 98),
-    ("1.5.0", 108),
-];
+/// Release baselines: the highest migration number each of the last two releases shipped with,
+/// one row per minor version, oldest first. Written by `scripts/migration-baselines.sh`, which
+/// reads the number off the release's tag (`git ls-tree -r --name-only <tag>
+/// crates/rd-db/migrations | tail -1`) or, before the tag, off the tree being released. The
+/// number is not the count once the chain has gaps, and [`shipped_by`] checks the count against
+/// it. A release that adds no migration has a row at the head of the chain, upgrading by nothing
+/// until the next migration lands. Each row has its own test, a line of
+/// `every_release_baseline!` in `baselines.rs`; tests there hold the two equal and the newest row
+/// to the release this tree is.
+const BASELINES: &[(&str, i64)] = &[("1.26.0", 145), ("1.27.0", 145)];
 
 /// Migration numbers that were claimed and never shipped, and never will be.
 ///

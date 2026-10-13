@@ -41,11 +41,11 @@ pub use origin::{SESSION_KEY_BYTES, SecretOrigin};
 /// iterations is an oracle: a guest feeds candidate passwords past it for almost nothing and
 /// reads the answer. At this floor a single candidate costs what a candidate costs anywhere,
 /// which is the property the whole primitive rests on.
-pub const MIN_PBKDF2_ROUNDS: u32 = 100_000;
+pub(crate) const MIN_PBKDF2_ROUNDS: u32 = 100_000;
 /// Most bytes one PBKDF2 step may produce. One SHA-512 block; MEGA asks for half of it.
-pub const MAX_DERIVED_BYTES: u32 = 64;
+pub(crate) const MAX_DERIVED_BYTES: u32 = 64;
 /// Most bytes one AES step may unwrap. MEGA's private-key block is 656.
-pub const MAX_WRAPPED_BYTES: usize = 4096;
+pub(crate) const MAX_WRAPPED_BYTES: usize = 4096;
 /// Most steps one chain may hold. MEGA's longest is four.
 pub const MAX_STEPS: usize = 8;
 /// One AES block.
@@ -60,17 +60,17 @@ const HASH_BLOCK: u32 = 64;
 /// 3 338 300 549 fuel (RD-120-11) — 33 383.005 per iteration for the one hash block that
 /// covers 32 bytes. Charging the measured guest price is the whole rule: see
 /// [`fuel_cost`].
-pub const PBKDF2_FUEL_PER_ROUND: u64 = 33_383;
+pub(crate) const PBKDF2_FUEL_PER_ROUND: u64 = 33_383;
 /// Fuel one AES-128-ECB block costs, key schedule amortised.
 ///
 /// From the same measurement: unwrapping the master key and the private-key block — 42
 /// blocks under two key schedules — cost 342 965 fuel, or 8 165.83 per block. Rounded up, so
 /// the host never undercharges.
-pub const AES_ECB_FUEL_PER_BLOCK: u64 = 8_166;
+pub(crate) const AES_ECB_FUEL_PER_BLOCK: u64 = 8_166;
 /// Fuel a window costs, per byte kept. A guest would have copied them.
-pub const TAKE_FUEL_PER_BYTE: u64 = 1;
+pub(crate) const TAKE_FUEL_PER_BYTE: u64 = 1;
 /// Fuel a call costs before any step runs. The measured cost of an empty guest call.
-pub const CALL_FUEL: u64 = 2;
+pub(crate) const CALL_FUEL: u64 = 2;
 
 fn refuse(code: &'static str, message: impl Into<String>) -> Failure {
     Failure::coded(FailureKind::Permanent, code, message.into())
@@ -293,7 +293,7 @@ const INTERFACE: &str = "rdownloader:plugin/key-derivation@0.11.0";
 /// The guest's `secret-handle`.
 #[derive(wasmtime::component::ComponentType, wasmtime::component::Lift)]
 #[component(record)]
-pub struct WitSecretHandle {
+pub(crate) struct WitSecretHandle {
     reference: String,
 }
 

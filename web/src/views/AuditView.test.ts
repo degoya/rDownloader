@@ -4,64 +4,18 @@
  */
 import { fireEvent, screen, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import audit from '@/locales/en/audit.json'
 import common from '@/locales/en/common.json'
 import { mountComponent } from '@/test/mount'
 import { axeViolations } from '@/test/axe'
+import { auditPage } from '@/test/fixtures/audit'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: vi.fn(),
-    PUT: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
 
-const PAGE = {
-  records: [
-    {
-      id: 2,
-      recorded_at: '2026-09-21T10:00:01.000Z',
-      action: 'login_failed',
-      outcome: 'failure',
-      actor_kind: 'anonymous',
-      via: 'mcp',
-      actor_id: null,
-      actor_label: null,
-      client_address: '203.0.113.9',
-      target_kind: null,
-      target_id: null,
-      target_name: null,
-      trace_id: 'aaaabbbbccccddddeeeeffff00001111',
-      details: { stage: 'password' }
-    },
-    {
-      id: 1,
-      recorded_at: '2026-09-21T10:00:00.000Z',
-      action: 'token_created',
-      outcome: 'success',
-      actor_kind: 'session',
-      via: 'rest',
-      actor_id: 'session-1',
-      actor_label: null,
-      client_address: null,
-      target_kind: 'token',
-      target_id: 'tok-1',
-      target_name: 'scraper',
-      trace_id: null,
-      details: { scopes: 'api:read' }
-    }
-  ],
-  full_page: true,
-  total: 40,
-  retention: { records: 100000, days: 365 },
-  actions: ['login_failed', 'token_created']
-}
+const PAGE = auditPage({ full_page: true, total: 40 })
 
 async function mountView() {
   const { default: AuditView } = await import('./AuditView.vue')

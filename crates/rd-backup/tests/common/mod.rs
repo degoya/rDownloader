@@ -1,7 +1,10 @@
 //! The fixture the restore tests share (RD-160-03): an archive made by an installation whose
 //! paths are Windows paths — a storage root on `D:\Downloads`, a package below it, one on a
 //! share nothing maps, and a torrent whose output folder lies below the root.
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    reason = "shared by two test binaries, and neither uses every helper"
+)]
 
 use std::path::{Path, PathBuf};
 

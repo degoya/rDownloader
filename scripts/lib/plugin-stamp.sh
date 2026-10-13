@@ -10,7 +10,7 @@
 # working directory at the checkout root.
 
 # The wasm-tools that turns each core module into its component (RD-1110-08): the one CI installs
-# (`tool: wasm-tools@…` in .github/workflows/, held to this by scripts/tests/workflow-shape.sh)
+# (`tool: wasm-tools@…` in .github/workflows/, held to this by scripts/tool-versions.sh --check)
 # and the one build-plugins.sh insists on, because it decides the component's bytes.
 # shellcheck disable=SC2034  # read by build-plugins.sh, which sources this file
 WASM_TOOLS_VERSION="1.261.0"

@@ -14,9 +14,9 @@ export interface RemoteJobFilter {
 }
 
 /** Still running at the provider: never cleared, in either variant. */
-export const RUNNING_STATES: readonly RemoteJobState[] = ['submitting', 'preparing', 'working']
+const RUNNING_STATES: readonly RemoteJobState[] = ['submitting', 'preparing', 'working']
 
-export function providerOf(job: RemoteJob, accounts: readonly Account[]): string | null {
+function providerOf(job: RemoteJob, accounts: readonly Account[]): string | null {
   return accounts.find(account => account.id === job.account_id)?.provider.toLowerCase() ?? null
 }
 
@@ -36,7 +36,7 @@ export function jobProviders(jobs: readonly RemoteJob[], accounts: readonly Acco
   return [...slugs].sort()
 }
 
-export interface ClearSelection {
+interface ClearSelection {
   /** The jobs a clear removes, or tries to. */
   targets: RemoteJob[]
   /** The jobs of the filtered list left out because they are still running. */

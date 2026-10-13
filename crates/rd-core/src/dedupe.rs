@@ -201,6 +201,19 @@ pub struct ReuseCapability {
     pub applies_collision_policy: bool,
 }
 
+impl ReuseCapability {
+    /// A transfer that stages a part file and checks the source's validators before it resumes
+    /// (FTP, SFTP, object storage, a plugin transfer): no finished file is adopted, there is no
+    /// digest to verify, and the runner names its own target rather than following the policy.
+    pub const STAGED: Self = Self {
+        resume_partial: true,
+        recheck_partial: true,
+        adopt_completed: false,
+        verify_completed: false,
+        applies_collision_policy: false,
+    };
+}
+
 /// What kind of storage work a history row describes.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, ToSchema)]
 #[serde(rename_all = "snake_case")]

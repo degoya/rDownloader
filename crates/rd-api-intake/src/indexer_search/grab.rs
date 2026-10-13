@@ -4,7 +4,7 @@
 use super::*;
 
 /// What one hit became. Lives for one request; boxing the import would buy nothing.
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant)]
 pub(super) enum Grabbed {
     Nzb(rd_core::NzbImport),
     Torrent(Vec<rd_core::CollectorPackage>),

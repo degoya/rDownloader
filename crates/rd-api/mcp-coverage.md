@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**116 capabilities, 88 covered by a tool, 28 deliberately out (16 of them on the owner's line of 2026-09-23).** 486 REST operations, 263 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**117 capabilities, 89 covered by a tool, 28 deliberately out (16 of them on the owner's line of 2026-09-23).** 488 REST operations, 265 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -35,7 +35,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | The provider table | Settings > Accounts | 1 | `list_configuration` |
 | Proxy profiles | Settings > Network | 4 | `create_proxy_profile`, `delete_proxy_profile`, `list_configuration`, `update_proxy_profile` |
 | Usenet servers | Settings > Usenet | 4 | `create_usenet_server`, `delete_usenet_server`, `list_usenet_servers`, `update_usenet_server` |
-| Notification targets and rules | Settings > Notifications | 8 | `create_notification_rule`, `create_notification_target`, `delete_notification_rule`, `delete_notification_target`, `list_notification_rules`, `list_notification_targets`, `update_notification_rule`, `update_notification_target` |
+| Notification targets and rules | Settings > Notifications | 9 | `create_notification_rule`, `create_notification_target`, `delete_notification_rule`, `delete_notification_target`, `list_notification_placeholders`, `list_notification_rules`, `list_notification_targets`, `update_notification_rule`, `update_notification_target` |
 | Browsers that receive push messages | Settings > Interface | 2 | `delete_web_push_subscription`, `list_web_push_subscriptions` |
 | Subscriptions | Subscriptions | 4 | `create_subscription`, `delete_subscription`, `list_subscriptions`, `update_subscription` |
 | Livestream channels | Streams | 4 | `create_stream_channel`, `delete_stream_channel`, `list_stream_channels`, `update_stream_channel` |
@@ -108,6 +108,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | The queue's stop mark | Downloads, row menu and transfer rail | 3 | `clear_stop_mark`, `get_queue_pause`, `set_stop_mark` |
 | A package's download window | Downloads > package menu | 2 | `get_package_download_window`, `set_package_download_window` |
 | A category's download window | Settings > Routing > category editor | 1 | `set_category_download_window` |
+| Resetting an automation's version history | Automation > version history | 1 | `reset_automation_versions` |
 
 ### Deliberately out
 

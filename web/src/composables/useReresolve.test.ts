@@ -5,10 +5,11 @@
  * toast counts what resolved and what failed.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
-const add = vi.fn()
+const add = vi.hoisted(() => vi.fn())
 
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add }))
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => `${key} ${JSON.stringify(values ?? {})}` })
 }))
@@ -18,10 +19,7 @@ vi.mock('@/stores/transfersShared', () => ({
 vi.mock('@/i18n/server', () => ({
   translateServerMessage: (message: { code?: string } | string) => typeof message === 'string' ? message : message.code ?? ''
 }))
-vi.mock('@/api/client', () => ({
-  api: { POST: vi.fn() },
-  errorMessage: (error: unknown) => typeof error === 'string' ? error : 'failed'
-}))
+vi.mock('@/api/client', () => apiClientMock({ errorMessage: (error: unknown) => typeof error === 'string' ? error : 'failed' }))
 
 const { api } = await import('@/api/client')
 const { isResolvingNow, useReresolve } = await import('./useReresolve')

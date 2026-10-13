@@ -27,6 +27,8 @@ use super::CANARIES;
 pub(super) struct Planted {
     pub(super) canaries: Vec<(&'static str, String)>,
     pub(super) known: Vec<(String, String)>,
+    /// The fake servers planted rows point at, answering for as long as the scan runs.
+    pub(super) servers: Vec<rd_testkit::TestServer>,
 }
 
 impl Planted {
@@ -38,6 +40,7 @@ impl Planted {
         Self {
             canaries,
             known: Vec::new(),
+            servers: Vec::new(),
         }
     }
 
@@ -287,7 +290,7 @@ pub(super) async fn call_tool(
 
 /// An HTTP server refusing every request the way S3 refuses a wrong key; the webhook and the
 /// object storage check both end here.
-pub(super) async fn refusing_http() -> String {
+pub(super) async fn refusing_http() -> (rd_testkit::TestServer, String) {
     let app = Router::new().fallback(|| async {
         (
             StatusCode::FORBIDDEN,
@@ -295,14 +298,9 @@ pub(super) async fn refusing_http() -> String {
             "<?xml version=\"1.0\"?><Error><Code>InvalidAccessKeyId</Code></Error>",
         )
     });
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    format!("http://{address}")
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
+    (server, format!("http://{address}"))
 }
 
 /// An FTP server that greets, asks for a password and refuses it.

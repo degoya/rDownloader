@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000010d"
 name = "XFileSharing (generic)"
-version = "0.1.14"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.1.15"
 
 # ---------------------------------------------------------------------------------------------
 # The domain list holds clones that were checked, and grows from there (RD-098-01).
@@ -43,10 +39,8 @@ public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 # installations hand files to; a clone delivering from an unrelated CDN needs that CDN added, and
 # until then the resolved URL is refused rather than followed — an error, never a wrong download.
 #
-# Packaging additionally waits on the application version: `min_app_version` below is 0.9.8
-# because `credentials = "none"` is new in that release, while the workspace version only moves
-# in the release commit. `scripts/build-plugins.sh --list-packageable` skips this plugin until
-# then; building it is unaffected.
+# `min_app_version` below has to name a release that reads `credentials = "none"`, which is new
+# in 0.9.8; the 1.9.0 it names is later and qualifies.
 # ---------------------------------------------------------------------------------------------
 match_domains = [
   "1uploadflix.net", "1vid.xyz", "abstream.to", "anafast.org", "anonfile.de", "asfile.al",
@@ -275,22 +269,9 @@ domains = [
 
 [metadata]
 description = "Resolves links on XFileSharing installations through the free flow, without an account."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [provider]
 slug = "xfs_generic"
 kind = "hoster"
 credentials = "none"
 username_required = false
-
-[limits]
-memory_bytes = 67108864
-fuel = 2000000000
-timeout_milliseconds = 15000
-max_response_bytes = 8388608
-# A free download waits out the clone's countdown and one captcha round trip; this budget is
-# spent on waiting only and does not extend the compute timeout above.
-wait_budget_milliseconds = 600000

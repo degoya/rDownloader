@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock } from '@/test/mocks'
 import { createI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
@@ -10,23 +11,20 @@ import type { ConfirmOptions } from '@/composables/useConfirm'
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/linkgrabber.json'
 import { useCollectorStore } from '@/stores/collector'
+import { mountComponent, passthrough, uiStubs } from '@/test/mount'
 
 import CollectorCandidateRow from './CollectorCandidateRow.vue'
 
 // The row reads which providers have an account; the answer does not matter here.
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn().mockResolvedValue({ data: [] }) },
-  responseError: vi.fn(),
-  errorMessage: vi.fn()
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn().mockResolvedValue({ data: [] }), responseError: vi.fn(), errorMessage: vi.fn() }))
 
 /** Withdrawing an approval asks first; the test drives the answer. */
-const confirmed = vi.fn(async (_options: ConfirmOptions) => true)
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
+const confirmed = vi.hoisted(() => vi.fn(async (_options: ConfirmOptions) => true))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirmed))
 
 // That same lookup subscribes to `plugin_catalog.changed`, and jsdom has no `EventSource`. What it does
 // with the event is pinned in `useAccountProviders.test.ts`; here it only must not open a stream.
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { linkgrabber: en, common } } })
 
@@ -38,25 +36,15 @@ beforeEach(() => {
 })
 
 /** Nuxt UI components are auto-imported in the app; the test only needs their shape. */
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
 const components = {
   UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
   UCheckbox: passthrough,
   UBadge: passthrough,
   UIcon: passthrough,
   USelect: passthrough,
-  /**
-   * The dropdown rendered open: its trigger stays in place and its items become real buttons,
-   * inside a marker so a test can tell "beside the row" from "under the dots".
-   */
-  UDropdownMenu: {
-    props: ['items'],
-    template: `<div><slot />
-      <div data-menu-items>
-        <button v-for="item in (items ?? []).flat()" :key="item.label" type="button" :disabled="item.disabled" @click="item.onSelect?.()">{{ item.label }}</button>
-      </div>
-    </div>`
-  }
+  // The dropdown rendered open: its items real buttons inside a marker, so a test can tell
+  // "beside the row" from "under the dots".
+  UDropdownMenu: uiStubs.UDropdownMenu
 }
 
 function candidate(
@@ -90,10 +78,7 @@ const grantedConsent: LinkCandidate['replay_consent'] = {
 }
 
 function renderRow(value: LinkCandidate) {
-  return render(CollectorCandidateRow, {
-    props: { candidate: value, selected: false, busy: false },
-    global: { plugins: [i18n], components }
-  })
+  return mountComponent(CollectorCandidateRow, { props: { candidate: value, selected: false, busy: false }, i18n, stubs: components, keepPinia: true })
 }
 
 /** A yt-dlp link: the row shows its variant, its page title and offers the MP3 switch. */
@@ -454,10 +439,7 @@ function mirrorGroup(source: 'declared' | 'name_and_size' | 'name', onlineCount 
 }
 
 function renderMirrorRow(props: Record<string, unknown>) {
-  return render(CollectorCandidateRow, {
-    props: { candidate: candidate(), selected: false, busy: false, ...props },
-    global: { plugins: [i18n], components }
-  })
+  return mountComponent(CollectorCandidateRow, { props: { candidate: candidate(), selected: false, busy: false, ...props }, i18n, stubs: components, keepPinia: true })
 }
 
 describe('CollectorCandidateRow as a mirror group (RD-110-19)', () => {

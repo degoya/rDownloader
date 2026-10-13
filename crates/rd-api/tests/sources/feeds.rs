@@ -68,19 +68,14 @@ async fn serve_feed(State(state): State<FeedState>, headers: HeaderMap) -> impl 
     (StatusCode::OK, [(header::ETAG, ETAG)], FEED.to_owned())
 }
 
-async fn feed_server() -> (String, FeedState) {
+async fn feed_server() -> (rd_testkit::TestServer, String, FeedState) {
     let state = FeedState::default();
     let app = Router::new()
         .route("/feed.xml", get(serve_feed))
         .with_state(state.clone());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    (format!("http://{address}/feed.xml"), state)
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
+    (server, format!("http://{address}/feed.xml"), state)
 }
 
 fn body(url: &str, backlog: Value) -> Value {
@@ -140,7 +135,7 @@ async fn activating_a_feed_does_not_import_its_backlog() {
     // it is subscribed to.
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _) = feed_server().await;
+    let (_server, url, _) = feed_server().await;
     let id = create_and_poll(&router, &url, json!({ "mode": "from_now" })).await;
 
     let items = items(&router, &id).await;
@@ -159,7 +154,7 @@ async fn activating_a_feed_does_not_import_its_backlog() {
 async fn asking_to_review_the_backlog_collects_it_instead() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _) = feed_server().await;
+    let (_server, url, _) = feed_server().await;
     let id = create_and_poll(&router, &url, json!({ "mode": "review_all" })).await;
 
     let items = items(&router, &id).await;
@@ -176,7 +171,7 @@ async fn polling_twice_archives_each_item_once() {
     // the guarantee the whole feature rests on.
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _) = feed_server().await;
+    let (_server, url, _) = feed_server().await;
     let id = create_and_poll(&router, &url, json!({ "mode": "review_all" })).await;
     assert_eq!(items(&router, &id).await.len(), 2);
 
@@ -198,7 +193,7 @@ async fn polling_twice_archives_each_item_once() {
 async fn an_unchanged_feed_is_fetched_conditionally() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, state) = feed_server().await;
+    let (_server, url, state) = feed_server().await;
     let id = create_and_poll(&router, &url, json!({ "mode": "from_now" })).await;
     poll(&router, &id).await;
 
@@ -213,7 +208,7 @@ async fn an_unchanged_feed_is_fetched_conditionally() {
 async fn podcast_metadata_reaches_the_archive() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (url, _) = feed_server().await;
+    let (_server, url, _) = feed_server().await;
     let id = create_and_poll(&router, &url, json!({ "mode": "review_all" })).await;
 
     let items = items(&router, &id).await;
@@ -231,7 +226,7 @@ async fn podcast_metadata_reaches_the_archive() {
 async fn a_feed_that_cannot_be_reached_fails_its_own_subscription_only() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (working, _) = feed_server().await;
+    let (_server, working, _) = feed_server().await;
     let good = create_and_poll(&router, &working, json!({ "mode": "review_all" })).await;
     // A port nothing is listening on.
     let broken = create_and_poll(

@@ -728,11 +728,11 @@ fn a_provider_that_takes_no_account_may_not_describe_one() {
 /// Real-Debrid row is the example; each rule below refuses one way of getting it wrong.
 #[test]
 fn a_code_or_api_key_provider_describes_each_mode_completely() {
-    const REAL_DEBRID: &str = include_str!("../../../plugins/realdebrid/manifest.toml");
+    let real_debrid = crate::artifact::bundled_manifest("realdebrid"); // completed, RD-1280-18
     const GRANTS: &str = "secrets = [\"realdebrid_access_token\", \"realdebrid_api_token\"]";
     /// Every slot granted, so a rule of the provider row is what answers and not the grant.
     const ALL_GRANTED: &str = "secrets = [\"realdebrid_access_token\", \"realdebrid_api_token\", \"realdebrid_client_id\", \"realdebrid_client_secret\"]";
-    let manifest: PluginManifest = toml::from_str(REAL_DEBRID).expect("parse");
+    let manifest: PluginManifest = toml::from_str(&real_debrid).expect("parse");
     validate_manifest(&manifest).expect("the Real-Debrid row is valid");
     // The resolver is not granted the parts the sign-in keeps for itself.
     assert!(
@@ -744,7 +744,7 @@ fn a_code_or_api_key_provider_describes_each_mode_completely() {
     );
 
     let refused = |changes: &[(&str, &str)], expected: &str| {
-        let mut changed = REAL_DEBRID.to_owned();
+        let mut changed = real_debrid.clone();
         for (from, to) in changes {
             assert!(changed.contains(from), "{from} is not in the manifest");
             changed = changed.replacen(from, to, 1);

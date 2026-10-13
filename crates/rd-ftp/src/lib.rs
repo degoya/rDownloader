@@ -150,7 +150,7 @@ pub fn build(service: FtpService) -> Arc<dyn rd_scheduler::ExternalRunner> {
 }
 
 /// Loads the persisted remote-transfer settings from the shared settings blob.
-pub async fn load_remote_settings(database: &Database) -> Result<RemoteSettings> {
+pub(crate) async fn load_remote_settings(database: &Database) -> Result<RemoteSettings> {
     // Refuses a malformed blob rather than running on defaults: read once at start-up, and a
     // silently defaulted timeout or concurrency is a transfer policy nobody chose.
     Ok(database

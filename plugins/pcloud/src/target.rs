@@ -116,21 +116,17 @@ mod tests {
 
     #[test]
     fn an_address_belonging_to_somebody_else_is_never_claimed() {
-        assert_eq!(
-            claim("https://pcloud.com.evil.test/publink/show?code=X&fileid=1"),
-            None
-        );
-        assert_eq!(
-            claim("https://x@my.pcloud.com/#/filemanager?folder=1&fileid=2"),
-            None
-        );
-        assert_eq!(
-            claim("ftp://my.pcloud.com/#/filemanager?folder=1&fileid=2"),
-            None
-        );
-        assert_eq!(claim("https://ddownload.com/f/abc"), None);
-        assert_eq!(claim("https://my.pcloud.com/"), None);
-        assert_eq!(claim("https://api.pcloud.com/getfilelink?fileid=1"), None);
+        for foreign in
+            plugin_common::foreign::around("https://my.pcloud.com/#/filemanager?folder=1&fileid=2")
+        {
+            assert_eq!(claim(&foreign), None, "{foreign}");
+        }
+        for own_but_not_this in [
+            "https://my.pcloud.com/",
+            "https://api.pcloud.com/getfilelink?fileid=1",
+        ] {
+            assert_eq!(claim(own_but_not_this), None, "{own_but_not_this}");
+        }
     }
 
     #[test]

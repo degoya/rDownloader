@@ -27,6 +27,15 @@ export const POPUP = { id: 'self' }
 export const names = (calls) => calls.map(([name]) => name)
 
 /**
+ * The browser as an injected page script sees it: it can only send to the extension, and every
+ * message lands in `sent`. The captcha reader's tests installed this same object three times
+ * (RD-1280-09).
+ */
+export function pageChrome(sent) {
+  return { runtime: { sendMessage: (payload) => sent.push(payload) } }
+}
+
+/**
  * A clock the test moves by hand.
  *
  * It used to be `now: () => 1_000` in every download test, so the correlation window could never

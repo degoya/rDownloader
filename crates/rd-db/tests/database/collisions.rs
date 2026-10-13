@@ -12,12 +12,6 @@ use rd_db::{
 };
 use tempfile::TempDir;
 
-async fn open(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("collisions.sqlite"))
-        .await
-        .expect("database")
-}
-
 async fn download(database: &Database, directory: &TempDir) -> (PackageId, DownloadId) {
     let package_id = PackageId::new();
     database
@@ -62,7 +56,7 @@ async fn download(database: &Database, directory: &TempDir) -> (PackageId, Downl
 #[tokio::test]
 async fn a_package_policy_is_stored_read_back_and_cleared() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let (package_id, _) = download(&database, &directory).await;
 
     let levels = database
@@ -107,7 +101,7 @@ async fn a_package_policy_is_stored_read_back_and_cleared() {
 async fn an_open_prompt_and_its_answer_survive_a_restart() {
     let directory = tempfile::tempdir().expect("tempdir");
     let download_id = {
-        let database = open(&directory).await;
+        let database = rd_testkit::temp_database(directory.path()).await;
         let (_, download_id) = download(&database, &directory).await;
         database
             .open_collision_prompt(NewCollisionPrompt {
@@ -121,7 +115,7 @@ async fn an_open_prompt_and_its_answer_survive_a_restart() {
         download_id
     };
 
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let prompt = database
         .collision_prompt(download_id)
         .await
@@ -138,7 +132,7 @@ async fn an_open_prompt_and_its_answer_survive_a_restart() {
             .expect("decide")
     );
     drop(database);
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let prompt = database
         .collision_prompt(download_id)
         .await
@@ -188,7 +182,7 @@ async fn an_open_prompt_and_its_answer_survive_a_restart() {
 #[tokio::test]
 async fn the_content_index_follows_moves_missing_files_and_removals() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let (_, first) = download(&database, &directory).await;
     let (_, second) = download(&database, &directory).await;
     for (id, path) in [(first, "/a/file.bin"), (second, "/b/file.bin")] {
@@ -299,7 +293,7 @@ async fn the_content_index_follows_moves_missing_files_and_removals() {
 #[tokio::test]
 async fn a_running_operation_is_interrupted_by_a_restart_and_the_history_is_capped() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let operation = || NewStorageOperation {
         kind: StorageOperationKind::Move,
         package_id: None,
@@ -325,7 +319,7 @@ async fn a_running_operation_is_interrupted_by_a_restart_and_the_history_is_capp
         .expect("start");
     drop(database);
 
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     assert_eq!(
         database
             .interrupt_storage_operations()
@@ -373,7 +367,7 @@ async fn a_running_operation_is_interrupted_by_a_restart_and_the_history_is_capp
 #[tokio::test]
 async fn clearing_the_history_keeps_a_running_operation() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let operation = || NewStorageOperation {
         kind: StorageOperationKind::Dedupe,
         package_id: None,
@@ -437,7 +431,7 @@ async fn clearing_the_history_keeps_a_running_operation() {
 #[tokio::test]
 async fn clearing_the_content_index_removes_every_entry_and_no_download() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let (_, first) = download(&database, &directory).await;
     let (_, second) = download(&database, &directory).await;
     for id in [first, second] {

@@ -233,8 +233,8 @@ async fn a_service_the_bundle_does_not_have_installs_nothing() {
 /// verifies in development mode — under the development key.
 fn ddownload_package() -> Vec<u8> {
     let root = std::path::Path::new("../../plugins/ddownload");
-    let manifest = std::fs::read_to_string(root.join("manifest.toml"))
-        .expect("the ddownload manifest")
+    // As a package carries it: `plugins/metadata.toml`'s shared fields filled in (RD-1280-18).
+    let manifest = rd_plugin_host::artifact::bundled_manifest("ddownload")
         .lines()
         .map(|line| {
             if line.starts_with("key_id = ") {

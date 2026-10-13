@@ -9,10 +9,11 @@ import NzbFileList from '@/components/NzbFileList.vue'
 import PostprocessSteps from '@/components/PostprocessSteps.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
+import { usePackageCounts } from '@/composables/usePackageCounts'
 import { usePackageDownloadWindow } from '@/composables/usePackageDownloadWindow'
 import { usePackageStartAfter } from '@/composables/usePackageStartAfter'
 import { useStopMark } from '@/composables/useStopMark'
-import { formatByteProgress, formatDuration, formatMoment, formatRate, hasExtractable, isRecoveryVolume, postprocessStageLabel, priorityItems } from '@/utils/format'
+import { formatByteProgress, formatDuration, formatMoment, formatRate, hasExtractable, postprocessStageLabel, priorityItems } from '@/utils/format'
 import { pickableCategories } from '@/utils/pickableCategories'
 import { NO_SELECTION } from '@/utils/select'
 import { sourcePageUrl } from '@/utils/sourcePage'
@@ -128,56 +129,16 @@ async function toggleSteps(): Promise<void> {
   steps.value = await loadSteps(props.package.id)
   stepsLoading.value = false
 }
-/** Every file that is not repair data has arrived, so no repair block can still be wanted. */
-const payloadComplete = computed(() => props.downloads.every(
-  item => isRecoveryVolume(item) || item.state === 'completed' || item.state === 'skipped'))
-/**
- * Recovery volumes that failed while the payload is complete — nobody ever asked for them.
- *
- * An expired `vol…par2` is routine on Usenet. Counting it made a package that verified and
- * unpacked cleanly report "47/48 · 1 error" at 99% (RD-107-10). While the payload is still
- * short this set is empty, so a package that genuinely needs its repair blocks keeps every
- * failure it has.
- */
-const dismissed = computed(() => payloadComplete.value
-  ? props.downloads.filter(item => isRecoveryVolume(item) && ['failed', 'blocked'].includes(item.state))
-  : [])
-const dismissedIds = computed(() => new Set(dismissed.value.map(item => item.id)))
-const finished = computed(() =>
-  props.downloads.filter(item => item.state === 'completed').length + dismissed.value.length)
-const activeCount = computed(() => props.downloads.filter(item => ['resolving', 'downloading', 'verifying', 'repairing', 'extracting'].includes(item.state)).length)
+/** The package's counts and download progress, recovery volumes nobody needs left out (`usePackageCounts`). */
+const { finished, activeCount, errorCount, stuckCount, counted, committed, total, downloadProgress, waitingForParts } =
+  usePackageCounts(() => props.downloads, () => usenet.value)
 /**
  * A Usenet package counts its connections instead of its running files (RD-1270-21): two files
  * hold all ten of a server's connections, and "2 active" said nothing of the other eight.
  */
 const busyConnections = computed(() => usenet.value ? props.connections ?? null : null)
 const connectionsTitle = computed(() => busyConnections.value ? packageConnectionsTitle(busyConnections.value) : '')
-const errorCount = computed(() => props.downloads.filter(
-  item => ['failed', 'blocked'].includes(item.state) && !dismissedIds.value.has(item.id)).length)
-/** What "reset failed and blocked" would take, recovery volumes nobody needs included (RD-1190-15). */
-const stuckCount = computed(() => props.downloads.filter(item => ['failed', 'blocked'].includes(item.state)).length)
-/**
- * A mirror standing down is not work left to do: its bytes arrive through the link that is
- * running, so counting them would keep the package short of 100% for good. A recovery volume
- * nobody needed is the same case — its bytes were never owed, so they must not weigh on the
- * total either.
- */
-const counted = computed(() => props.downloads.filter(
-  item => item.state !== 'skipped' && !dismissedIds.value.has(item.id)))
-const committed = computed(() => counted.value.reduce((sum, item) => sum + BigInt(item.committed_bytes), 0n))
-const total = computed(() => counted.value.reduce((sum, item) => sum + BigInt(item.total_bytes ?? '0'), 0n))
-const downloadProgress = computed(() => total.value > 0n ? Number(committed.value * 100n / total.value) : 0)
 const postprocessing = computed(() => props.package.state === 'postprocessing')
-/**
- * Some files arrived, the rest wait, failed or are blocked, and nothing runs: post-processing
- * holds back until every file is there (RD-1190-13), and says so instead of looking stuck.
- * Usenet starts over a failed file, which PAR2 may rebuild, so the hint is not for it.
- */
-const waitingForParts = computed(() => {
-  const missing = props.downloads.filter(item => !['completed', 'skipped', 'cancelled', 'seeding'].includes(item.state))
-  return !usenet.value && finished.value > 0 && missing.length > 0
-    && missing.every(item => ['retry_wait', 'failed', 'blocked', 'paused'].includes(item.state))
-})
 const postprocessFailed = computed(() => props.package.state === 'failed')
 /** Persisted unpack outcome of the last pipeline run; survives completion. */
 const extraction = computed(() => props.package.extraction_result ?? null)

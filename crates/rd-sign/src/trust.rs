@@ -110,7 +110,7 @@ impl TrustStore {
     }
 
     /// Whether this exact artefact has been withdrawn.
-    pub fn is_revoked_digest(&self, digest: &[u8; 32]) -> Result<bool> {
+    pub(crate) fn is_revoked_digest(&self, digest: &[u8; 32]) -> Result<bool> {
         Ok(self.read()?.revoked_digests.contains(digest))
     }
 

@@ -7,13 +7,14 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 import { reactive } from 'vue'
 
 import settingsMessages from '@/locales/en/settings.json'
 import { defaultSettings, emptyNumberFields } from '@/settingsDefaults'
 import { mountComponent, unitOf } from '@/test/mount'
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn() } }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })) }))
 
 import SettingsMediaCard from './SettingsMediaCard.vue'
 

@@ -4,13 +4,14 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import type { Settings } from '@/api/types'
 import settings from '@/locales/en/settings.json'
 import { mountComponent } from '@/test/mount'
 
 const post = vi.fn()
-vi.mock('@/api/client', () => ({ api: { POST: (...args: unknown[]) => post(...args) } }))
+vi.mock('@/api/client', () => apiClientMock({ POST: (...args: unknown[]) => post(...args) }))
 
 const { default: SettingsPackageNameRules } = await import('./SettingsPackageNameRules.vue')
 

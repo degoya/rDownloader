@@ -98,7 +98,7 @@ impl ApiError {
 
     /// Creates a "this route does not read a body of that type" error.
     #[must_use]
-    pub fn unsupported_media_type(code: &'static str, message: impl Into<String>) -> Self {
+    pub(crate) fn unsupported_media_type(code: &'static str, message: impl Into<String>) -> Self {
         Self::with_status(StatusCode::UNSUPPORTED_MEDIA_TYPE, code, message)
     }
 

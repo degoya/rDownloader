@@ -7,6 +7,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import { resetEventStream } from '@/composables/useEventStream'
 import common from '@/locales/en/common.json'
@@ -45,24 +46,16 @@ const get = vi.fn()
 const post = vi.fn()
 const put = vi.fn()
 const del = vi.fn()
-const confirmed = vi.fn(async (_options: ConfirmOptions) => true)
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: (...args: unknown[]) => put(...args),
-    PATCH: vi.fn(),
-    DELETE: (...args: unknown[]) => del(...args)
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
+const confirmed = vi.hoisted(() => vi.fn(async (_options: ConfirmOptions) => true))
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  POST: (...args: unknown[]) => post(...args),
+  PUT: (...args: unknown[]) => put(...args),
+  DELETE: (...args: unknown[]) => del(...args)
 }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirmed))
 // Both resolve through `#imports`, which only exists inside a Nuxt build.
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: vi.fn() }) })
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock({ overlay: { open: vi.fn() } }))
 
 // The view subscribes to the event stream on mount, so every test in this file needs one.
 // jsdom has no `EventSource` at all, and without this the mount throws before it renders.

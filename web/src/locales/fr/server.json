@@ -1321,7 +1321,11 @@
     "diagnostics.log_level_locked": "RUST_LOG={rust_log} décide de ce qui est journalisé ; le niveau s’applique quand le service démarre sans RUST_LOG.",
     "diagnostics.debug_minutes_invalid": "Le débogage temporaire dure 15, 30 ou 60 minutes.",
     "diagnostics.debug_plugin_invalid": "Seule la zone Plugin accepte un plugin, et seulement un plugin installé.",
-    "media.ytdlp_cookies_required": "Le site refuse yt-dlp sans ses cookies (HTTP 412). Ajoutez les cookies du navigateur pour ce site dans un profil d’authentification (Comptes → Profils d’authentification) ou transmettez-les avec « Envoyer la session de ce site à rDownloader » dans l’extension du navigateur. {detail}"
+    "media.ytdlp_cookies_required": "Le site refuse yt-dlp sans ses cookies (HTTP 412). Ajoutez les cookies du navigateur pour ce site dans un profil d’authentification (Comptes → Profils d’authentification) ou transmettez-les avec « Envoyer la session de ce site à rDownloader » dans l’extension du navigateur. {detail}",
+    "automation.version_reset_run_active": "Une exécution d'une version antérieure est encore active ; réinitialisez les versions une fois qu'elle est terminée.",
+    "notification.template_syntax": "Une accolade du modèle n’est pas fermée, pas ouverte ou n’entoure rien.",
+    "notification.template_unknown_placeholder": "« {placeholder} » n’est pas une variable.",
+    "notification.template_too_long": "Le modèle dépasse {max} caractères."
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

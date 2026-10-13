@@ -6,6 +6,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import en from '@/locales/en/settings.json'
@@ -15,10 +16,7 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsAboutTab from './SettingsAboutTab.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn() },
-  responseError: () => 'The service did not answer'
-}))
+vi.mock('@/api/client', () => apiClientMock())
 
 const REPOSITORY = 'https://github.com/degoya/rDownloader'
 

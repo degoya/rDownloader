@@ -116,6 +116,11 @@ impl NewPluginType {
 pub struct PackageArgs {
     #[arg(long)]
     manifest: PathBuf,
+    /// Shared manifest fields (`plugins/metadata.toml`, RD-1280-18): each one the manifest
+    /// leaves out is written into the packaged copy. A third party's manifest states them
+    /// and needs no such file.
+    #[arg(long)]
+    defaults: Option<PathBuf>,
     #[arg(long)]
     component: PathBuf,
     /// Directory of `<lang>.json` translations to ship (and sign) inside the package.
@@ -206,7 +211,7 @@ pub fn group_fingerprint(fingerprint: &str) -> String {
 }
 
 async fn package(args: &PackageArgs) -> Result<()> {
-    let manifest = tokio::fs::read(&args.manifest)
+    let source = tokio::fs::read_to_string(&args.manifest)
         .await
         .with_context(|| format!("read manifest {}", args.manifest.display()))?;
     let component = tokio::fs::read(&args.component)
@@ -229,6 +234,18 @@ async fn package(args: &PackageArgs) -> Result<()> {
         Some(directory) => read_locale_directory(directory).await?,
         None => Vec::new(),
     };
+    let defaults = args
+        .defaults
+        .as_deref()
+        .map(rd_plugin_host::ManifestDefaults::read)
+        .transpose()?;
+    // The public half comes from the key itself; its name is not in a PEM, so `key_id` is the
+    // manifest's or the shared file's.
+    let public_key = key.as_ref().map(rd_plugin_host::public_key_base64);
+    let manifest =
+        rd_plugin_host::complete_manifest(&source, defaults.as_ref(), public_key.as_deref())
+            .with_context(|| format!("complete manifest {}", args.manifest.display()))?
+            .into_bytes();
     let archive = rd_plugin_host::package_plugin(&manifest, &component, &locales, key.as_ref())?;
     if let Some(parent) = args.output.parent()
         && !parent.as_os_str().is_empty()

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import type { ObjectStorageProfile } from '@/api/types'
 
@@ -8,8 +9,8 @@ const client = vi.hoisted(() => ({
   PUT: vi.fn(),
   DELETE: vi.fn()
 }))
-vi.mock('@/api/client', () => ({
-  api: client,
+vi.mock('@/api/client', () => apiClientMock({
+  ...client,
   responseError: (response: { error?: { code?: string } }) => `failed:${response.error?.code ?? ''}`,
   resultMessage: () => 'done'
 }))

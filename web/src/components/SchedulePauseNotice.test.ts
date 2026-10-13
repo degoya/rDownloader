@@ -4,6 +4,7 @@
  */
 import { screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 import { nextTick } from 'vue'
 
 import downloads from '@/locales/en/downloads.json'
@@ -12,11 +13,8 @@ import { mountComponent } from '@/test/mount'
 
 import SchedulePauseNotice from './SchedulePauseNotice.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: undefined })), PUT: vi.fn(), DELETE: vi.fn(), POST: vi.fn() },
-  responseError: vi.fn(() => 'refused')
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: vi.fn(() => () => {}) }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })), responseError: vi.fn(() => 'refused') }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 function mount(placement: 'header' | 'rail') {
   mountComponent(SchedulePauseNotice, { props: { placement }, messages: { downloads } })

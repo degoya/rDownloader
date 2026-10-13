@@ -14,7 +14,7 @@ const SECRET: &str = "topsecret-signing-key";
 type Call = (String, String, String);
 
 /// Starts a local receiver and returns its URL together with what it collects.
-pub(crate) async fn spawn_receiver() -> (String, Arc<Mutex<Vec<Call>>>) {
+pub(crate) async fn spawn_receiver() -> (rd_testkit::TestServer, String, Arc<Mutex<Vec<Call>>>) {
     let calls: Arc<Mutex<Vec<Call>>> = Arc::new(Mutex::new(Vec::new()));
     let sink = Arc::clone(&calls);
     let app = Router::new().route(
@@ -38,14 +38,9 @@ pub(crate) async fn spawn_receiver() -> (String, Arc<Mutex<Vec<Call>>>) {
             }
         }),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    (format!("http://{address}/hook"), calls)
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
+    (server, format!("http://{address}/hook"), calls)
 }
 
 pub(crate) async fn create_target(router: &Router, body: serde_json::Value) -> serde_json::Value {
@@ -227,7 +222,7 @@ async fn deleting_a_target_takes_its_rules_with_it() {
 async fn a_test_delivery_reaches_a_local_webhook_and_carries_its_signature() {
     let directory = tempfile::tempdir().expect("tempdir");
     let router = common::test_router(directory.path()).await;
-    let (endpoint, calls) = spawn_receiver().await;
+    let (_server, endpoint, calls) = spawn_receiver().await;
     let target = create_target(
         &router,
         serde_json::json!({
@@ -331,7 +326,7 @@ async fn a_used_up_traffic_budget_reaches_a_rule_that_asks_for_it() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::test_harness(directory.path()).await;
     let router = harness.router.clone();
-    let (endpoint, calls) = spawn_receiver().await;
+    let (_server, endpoint, calls) = spawn_receiver().await;
     let target = create_target(
         &router,
         serde_json::json!({ "name": "local", "kind": "webhook", "endpoint": endpoint }),
@@ -405,7 +400,7 @@ async fn a_usenet_set_given_up_as_beyond_repair_reaches_a_rule_that_asks_for_it(
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::test_harness(directory.path()).await;
     let router = harness.router.clone();
-    let (endpoint, calls) = spawn_receiver().await;
+    let (_server, endpoint, calls) = spawn_receiver().await;
     let target = create_target(
         &router,
         serde_json::json!({ "name": "local", "kind": "webhook", "endpoint": endpoint }),

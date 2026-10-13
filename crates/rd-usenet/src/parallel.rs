@@ -124,8 +124,8 @@ pub(crate) struct OpenArticles {
 }
 
 impl OpenArticles {
-    /// A handle that counts nothing.
-    #[cfg(test)]
+    /// A handle that counts nothing: `worker::download_file`'s, for the tests and the bench.
+    #[cfg(any(test, feature = "bench"))]
     pub(crate) fn untracked() -> Self {
         Self {
             load: None,

@@ -25,16 +25,9 @@ impl CheckpointSink for NoopCheckpoint {
     }
 }
 
-async fn origin() -> SocketAddr {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("addr");
+async fn origin() -> rd_testkit::TestServer {
     let router = Router::new().route("/payload", get(|| async { vec![7_u8; TOTAL] }));
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, router).await;
-    });
-    address
+    rd_testkit::serve(router).await
 }
 
 /// Downloads the payload under `scope` and answers how long it took.
@@ -80,7 +73,8 @@ fn file_of(package: PackageId) -> TransferScope {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_limited_package_loads_at_its_limit_while_another_runs_at_full_speed() {
-    let address = origin().await;
+    let server = origin().await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let registry = LimiterRegistry::new();
     let (limited, free) = (PackageId::new(), PackageId::new());

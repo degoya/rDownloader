@@ -13,5 +13,8 @@ premiumize-common = { path = "../premiumize-common" }
 [lib]
 crate-type = ["rlib"]
 
+[dev-dependencies]
+plugin-common = { path = "../common", features = ["test-support"] }
+
 [lints]
 workspace = true

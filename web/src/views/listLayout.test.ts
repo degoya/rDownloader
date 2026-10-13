@@ -5,9 +5,10 @@
  * same way. Both views are rendered here and read against `utils/listLayout.ts`, so a view that
  * drifts — or moves the selection count away from its list again — fails.
  */
-import { fireEvent, render } from '@testing-library/vue'
+import { fireEvent } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { nextTick, type Component } from 'vue'
 
 import type { CollectorPackage, Download, DownloadPackage, LinkCandidate } from '@/api/types'
@@ -17,34 +18,29 @@ import torrent from '@/locales/en/torrent.json'
 import { useCollectorStore } from '@/stores/collector'
 import { useSelectionStore } from '@/stores/selection'
 import { useTransfersStore } from '@/stores/transfers'
-import { createTestI18n, uiStubs } from '@/test/mount'
+import { mountComponent, uiStubs } from '@/test/mount'
 import { LIST_BAR_ORDER, SHARED_BULK_ACTIONS } from '@/utils/listLayout'
 
 import DownloadsView from './DownloadsView.vue'
 import LinkGrabberView from './LinkGrabberView.vue'
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async () => ({ data: undefined })),
-    POST: vi.fn(async () => ({ data: undefined })),
-    PUT: vi.fn(async () => ({ data: undefined })),
-    PATCH: vi.fn(async () => ({ data: undefined })),
-    DELETE: vi.fn(async () => ({ data: undefined }))
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async () => ({ data: undefined })),
+  POST: vi.fn(async () => ({ data: undefined })),
+  PUT: vi.fn(async () => ({ data: undefined })),
+  PATCH: vi.fn(async () => ({ data: undefined })),
+  DELETE: vi.fn(async () => ({ data: undefined })),
   responseError: vi.fn(),
   errorMessage: vi.fn(),
   resultMessage: vi.fn()
 }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(false) }) }) }),
-  useToast: () => ({ add: vi.fn() })
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 vi.mock('vue-router', async importOriginal => ({
   ...await importOriginal<typeof import('vue-router')>(),
   useRoute: () => ({ path: '/', hash: '', query: {} }),
   useRouter: () => ({ replace: vi.fn(async () => undefined), push: vi.fn() })
 }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const stubs = {
   ...uiStubs,
@@ -86,9 +82,7 @@ const VIEWS: [string, Component, () => void][] = [
 
 /** Renders a view with its list filled and everything selected through the list's own checkbox. */
 async function mountSelected(view: Component, seed: () => void): Promise<HTMLElement> {
-  const { container } = render(view, {
-    global: { plugins: [createTestI18n({ downloads, linkgrabber, torrent })], stubs: stubs as never }
-  })
+  const { container } = mountComponent(view, { messages: { downloads, linkgrabber, torrent }, stubs, keepPinia: true })
   seed()
   await nextTick()
   await fireEvent.click(container.querySelector('[data-testid="list-select-all"]') as HTMLElement)

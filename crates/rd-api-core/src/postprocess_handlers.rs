@@ -323,7 +323,7 @@ pub async fn update_category_postprocess(
 ///
 /// The template error's own code — `sort.template_unknown_field` and its siblings — with the
 /// template's `kind` and, where there is one, the `field` and `format` it names.
-pub fn validate_sorting(
+pub(crate) fn validate_sorting(
     sorting: Option<rd_core::SortTemplates>,
 ) -> Result<Option<rd_core::SortTemplates>, ApiError> {
     let Some(sorting) = sorting.and_then(rd_core::SortTemplates::normalized) else {

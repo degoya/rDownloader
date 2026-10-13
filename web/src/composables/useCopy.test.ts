@@ -6,9 +6,10 @@
  * silently not copied while the card announced success.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { toastMock } from '@/test/mocks'
 
-const add = vi.fn()
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add }) }))
+const add = vi.hoisted(() => vi.fn())
+vi.mock('@nuxt/ui/composables', () => toastMock({ add }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 
 const { copyText, useCopy } = await import('./useCopy')

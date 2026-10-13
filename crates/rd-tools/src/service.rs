@@ -104,7 +104,7 @@ impl ManagedToolService {
             manifest: RwLock::new(manifest),
             active: RwLock::new(HashMap::new()),
             leases: LeaseRegistry::new(),
-            client: reqwest::Client::builder()
+            client: rd_http::client_builder(rd_http::ClientPurpose::Service)
                 .timeout(std::time::Duration::from_secs(
                     download::DOWNLOAD_TIMEOUT_SECONDS,
                 ))
@@ -158,7 +158,7 @@ impl ManagedToolService {
 
     /// Whether managed tools are switched on.
     #[must_use]
-    pub fn is_enabled(&self) -> bool {
+    pub(crate) fn is_enabled(&self) -> bool {
         self.0
             .settings
             .read()

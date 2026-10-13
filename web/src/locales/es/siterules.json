@@ -208,7 +208,6 @@
   },
   "examples": {
     "restore": "Restaurar reglas incluidas",
-    "restore_hint": "Vuelve a crear, desactivadas, las reglas incluidas con rDownloader. Una que ya tengas se queda como está.",
     "restored": "{count} reglas incluidas restauradas, desactivadas.",
     "none_missing": "Todas las reglas incluidas ya están."
   },

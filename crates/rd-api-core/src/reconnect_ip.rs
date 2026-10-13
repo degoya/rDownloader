@@ -103,9 +103,8 @@ async fn ask(policy: &rd_http::AddressPolicy, url: url::Url) -> Option<String> {
 /// redirect hop held to the same rule.
 fn client(policy: &rd_http::AddressPolicy) -> Option<reqwest::Client> {
     let hops = policy.clone();
-    reqwest::Client::builder()
+    rd_http::client_builder(rd_http::ClientPurpose::Service)
         .timeout(LOOKUP_TIMEOUT)
-        .user_agent(rd_core::user_agent!())
         .dns_resolver(rd_http::GuardedResolver::system(policy.clone()))
         .redirect(reqwest::redirect::Policy::custom(move |attempt| {
             if attempt.previous().len() >= MAX_REDIRECTS {

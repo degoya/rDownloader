@@ -5,20 +5,22 @@
  */
 import { fireEvent, screen, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { confirmMock, toastMock } from '@/test/mocks'
 
 import type { InstallKind, UpdateInstall, UpdateOffer, UpdateStatus } from '@/api/updates'
 import server from '@/locales/en/server.json'
 import system from '@/locales/en/system.json'
 import { axeViolations } from '@/test/axe'
+import { updateOffer, updateStatus } from '@/test/fixtures/updates'
 import { mountComponent } from '@/test/mount'
 
 const fetchUpdateStatus = vi.fn()
 const installUpdate = vi.fn()
 const downloadUpdate = vi.fn()
-const confirm = vi.fn()
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
+const confirm = vi.hoisted(() => vi.fn())
+vi.mock('@/composables/useConfirm', () => confirmMock(confirm))
 // The command's copy button reports a refused clipboard with a toast.
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 vi.mock('@/api/updates', async (original) => ({
   ...(await original<typeof import('@/api/updates')>()),
   fetchUpdateStatus: () => fetchUpdateStatus(),
@@ -29,21 +31,10 @@ vi.mock('@/api/updates', async (original) => ({
 const { default: UpdateAvailableNotice } = await import('./UpdateAvailableNotice.vue')
 const { useUpdateStatus, FOLLOW_INTERVAL_MS } = await import('@/composables/useUpdateStatus')
 
-const offer: UpdateOffer = {
-  version: '1.13.0',
-  channel: 'stable',
-  released_at: '2026-10-05T12:00:00Z',
+const offer = updateOffer('1.13.0', '2026-10-05T12:00:00Z', {
   notes: 'Added\n- Parallel hoster downloads\n- A diagram for every regex\nFixed\n- The update page names its update\n- A fourth point',
-  release_url: 'https://github.com/degoya/rDownloader/releases/tag/v1.13.0',
-  changelog_url: 'https://github.com/degoya/rDownloader/blob/v1.13.0/CHANGELOG.md#1130---2026-10-06',
-  action: 'install',
-  command: null,
-  hint: null,
-  download_url: 'https://github.com/degoya/rDownloader/releases/download/v1.13.0/rdownloader-linux-x86_64.tar.gz',
-  download_size: 4096,
-  download_sha256: 'ab'.repeat(32),
-  rollback_available: true
-}
+  changelog_url: 'https://github.com/degoya/rDownloader/blob/v1.13.0/CHANGELOG.md#1130---2026-10-06'
+})
 
 function install(state: UpdateInstall['state']): UpdateInstall {
   return {
@@ -57,24 +48,7 @@ function install(state: UpdateInstall['state']): UpdateInstall {
 }
 
 function status(patch: Partial<UpdateStatus> = {}): UpdateStatus {
-  return {
-    current_version: '1.12.0',
-    configured: true,
-    check_enabled: true,
-    channel: 'stable',
-    effective_channel: 'stable',
-    interval_hours: 24,
-    install_kind: 'portable',
-    checking: false,
-    last_checked_at: '2026-10-07T13:00:00Z',
-    next_check_at: null,
-    error_code: null,
-    available: offer,
-    install: null,
-    download: null,
-    capture_agents: [],
-    ...patch
-  }
+  return updateStatus({ current_version: '1.12.0', last_checked_at: '2026-10-07T13:00:00Z', available: offer, ...patch })
 }
 
 function mount(shown: UpdateOffer = offer, kind: InstallKind = 'portable') {

@@ -6,7 +6,6 @@
 //! answer for it. The bindings and the flow come from `plugin-guest-oauth`
 //! (`redirect.rs` reads as the template's `guest.rs` does), which a standalone template does
 //! not have and generates for itself.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_oauth::redirect::{Client, Device, Provider};
 

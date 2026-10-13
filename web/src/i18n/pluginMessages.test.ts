@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import { i18n } from '@/i18n'
@@ -13,7 +14,7 @@ import { loadEveryLocale } from '@/test/locales'
 
 beforeAll(loadEveryLocale)
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
+vi.mock('@/api/client', () => apiClientMock())
 
 type MessagesRequest = { params: { path: { locale: string } } }
 

@@ -3,23 +3,20 @@
  * goes, it closes instead — the drawer used to be unmounted while open and left the page dimmed
  * and unclickable — and a page another intake listed opens it as a paste does.
  */
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import type { CollectorPick } from '@/api/types'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import { useSitePicksStore } from '@/stores/sitePicks'
-import { createTestI18n, mountComponent, uiStubs } from '@/test/mount'
+import { mountComponent, settle } from '@/test/mount'
 
 import SiteRulePickPanel from './SiteRulePickPanel.vue'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: { GET: (...args: unknown[]) => get(...args), POST: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'failed')
-}))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args), responseError: vi.fn(() => 'failed') }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 function page(id: string): CollectorPick {
   return {
@@ -51,13 +48,7 @@ function mount() {
 
 /** Mounts again over the Pinia that is already active, as a view that opens later does. */
 function mountAgain() {
-  return render(SiteRulePickPanel, {
-    global: { plugins: [createTestI18n({ linkgrabber })] as never[], stubs: { ...uiStubs, ...stubs } as never }
-  })
-}
-
-async function settle(): Promise<void> {
-  for (let round = 0; round < 4; round += 1) await nextTick()
+  return mountComponent(SiteRulePickPanel, { messages: { linkgrabber }, stubs, keepPinia: true })
 }
 
 describe('SiteRulePickPanel', () => {

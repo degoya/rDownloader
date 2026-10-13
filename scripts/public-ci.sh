@@ -6,12 +6,15 @@
 # be read next to its tree — `scripts/ci-log.sh <run url>` prints what broke — and the next
 # export of the same branch replaces it.
 #
-# Every wave's integration branch goes through this once, on Linux and Windows, before it is
-# merged into development: v1.3.0 shipped with 42 Windows test failures that only GitHub's
-# Windows runner could see. A red run holds the merge.
+# Every wave's integration branch goes through this once, on Windows, before it is merged into
+# development: v1.3.0 shipped with 42 Windows test failures that only GitHub's Windows runner could
+# see. A red run holds the merge. Linux only when no local --full green of the Rust half covers the
+# tree (RD-1280-14): scripts/integrate.sh --public-ci derives the list; the release candidate runs
+# Linux here.
 #
 # Usage:
-#   scripts/public-ci.sh integration/1.4-w4 --platforms linux,windows   # the wave's gate
+#   scripts/public-ci.sh integration/1.4-w4 --platforms windows         # the wave's gate
+#   scripts/public-ci.sh integration/1.4-w4 --platforms linux,windows   # ... without a local green
 #   scripts/public-ci.sh integration/1.4-w4                             # all three platforms
 #   scripts/public-ci.sh fix/x --platforms windows-2025                 # a runner image by name
 #   scripts/public-ci.sh integration/1.4-w4 --platforms linux,windows --release-workflows
@@ -51,7 +54,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --platforms) platforms="${2:?--platforms needs a list}"; shift 2 ;;
         --release-workflows) release_workflows=1; shift ;;
-        -h|--help) sed -n '2,35p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,37p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $1" >&2; usage ;;
         *) [[ -z "$branch" ]] || usage; branch="$1"; shift ;;
     esac

@@ -8,7 +8,7 @@ import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
  * instead, through `SettingsDocumentGate`, rather than showing the placeholders the save would
  * write over the stored configuration (WEB-01).
  */
-export interface SettingsDocumentState {
+interface SettingsDocumentState {
   loaded: Readonly<Ref<boolean>>
   loadError: Readonly<Ref<string | null>>
   retry: () => Promise<void>

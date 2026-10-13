@@ -86,9 +86,7 @@ async fn an_approved_post_download_survives_a_restart_with_its_template() {
     };
 
     // Everything above is dropped here: a fresh process reopens the same files.
-    let database = rd_db::Database::open(directory.path().join("api-test.sqlite3"))
-        .await
-        .expect("reopen database");
+    let database = rd_testkit::temp_database(directory.path()).await;
     let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
         .await
         .expect("reopen secrets");

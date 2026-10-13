@@ -5,16 +5,15 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import routing from '@/locales/en/routing.json'
 import server from '@/locales/en/server.json'
 import { sortingBody, sortingForm } from '@/composables/useCategoryForm'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, passTime } from '@/test/mount'
 
 const post = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: { POST: (...args: unknown[]) => post(...args) }
-}))
+vi.mock('@/api/client', () => apiClientMock({ POST: (...args: unknown[]) => post(...args) }))
 
 const { default: RoutingCategorySorting } = await import('./RoutingCategorySorting.vue')
 
@@ -73,8 +72,7 @@ describe('RoutingCategorySorting', () => {
   it('asks nothing while every template is empty, and again once one is typed', async () => {
     post.mockResolvedValue({ data: { entries: [], fields: FIELDS } })
 
-    mount('')
-    await new Promise(resolve => setTimeout(resolve, 400))
+    await passTime(400, () => mount(''))
     expect(post).not.toHaveBeenCalled()
 
     await fireEvent.update(screen.getByTestId('sorting-movie'), '{movie} ({year})')

@@ -11,8 +11,10 @@ mod coalesce;
 mod delivery;
 mod executable;
 mod model;
+mod placeholder;
 mod retry;
 mod summary;
+mod template;
 
 pub use coalesce::{Burst, Coalescer, LONGEST_SECONDS, NAMED, Occurrence, QUIET_SECONDS};
 pub use delivery::{
@@ -27,8 +29,14 @@ pub use model::{
     Delivery, DeliveryState, NotificationEvent, NotificationRule, NotificationTarget, Severity,
     TargetKind,
 };
+pub use placeholder::{Placeholder, placeholder_table_markdown};
 pub use retry::{JITTER_PERCENT, MAX_ATTEMPTS, backoff, backoff_with_seed, next_attempt_at};
 pub use summary::{SUMMARY_NAMED, message_of, quiet_summary};
+pub use template::{
+    MAX_BODY_BYTES, MAX_BODY_CHARS, MAX_BODY_TEMPLATE_CHARS, MAX_TITLE_CHARS,
+    MAX_TITLE_TEMPLATE_CHARS, TemplateError, TemplatePart, Values, render, size_text,
+    validate_template,
+};
 
 /// Builds the idempotency key of a delivery.
 ///

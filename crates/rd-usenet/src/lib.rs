@@ -45,10 +45,14 @@ mod pipelining_tests;
 mod pool_tests;
 #[cfg(test)]
 mod resume_after_crash_tests;
-#[cfg(test)]
+// The fixture is the tests' and, with the feature `bench`, the measurements' (RD-1280-22);
+// outside the tests most of it is unused.
+#[cfg(any(test, feature = "bench"))]
+#[cfg_attr(not(test), allow(dead_code))]
 mod test_support;
-#[cfg(test)]
-mod throughput_bench;
+#[cfg(any(test, feature = "bench"))]
+#[doc(hidden)]
+pub mod throughput_bench;
 #[cfg(all(test, feature = "failpoints"))]
 mod traffic_crash_tests;
 #[cfg(test)]

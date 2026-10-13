@@ -1321,7 +1321,11 @@
     "diagnostics.log_level_locked": "RUST_LOG={rust_log} decides what is logged; the level applies once the service starts without RUST_LOG.",
     "diagnostics.debug_minutes_invalid": "Debug for a while lasts 15, 30 or 60 minutes.",
     "diagnostics.debug_plugin_invalid": "Only the plugin area takes a plugin, and only an installed one.",
-    "media.ytdlp_cookies_required": "The site refuses yt-dlp without its cookies (HTTP 412). Add the site’s browser cookies in an authentication profile (Accounts → Authentication profiles), or hand them over with “Share session for this site with rDownloader” in the browser extension. {detail}"
+    "media.ytdlp_cookies_required": "The site refuses yt-dlp without its cookies (HTTP 412). Add the site’s browser cookies in an authentication profile (Accounts → Authentication profiles), or hand them over with “Share session for this site with rDownloader” in the browser extension. {detail}",
+    "automation.version_reset_run_active": "A run of an older version is still active; reset once it has finished.",
+    "notification.template_syntax": "A brace in the template is not closed, not opened or encloses nothing.",
+    "notification.template_unknown_placeholder": "“{placeholder}” is not a placeholder.",
+    "notification.template_too_long": "The template is longer than {max} characters."
   },
   "capabilities": {
     "media_download": "media downloads",

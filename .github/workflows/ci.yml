@@ -439,6 +439,10 @@ jobs:
       # document) agrees with Cargo.toml's workspace version. Reads files only.
       - name: Versions agree
         run: scripts/set-version.sh --check
+      # Every copy of a tool pin (Rust, wasm-tools, nextest, sqlx-cli, …) in the workflows, the
+      # Dockerfile and the documentation agrees with its one source (RD-1280-12). Reads files only.
+      - name: Tool pins agree
+        run: scripts/tool-versions.sh --check
       # A stale entry in deny.toml's duplicate skip list fails, so the list only shrinks (RD-150-21).
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
         with:
@@ -464,12 +468,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The versions and checksums are scripts/lib/tool-versions.sh's (RD-1280-12).
       - name: Install shellcheck and actionlint
-        env:
-          SHELLCHECK_VERSION: 0.11.0
-          SHELLCHECK_SHA256: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
-          ACTIONLINT_VERSION: 1.7.12
-          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
         run: scripts/ci-tools.sh linters
       - name: bash -n, shellcheck and actionlint
         shell: bash

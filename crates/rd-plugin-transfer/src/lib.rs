@@ -92,7 +92,7 @@ impl TransferBackends {
     /// `load_verified` yields the newest version of each plugin first, so the first match is
     /// the one a fresh job should start on.
     #[must_use]
-    pub fn for_scheme(&self, scheme: &str) -> Option<&Arc<TransferBackend>> {
+    pub(crate) fn for_scheme(&self, scheme: &str) -> Option<&Arc<TransferBackend>> {
         self.backends.iter().find(|backend| backend.claims(scheme))
     }
 

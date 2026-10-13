@@ -34,7 +34,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use sha2::{Digest, Sha256};
 use wasmtime::{Cache, CacheConfig};
 
 #[path = "compile_cache_prune.rs"]
@@ -266,12 +265,7 @@ fn file_digest(path: &Path) -> Option<String> {
         return None;
     }
     let bytes = std::fs::read(path).ok()?;
-    Some(hex_digest(&bytes))
-}
-
-/// The hex SHA-256 of `bytes`: how an entry's content and a component are both named.
-pub(crate) fn hex_digest(bytes: &[u8]) -> String {
-    hex(&Sha256::digest(bytes))
+    Some(rd_sign::hex_sha256(&bytes))
 }
 
 /// Lower-case hex of a digest.

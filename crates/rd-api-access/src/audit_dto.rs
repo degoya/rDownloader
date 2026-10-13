@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 /// Records one read returns at most; the default when `limit` is absent is 200.
-pub const MAX_AUDIT_PAGE: u32 = 500;
-pub const DEFAULT_AUDIT_PAGE: u32 = 200;
+pub(crate) const MAX_AUDIT_PAGE: u32 = 500;
+pub(crate) const DEFAULT_AUDIT_PAGE: u32 = 200;
 /// Records one export writes at most.
 ///
 /// Ten thousand rows of NDJSON is a file a person can open; the point of the export is to
 /// take a window of the log elsewhere, not to copy the database. A larger window is asked for
 /// by narrowing the filter, which is also what makes the file worth reading.
-pub const MAX_AUDIT_EXPORT: u32 = 10_000;
+pub(crate) const MAX_AUDIT_EXPORT: u32 = 10_000;
 
 /// The filters of `GET /api/v1/audit/records` and `GET /api/v1/audit/export`.
 #[derive(Debug, Default, Deserialize, IntoParams)]

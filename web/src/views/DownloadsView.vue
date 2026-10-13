@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, provide, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { api } from '@/api/client'
-import type { DownloadSummary } from '@/api/types'
 import BulkActionBar from '@/components/BulkActionBar.vue'
-import type { DirectAddPayload } from '@/components/DirectAddForm.vue'
 import DirectAddModal from '@/components/DirectAddModal.vue'
 import NavbarAction from '@/components/NavbarAction.vue'
 import PackageGroup from '@/components/PackageGroup.vue'
@@ -25,7 +22,9 @@ import TorrentKillSwitchAlert from '@/components/TorrentKillSwitchAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
 import { setDirectAddAction } from '@/composables/directAddAction'
 import { setClearCompletedAction, shortcutKeys } from '@/composables/shortcutDefinitions'
+import { useDirectAdd } from '@/composables/useDirectAdd'
 import { useDownloadsActions } from '@/composables/useDownloadsActions'
+import { useDownloadsSummary } from '@/composables/useDownloadsSummary'
 import { useNzbHandOver } from '@/composables/useNzbHandOver'
 import { usePackageExport } from '@/composables/usePackageExport'
 import { useReresolve } from '@/composables/useReresolve'
@@ -64,16 +63,11 @@ provide('loadPostprocess', (id: string) => transfers.loadPostprocess(id))
 
 /** The state filter and the name search, both in the address (RD-190-21). */
 const { filter, search, needle, active: filterActive, reset: resetFilter } = useQueueFilter()
-const adding = ref(false)
-/** The direct job's dialog, and the refusal it keeps until the next attempt (RD-1220-03). */
-const addOpen = ref(false)
-const addError = ref<string | null>(null)
+const { open: addOpen, busy: adding, error: addError, show: openDirectAdd, add: addDownload } = useDirectAdd()
 const { categories, fetchCategories } = useCategories()
 const { accounts, fetchAccounts } = useAccounts()
 const { proxies, fetchProxies } = useProxyProfiles()
-const summary = ref<DownloadSummary | null>(null)
-let summaryTimer: ReturnType<typeof setInterval> | null = null
-let postprocessTimer: ReturnType<typeof setInterval> | null = null
+const summary = useDownloadsSummary()
 // Results go as toasts, so the list stands right under the toolbar (RD-1220-03).
 useQueueNoticeToasts()
 
@@ -161,8 +155,6 @@ async function revealSelection(): Promise<void> {
   }
   await queueList.value?.focusRow(`file:${id}`)
 }
-const stateFingerprint = computed(() => transfers.downloads.map(download => `${download.id}:${download.state}`).join('|'))
-const packageStateFingerprint = computed(() => transfers.packages.map(pkg => `${pkg.id}:${pkg.state ?? ''}`).join('|'))
 const canExtractSelection = computed(() => hasExtractable(selection.selectedDownloads.value))
 const resettableSelection = computed(() => selection.selectedDownloads.value.filter(download => RESETTABLE_STATES.includes(download.state)))
 /** "4 packages · 11 files selected": both selection counts, a partly ticked package included (RD-1260-07). */
@@ -176,35 +168,11 @@ onMounted(() => {
   setClearCompletedAction(() => void clearDownloads('completed'))
   setDirectAddAction(openDirectAdd)
   void loadSelections()
-  void loadSummary()
-  void postprocess.refresh()
-  // The summary follows the SSE-driven store refresh (see the fingerprint watchers);
-  // this is only a long safety net for storage figures and missed events.
-  summaryTimer = setInterval(() => void loadSummary(), 120_000)
-  // Safety net for the pipeline queue (missed events, pending → running transitions). Kept
-  // deliberately slow: `postprocess.progress` events and the fingerprint watcher below already
-  // drive this, and a 3s poll competed with real traffic for the browser's connection budget.
-  postprocessTimer = setInterval(() => { if (postprocess.active) void postprocess.refresh() }, 15_000)
 })
 onUnmounted(() => {
-  if (summaryTimer) clearInterval(summaryTimer)
-  if (postprocessTimer) clearInterval(postprocessTimer)
   setClearCompletedAction(null)
   setDirectAddAction(null)
 })
-// `download.state` / `package.state` events feed the store's debounced refresh (400 ms);
-// both fingerprints change with it, which keeps the summary reactive without a manual button.
-watch(stateFingerprint, () => void loadSummary())
-watch(packageStateFingerprint, () => {
-  void loadSummary()
-  void postprocess.refresh()
-})
-
-async function loadSummary(): Promise<void> {
-  const response = await api.GET('/api/v1/downloads/summary')
-  if (response.data) summary.value = response.data
-}
-
 async function loadSelections(): Promise<void> {
   await Promise.all([fetchCategories(), fetchAccounts(), fetchProxies()])
 }
@@ -215,29 +183,6 @@ function accountLabel(id: string | null | undefined): string | null {
   return account ? `${account.label} (${account.provider})` : null
 }
 
-function openDirectAdd(): void {
-  addError.value = null
-  addOpen.value = true
-}
-
-/** A queued link closes the dialog; a refusal stays in it, not in the alert behind it. */
-async function addDownload(payload: DirectAddPayload): Promise<void> {
-  adding.value = true
-  addError.value = null
-  const ok = await transfers.add(payload.url, undefined, undefined, {
-    ...(payload.categoryId ? { categoryId: payload.categoryId } : {}),
-    ...(payload.accountId ? { accountId: payload.accountId } : {}),
-    ...(payload.proxyProfileId ? { proxyProfileId: payload.proxyProfileId } : {}),
-    priority: payload.priority
-  })
-  adding.value = false
-  if (ok) {
-    addOpen.value = false
-    return
-  }
-  addError.value = transfers.error
-  transfers.error = null
-}
 </script>
 
 <template>

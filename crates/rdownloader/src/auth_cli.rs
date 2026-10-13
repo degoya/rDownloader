@@ -188,11 +188,7 @@ mod tests {
     const SETTING: &str = rd_api::oidc_client::PASSWORD_LOGIN_OFF_SETTING;
 
     /// A stand-in for the running service: answers the route with the right token only.
-    async fn service(token: &'static str) -> (SocketAddr, Arc<Mutex<u32>>) {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind");
-        let address = listener.local_addr().expect("address");
+    async fn service(token: &'static str) -> (rd_testkit::TestServer, SocketAddr, Arc<Mutex<u32>>) {
         let calls = Arc::new(Mutex::new(0_u32));
         let counted = calls.clone();
         let router = Router::new().route(
@@ -215,10 +211,9 @@ mod tests {
                 }
             }),
         );
-        tokio::spawn(async move {
-            axum::serve(listener, router).await.expect("serve");
-        });
-        (address, calls)
+        let server = rd_testkit::serve(router).await;
+        let address = server.addr();
+        (server, address, calls)
     }
 
     fn control_file(data: &Path, address: SocketAddr, token: &str) {
@@ -268,7 +263,7 @@ mod tests {
         let directory = tempfile::tempdir().expect("tempdir");
         let data = directory.path();
         let database = switched_off_database(data).await;
-        let (address, calls) = service("the-token").await;
+        let (_server, address, calls) = service("the-token").await;
         control_file(data, address, "the-token");
         assert_eq!(
             password_login_on(&database, data).await.expect("switched"),

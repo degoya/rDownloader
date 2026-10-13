@@ -7,6 +7,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock } from '@/test/mocks'
 
 import type { NotificationRule, NotificationTarget } from '@/api/types'
 import common from '@/locales/en/common.json'
@@ -15,11 +16,8 @@ import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
 const post = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: (...args: unknown[]) => post(...args), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'The service did not answer')
-}))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
+vi.mock('@/api/client', () => apiClientMock({ POST: (...args: unknown[]) => post(...args) }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
 
 const { default: NotificationRules } = await import('./NotificationRules.vue')
 
@@ -92,12 +90,39 @@ describe('NotificationRules', () => {
       target_id: 'target',
       events: ['package_failed', 'storage_blocked'],
       category_id: 'films',
-      min_severity: 'warning'
+      min_severity: 'warning',
+      title_template: null,
+      body_template: null
     })
     await screen.findByRole('heading', { name: notifications.rule.form_edit })
     const group = screen.getByRole('group', { name: notifications.rule.events_label })
     const checked = (within(group).getAllByRole('checkbox') as HTMLInputElement[]).filter(box => box.checked)
     expect(checked).toHaveLength(2)
     expect(screen.getByText(common.editing)).toBeTruthy()
+  })
+
+  // RD-1280-02: a rule's own wording is part of the rule, in the list, the form and a copy.
+  it('marks a rule with its own wording, loads it into the form and copies it', async () => {
+    const worded = { ...RULE, title_template: '{package} done', body_template: 'At {time}' }
+    post.mockResolvedValueOnce({ data: { ...worded, id: 'r2', name: `Failures (${common.copy_suffix})` } })
+    mount([worded])
+    expect(screen.getByText(notifications.template.badge)).toBeTruthy()
+
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.edit }))
+    const title = screen.getByRole('textbox', { name: new RegExp(notifications.template.title_label) }) as HTMLInputElement
+    const body = screen.getByRole('textbox', { name: new RegExp(notifications.template.body_label) }) as HTMLInputElement
+    expect(title.value).toBe('{package} done')
+    expect(body.value).toBe('At {time}')
+
+    await fireEvent.click(screen.getByRole('button', { name: common.actions.duplicate }))
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(post.mock.calls[0]?.[1]?.body).toMatchObject({ title_template: '{package} done', body_template: 'At {time}' })
+  })
+
+  it('offers the own title and text for a new rule, empty for the built-in wording', () => {
+    mount()
+    const title = screen.getByRole('textbox', { name: new RegExp(notifications.template.title_label) }) as HTMLInputElement
+    expect(title.value).toBe('')
+    expect(screen.getByRole('textbox', { name: new RegExp(notifications.template.body_label) })).toBeTruthy()
   })
 })

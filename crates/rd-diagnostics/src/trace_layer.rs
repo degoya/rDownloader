@@ -35,7 +35,7 @@ use crate::{
 };
 
 /// Longest attribute value exported; the log store's limit, for the same reason.
-pub const MAX_ATTRIBUTE_LENGTH: usize = 2048;
+pub(crate) const MAX_ATTRIBUTE_LENGTH: usize = 2048;
 
 /// What an open span holds until it closes.
 struct SpanState {

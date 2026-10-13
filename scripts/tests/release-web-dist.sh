@@ -29,7 +29,7 @@ export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/scripts/lib" "$TREE/web/src" "$SCRATCH/bin"
 cp "$ROOT/scripts/release-pipeline.sh" "$ROOT/scripts/web-dist-stale.sh" "$TREE/scripts/"
-cp "$ROOT/scripts/lib/"{lock,lanes,verified,jobs,public-ci,release-tag,release-evidence,release-steps-build,release-steps-publish,workspace-version,inert-paths}.sh "$TREE/scripts/lib/"
+cp "$ROOT/scripts/lib/"{lock,lanes,verified,verified-ci,jobs,public-ci,release-tag,release-evidence,release-steps-build,release-steps-publish,workspace-version,inert-paths}.sh "$TREE/scripts/lib/"
 
 CALLS="$SCRATCH/pnpm.calls"
 : > "$CALLS"

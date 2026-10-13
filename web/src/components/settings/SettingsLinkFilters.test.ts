@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 import { ref } from 'vue'
 
 import settings from '@/locales/en/settings.json'
@@ -13,19 +14,13 @@ const get = vi.fn()
 const post = vi.fn()
 const put = vi.fn()
 const apply = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: (...args: unknown[]) => put(...args),
-    PATCH: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  POST: (...args: unknown[]) => post(...args),
+  PUT: (...args: unknown[]) => put(...args)
 }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
+vi.mock('@nuxt/ui/composables', () => toastMock())
 vi.mock('@/stores/categories', () => ({
   useCategories: () => ({ categories: ref([{ id: 'cat-1', name: 'Extras' }]), fetchCategories: vi.fn() })
 }))

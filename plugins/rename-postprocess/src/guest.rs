@@ -1,5 +1,4 @@
 //! The component: rename the package's files to a tidy form.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_postprocess::{Guest, StepComplete, StepEnd, StepInput, source};
 

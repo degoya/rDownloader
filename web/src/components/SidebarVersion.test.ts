@@ -5,11 +5,9 @@
  */
 import { screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: undefined })) },
-  responseError: vi.fn()
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })), responseError: vi.fn() }))
 
 import { api } from '@/api/client'
 import { BUILD_VERSION, checkServiceVersion, resetServiceVersionForTests } from '@/composables/serviceVersion'

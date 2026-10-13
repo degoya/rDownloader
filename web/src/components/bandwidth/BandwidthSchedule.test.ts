@@ -7,6 +7,7 @@
  */
 import { fireEvent, screen, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import type { BandwidthProfile, BandwidthSchedule } from '@/api/types'
 import bandwidth from '@/locales/en/bandwidth.json'
@@ -15,10 +16,7 @@ import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
 const put = vi.hoisted(() => vi.fn())
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), PUT: put, DELETE: vi.fn() },
-  responseError: () => ''
-}))
+vi.mock('@/api/client', () => apiClientMock({ PUT: put, responseError: () => '' }))
 
 import BandwidthScheduleCard from './BandwidthSchedule.vue'
 

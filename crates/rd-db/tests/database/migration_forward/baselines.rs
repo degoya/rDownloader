@@ -1,4 +1,5 @@
-//! Every release baseline, seeded with the release fixture and upgraded to today's schema.
+//! The two release baselines, seeded with the release fixture and upgraded to today's schema,
+//! and the guards of the ratchet (RD-1280-23).
 
 use super::{BASELINES, PENDING_GAPS, RESERVED_GAPS, fixture, seeded_at};
 
@@ -38,14 +39,8 @@ macro_rules! every_release_baseline {
 }
 
 every_release_baseline! {
-    the_0_6_0_baseline_upgrades_with_its_queue_intact => "0.6.0",
-    the_0_9_2_baseline_upgrades_with_its_queue_intact => "0.9.2",
-    the_1_0_0_baseline_upgrades_with_its_queue_intact => "1.0.0",
-    the_1_1_0_baseline_upgrades_with_its_queue_intact => "1.1.0",
-    the_1_2_0_baseline_upgrades_with_its_queue_intact => "1.2.0",
-    the_1_3_0_baseline_upgrades_with_its_queue_intact => "1.3.0",
-    the_1_4_0_baseline_upgrades_with_its_queue_intact => "1.4.0",
-    the_1_5_0_baseline_upgrades_with_its_queue_intact => "1.5.0",
+    the_1_26_0_baseline_upgrades_with_its_queue_intact => "1.26.0",
+    the_1_27_0_baseline_upgrades_with_its_queue_intact => "1.27.0",
 }
 
 /// A row added to BASELINES gets its test above; without this it would upgrade nowhere.
@@ -53,6 +48,91 @@ every_release_baseline! {
 fn every_release_baseline_has_its_upgrade_test() {
     let releases: Vec<&str> = BASELINES.iter().map(|(release, _)| *release).collect();
     assert_eq!(UPGRADED, releases.as_slice());
+}
+
+/// `major.minor.patch` of a release; `None` for a pre-release, which keeps the baselines.
+fn release_number(version: &str) -> Option<(u64, u64, u64)> {
+    let mut parts = version.split('.').map(|part| part.parse::<u64>().ok());
+    match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(Some(major)), Some(Some(minor)), Some(Some(patch)), None) => {
+            Some((major, minor, patch))
+        }
+        _ => None,
+    }
+}
+
+/// The ratchet holds: at most two rows, one per minor version, oldest first, and the newest is
+/// the release this tree is — `RD_RELEASE_VERSION` while the release chain checks the tree before
+/// its version bump, the workspace version otherwise. A release that skipped
+/// `scripts/migration-baselines.sh` fails here on the next check.
+#[test]
+fn the_baselines_are_the_last_two_releases() {
+    assert!(
+        (1..=2).contains(&BASELINES.len()),
+        "the suite keeps the last two releases: {BASELINES:?}"
+    );
+    let numbers: Vec<(u64, u64, u64)> = BASELINES
+        .iter()
+        .map(|(release, _)| release_number(release).expect("a release row is X.Y.Z"))
+        .collect();
+    for pair in numbers.windows(2) {
+        assert!(
+            (pair[0].0, pair[0].1) < (pair[1].0, pair[1].1),
+            "one row per minor version, oldest first: {BASELINES:?}"
+        );
+    }
+    for pair in BASELINES.windows(2) {
+        assert!(
+            pair[0].1 <= pair[1].1,
+            "a newer release shipped fewer migrations: {BASELINES:?}"
+        );
+    }
+    let releasing = std::env::var("RD_RELEASE_VERSION").ok();
+    let current = releasing
+        .as_deref()
+        .filter(|version| !version.is_empty())
+        .unwrap_or(env!("CARGO_PKG_VERSION"));
+    if release_number(current).is_some() {
+        let newest = BASELINES.last().map(|(release, _)| *release);
+        assert_eq!(
+            newest,
+            Some(current),
+            "the newest baseline is the release this tree is; run scripts/migration-baselines.sh {current}"
+        );
+    }
+}
+
+/// The schema a per-migration test starts from, read off its source: every
+/// `schema_at(directory.path(), N)` in `per_migration.rs`.
+fn measured_schemas(source: &str) -> Vec<i64> {
+    source
+        .split("schema_at(directory.path(), ")
+        .skip(1)
+        .map(|rest| {
+            let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+            digits.parse().expect("a migration number after schema_at")
+        })
+        .collect()
+}
+
+/// A per-migration test measures a migration the older kept release did not ship: its schema
+/// is at least that release's last migration. One the release script's drop left behind fails
+/// here, naming the number to delete it by.
+#[test]
+fn every_measured_migration_is_newer_than_the_older_baseline() {
+    let oldest = BASELINES[0].1;
+    for schema in measured_schemas(include_str!("per_migration.rs")) {
+        assert!(
+            schema >= oldest,
+            "per_migration.rs measures migration {:04}, which both kept releases ship; its test goes",
+            schema + 1
+        );
+    }
+    assert_eq!(
+        measured_schemas("schema_at(directory.path(), 145)\nschema_at(directory.path(), 9)"),
+        [145, 9],
+        "the reading of the source itself"
+    );
 }
 
 /// An upgraded database is writable, not merely readable.

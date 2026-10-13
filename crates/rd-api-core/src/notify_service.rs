@@ -21,6 +21,7 @@ use tokio_util::sync::CancellationToken;
 mod bursts;
 mod delivery;
 mod events;
+mod placeholders;
 // The package rule is the automations' too (RD-1270-03).
 pub(crate) mod transitions;
 mod web_push;
@@ -298,21 +299,21 @@ pub async fn vendor_directory(database: &rd_db::Database) -> Option<String> {
     }
 }
 
+/// A classified bus event: the notification event, its category, its title and its body.
+type Classified = (
+    NotificationEvent,
+    Option<rd_core::CategoryId>,
+    String,
+    String,
+);
+
 /// The `budget_exhausted` notification for a `bandwidth.changed` event that reports the
 /// active profile's traffic budget running out.
 ///
 /// The scheduler announces the transition once, not every sample (`entity: "budget"`,
 /// `exhausted: true`); every other `bandwidth.changed` — a profile edit, a schedule save, a
 /// profile switch, the budget coming back at the next period — notifies nobody.
-#[allow(clippy::type_complexity)]
-fn budget_exhausted(
-    payload: &serde_json::Value,
-) -> Option<(
-    NotificationEvent,
-    Option<rd_core::CategoryId>,
-    String,
-    String,
-)> {
+fn budget_exhausted(payload: &serde_json::Value) -> Option<Classified> {
     if payload.get("entity").and_then(serde_json::Value::as_str) != Some("budget")
         || payload
             .get("exhausted")
@@ -347,15 +348,7 @@ fn budget_exhausted(
 /// The flush that crosses the limit announces it once, in the transaction that marks it
 /// (`resource: "usenet_quota"`, `quota_reached: true`); every other `usenet.changed` — a server
 /// edit, a quota set or reset — notifies nobody.
-#[allow(clippy::type_complexity)]
-fn usenet_quota_reached(
-    payload: &serde_json::Value,
-) -> Option<(
-    NotificationEvent,
-    Option<rd_core::CategoryId>,
-    String,
-    String,
-)> {
+fn usenet_quota_reached(payload: &serde_json::Value) -> Option<Classified> {
     if payload.get("resource").and_then(serde_json::Value::as_str) != Some("usenet_quota")
         || payload
             .get("quota_reached")

@@ -28,7 +28,7 @@ pub struct Occurrence {
 impl Occurrence {
     /// The interval the monitor actually watches, widened by the lead and trail.
     #[must_use]
-    pub fn watch_window(&self, schedule: &StreamSchedule) -> (DateTime<Utc>, DateTime<Utc>) {
+    pub(crate) fn watch_window(&self, schedule: &StreamSchedule) -> (DateTime<Utc>, DateTime<Utc>) {
         (
             self.starts_at - Duration::minutes(i64::from(schedule.lead_minutes)),
             self.ends_at + Duration::minutes(i64::from(schedule.trail_minutes)),

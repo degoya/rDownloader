@@ -155,7 +155,7 @@ async fn serve_moved_without_hash() -> Response {
         .into_response()
 }
 
-async fn fake_jackett() -> (String, Fake) {
+async fn fake_jackett() -> (rd_testkit::TestServer, String, Fake) {
     let fake = Fake {
         base: Arc::new(Mutex::new(String::new())),
         queries: Arc::new(Mutex::new(Vec::new())),
@@ -168,16 +168,11 @@ async fn fake_jackett() -> (String, Fake) {
         .route("/moved", get(serve_moved))
         .route("/moved-without-hash", get(serve_moved_without_hash))
         .with_state(fake.clone());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
     let base = format!("http://{address}");
     fake.base.lock().expect("lock").clone_from(&base);
-    (base, fake)
+    (server, base, fake)
 }
 
 async fn create_indexer(router: &Router, base: &str) -> Value {
@@ -201,7 +196,7 @@ fn assert_no_key(payload: &Value) {
 async fn a_torznab_indexer_answers_torrent_hits_with_their_swarm_and_without_the_key() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, _) = fake_jackett().await;
+    let (_server, base, _) = fake_jackett().await;
     let indexer = create_indexer(&router, &base).await;
     let id = indexer["id"].as_str().expect("id");
 
@@ -248,7 +243,7 @@ async fn a_torznab_indexer_answers_torrent_hits_with_their_swarm_and_without_the
 async fn a_typed_search_sends_its_function_and_its_ids_and_refuses_a_foreign_one() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, fake) = fake_jackett().await;
+    let (_server, base, fake) = fake_jackett().await;
     create_indexer(&router, &base).await;
 
     let (status, answer) = post_json(
@@ -326,7 +321,7 @@ async fn a_typed_search_sends_its_function_and_its_ids_and_refuses_a_foreign_one
 async fn grabbed_torrent_hits_arrive_in_the_linkgrabber_and_the_key_goes_only_to_the_indexer() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, fake) = fake_jackett().await;
+    let (_server, base, fake) = fake_jackett().await;
     let indexer = create_indexer(&router, &base).await;
     let (_, answer) = post_json(
         &router,

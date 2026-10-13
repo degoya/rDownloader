@@ -232,9 +232,7 @@ onMounted(async () => {
     </div>
     <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
 
-    <p v-if="!props.destinations.length && editing === null" class="text-sm text-muted">
-      {{ t('system.backup.full.destinations.empty') }}
-    </p>
+    <UEmpty v-if="!props.destinations.length && editing === null" :description="t('system.backup.full.destinations.empty')" />
     <ul v-if="props.destinations.length" class="divide-y divide-muted border border-muted" data-testid="backup-destination-list">
       <li v-for="destination in props.destinations" :key="destination.id" class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 text-sm">
         <UBadge color="neutral" variant="outline">{{ t(`system.backup.full.destinations.kind.${destination.kind}`) }}</UBadge>

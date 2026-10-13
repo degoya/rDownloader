@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock } from '@/test/mocks'
 
 import type { Category, StorageRoot } from '@/api/types'
 import common from '@/locales/en/common.json'
@@ -14,19 +15,14 @@ import { mountComponent } from '@/test/mount'
 const get = vi.fn()
 const post = vi.fn()
 const put = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: (...args: unknown[]) => put(...args),
-    PATCH: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'rejected'),
-  resultMessage: vi.fn(() => '')
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  POST: (...args: unknown[]) => post(...args),
+  PUT: (...args: unknown[]) => put(...args),
+  responseError: vi.fn(() => 'rejected')
 }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => undefined }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const { default: RoutingCategories } = await import('./RoutingCategories.vue')
 

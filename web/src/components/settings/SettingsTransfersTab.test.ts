@@ -6,6 +6,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 import { defineComponent, h, reactive } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
@@ -21,15 +22,8 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsTransfersTab from './SettingsTransfersTab.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: [] })), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: () => 'failed',
-  resultMessage: () => 'done'
-}))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(true) }) }) })
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })), responseError: () => 'failed', resultMessage: () => 'done' }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ answer: true }))
 
 const TABS = settingsMessages.subtabs.transfers
 

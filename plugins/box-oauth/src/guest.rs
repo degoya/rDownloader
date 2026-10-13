@@ -10,7 +10,6 @@
 //! [`Client::Confidential`]. `state` is still drawn from the host's random source and compared
 //! by the host, which is what keeps a callback naming a flow nobody started from matching
 //! anything. The flow itself is `plugin-guest-oauth`'s; this file states what is Box's.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_oauth::redirect::{CLIENT_ID_MARKER, Client, Device, Provider};
 

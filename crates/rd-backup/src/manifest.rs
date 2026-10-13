@@ -8,11 +8,11 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// The format name every manifest carries.
-pub const FORMAT: &str = "rdownloader-backup";
+pub(crate) const FORMAT: &str = "rdownloader-backup";
 /// The format version this build writes and reads.
 pub const FORMAT_VERSION: u32 = 1;
 /// The manifest's own member name; always the first member.
-pub const MANIFEST_NAME: &str = "manifest.json";
+pub(crate) const MANIFEST_NAME: &str = "manifest.json";
 /// The largest manifest a reader accepts.
 pub const MAX_MANIFEST_BYTES: u64 = 16 << 20;
 
@@ -22,7 +22,7 @@ pub const DATABASE_PART: &str = "database.sqlite3";
 pub const PLUGIN_TRUST_PART: &str = "plugin-trust.json";
 pub const PARTIAL_TRANSFERS_PART: &str = "partial-transfers.json";
 /// Folder prefixes of the parts copied file by file.
-pub const TORRENT_SESSION_PREFIX: &str = "torrent-session";
+pub(crate) const TORRENT_SESSION_PREFIX: &str = "torrent-session";
 pub const TORRENT_FILES_PREFIX: &str = "torrents";
 
 /// What a part is.
@@ -80,7 +80,7 @@ impl Manifest {
 
     /// Whether this build can read what the manifest describes.
     #[must_use]
-    pub fn is_supported(&self) -> bool {
+    pub(crate) fn is_supported(&self) -> bool {
         self.format == FORMAT && self.format_version == FORMAT_VERSION
     }
 
@@ -99,7 +99,7 @@ impl Manifest {
 /// `nul.torrent`, which opens the device instead of a file, or a trailing dot or space, which
 /// Windows drops, so two members would land on one file.
 #[must_use]
-pub fn is_safe_member_name(name: &str) -> bool {
+pub(crate) fn is_safe_member_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 1_024
         && !name.contains(['\\', ':', '\0'])

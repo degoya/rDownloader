@@ -37,6 +37,8 @@ async fn notification_deliveries_are_trimmed_per_rule_but_never_while_pending() 
                 events: vec![NotificationEvent::PackageCompleted],
                 category_id: None,
                 min_severity: Severity::Info,
+                title_template: None,
+                body_template: None,
             },
         )
         .await
@@ -144,6 +146,8 @@ async fn a_retried_delivery_still_names_its_package_folder_after_a_restart() {
                     events: vec![NotificationEvent::PackageCompleted],
                     category_id: None,
                     min_severity: Severity::Info,
+                    title_template: None,
+                    body_template: None,
                 },
             )
             .await
@@ -195,4 +199,65 @@ async fn a_retried_delivery_still_names_its_package_folder_after_a_restart() {
     };
     assert_eq!(named("with"), Some((1, Some(folder.to_owned()))));
     assert_eq!(named("without"), Some((1, None)));
+}
+
+/// RD-1280-02: a rule keeps its own title and text across a reopen, and a save without them
+/// returns it to the built-in wording.
+#[tokio::test]
+async fn a_rule_keeps_its_own_wording_until_it_is_cleared() {
+    use rd_notify::{NotificationEvent, Severity, TargetKind};
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = directory.path().join("templates.sqlite");
+    let database = Database::open(&path).await.expect("database");
+    let target = database
+        .upsert_notification_target(
+            None,
+            crate::NewNotificationTarget {
+                name: "ntfy".to_owned(),
+                kind: TargetKind::Apprise,
+                enabled: true,
+                endpoint: "ntfy".to_owned(),
+                config: serde_json::json!({}),
+                secret_ref: None,
+                clear_secret: false,
+            },
+        )
+        .await
+        .expect("target");
+    let rule = |title: Option<&str>, body: Option<&str>| crate::NewNotificationRule {
+        name: "Own words".to_owned(),
+        enabled: true,
+        target_id: target.id,
+        events: vec![NotificationEvent::PackageCompleted],
+        category_id: None,
+        min_severity: Severity::Info,
+        title_template: title.map(str::to_owned),
+        body_template: body.map(str::to_owned),
+    };
+    let saved = database
+        .upsert_notification_rule(
+            None,
+            rule(Some("{package} \u{2713}"), Some("Fertig um {time}")),
+        )
+        .await
+        .expect("rule");
+    drop(database);
+
+    let database = Database::open(&path).await.expect("reopened");
+    let stored = database.list_notification_rules().await.expect("rules");
+    assert_eq!(stored.len(), 1);
+    assert_eq!(
+        stored[0].title_template.as_deref(),
+        Some("{package} \u{2713}")
+    );
+    assert_eq!(stored[0].body_template.as_deref(), Some("Fertig um {time}"));
+
+    database
+        .upsert_notification_rule(Some(saved.id), rule(None, None))
+        .await
+        .expect("cleared");
+    let stored = database.list_notification_rules().await.expect("rules");
+    assert_eq!(stored[0].title_template, None);
+    assert_eq!(stored[0].body_template, None);
 }

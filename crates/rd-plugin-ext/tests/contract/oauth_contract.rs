@@ -861,43 +861,6 @@ fn futures_lite_block_on<F: std::future::Future>(future: F) -> F::Output {
         .block_on(future)
 }
 
-/// Nothing that could be a credential is committed to the repository.
-///
-/// The fixtures are the one place where token-shaped strings live in the tree at all, so they
-/// are the one place that has to be checked: every value in them is one of the two
-/// placeholders below, and a fixture refreshed from a real provider's answer fails here.
-#[test]
-fn fixtures_carry_no_credential_material() {
-    for (name, body) in [
-        ("success.json", SUCCESS),
-        ("failure.json", FAILURE),
-        ("expiry.json", EXPIRY),
-        ("quota.json", QUOTA),
-        ("refresh_refused.json", REFRESH_REFUSED),
-        ("device_code.json", DEVICE_CODE),
-        ("device_pending.json", DEVICE_PENDING),
-    ] {
-        let value: serde_json::Value = serde_json::from_str(body).expect("fixture is JSON");
-        for field in [
-            "access_token",
-            "refresh_token",
-            "id_token",
-            "code",
-            "device_code",
-        ] {
-            let Some(found) = value.get(field).and_then(serde_json::Value::as_str) else {
-                continue;
-            };
-            assert!(
-                found == PLACEHOLDER_ACCESS_TOKEN
-                    || found == PLACEHOLDER_REFRESH_TOKEN
-                    || found == PLACEHOLDER_DEVICE_CODE,
-                "{name} carries a `{field}` that is not a placeholder"
-            );
-        }
-    }
-}
-
 /// The reference plugin asks for nothing beyond the provider's own endpoint.
 #[test]
 fn the_reference_plugin_reaches_only_the_provider_it_signs_in() {

@@ -61,25 +61,21 @@ fn encoded(file_name: &str, content: &[u8]) -> Value {
 }
 
 /// Serves the recorded answer on loopback and returns the endpoint to configure.
-async fn recorded_dlc_service() -> String {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
+async fn recorded_dlc_service() -> (rd_testkit::TestServer, String) {
     let app = Router::new().route(
         "/service.php",
         axum::routing::get(|| async { DLC_SERVICE_ANSWER }),
     );
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    format!("http://{address}/service.php")
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
+    (server, format!("http://{address}/service.php"))
 }
 
-/// A fresh installation with the DLC import switched on against the recorded service.
-async fn dlc_installation(directory: &std::path::Path) -> Router {
+/// A fresh installation with the DLC import switched on against the recorded service, which
+/// answers as long as the returned handle lives.
+async fn dlc_installation(directory: &std::path::Path) -> (rd_testkit::TestServer, Router) {
     let router = test_router(directory).await;
-    let endpoint = recorded_dlc_service().await;
+    let (server, endpoint) = recorded_dlc_service().await;
     let (status, mut settings) = get_json(&router, "/api/v1/settings").await;
     assert_eq!(status, StatusCode::OK, "settings: {settings}");
     settings["admin_login_disabled"] = Value::Bool(true);
@@ -87,7 +83,7 @@ async fn dlc_installation(directory: &std::path::Path) -> Router {
     settings["dlc_service_endpoint"] = Value::String(endpoint);
     let (status, body) = put_json(&router, "/api/v1/settings", settings).await;
     assert_eq!(status, StatusCode::OK, "settings: {body}");
-    router
+    (server, router)
 }
 
 /// The part of a LinkGrabber answer that describes the file, not the installation it landed in.
@@ -135,8 +131,8 @@ async fn a_dlc_arrives_as_json_and_matches_the_upload() {
         tempfile::tempdir().expect("tempdir"),
         tempfile::tempdir().expect("tempdir"),
     );
-    let by_upload = dlc_installation(first.path()).await;
-    let by_json = dlc_installation(second.path()).await;
+    let (_upload_service, by_upload) = dlc_installation(first.path()).await;
+    let (_json_service, by_json) = dlc_installation(second.path()).await;
 
     let (status, uploaded) = upload(&by_upload, "/api/v1/containers/import", "test.dlc", DLC).await;
     assert_eq!(status, StatusCode::CREATED, "{uploaded}");

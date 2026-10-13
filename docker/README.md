@@ -365,36 +365,30 @@ token for tools.
 
 ```bash
 scripts/build-plugins.sh          # first! see below
-scripts/docker.sh build           # caps cargo at JOBS=4
+scripts/docker.sh build           # the `runtime` target, cargo capped at JOBS=4
 scripts/docker.sh run --port 8710
 ```
 
-Three things that bite:
+The image's default target, `runtime`, compiles rDownloader inside the image and is meant for
+`scripts/docker.sh` alone; a build from a binary you already have takes the `prebuilt` target
+(below). Four things that bite, which the script takes care of:
 
-- **Build the plugins first.** `dist/plugins/*.rdplug` is gitignored, so a fresh clone has an
-  empty directory and the image ships **no bundled plugins at all** — no hoster resolvers, no
-  intake parsers. The service logs `no bundled plugin packages found` at startup when that
-  happened.
-- **Cap the compile.** `cargo build` inside the image otherwise uses every core.
-  `scripts/docker.sh` passes `--build-arg RD_BUILD_JOBS=4`; with a plain `docker build`, pass
-  it yourself.
+- **Build the plugins first — for either target.** Both copy the bundled plugins from
+  `dist/plugins`, which is gitignored and only `scripts/build-plugins.sh` fills. A fresh clone
+  has an empty directory, and the image then ships **no bundled plugins at all** — no hoster
+  resolvers, no intake parsers. `scripts/docker.sh` warns before it builds; the service logs
+  `no bundled plugin packages found` at startup.
+- **Cap the compile.** `cargo build` inside the image otherwise uses every core;
+  `scripts/docker.sh` passes `--build-arg RD_BUILD_JOBS=4`.
 - **Name the build.** The context carries no `.git`, so the image cannot work out its own
   commit and build time for *Settings → About rDownloader*. `scripts/docker.sh` passes
   `--build-arg RD_BUILD_COMMIT=… --build-arg RD_BUILD_TIME=…`, worked out by
-  `rd_build_stamp` in `scripts/lib/version-file.sh`; a plain `docker build` without them shows
-  both as "unknown".
+  `rd_build_stamp` in `scripts/lib/version-file.sh`; without them both show as "unknown".
 - **Docker Desktop on WSL.** It writes `credsStore: desktop.exe` into `~/.docker/config.json`,
   and with WSL interop disabled that helper cannot be executed — every pull fails with
-  `exec format error`. `scripts/docker.sh` builds against a credential-free config to avoid it.
-  With a plain `docker build`, remove the `credsStore` line or set `DOCKER_CONFIG` to a
+  `exec format error`. `scripts/docker.sh` builds against a credential-free config to avoid it;
+  for a `docker build` of your own, remove the `credsStore` line or set `DOCKER_CONFIG` to a
   directory containing only `{"auths":{}}`.
-
-For a multi-arch image:
-
-```bash
-docker buildx build --file docker/Dockerfile \
-  --platform linux/amd64,linux/arm64 --tag rdownloader:local .
-```
 
 ### Two targets: compiled here, or copied from a release build
 
@@ -403,8 +397,10 @@ entrypoint, health check:
 
 | Target | Binary | Used by |
 | --- | --- | --- |
-| `runtime` (default) | compiled in the image's own Rust stage | `scripts/docker.sh build`, a plain `docker build` |
-| `prebuilt` | copied from `dist/docker/linux-<arch>/rdownloader` in the build context | CI and the release workflow |
+| `runtime` (default) | compiled in the image's own Rust stage | `scripts/docker.sh build` only |
+| `prebuilt` | copied from `dist/docker/linux-<arch>/rdownloader` in the build context | CI, the release workflow, a `docker build` of your own |
+
+Both take the bundled plugins from `dist/plugins`: run `scripts/build-plugins.sh` before either.
 
 The release does not compile rDownloader a second time for the image: its `container` job takes
 the executable from the `rdownloader-linux-x86_64` and `rdownloader-linux-aarch64` archives the
@@ -426,10 +422,18 @@ To use the `prebuilt` target yourself, put a Linux binary built on a system with
 older where it expects one:
 
 ```bash
+scripts/build-plugins.sh
 mkdir -p dist/docker/linux-amd64
 cp target/release/rdownloader dist/docker/linux-amd64/
 docker build --file docker/Dockerfile --target prebuilt --tag rdownloader:local .
 scripts/docker-smoke.sh rdownloader:local
+```
+
+For a multi-arch image, put the arm64 binary into `dist/docker/linux-arm64/` as well:
+
+```bash
+docker buildx build --file docker/Dockerfile --target prebuilt \
+  --platform linux/amd64,linux/arm64 --tag rdownloader:local .
 ```
 
 ## Troubleshooting

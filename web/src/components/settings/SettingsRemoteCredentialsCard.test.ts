@@ -9,6 +9,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import type { Settings } from '@/api/types'
 import common from '@/locales/en/common.json'
@@ -27,22 +28,17 @@ const CREDENTIAL = {
 const testResult = vi.hoisted(() => ({ value: {} as Record<string, unknown> }))
 const trusted = vi.hoisted(() => vi.fn(async () => ({ data: { id: 'k1' } })))
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async (path: string) => ({ data: path.includes('ssh-hosts') ? [] : [CREDENTIAL] })),
-    POST: vi.fn(async (path: string) => (path.includes('/test')
-      ? { data: testResult.value }
-      : trusted())),
-    PUT: vi.fn(async () => ({ data: CREDENTIAL })),
-    DELETE: vi.fn(async () => ({ data: { message: 'gone' } }))
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async (path: string) => ({ data: path.includes('ssh-hosts') ? [] : [CREDENTIAL] })),
+  POST: vi.fn(async (path: string) => (path.includes('/test')
+    ? { data: testResult.value }
+    : trusted())),
+  PUT: vi.fn(async () => ({ data: CREDENTIAL })),
+  DELETE: vi.fn(async () => ({ data: { message: 'gone' } })),
   responseError: () => 'failed',
   resultMessage: () => 'done'
 }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(true) }) }) })
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock({ answer: true }))
 
 function mount() {
   return mountComponent(SettingsRemoteCredentialsCard, {

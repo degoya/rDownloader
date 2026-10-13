@@ -105,7 +105,7 @@ impl ToolManifest {
 
     /// The newest runnable release of `name`, or `None` when the manifest offers none.
     #[must_use]
-    pub fn newest_release(
+    pub(crate) fn newest_release(
         &self,
         name: &str,
         platform: &str,
@@ -174,7 +174,7 @@ impl ToolEntry {
     /// An unparseable bound refuses the entry. A window that cannot be read is not a window,
     /// and "install it anyway" is the wrong way to resolve a broken manifest.
     #[must_use]
-    pub fn suits_application(&self, app_version: &str) -> bool {
+    pub(crate) fn suits_application(&self, app_version: &str) -> bool {
         let Ok(application) = semver::Version::parse(app_version) else {
             // The application's own version is generated from Cargo metadata, so this is a
             // build fault rather than a manifest fault; refuse rather than guess.
@@ -220,7 +220,8 @@ fn compare_versions(left: &str, right: &str) -> std::cmp::Ordering {
 /// The manifest compiled into this build, as signed bytes.
 ///
 /// Shipped rather than fetched so the feature has a floor that no network can move.
-pub const EMBEDDED_MANIFEST_BYTES: &[u8] = include_bytes!("../resources/tools-manifest.json");
+pub(crate) const EMBEDDED_MANIFEST_BYTES: &[u8] =
+    include_bytes!("../resources/tools-manifest.json");
 
 /// The compiled-in manifest, verified through the same path a fetched one takes.
 ///

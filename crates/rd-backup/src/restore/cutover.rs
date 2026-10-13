@@ -29,23 +29,23 @@ use rd_files::durable::{exists, remove_any, sync_directory};
 use serde::{Deserialize, Serialize};
 
 /// Below the data directory: the throwaway unpacks of previews and test restores.
-pub const WORK_DIR: &str = "restore-work";
+pub(crate) const WORK_DIR: &str = "restore-work";
 /// Below the data directory: uploaded archives, until used or the next start.
-pub const UPLOADS_DIR: &str = "restore-uploads";
+pub(crate) const UPLOADS_DIR: &str = "restore-uploads";
 /// Below the data directory: the restored state waiting for the next start.
-pub const STAGED_DIR: &str = "restore-staged";
+pub(crate) const STAGED_DIR: &str = "restore-staged";
 /// Below the data directory: the live state set aside by the switch, until the first start.
 pub const PREVIOUS_DIR: &str = "restore-previous";
 /// Below the data directory: a restored state that did not start, and why.
-pub const FAILED_DIR: &str = "restore-failed";
+pub(crate) const FAILED_DIR: &str = "restore-failed";
 /// Below the data directory: the marker the start honours.
 pub const MARKER: &str = "restore-pending.json";
 /// Inside [`FAILED_DIR`]: why the restored state was put aside.
-pub const FAILURE_FILE: &str = "outcome.json";
+pub(crate) const FAILURE_FILE: &str = "outcome.json";
 /// The database copy's name inside the staging, as the archive names it.
-pub const STAGED_DATABASE: &str = crate::manifest::DATABASE_PART;
+pub(crate) const STAGED_DATABASE: &str = crate::manifest::DATABASE_PART;
 /// The torrent folders, by the names the torrent service gives them below the data directory.
-pub const TORRENT_FOLDERS: [&str; 2] = ["torrent-session", "torrents"];
+pub(crate) const TORRENT_FOLDERS: [&str; 2] = ["torrent-session", "torrents"];
 
 /// Where an installation's state lies: the data directory and the database file in it.
 #[derive(Clone, Debug)]
@@ -235,7 +235,9 @@ pub fn stage(layout: &Layout, prepared: &Path, pending: &PendingRestore) -> Resu
         ..pending.clone()
     };
     if let Err(error) = write_marker(layout, &marker) {
-        let _ = remove_any(&layout.staged());
+        if let Err(cleanup) = remove_any(&layout.staged()) {
+            tracing::debug!(error = %cleanup, "a staged restore without its marker could not be removed");
+        }
         return Err(error);
     }
     Ok(())

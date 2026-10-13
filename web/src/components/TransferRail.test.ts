@@ -5,15 +5,12 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 import { nextTick } from 'vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(),
-  errorMessage: vi.fn()
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })), responseError: vi.fn(), errorMessage: vi.fn() }))
 const toastAdd = vi.hoisted(() => vi.fn())
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: toastAdd }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toastAdd }))
 
 import { api, responseError } from '@/api/client'
 import common from '@/locales/en/common.json'

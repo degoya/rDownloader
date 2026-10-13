@@ -18,7 +18,7 @@
 use chrono::{DateTime, Duration, Utc};
 
 /// How far ahead of local time an `issued_at` may sit before it stops being clock skew.
-pub const MAX_CLOCK_SKEW_MINUTES: i64 = 60;
+pub(crate) const MAX_CLOCK_SKEW_MINUTES: i64 = 60;
 
 /// The freshness fields every signed document in this project carries.
 #[derive(Clone, Copy, Debug)]

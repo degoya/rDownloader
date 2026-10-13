@@ -75,7 +75,7 @@ function counters(tracker: TrackerView): string {
         />
       </div>
     </div>
-    <p v-if="!entries.length" class="text-xs text-muted">{{ t('torrent.trackers.empty') }}</p>
+    <UEmpty v-if="!entries.length" :description="t('torrent.trackers.empty')" />
     <ul v-else class="border border-muted bg-default">
       <li
         v-for="tracker in entries"

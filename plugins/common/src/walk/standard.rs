@@ -63,16 +63,9 @@ impl Walk<String, Found> {
 #[cfg(test)]
 mod tests {
     use super::{Entry, Found};
-    use crate::walk::{Limit, Walk, join};
+    use crate::walk::{Walk, join};
 
     type StandardWalk = Walk<String, Found>;
-
-    fn folder(id: &str) -> Entry {
-        Entry::Folder {
-            id: id.to_owned(),
-            name: format!("dir-{id}"),
-        }
-    }
 
     fn file(name: &str) -> Entry {
         Entry::File {
@@ -80,20 +73,6 @@ mod tests {
             name: name.to_owned(),
             size: Some(1),
         }
-    }
-
-    /// A folder that contains itself is read once: the guard is the provider's id.
-    #[test]
-    fn a_cycle_is_walked_once() {
-        let mut walk = StandardWalk::start("root".to_owned());
-        let root = walk.next_folder().expect("root");
-        walk.absorb(&root, vec![folder("inner"), file("a")]);
-        let inner = walk.next_folder().expect("inner");
-        walk.absorb(&inner, vec![folder("root"), folder("inner"), file("b")]);
-        assert_eq!(walk.next_folder(), None);
-        assert_eq!(walk.folders_read(), 2);
-        assert_eq!(walk.limit(), None::<Limit>);
-        assert_eq!(walk.into_files().len(), 2);
     }
 
     /// The path a file is reported under is rooted in the crawled folder's own name, and a

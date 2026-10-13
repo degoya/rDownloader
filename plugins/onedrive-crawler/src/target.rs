@@ -114,17 +114,15 @@ mod tests {
 
     #[test]
     fn an_address_belonging_to_somebody_else_is_never_claimed() {
-        assert_eq!(claim("https://1drv.ms.evil.test/f/s!abc"), None);
-        assert_eq!(claim("https://x@1drv.ms/f/s!abc"), None);
-        assert_eq!(claim("ftp://1drv.ms/f/s!abc"), None);
-        assert_eq!(claim("https://ddownload.com/f/abc"), None);
-        assert_eq!(claim("https://1drv.ms/"), None);
-        assert_eq!(claim("https://onedrive.live.com/about/en-us/"), None);
-        assert_eq!(
-            claim(
-                "https://contoso.sharepoint.com/sites/Team/Shared%20Documents/Forms/AllItems.aspx"
-            ),
-            None
-        );
+        for foreign in plugin_common::foreign::around("https://1drv.ms/f/s!abc") {
+            assert_eq!(claim(&foreign), None, "{foreign}");
+        }
+        for own_but_not_this in [
+            "https://1drv.ms/",
+            "https://onedrive.live.com/about/en-us/",
+            "https://contoso.sharepoint.com/sites/Team/Shared%20Documents/Forms/AllItems.aspx",
+        ] {
+            assert_eq!(claim(own_but_not_this), None, "{own_but_not_this}");
+        }
     }
 }

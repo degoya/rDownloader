@@ -8,31 +8,18 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import subscriptions from '@/locales/en/subscriptions.json'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, settle } from '@/test/mount'
 import { setShowItemImages } from '@/utils/itemImages'
 
 const get = vi.fn()
 const post = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: vi.fn(),
-    PATCH: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
-}))
-const toasts = vi.fn()
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: toasts }),
-  useOverlay: () => ({ create: () => ({ open: vi.fn() }) })
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args), POST: (...args: unknown[]) => post(...args) }))
+const toasts = vi.hoisted(() => vi.fn())
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toasts, overlay: { open: vi.fn() } }))
 
 const { default: IndexerSearchPanel } = await import('./IndexerSearchPanel.vue')
 
@@ -88,10 +75,6 @@ function mount() {
 /** Until the list has answered the field is disabled, and a click on *Search* does nothing. */
 async function ready(): Promise<void> {
   await waitFor(() => expect((screen.getByTestId('indexer-search-query') as HTMLInputElement).disabled).toBe(false))
-}
-
-async function settle(): Promise<void> {
-  for (let round = 0; round < 4; round += 1) await nextTick()
 }
 
 beforeEach(() => {

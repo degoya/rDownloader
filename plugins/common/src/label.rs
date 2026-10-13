@@ -211,9 +211,22 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
 
+/// The account row's user part: the address the person signed in with, and nothing else; the
+/// display name only when the address is missing, and nothing at all when both are empty. The
+/// label builder bounds it and strips controls, because it is shown rather than parsed.
+#[must_use]
+pub fn account_name<'a>(
+    address: Option<&'a str>,
+    display_name: Option<&'a str>,
+) -> Option<&'a str> {
+    address
+        .filter(|value| !value.is_empty())
+        .or(display_name.filter(|value| !value.is_empty()))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{COOKIES, Label, LabelPart, PREMIUM_UNTIL, USER, civil_date};
+    use super::{COOKIES, Label, LabelPart, PREMIUM_UNTIL, USER, account_name, civil_date};
 
     fn codes(label: Label) -> Vec<String> {
         label
@@ -322,5 +335,29 @@ mod tests {
         assert_eq!(civil_date(1_709_164_800), "2024-02-29"); // leap day
         assert_eq!(civil_date(1_798_761_600), "2027-01-01");
         assert_eq!(civil_date(-1), "1969-12-31");
+    }
+
+    #[test]
+    fn the_account_name_is_the_address_and_never_a_control_character() {
+        assert_eq!(
+            account_name(Some("someone@example.invalid"), Some("Someone")),
+            Some("someone@example.invalid")
+        );
+        assert_eq!(account_name(Some(""), Some("Someone")), Some("Someone"));
+        assert_eq!(account_name(None, Some("Someone")), Some("Someone"));
+        assert_eq!(account_name(None, None), None);
+        // Bounded and stripped of controls on its way into the label part.
+        let parts = Label::new()
+            .user(account_name(Some("a\u{0}b"), None))
+            .user(account_name(Some(&"x".repeat(200)), None))
+            .into_parts();
+        assert_eq!(parts[0].params, vec![("user".to_owned(), "ab".to_owned())]);
+        assert_eq!(parts[1].params[0].1.len(), 80);
+        assert!(
+            Label::new()
+                .user(account_name(None, None))
+                .into_parts()
+                .is_empty()
+        );
     }
 }

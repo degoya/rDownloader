@@ -8,6 +8,7 @@
  */
 import { fireEvent, screen, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import type { Download, DownloadState } from '@/api/types'
 import common from '@/locales/en/common.json'
@@ -17,14 +18,8 @@ import { mountComponent } from '@/test/mount'
 
 import TransferCard from './TransferCard.vue'
 
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(null) }) }) })
-}))
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: [] })) },
-  responseError: () => 'failed'
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock({ answer: null }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })), responseError: () => 'failed' }))
 
 /** Which host a staged resolver version would handle; none unless a test sets one. */
 const staged = vi.hoisted(() => ({ host: null as string | null, trial: null as unknown }))

@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import common from '@/locales/en/common.json'
@@ -14,10 +15,7 @@ import { mountComponent } from '@/test/mount'
 
 import CaptureGameModeForm from './CaptureGameModeForm.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), PATCH: vi.fn() },
-  responseError: vi.fn(() => 'refused by the service')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'refused by the service') }))
 
 const PROFILE = { id: '0192f7a0-0000-7000-8000-000000000001', name: 'Gaming' }
 const OFF = { enabled: true, full_screen: false, processes: [], action: 'pause', profile_id: null }

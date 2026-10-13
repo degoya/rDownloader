@@ -6,7 +6,6 @@
 //! and cycles are refused there, and the manifest's fuel and time budget sit underneath as the
 //! last resort rather than as the plan. The cursor Dropbox hands back between two pages is
 //! part of that walk's state, never a local here.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use dropbox_common::{address, metadata, reason};
 use plugin_guest_crawler::{

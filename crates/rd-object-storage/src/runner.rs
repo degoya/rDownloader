@@ -47,13 +47,7 @@ impl ExternalRunner for ObjectStorageRunner {
     /// The staged part file resumes once the object's validator (ETag, or Google's generation)
     /// still matches; a finished file is not adopted, and the ETag is no digest to verify.
     fn reuse(&self) -> rd_core::ReuseCapability {
-        rd_core::ReuseCapability {
-            resume_partial: true,
-            recheck_partial: true,
-            adopt_completed: false,
-            verify_completed: false,
-            applies_collision_policy: false,
-        }
+        rd_core::ReuseCapability::STAGED
     }
 
     fn slot_capacity(&self) -> usize {

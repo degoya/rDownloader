@@ -35,10 +35,10 @@ use crate::{
 };
 
 /// Most attributes one `pick` may read per entry.
-pub const MAX_PICK_ATTRIBUTES: usize = 16;
+pub(crate) const MAX_PICK_ATTRIBUTES: usize = 16;
 
 /// The variable a group's steps find their entry in when `into` names no other.
-pub const ENTRY_VARIABLE: &str = "entry";
+pub(crate) const ENTRY_VARIABLE: &str = "entry";
 
 /// How a rule turns one page into several packages.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -103,7 +103,7 @@ pub enum GroupMirrors {
 impl Groups {
     /// The variable one entry is handed over in.
     #[must_use]
-    pub fn entry_variable(&self) -> &str {
+    pub(crate) fn entry_variable(&self) -> &str {
         self.into.as_deref().unwrap_or(ENTRY_VARIABLE)
     }
 

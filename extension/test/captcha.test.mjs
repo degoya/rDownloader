@@ -23,7 +23,7 @@ import {
   skipWidget
 } from '../src/captcha.js'
 
-import { CONFIG, POPUP, WIDGET, fakeApi, names, setupAnswerer as setup } from './fakes.mjs'
+import { CONFIG, fakeApi, names, pageChrome, POPUP, setupAnswerer as setup, WIDGET } from './fakes.mjs'
 
 test('the permission pattern names exactly the page origin, not its subdomains or all sites', () => {
   assert.equal(pageOriginPattern('https://ddownload.com/login.html?x=1'), 'https://ddownload.com/*')
@@ -390,7 +390,7 @@ test('the injected reader reads one field, sends the token once and writes nothi
   const sent = []
   const field = { value: '' }
   globalThis.document = { querySelector: () => field }
-  globalThis.chrome = { runtime: { sendMessage: (payload) => sent.push(payload) } }
+  globalThis.chrome = pageChrome(sent)
   const timers = []
   let cleared = null
   const realSetInterval = globalThis.setInterval
@@ -436,7 +436,7 @@ function injectedPage(run) {
   const cleared = []
   const real = { setInterval: globalThis.setInterval, clearInterval: globalThis.clearInterval }
   globalThis.document = { querySelector: () => field }
-  globalThis.chrome = { runtime: { sendMessage: (payload) => sent.push(payload) } }
+  globalThis.chrome = pageChrome(sent)
   let nextTimer = 0
   globalThis.setInterval = (fn) => { nextTimer += 1; timers.push({ id: nextTimer, fn }); return nextTimer }
   globalThis.clearInterval = (id) => cleared.push(id)

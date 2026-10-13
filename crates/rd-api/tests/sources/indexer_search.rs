@@ -133,7 +133,7 @@ async fn serve_nzb(
 }
 
 /// A fake indexer on loopback; answers its base address (`http://127.0.0.1:<port>`).
-async fn fake_indexer() -> (String, Fake) {
+async fn fake_indexer() -> (rd_testkit::TestServer, String, Fake) {
     let fake = Fake {
         base: Arc::new(Mutex::new(String::new())),
         queries: Arc::new(Mutex::new(Vec::new())),
@@ -143,16 +143,11 @@ async fn fake_indexer() -> (String, Fake) {
         .route("/api", get(serve_api))
         .route("/getnzb", get(serve_nzb))
         .with_state(fake.clone());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
     let base = format!("http://{address}");
     fake.base.lock().expect("lock").clone_from(&base);
-    (base, fake)
+    (server, base, fake)
 }
 
 async fn create_indexer(router: &Router, base: &str) -> Value {
@@ -181,7 +176,7 @@ fn assert_no_key(payload: &Value) {
 async fn an_indexer_is_defined_edited_and_removed_without_its_key_ever_coming_back() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, _) = fake_indexer().await;
+    let (_server, base, _) = fake_indexer().await;
 
     let (status, refused) = post_json(
         &router,
@@ -262,7 +257,7 @@ async fn an_indexer_is_defined_edited_and_removed_without_its_key_ever_coming_ba
 async fn a_search_sends_its_parameters_once_and_answers_hits_without_the_key() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, fake) = fake_indexer().await;
+    let (_server, base, fake) = fake_indexer().await;
     let indexer = create_indexer(&router, &base).await;
 
     let (status, answer) = post_json(
@@ -341,7 +336,7 @@ async fn a_search_sends_its_parameters_once_and_answers_hits_without_the_key() {
 async fn a_search_the_indexer_would_refuse_is_refused_before_it_is_sent() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, fake) = fake_indexer().await;
+    let (_server, base, fake) = fake_indexer().await;
 
     let (status, refused) = post_json(
         &router,
@@ -372,7 +367,7 @@ async fn a_search_the_indexer_would_refuse_is_refused_before_it_is_sent() {
 async fn an_indexer_refusal_becomes_a_stable_code_in_its_outcome() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, _) = fake_indexer().await;
+    let (_server, base, _) = fake_indexer().await;
     create_indexer(&router, &base).await;
     // A second indexer on the same server with a wrong key: its refusal must not cost the
     // first one its hits.
@@ -419,7 +414,7 @@ async fn an_indexer_refusal_becomes_a_stable_code_in_its_outcome() {
 async fn grabbed_hits_arrive_as_nzb_imports_and_the_key_goes_only_to_the_indexer() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, fake) = fake_indexer().await;
+    let (_server, base, fake) = fake_indexer().await;
     let indexer = create_indexer(&router, &base).await;
     let (_, answer) = post_json(
         &router,
@@ -479,7 +474,7 @@ async fn grabbed_hits_arrive_as_nzb_imports_and_the_key_goes_only_to_the_indexer
 async fn a_subscription_takes_an_indexer_over_and_sends_its_search_term() {
     let temp = tempfile::tempdir().expect("tempdir");
     let router = test_router(temp.path()).await;
-    let (base, fake) = fake_indexer().await;
+    let (_server, base, fake) = fake_indexer().await;
     let indexer = create_indexer(&router, &base).await;
 
     let request = |url: &str, kind: &str| {

@@ -17,12 +17,6 @@ use crate::{
     worker::download_file,
 };
 
-async fn open(directory: &tempfile::TempDir) -> Database {
-    Database::open(directory.path().join("traffic.sqlite"))
-        .await
-        .expect("database")
-}
-
 async fn stored_server(database: &Database, name: &str, priority: i32) -> UsenetServerId {
     database
         .create_usenet_server(NewUsenetServer {
@@ -68,7 +62,7 @@ fn within_overhead(counted: u64, articles: u64) -> bool {
 #[tokio::test]
 async fn two_servers_are_each_credited_with_what_they_delivered() {
     let directory = tempfile::tempdir().expect("temporary directory");
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let primary_id = stored_server(&database, "Primary", 0).await;
     let backup_id = stored_server(&database, "Backup", 1).await;
     // The primary lacks parts 2 and 5; the backup has every part, with the same bytes.
@@ -140,7 +134,7 @@ async fn two_servers_are_each_credited_with_what_they_delivered() {
 #[tokio::test]
 async fn a_refused_flush_keeps_the_counts() {
     let directory = tempfile::tempdir().expect("temporary directory");
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let server = stored_server(&database, "Primary", 0).await;
     let traffic = UsenetTraffic::default();
     traffic
@@ -158,7 +152,7 @@ async fn a_refused_flush_keeps_the_counts() {
 #[tokio::test]
 async fn the_flusher_writes_what_is_left_when_it_stops() {
     let directory = tempfile::tempdir().expect("temporary directory");
-    let database = open(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let server = stored_server(&database, "Primary", 0).await;
     let traffic = UsenetTraffic::default();
     let flusher = traffic.start_flushing(database.clone(), Duration::from_secs(3_600));

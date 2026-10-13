@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock } from '@/test/mocks'
 
 import usenet from '@/locales/en/usenet.json'
 import { mountComponent } from '@/test/mount'
@@ -12,18 +13,13 @@ const get = vi.fn()
 const post = vi.fn()
 const put = vi.fn()
 const del = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: (...args: unknown[]) => put(...args),
-    PATCH: vi.fn(),
-    DELETE: (...args: unknown[]) => del(...args)
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  POST: (...args: unknown[]) => post(...args),
+  PUT: (...args: unknown[]) => put(...args),
+  DELETE: (...args: unknown[]) => del(...args)
 }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
 
 const { default: SettingsIndexersCard } = await import('./SettingsIndexersCard.vue')
 

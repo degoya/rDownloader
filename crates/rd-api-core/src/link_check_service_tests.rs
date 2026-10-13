@@ -352,13 +352,8 @@ async fn the_recorded_controlc_response_reports_the_missing_resolver() {
             )
         }),
     );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, page).await;
-    });
+    let server = rd_testkit::serve(page).await;
+    let address = server.addr();
     let probed = super::probe_direct(
         &reqwest::Client::new(),
         &[],

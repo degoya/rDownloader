@@ -7,6 +7,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import type { BandwidthProfile } from '@/api/types'
 import bandwidth from '@/locales/en/bandwidth.json'
@@ -14,13 +15,8 @@ import common from '@/locales/en/common.json'
 import { mountComponent } from '@/test/mount'
 
 const post = vi.hoisted(() => vi.fn())
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: post, PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: () => ''
-}))
-vi.mock('@nuxt/ui/composables', () => ({
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(false) }) }) })
-}))
+vi.mock('@/api/client', () => apiClientMock({ POST: post, responseError: () => '' }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 import BandwidthProfiles from './BandwidthProfiles.vue'
 

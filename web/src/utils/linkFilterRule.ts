@@ -1,7 +1,7 @@
 import type { LinkFilterRule, LinkFilterRuleRequest } from '@/api/types'
 import { MIB } from '@/utils/format'
 
-export type LinkFilterAction = LinkFilterRule['action']
+type LinkFilterAction = LinkFilterRule['action']
 export type LinkFilterNameSyntax = NonNullable<LinkFilterRule['name_syntax']>
 type IngressSource = NonNullable<LinkFilterRule['source']>
 

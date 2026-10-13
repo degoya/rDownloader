@@ -55,7 +55,7 @@ impl PluginTypeRegistry {
 
     /// Buckets packages whose role the installer already decided (RD-140-02).
     #[must_use]
-    pub fn with_roles(packages: Vec<(VerifiedPackage, VersionRole)>) -> Self {
+    pub(crate) fn with_roles(packages: Vec<(VerifiedPackage, VersionRole)>) -> Self {
         Self {
             packages: packages
                 .into_iter()
@@ -105,7 +105,7 @@ impl PluginTypeRegistry {
     ///
     /// For the resolver chain only: a download pinned to a staged version has to find it, and
     /// the role is what keeps every unpinned lookup on the default version.
-    pub fn instantiate_with_roles<T>(
+    pub(crate) fn instantiate_with_roles<T>(
         &self,
         plugin_type: &PluginType,
         build: impl Fn(&VerifiedPackage) -> anyhow::Result<T>,

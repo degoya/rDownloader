@@ -1,13 +1,9 @@
-manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000000d"
 name = "MediaFire"
 # The version must rise with every change, or a running instance keeps the package it
 # already has (`sync_bundled` only installs newer ones).
-version = "0.1.14"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.1.15"
 # The hosts a share link is spelled with (RD-103-06, measured 2026-09-21): `mfi.re` and
 # `mediafire.com` redirect to `www.`, `app.mediafire.com` serves the application shell.
 match_domains = ["mediafire.com", "www.mediafire.com", "app.mediafire.com", "mfi.re", "www.mfi.re"]
@@ -36,10 +32,6 @@ domains = [
 
 [metadata]
 description = "Resolves public MediaFire file links through the documented API and the file page."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [provider]
 slug = "mediafire"
@@ -52,9 +44,6 @@ host_aliases = [
 ]
 
 [limits]
-memory_bytes = 67108864
-fuel = 2000000000
-timeout_milliseconds = 15000
 # The file page measured 333 KB, an API answer under 64 KB.
 max_response_bytes = 2097152
 # No countdown on the file page, so no wait budget: a reported per-IP limit is handed to the

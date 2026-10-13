@@ -32,4 +32,24 @@ describe('releaseNotesByPlugin', () => {
     ])
     expect(notes.has('b')).toBe(false)
   })
+
+  it('drops maintenance-only notes and keeps repeated notes with the newest version (RD-1280-17)', () => {
+    const maintenance = 'Maintenance release: internal changes only, no change in behaviour.'
+    const offers: PluginOffers = {
+      updates: [],
+      installed: [offer('a', '0.1.15', 'In 0.1.13: Captcha pages are solved again.')],
+      available: [
+        offer('a', '0.1.14', 'In 0.1.13: Captcha pages are solved again.'),
+        offer('a', '0.1.13', 'Captcha pages are solved again.'),
+        offer('a', '0.1.12', ` ${maintenance}\n`),
+        offer('b', '0.2.0', maintenance)
+      ]
+    }
+    const notes = releaseNotesByPlugin(offers)
+    expect(notes.get('a')).toEqual([
+      { version: '0.1.15', notes: 'In 0.1.13: Captcha pages are solved again.', repository: 'rDownloader' },
+      { version: '0.1.13', notes: 'Captcha pages are solved again.', repository: 'rDownloader' }
+    ])
+    expect(notes.has('b')).toBe(false)
+  })
 })

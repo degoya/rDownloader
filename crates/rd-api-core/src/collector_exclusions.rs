@@ -51,7 +51,7 @@ const DEFAULT_FILE_NAME: &str = "excluded_domains.txt";
 /// the password list is resolved. Without a registered data directory (tests, tools) there is
 /// no blocklist.
 #[must_use]
-pub fn excluded_domains(setting: Option<&str>) -> Arc<Vec<String>> {
+pub(crate) fn excluded_domains(setting: Option<&str>) -> Arc<Vec<String>> {
     let configured = setting
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -108,7 +108,7 @@ pub fn excluded_domains(setting: Option<&str>) -> Arc<Vec<String>> {
 ///
 /// Whatever reading the file fails with, except `NotFound`; `InvalidInput` for anything but a
 /// regular file.
-pub fn load_excluded_domains(path: &Path) -> std::io::Result<Vec<String>> {
+pub(crate) fn load_excluded_domains(path: &Path) -> std::io::Result<Vec<String>> {
     match rd_files::read_text_capped(path, MAX_FILE_BYTES) {
         Ok(content) => Ok(parse(&content)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),

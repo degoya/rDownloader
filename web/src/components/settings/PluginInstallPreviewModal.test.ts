@@ -115,6 +115,17 @@ describe('PluginInstallPreviewModal', () => {
     expect(install).not.toHaveBeenCalled()
   })
 
+  it('leaves out notes that only say maintenance (RD-1280-17)', async () => {
+    preview.mockResolvedValue({
+      ok: true,
+      data: shown({ release_notes: 'Maintenance release: internal changes only, no change in behaviour.\n' })
+    })
+    mount()
+    await screen.findByText('DDownload')
+    expect(document.querySelector('[data-preview-release-notes]')).toBeNull()
+    expect(screen.queryByText(pluginsCatalogue.preview.release_notes)).toBeNull()
+  })
+
   it('puts what an update adds over the installed version first (RD-160-09)', async () => {
     preview.mockResolvedValue({
       ok: true,

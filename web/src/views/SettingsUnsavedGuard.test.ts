@@ -4,9 +4,10 @@
  * leave guard only reaches a component the router rendered. The confirmation is replaced by a
  * function each test answers (Nuxt UI's overlay needs `#imports`, see `ControlRoomLayout.test.ts`).
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import { api } from '@/api/client'
@@ -14,25 +15,19 @@ import { i18n } from '@/i18n'
 import settingsCatalogue from '@/locales/en/settings.json'
 import { defaultSettings } from '@/settingsDefaults'
 import { loadEveryLocale } from '@/test/locales'
-import { uiStubs } from '@/test/mount'
+import { mountComponent } from '@/test/mount'
 
 beforeAll(loadEveryLocale)
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(),
-    POST: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
-    PUT: vi.fn(),
-    PATCH: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
-    DELETE: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } }))
-  },
-  responseError: () => 'The service did not answer',
-  resultMessage: () => ''
+vi.mock('@/api/client', () => apiClientMock({
+  POST: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
+  PATCH: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
+  DELETE: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } }))
 }))
 const confirm = vi.fn<() => Promise<boolean>>()
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useConfirm', () => confirmMock((...args: never[]) => (confirm as (...args: never[]) => unknown)(...args)))
+vi.mock('@nuxt/ui/composables', () => toastMock())
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 vi.mock('@/composables/useAppTour', () => ({ useAppTour: () => ({ startTour: vi.fn() }) }))
 
 import SettingsView from './SettingsView.vue'
@@ -58,9 +53,7 @@ async function mountAt(path: string): Promise<{ router: Router, container: HTMLE
   await router.isReady()
   setActivePinia(createPinia())
   i18n.global.locale.value = 'en'
-  const { container } = render({ template: '<RouterView />' }, {
-    global: { plugins: [router, i18n], stubs: uiStubs as never }
-  })
+  const { container } = mountComponent({ template: '<RouterView />' }, { i18n, plugins: [router], keepPinia: true })
   return { router, container: container as HTMLElement }
 }
 

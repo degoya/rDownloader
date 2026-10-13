@@ -4,13 +4,14 @@
  * back as NZB imports, and a `.crawljob` takes the same road (RD-1220-02).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 import { ref } from 'vue'
 
-const add = vi.fn()
+const add = vi.hoisted(() => vi.fn())
 const nzbRefresh = vi.fn(async () => {})
 let picked = 'holiday.rdlinks'
 
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add }))
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string, values?: Record<string, unknown>) => `${key}${values && 'count' in values ? `:${String(values.count)}` : ''}` })
 }))
@@ -25,8 +26,8 @@ vi.mock('@/composables/useNzbImportModal', () => ({
 }))
 vi.mock('@/stores/collector', () => ({ useCollectorStore: () => ({ refresh: vi.fn(async () => {}) }) }))
 vi.mock('@/stores/nzbImports', () => ({ useNzbImportsStore: () => ({ importMany: vi.fn(), importNzb: vi.fn(), refresh: nzbRefresh }) }))
-vi.mock('@/api/client', () => ({
-  api: { POST: vi.fn(async () => ({ data: { candidates: [{}] } })) },
+vi.mock('@/api/client', () => apiClientMock({
+  POST: vi.fn(async () => ({ data: { candidates: [{}] } })),
   errorMessage: (error: unknown) => typeof error === 'string' ? error : 'failed'
 }))
 

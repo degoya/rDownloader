@@ -18,10 +18,10 @@ use tokio::sync::RwLock;
 pub const MAX_PARALLEL_FILES: u32 = 8;
 
 /// What a runner assumes until it has read its settings once.
-pub const DEFAULT_PARALLEL_FILES: usize = 2;
+pub(crate) const DEFAULT_PARALLEL_FILES: usize = 2;
 
 /// How much of a tool's last stderr line a failure quotes.
-pub const STDERR_TAIL_CHARS: usize = 300;
+pub(crate) const STDERR_TAIL_CHARS: usize = 300;
 
 /// The parallel-file setting as a slot count: at least one, at most [`MAX_PARALLEL_FILES`].
 #[must_use]

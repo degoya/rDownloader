@@ -198,7 +198,7 @@ pub async fn read_bounded_body(
 /// # Errors
 ///
 /// The transport's error for a broken transfer.
-pub async fn read_body_prefix(
+pub(crate) async fn read_body_prefix(
     mut response: reqwest::Response,
     max_bytes: usize,
 ) -> Result<Vec<u8>, reqwest::Error> {

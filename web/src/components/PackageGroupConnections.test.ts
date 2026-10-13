@@ -7,6 +7,7 @@
  */
 import { screen } from '@testing-library/vue'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { toastMock } from '@/test/mocks'
 
 import type { Download, DownloadPackage } from '@/api/types'
 import { i18n } from '@/i18n'
@@ -16,7 +17,7 @@ import { mountComponent, passthrough } from '@/test/mount'
 
 import PackageGroup from './PackageGroup.vue'
 
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 function render(kind: 'usenet' | 'http', connections: unknown) {
   const files = ['a', 'b', 'c'].map(id => ({

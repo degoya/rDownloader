@@ -87,7 +87,10 @@ export function useGrabberSelection(entries: Ref<GrabberEntry[]>, orderedKeys?: 
 
   function setKeys(keys: string[], selected: boolean): void {
     const next = new Set(selectedKeys.value)
-    for (const key of keys) selected ? next.add(key) : next.delete(key)
+    for (const key of keys) {
+      if (selected) next.add(key)
+      else next.delete(key)
+    }
     selectedKeys.value = next
   }
 
@@ -165,7 +168,8 @@ export function useGrabberSelection(entries: Ref<GrabberEntry[]>, orderedKeys?: 
 
   /** Header control: anything selected clears, nothing selected picks everything. */
   function toggleAll(): void {
-    state.value === 'none' ? selectAll() : clear()
+    if (state.value === 'none') selectAll()
+    else clear()
   }
 
   function isNzbSelected(id: string): boolean {

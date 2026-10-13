@@ -36,7 +36,7 @@ fn location_is_the_shared_directory_or_else_the_ffmpeg_binary() {
     let split = FfmpegTools {
         ffmpeg: tool("/usr/bin/ffmpeg"),
         ffprobe: tool("/usr/local/bin/ffprobe"),
-        leases: Vec::new(),
+        _leases: Vec::new(),
     };
     assert!(split.is_complete());
     assert_eq!(
@@ -47,7 +47,7 @@ fn location_is_the_shared_directory_or_else_the_ffmpeg_binary() {
     let together = FfmpegTools {
         ffmpeg: tool("/opt/vendor/ffmpeg"),
         ffprobe: tool("/opt/vendor/ffprobe"),
-        leases: Vec::new(),
+        _leases: Vec::new(),
     };
     assert_eq!(
         together.location().expect("shared directory").as_os_str(),
@@ -57,7 +57,7 @@ fn location_is_the_shared_directory_or_else_the_ffmpeg_binary() {
     let missing = FfmpegTools {
         ffmpeg: tool("/usr/bin/ffmpeg"),
         ffprobe: None,
-        leases: Vec::new(),
+        _leases: Vec::new(),
     };
     assert!(!missing.is_complete());
     assert!(missing.location().is_none());
@@ -217,7 +217,7 @@ async fn merging_is_not_offered_without_a_location() {
     let unreachable = FfmpegTools {
         ffmpeg: tool("/"),
         ffprobe: tool("/"),
-        leases: Vec::new(),
+        _leases: Vec::new(),
     };
     assert!(unreachable.is_complete());
     assert!(unreachable.location().is_none());

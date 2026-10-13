@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock, toastMock } from '@/test/mocks'
 
 import common from '@/locales/en/common.json'
 import en from '@/locales/en/streams.json'
@@ -11,23 +12,19 @@ import StreamsView from './StreamsView.vue'
 
 const get = vi.fn()
 const post = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: vi.fn(),
-    DELETE: vi.fn()
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  POST: (...args: unknown[]) => post(...args),
   responseError: vi.fn()
 }))
 // The shared lists follow the event stream (WEB-3); jsdom has no `EventSource`.
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 const confirm = vi.hoisted(() => vi.fn())
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirm }))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirm))
 // The export/import buttons pull in Nuxt UI's toast composable, whose runtime path resolves
 // through `#imports` and does not exist outside a Nuxt build. Mocked the same way
 // `IndexerReviewList.test.ts` does.
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 
 function mount() {
   return mountComponent(StreamsView, { messages: { streams: en } })

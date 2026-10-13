@@ -6,6 +6,7 @@ use crate::{Database, NewCategory, NewNzbFile, NewNzbImport, NewNzbSegment, NewS
 use mirrors::mirror_batch;
 
 mod auth;
+mod automation_reset;
 mod automations;
 mod categories;
 mod category_name_target;
@@ -31,6 +32,18 @@ mod recovery_volumes;
 mod remote_jobs;
 mod subscriptions;
 mod token_expiry;
+
+/// The file [`temp_database`] opens; `rd_testkit::DATABASE_FILE` for the integration tests.
+pub(crate) const DATABASE_FILE: &str = "rdownloader-test.sqlite3";
+
+/// The unit tests' database in `directory`. `rd_testkit::temp_database` is the same for the
+/// integration tests; this crate's unit tests cannot call it, their `Database` being a
+/// different crate instance from the one the kit links.
+pub(crate) async fn temp_database(directory: &std::path::Path) -> Database {
+    Database::open(directory.join(DATABASE_FILE))
+        .await
+        .expect("open the test database")
+}
 
 /// Default selection for tests that only care about proxy/account precedence.
 const SELECTION: AuthProfileSelection = AuthProfileSelection::Auto;

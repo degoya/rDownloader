@@ -11,7 +11,6 @@
 //! `/public.php/webdav` with the share token as the user name. A server that does not know
 //! the first one answers 404 or 405, which is the signal to try the second rather than to
 //! give up.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_crawler::{
     CrawledLink, Guest, host,

@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "crawler"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000010f"
 name = "Premiumize folders"
-version = "0.1.13"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.1.14"
 
 # The provider's own API, and nothing else. `folder/list` and `item/details` live here, and
 # the account's API key may be sent to `www.premiumize.me` and to no other address.
@@ -23,15 +19,10 @@ claims = ["premiumize"]
 
 [metadata]
 description = "Lists the files behind a Premiumize.me cloud folder or item address."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432
 # A crawl walks a tree in one invocation, so it needs more room than a call that makes one
 # request. The walk in `src/walk.rs` bounds depth, breadth and cycles; these bound a runaway.
-fuel = 2000000000
 timeout_milliseconds = 30000
 max_response_bytes = 4194304

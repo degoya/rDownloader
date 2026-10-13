@@ -34,7 +34,6 @@ pub struct HotFolderService {
 
 impl HotFolderService {
     #[must_use]
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         database: rd_db::Database,
         scheduler: rd_scheduler::SchedulerHandle,

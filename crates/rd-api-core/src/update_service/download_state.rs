@@ -87,7 +87,7 @@ impl UpdateService {
 
     /// The download of `version`, if one was asked for since the start.
     #[must_use]
-    pub fn download_status(&self, version: &str) -> Option<UpdateDownloadStatus> {
+    pub(crate) fn download_status(&self, version: &str) -> Option<UpdateDownloadStatus> {
         let download = self.0.download.lock().ok()?.clone()?;
         (download.version == version).then(|| UpdateDownloadStatus {
             version: download.version,

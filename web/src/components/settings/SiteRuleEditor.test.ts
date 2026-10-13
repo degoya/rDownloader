@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 import { ref } from 'vue'
 
 import common from '@/locales/en/common.json'
@@ -242,7 +243,7 @@ describe('the editor for a page with several releases (RD-1170-02)', () => {
 })
 
 // The component does not fetch, so nothing here needs the API client.
-vi.mock('@/api/client', () => ({ api: {}, responseError: () => '', resultMessage: () => '' }))
+vi.mock('@/api/client', () => apiClientMock({ responseError: () => '' }))
 
 describe('the editor as a form (RD-150-11)', () => {
   function complete(): RuleDraft {

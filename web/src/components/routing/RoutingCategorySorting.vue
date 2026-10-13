@@ -101,7 +101,7 @@ function entryNote(code: string | null | undefined): string {
     <UFormField :label="t('routing.category.sorting_preview_label')" :description="t('routing.category.sorting_preview_description')">
       <UTextarea v-model="names" :rows="4" autoresize class="w-full font-mono text-xs" :aria-label="t('routing.category.sorting_preview_label')" />
     </UFormField>
-    <p v-if="!exampleNames.length" class="text-xs leading-5 text-muted">{{ t('routing.category.sorting_preview_empty') }}</p>
+    <UEmpty v-if="!exampleNames.length" :description="t('routing.category.sorting_preview_empty')" />
     <ul v-else-if="entries.length" class="grid gap-2" data-testid="sorting-preview">
       <li v-for="(entry, index) in entries" :key="index" class="border border-muted p-2">
         <p class="truncate font-mono text-2xs text-muted" :title="entry.name">{{ entry.name }}</p>

@@ -9,7 +9,7 @@ use crate::models::{NewDownload, NewPackage, PersistedChunk};
 /// The commands `Writer::handle_downloads` applies.
 // `CreateDownload` outweighs the rest of the area; every message is as large as the largest
 // command, as it was with one flat enum.
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant)]
 pub(crate) enum DownloadsCommand {
     CreatePackage {
         package: NewPackage,

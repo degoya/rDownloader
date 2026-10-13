@@ -233,7 +233,7 @@ pub(crate) async fn fetch_once(
     guard: Option<&rd_http::AddressPolicy>,
 ) -> Result<Fetched, ApiError> {
     // No cookie store: a `Set-Cookie` in the answer is dropped with the client.
-    let mut builder = reqwest::Client::builder()
+    let mut builder = rd_http::client_builder(rd_http::ClientPurpose::Service)
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(TOTAL_TIMEOUT);

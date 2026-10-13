@@ -4,6 +4,7 @@
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 import { effectScope } from 'vue'
 
 import { api } from '@/api/client'
@@ -14,11 +15,11 @@ import { useCategories } from './categories'
 import { useProxyProfiles } from './proxyProfiles'
 import { useSettingsStore } from './settings'
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
+vi.mock('@/api/client', () => apiClientMock())
 
 /** The handlers of every live subscription, by event name. */
 const handlers = new Map<string, Set<(event: MessageEvent) => void>>()
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: vi.fn((named: Record<string, (event: MessageEvent) => void>) => {
     for (const [name, handler] of Object.entries(named)) {
       if (!handlers.has(name)) handlers.set(name, new Set())

@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import type { Settings } from '@/api/types'
@@ -13,21 +14,18 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsCleanupCard from './SettingsCleanupCard.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn() },
-  responseError: vi.fn(() => 'This clears data for good and must be confirmed.')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'This clears data for good and must be confirmed.') }))
 
 vi.mock('@/i18n/server', () => ({
   translateServerMessage: vi.fn(({ code }: { code: string }) => `translated ${code}`)
 }))
 
 type ConfirmOptions = { title: string, description: string, destructive?: boolean }
-const confirmed = vi.fn(async (_options: ConfirmOptions) => true)
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
+const confirmed = vi.hoisted(() => vi.fn(async (_options: ConfirmOptions) => true))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirmed))
 
-const added = vi.fn()
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: added }) }))
+const added = vi.hoisted(() => vi.fn())
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: added }))
 
 const MIB = 1024 * 1024
 

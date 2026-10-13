@@ -275,7 +275,6 @@
     },
     "origin_hint": "D'où vient le plugin : pour un service installé, d'où vient la version installée, sinon d'où une installation le prendrait maintenant.",
     "state": {
-      "available": "Disponible",
       "update": "Mise à jour disponible"
     },
     "show_label": "Filtrer par état",

@@ -21,6 +21,7 @@ rd-extract = { path = "../rd-extract" }
 rd-files = { path = "../rd-files" }
 rd-ftp = { path = "../rd-ftp" }
 rd-gallery = { path = "../rd-gallery" }
+rd-http = { path = "../rd-http" }
 rd-media = { path = "../rd-media" }
 rd-plugin-ext = { path = "../rd-plugin-ext" }
 rd-plugin-host = { path = "../rd-plugin-host" }
@@ -50,9 +51,9 @@ tracing-subscriber.workspace = true
 rustix.workspace = true
 
 [dev-dependencies]
+rd-testkit = { path = "../rd-testkit" }
 axum.workspace = true
 hex.workspace = true
-rd-http = { path = "../rd-http" }
 sha2.workspace = true
 tempfile.workspace = true
 

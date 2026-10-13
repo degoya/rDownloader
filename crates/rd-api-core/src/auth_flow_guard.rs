@@ -20,14 +20,14 @@ use rd_core::{AuthFlow, AuthFlowState};
 
 /// The shortest `state` a flow may be started with. A PKCE verifier is 43 characters; 32
 /// base64 characters are 192 bits, far beyond guessing over a network.
-pub const MIN_CALLBACK_STATE_CHARS: usize = 32;
+pub(crate) const MIN_CALLBACK_STATE_CHARS: usize = 32;
 
 /// How long after a flow started its callback is still accepted, in seconds, whatever the
 /// provider said about its own window.
-pub const CALLBACK_WINDOW_SECONDS: i64 = 900;
+pub(crate) const CALLBACK_WINDOW_SECONDS: i64 = 900;
 
 /// Refuses a callback `state` too short to be a secret.
-pub fn checked_callback_state(state: &str) -> anyhow::Result<()> {
+pub(crate) fn checked_callback_state(state: &str) -> anyhow::Result<()> {
     if state.chars().count() < MIN_CALLBACK_STATE_CHARS {
         anyhow::bail!(
             "the plugin's OAuth state is shorter than {MIN_CALLBACK_STATE_CHARS} characters; a \
@@ -38,14 +38,14 @@ pub fn checked_callback_state(state: &str) -> anyhow::Result<()> {
 }
 
 /// Whether a callback for `flow`, taken from the store just now, may still complete it.
-pub fn callback_usable(flow: &AuthFlow, now: DateTime<Utc>) -> bool {
+pub(crate) fn callback_usable(flow: &AuthFlow, now: DateTime<Utc>) -> bool {
     flow.state == AuthFlowState::WaitingForUser
         && !flow.is_expired(now)
         && now - flow.started_at <= chrono::Duration::seconds(CALLBACK_WINDOW_SECONDS)
 }
 
 /// The address a sign-in sends the person to, or why it may not be shown as a link.
-pub fn checked_sign_in_address(address: String) -> anyhow::Result<String> {
+pub(crate) fn checked_sign_in_address(address: String) -> anyhow::Result<String> {
     let url = url::Url::parse(&address)
         .map_err(|_| anyhow::anyhow!("the plugin's sign-in address is not a URL"))?;
     let secure = match url.scheme() {

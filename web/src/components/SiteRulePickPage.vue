@@ -170,7 +170,7 @@ function stateBadge(entry: CollectorPickEntry): { text: string, color: 'neutral'
         @update:model-value="(value: string) => setFilter(select.name, value)"
       />
     </div>
-    <p v-if="!shown.length" class="px-3 pb-2 text-xs text-muted">{{ t('linkgrabber.picks.none_shown') }}</p>
+    <UEmpty v-if="!shown.length" :description="t('linkgrabber.picks.none_shown')" />
     <div v-for="group in groups" :key="group.season ?? 'none'" class="border-t border-muted">
       <div class="flex items-center gap-2 bg-elevated/50 px-3 py-1">
         <UCheckbox

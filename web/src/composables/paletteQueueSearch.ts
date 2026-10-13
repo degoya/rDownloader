@@ -12,11 +12,11 @@ type Translate = (key: string) => string
 /** Rows of each kind the palette asks for; the server caps them at 50. */
 export const PALETTE_QUEUE_LIMIT = 8
 /** Characters typed before the queue is asked: one letter matches half of it. */
-export const PALETTE_QUEUE_MIN_TERM = 2
+const PALETTE_QUEUE_MIN_TERM = 2
 const DEBOUNCE_MS = 200
 
 /** The download list, scrolled to one row and the keyboard on it (`useQueueReveal`). */
-export function revealInQueue(key: string): void {
+function revealInQueue(key: string): void {
   void router.push({ path: '/downloads', query: { reveal: key } })
 }
 

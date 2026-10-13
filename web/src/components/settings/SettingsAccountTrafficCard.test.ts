@@ -1,5 +1,6 @@
 import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import type { Settings } from '@/api/types'
@@ -9,10 +10,7 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsAccountTrafficCard from './SettingsAccountTrafficCard.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn() },
-  responseError: vi.fn(() => 'failed')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'failed') }))
 
 const ACCOUNT = { id: 'account-1', label: 'DDownload premium', provider: 'ddownload', enabled: true }
 

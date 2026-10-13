@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-00000000011f"
 name = "TorBox"
-version = "0.1.15"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.1.16"
 # Deliberately **not** `["*"]`, although TorBox will fetch almost any address. What it does
 # with one is create a web-download job that takes minutes and answers with files, which is a
 # remote job and not a resolve; `plugins/torbox-jobs/` is where that lives. What this plugin
@@ -30,10 +26,6 @@ domains = ["api.torbox.app"]
 
 [metadata]
 description = "Mints TorBox download addresses and reports what a TorBox account is worth."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [provider]
 slug = "torbox"
@@ -49,9 +41,3 @@ secret_reference = "torbox_api_key"
 secret_domains = ["api.torbox.app"]
 # Deliberately no `cookie_scope`. This is an API-key provider with no `cookies` capability; a
 # scope nothing can use would be a promise about where credentials go that nothing keeps.
-
-[limits]
-memory_bytes = 67108864
-fuel = 2000000000
-timeout_milliseconds = 15000
-max_response_bytes = 8388608

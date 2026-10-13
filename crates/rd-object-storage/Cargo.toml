@@ -53,6 +53,7 @@ uuid.workspace = true
 workspace = true
 
 [dev-dependencies]
+rd-testkit = { path = "../rd-testkit" }
 axum.workspace = true
 # The TLS endpoint of `tests/s3_tls.rs`: a CA of its own and a rustls listener.
 rcgen.workspace = true

@@ -15,7 +15,7 @@ use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{
     RdMcpServer,
-    error::{McpToolResult, parse_id, respond, without_credentials},
+    error::{McpToolResult, json_result, parse_id, respond, without_credentials},
     params_config::{IdParams, clearing, merged},
     params_delivery::{
         CreateNotificationRuleParams, CreateNotificationTargetParams, UpdateNotificationRuleParams,
@@ -147,7 +147,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a notification rule: which events, from which category and above which severity, go to one destination. Besides the queue events (among them usenet_job_hopeless: a Usenet download given up as beyond repair, and stop_mark_reached: the queue paused at its stop mark) there are operational ones: backup_failed, backup_verify_failed, update_available, update_installed (rDownloader runs a newer version after an update), update_failed (an update did not go ahead or was taken back), service_restarting (rDownloader restarts to apply a plugin installed or updated, by request or by restart_when_needed; once per restart), plugin_update_available, plugin_update_failed, account_expiring, account_invalid, usenet_quota_reached. Activity events: stream_recorded (a livestream recording finished), subscription_matched (a subscription check accepted new items), and the opt-in download_started and links_added, which only a rule listing them gets and whose bursts arrive as one notification each."
+        description = "Create a notification rule: which events, from which category and above which severity, go to one destination. Besides the queue events (among them usenet_job_hopeless: a Usenet download given up as beyond repair, and stop_mark_reached: the queue paused at its stop mark) there are operational ones: backup_failed, backup_verify_failed, update_available, update_installed (rDownloader runs a newer version after an update), update_failed (an update did not go ahead or was taken back), service_restarting (rDownloader restarts to apply a plugin installed or updated, by request or by restart_when_needed; once per restart), plugin_update_available, plugin_update_failed, account_expiring, account_invalid, usenet_quota_reached. Activity events: stream_recorded (a livestream recording finished), subscription_matched (a subscription check accepted new items), and the opt-in download_started and links_added, which only a rule listing them gets and whose bursts arrive as one notification each. Its own wording: title_template and body_template with {placeholder} holes (list_notification_placeholders: which event fills which, e.g. {package}, {time}, {error}); a placeholder the event does not fill comes out empty, a name that is no placeholder is refused with notification.template_unknown_placeholder, an unbalanced brace with notification.template_syntax, a title over 200 or a text over 2000 characters with notification.template_too_long. Left out, the built-in title and text are sent; a burst of download_started or links_added keeps its summary text. The webhook JSON keeps its fields: the templates fill only title and body."
     )]
     pub async fn create_notification_rule(
         &self,
@@ -168,6 +168,8 @@ impl RdMcpServer {
                 min_severity: params
                     .min_severity
                     .map_or(rd_notify::Severity::Info, Into::into),
+                title_template: params.title_template,
+                body_template: params.body_template,
             };
             Ok(
                 crate::notify_handlers::create_rule(State(self.state.clone()), Json(request))
@@ -181,7 +183,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change one notification rule. Only the fields you pass are changed; `clear` may drop the category restriction."
+        description = "Change one notification rule. Only the fields you pass are changed; `clear` may drop the category restriction and the rule's own title_template and body_template, which returns it to the built-in wording. A template is checked like on create_notification_rule (notification.template_unknown_placeholder, notification.template_syntax, notification.template_too_long)."
     )]
     pub async fn update_notification_rule(
         &self,
@@ -202,7 +204,10 @@ impl RdMcpServer {
                         "Notification rule not found",
                     )
                 })?;
-            let cleared = clearing(params.clear.as_ref(), &["category_id"])?;
+            let cleared = clearing(
+                params.clear.as_ref(),
+                &["category_id", "title_template", "body_template"],
+            )?;
             let request = NotificationRuleRequest {
                 name: params.name.unwrap_or(current.name),
                 enabled: params.enabled.unwrap_or(current.enabled),
@@ -220,6 +225,18 @@ impl RdMcpServer {
                     current.category_id,
                 ),
                 min_severity: params.min_severity.map_or(current.min_severity, Into::into),
+                title_template: merged(
+                    &cleared,
+                    "title_template",
+                    params.title_template,
+                    current.title_template,
+                ),
+                body_template: merged(
+                    &cleared,
+                    "body_template",
+                    params.body_template,
+                    current.body_template,
+                ),
             };
             Ok(crate::notify_handlers::update_rule(
                 State(self.state.clone()),
@@ -231,6 +248,14 @@ impl RdMcpServer {
         }
         .await;
         respond(result)
+    }
+
+    #[tool(
+        description = "List the placeholders a notification rule's own title_template and body_template may name, each written {name}, with a sample value for each (time and date from the service's clock, HH:MM and YYYY-MM-DD in its time zone), and per event which placeholders it fills. Every event that takes a template fills event, severity, time, date, title and message (the built-in wording) and its own ones, such as package, category, size and path for package_completed; download_started and links_added (takes_template: false) arrive as one summary per burst and keep their text. No placeholder carries a secret."
+    )]
+    pub async fn list_notification_placeholders(&self) -> McpToolResult {
+        let Json(placeholders) = crate::notify_handlers::list_notification_placeholders().await;
+        json_result(&placeholders)
     }
 
     #[tool(

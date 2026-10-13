@@ -51,7 +51,7 @@ export function translateServerMessage(value: ServerMessage | string | null | un
   if (key) {
     for (const locale of lookupLocales()) {
       if (!te(key, locale as never)) continue
-      const params = { ...(value.params ?? {}) }
+      const params = { ...value.params }
       // A `capability` parameter is a stable identifier (`media_merge`), not a phrase: the
       // backend is English-only, so the name of the thing that stopped working has to be
       // translated here or the message would say `media_merge` in every language.

@@ -10,7 +10,6 @@
 //! files it may hand over. It exists because Put.io's transfer record names a folder and not
 //! files, and a package whose members had no names and no sizes is not a file tree anybody can
 //! choose from.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, Guest, JobSource, RemoteArtifact, RemoteHandle,

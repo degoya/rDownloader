@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import type { Settings } from '@/api/types'
 import en from '@/locales/en/settings.json'
@@ -8,12 +9,9 @@ import { mountComponent } from '@/test/mount'
 import SettingsTorrentCard from './SettingsTorrentCard.vue'
 
 const post = vi.hoisted(() => vi.fn())
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: undefined })), POST: post },
-  responseError: vi.fn(() => 'refused')
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })), POST: post, responseError: vi.fn(() => 'refused') }))
 // The shared lists follow the event stream (WEB-3); jsdom has no `EventSource`.
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 /**
  * The shared field stub, plus the description: the leech-only warning lives in that slot. The

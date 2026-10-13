@@ -136,13 +136,11 @@ impl RuleFetcher {
             )
             .await
             .map_err(|error| FetchFailure::Other(format!("network configuration: {error}")))?;
-        let mut builder = Client::builder()
-            .no_proxy()
+        let mut builder = rd_http::client_builder(rd_http::ClientPurpose::Direct)
             .cookie_provider(Arc::clone(&self.jar))
             // Obligation two: the executor follows redirects itself, checking every hop.
             .redirect(Policy::none())
-            .connect_timeout(CONNECT_TIMEOUT)
-            .user_agent(rd_core::user_agent!());
+            .connect_timeout(CONNECT_TIMEOUT);
         // Obligation one. Empty exactly when the host is a literal address, where there was
         // nothing to resolve and nothing to pin.
         if !addresses.is_empty() {

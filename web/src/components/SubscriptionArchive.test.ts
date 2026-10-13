@@ -9,6 +9,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import type { SubscriptionItem } from '@/api/types'
 import type { ConfirmOptions } from '@/composables/useConfirm'
@@ -20,24 +21,14 @@ import { mountComponent } from '@/test/mount'
 const get = vi.fn()
 const post = vi.fn()
 const put = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: (...args: unknown[]) => put(...args),
-    PATCH: vi.fn(),
-    DELETE: vi.fn()
-  },
-  errorMessage: vi.fn(() => 'The service did not answer'),
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  POST: (...args: unknown[]) => post(...args),
+  PUT: (...args: unknown[]) => put(...args)
 }))
-const confirmed = vi.fn(async (_options: ConfirmOptions) => true)
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: vi.fn() }) })
-}))
+const confirmed = vi.hoisted(() => vi.fn(async (_options: ConfirmOptions) => true))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirmed))
+vi.mock('@nuxt/ui/composables', () => toastMock({ overlay: { open: vi.fn() } }))
 vi.stubGlobal('EventSource', class {
   addEventListener(): void {}
   close(): void {}

@@ -86,9 +86,10 @@ rd_public_check_links() {
 }
 
 # Brings the clone $1 of $2 to the tip of branch $3, cloning it when missing. An empty remote
-# — the very first export — leaves HEAD unborn on $3.
+# — the very first export — leaves HEAD unborn on $3. `pub` runs git in it from then on.
 rd_public_prepare_clone() {
     local dir="$1" remote="$2" branch="$3"
+    RD_PUBLIC_CLONE="$dir"
     if [[ ! -d "$dir/.git" ]]; then
         [[ ! -e "$dir" ]] || { echo "$dir exists but is not a git clone" >&2; exit 1; }
         echo "==> cloning $remote into $dir"
@@ -113,6 +114,10 @@ rd_public_prepare_clone() {
         git -C "$dir" symbolic-ref HEAD "refs/heads/$branch"
     fi
 }
+
+# git in the clone rd_public_prepare_clone prepared: `pub commit …`. One copy instead of each
+# export's own (RD-1280-15).
+pub() { git -C "${RD_PUBLIC_CLONE:?rd_public_prepare_clone first}" "$@"; }
 
 # Replaces everything in clone $1 but .git with the tree in $2 and stages the result. What
 # rsync --delete --exclude=/.git would do, without needing rsync: a file the export no longer

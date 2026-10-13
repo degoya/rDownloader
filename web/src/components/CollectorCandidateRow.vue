@@ -14,7 +14,7 @@ import TorrentFileTree from '@/components/TorrentFileTree.vue'
 import { downloadedBefore, queuedCount } from '@/composables/useQueuedSources'
 import { useAccountProviders } from '@/composables/useAccountProviders'
 import { useCandidateDetails } from '@/composables/useCandidateDetails'
-import { translateServerMessage } from '@/i18n/server'
+import { useCandidateMessages } from '@/composables/useCandidateMessages'
 import type { MirrorGroup } from '@/utils/mirrorGroups'
 import { displayName, hosterOf } from '@/utils/collectorSort'
 import { formatBytes, formatDuration, formatMoment } from '@/utils/format'
@@ -90,49 +90,8 @@ const earlier = computed(() => duplicate.value ? null : downloadedBefore(props.c
 const earlierHint = computed(() => earlier.value
   ? t('linkgrabber.duplicates.history_hint', { name: earlier.value.name, date: formatMoment(earlier.value.finished_at) })
   : '')
-/**
- * The values a coded candidate message interpolates.
- *
- * The host is a parameter and never a sentence the backend assembled: it is the candidate's
- * own address, which the row already has, so `collector.check_no_resolver` can name it in four
- * languages without a column to carry it (RD-120-18). Everything else the message needs — the
- * cause in `{detail}` of `media.ytdlp_failed` — the row stores with it (RD-1250-03); a row
- * without parameters keeps the server's English text where the sentence would have a hole.
- */
-const messageParams = computed(() => ({
-  ...(props.candidate.error_params ?? {}),
-  host: hosterOf(props.candidate)
-}))
-/**
- * What the state badge says beyond its one word.
- *
- * `duplicate` was the only state that named no reference: two links of two hosters carrying it
- * looked like a collision in the dedup key, while the key is the full address compared over
- * the whole table and both had simply been added before (RD-109-43). `unresolvable` needs the
- * same courtesy for the opposite reason: it is the one state the row offers no way out of, so
- * it has to say why rather than leave the greyed-out checkbox to be guessed at (RD-110-07).
- */
-const stateHint = computed(() => {
-  if (props.candidate.state === 'duplicate') return t('linkgrabber.candidate.duplicate_hint')
-  if (props.candidate.state !== 'unresolvable') return undefined
-  // Two reasons end in one state, and they send the reader to opposite ends (RD-120-18): the
-  // address really serves no file, or no installed plugin claims its host. The backend told
-  // them apart, so the hint has to repeat that rather than blame the address in both cases.
-  return props.candidate.error_code === 'collector.check_no_resolver'
-    ? t('linkgrabber.candidate.no_resolver_hint', messageParams.value)
-    : t('linkgrabber.candidate.unresolvable_hint')
-})
-/**
- * The check's message. A stable code the catalogue answers, or — for a row written before the
- * codes existed, or a sentence a plugin worded itself — the English text that came with it.
- */
-const candidateError = computed(() => props.candidate.error
-  ? translateServerMessage({
-    message: props.candidate.error,
-    code: props.candidate.error_code ?? null,
-    params: messageParams.value
-  })
-  : '')
+/** The host a message names, what the state badge adds and the check's message (`useCandidateMessages`). */
+const { messageParams, stateHint, candidateError } = useCandidateMessages(() => props.candidate)
 // Unchecked links stay selectable: the user may still start them, and the download now
 // reports a real error instead of silently storing the hoster's landing page.
 const selectable = computed(() => isEnqueueable(props.candidate.state))
@@ -419,7 +378,7 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
         :busy="torrentBusy"
         @change="savePlan"
       />
-      <p v-else class="text-xs text-muted">{{ t('torrent.tree.empty') }}</p>
+      <UEmpty v-else :description="t('torrent.tree.empty')" />
     </div>
     <div v-if="media && expanded" class="border-t border-muted px-12 py-3">
       <p v-if="mediaBusy && !mediaFormats" class="flex items-center gap-2 text-xs text-muted">

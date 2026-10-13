@@ -18,6 +18,7 @@ lzma-rust2.workspace = true
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }
 rd-files = { path = "../rd-files" }
+rd-http = { path = "../rd-http" }
 rd-sign = { path = "../rd-sign" }
 reqwest.workspace = true
 semver.workspace = true
@@ -33,6 +34,7 @@ uuid.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
+rd-testkit = { path = "../rd-testkit", default-features = false }
 # Its own integration tests reach the `test-support` hooks this way.
 rd-tools = { path = ".", features = ["test-support"] }
 axum.workspace = true

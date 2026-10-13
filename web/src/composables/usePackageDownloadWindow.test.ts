@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { nextTick } from 'vue'
 
 import type { Category, DownloadPackage } from '@/api/types'
@@ -18,13 +19,9 @@ import PackageGroup from '@/components/PackageGroup.vue'
 
 import { effectiveWindow } from './usePackageDownloadWindow'
 
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }), useOverlay: () => ({ create: vi.fn() }) }))
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: [] })), PUT: vi.fn() },
-  responseError: () => 'failed',
-  errorMessage: () => 'failed'
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: vi.fn(() => () => {}) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })), responseError: () => 'failed', errorMessage: () => 'failed' }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 /** The modal's body and footer, which the shared `passthrough` stub leaves out. */
 const UModal = { template: '<div><slot name="body" /><slot name="footer" /></div>' }

@@ -12,9 +12,16 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.28.0
+## 1.29.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.28.0
+
+- An automation's version history can be reset: every earlier version and its runs are removed and the current one becomes version 1, after a confirmation that says how much goes.
+- Notification rules can set their own title and text with placeholders such as the package name, file, size, time and date, with a list of the placeholders and a preview in the rule editor.
+- Lists without entries in the settings and elsewhere now show a clear empty state with a short explanation instead of a grey line.
+- Plugin update notes that only say "maintenance" are left out; the update dialog shows the last change you would notice instead.
 
 ## 1.27.0
 

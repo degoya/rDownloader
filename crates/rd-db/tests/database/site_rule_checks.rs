@@ -5,14 +5,7 @@
 //! skip list the crawler selection uses both read it back from here.
 
 use rd_core::EventKind;
-use rd_db::{Database, NewSiteRuleCheck};
-use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("checks.sqlite"))
-        .await
-        .expect("database")
-}
+use rd_db::NewSiteRuleCheck;
 
 fn check(rule_id: &str, verdict: &str, code: Option<&str>) -> NewSiteRuleCheck {
     NewSiteRuleCheck {
@@ -28,7 +21,7 @@ fn check(rule_id: &str, verdict: &str, code: Option<&str>) -> NewSiteRuleCheck {
 async fn a_result_is_still_there_after_a_restart_and_names_a_rule_with_no_row_of_its_own() {
     let directory = tempfile::tempdir().expect("tempdir");
     {
-        let database = database(&directory).await;
+        let database = rd_testkit::temp_database(directory.path()).await;
         database
             .record_site_rule_checks(vec![
                 check("scnlog", "ok", None),
@@ -37,7 +30,7 @@ async fn a_result_is_still_there_after_a_restart_and_names_a_rule_with_no_row_of
             .await
             .expect("record");
     }
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let stored = database.list_site_rule_checks().await.expect("list");
     assert_eq!(stored.len(), 2);
     assert_eq!(stored[0].rule_id, "gpaste");
@@ -55,7 +48,7 @@ async fn a_result_is_still_there_after_a_restart_and_names_a_rule_with_no_row_of
 #[tokio::test]
 async fn a_later_run_replaces_what_an_earlier_one_said() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .record_site_rule_checks(vec![check("scnlog", "ok", None)])
         .await
@@ -80,7 +73,7 @@ async fn a_later_run_replaces_what_an_earlier_one_said() {
 #[tokio::test]
 async fn one_run_announces_exactly_one_change() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut events = database.subscribe();
     database
         .record_site_rule_checks(vec![

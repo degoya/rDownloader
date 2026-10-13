@@ -2,12 +2,9 @@
 //! exact body, and a redirect outside the approved origins is refused before any byte — or
 //! any header — reaches the foreign host.
 
-use std::{
-    net::SocketAddr,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-    },
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
 use axum::{
@@ -44,19 +41,8 @@ struct Observed {
     user_agent: std::sync::Mutex<Option<String>>,
 }
 
-async fn serve(router: Router) -> SocketAddr {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("addr");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, router).await;
-    });
-    address
-}
-
 /// An origin that serves the payload only for a POST carrying the exact expected body.
-async fn post_origin(expected: &'static [u8], observed: Arc<Observed>) -> SocketAddr {
+async fn post_origin(expected: &'static [u8], observed: Arc<Observed>) -> rd_testkit::TestServer {
     async fn handler(
         State((expected, observed)): State<(&'static [u8], Arc<Observed>)>,
         headers: HeaderMap,
@@ -80,7 +66,7 @@ async fn post_origin(expected: &'static [u8], observed: Arc<Observed>) -> Socket
             (StatusCode::BAD_REQUEST, "wrong body").into_response()
         }
     }
-    serve(
+    rd_testkit::serve(
         Router::new()
             .route("/dl", post(handler))
             .with_state((expected, observed)),
@@ -91,7 +77,8 @@ async fn post_origin(expected: &'static [u8], observed: Arc<Observed>) -> Socket
 #[tokio::test]
 async fn a_post_replay_sends_the_exact_body_and_captured_agent() {
     let observed = Arc::new(Observed::default());
-    let address = post_origin(b"id=42&token=s3cr3t", Arc::clone(&observed)).await;
+    let server = post_origin(b"id=42&token=s3cr3t", Arc::clone(&observed)).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let part_path = directory.path().join("payload.part");
 
@@ -144,7 +131,8 @@ async fn a_post_replay_sends_the_exact_body_and_captured_agent() {
 async fn a_post_is_never_split_into_parallel_chunks() {
     // Issuing a POST N times in parallel could trigger the origin's side effect N times.
     let observed = Arc::new(Observed::default());
-    let address = post_origin(b"x=1", Arc::clone(&observed)).await;
+    let server = post_origin(b"x=1", Arc::clone(&observed)).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
 
     let engine = DownloadEngine::new(reqwest::Client::new(), ScopedLimiter::unlimited());
@@ -187,7 +175,9 @@ async fn a_post_is_never_split_into_parallel_chunks() {
 }
 
 /// Server A redirects to server B; B records whether it was ever contacted.
-async fn redirecting_pair(observed: Arc<Observed>) -> (SocketAddr, SocketAddr) {
+async fn redirecting_pair(
+    observed: Arc<Observed>,
+) -> (rd_testkit::TestServer, rd_testkit::TestServer) {
     async fn foreign(State(observed): State<Arc<Observed>>, headers: HeaderMap) -> Response {
         observed.hits.fetch_add(1, Ordering::SeqCst);
         if headers.contains_key(header::COOKIE) || headers.contains_key(header::AUTHORIZATION) {
@@ -195,12 +185,13 @@ async fn redirecting_pair(observed: Arc<Observed>) -> (SocketAddr, SocketAddr) {
         }
         (StatusCode::OK, "FOREIGN!").into_response()
     }
-    let foreign_address = serve(
+    let foreign_server = rd_testkit::serve(
         Router::new()
             .route("/f", get(foreign))
             .with_state(Arc::clone(&observed)),
     )
     .await;
+    let foreign_address = foreign_server.addr();
 
     let target = format!("http://{foreign_address}/f");
     let redirect = move || {
@@ -213,14 +204,15 @@ async fn redirecting_pair(observed: Arc<Observed>) -> (SocketAddr, SocketAddr) {
                 .expect("response")
         }
     };
-    let origin_address = serve(Router::new().route("/dl", get(redirect))).await;
-    (origin_address, foreign_address)
+    let origin_server = rd_testkit::serve(Router::new().route("/dl", get(redirect))).await;
+    (origin_server, foreign_server)
 }
 
 #[tokio::test]
 async fn a_redirect_outside_the_approved_origins_is_refused_and_never_contacted() {
     let observed = Arc::new(Observed::default());
-    let (origin, foreign) = redirecting_pair(Arc::clone(&observed)).await;
+    let (origin_server, foreign_server) = redirecting_pair(Arc::clone(&observed)).await;
+    let (origin, foreign) = (origin_server.addr(), foreign_server.addr());
     let directory = tempfile::tempdir().expect("tempdir");
     let part_path = directory.path().join("p.part");
 
@@ -279,7 +271,8 @@ async fn a_redirect_outside_the_approved_origins_is_refused_and_never_contacted(
 #[tokio::test]
 async fn a_redirect_into_an_approved_origin_is_followed() {
     let observed = Arc::new(Observed::default());
-    let (origin, foreign) = redirecting_pair(Arc::clone(&observed)).await;
+    let (origin_server, foreign_server) = redirecting_pair(Arc::clone(&observed)).await;
+    let (origin, foreign) = (origin_server.addr(), foreign_server.addr());
     let directory = tempfile::tempdir().expect("tempdir");
     let part_path = directory.path().join("p.part");
 

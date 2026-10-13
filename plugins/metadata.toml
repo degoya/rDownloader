@@ -1,0 +1,24 @@
+# The fields every bundled plugin shares (RD-1280-18). A manifest under plugins/ leaves them
+# out; `rd-pack plugin package --defaults plugins/metadata.toml`, which scripts/build-plugins.sh
+# and scripts/ci-plugins.sh pass, writes each one it leaves out into the manifest it packages
+# and signs, so every package still carries a complete manifest. A plugin that needs another
+# value -- a newer `min_app_version` -- states it in its own manifest, and its own value wins.
+#
+# Top-level fields and [metadata] only, one field per line (`ManifestDefaults::parse`). A change
+# here changes every packaged manifest: `scripts/build-plugins.sh --list-unbumped` then names
+# every plugin with a signed package of its current version.
+#
+# Third-party plugins have no such file; their manifests state all of this themselves
+# (sdk/templates/*/manifest.toml).
+manifest_version = 3
+api_version = "0.11.0"
+# The release key's name and public half. Signing with it writes the same line; signing with
+# another key writes that key's public half instead (`complete_manifest`).
+key_id = "rdownloader-release-v1"
+public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+
+[metadata]
+author = "DEGOYA.digital"
+homepage = "https://rdownloader.net"
+license = "MIT"
+min_app_version = "1.9.0"

@@ -117,6 +117,26 @@ async fn schedules_automations_and_hosters_are_reached_by_listed_ids() {
     )
     .await;
     assert_eq!(versions.as_array().map(Vec::len), Some(1), "{versions}");
+    // RD-1280-01: the reset asks first, and acts on its own question's code.
+    let asked = ok(
+        &router,
+        &session,
+        "reset_automation_versions",
+        serde_json::json!({ "id": automation, "confirmed": true }),
+    )
+    .await;
+    assert_eq!(asked["confirmation_required"], true, "{asked}");
+    let reset = ok(
+        &router,
+        &session,
+        "reset_automation_versions",
+        serde_json::json!({
+            "id": automation, "confirmed": true, "confirmation": asked["confirmation"]
+        }),
+    )
+    .await;
+    assert_eq!(reset["removed_versions"], 0, "{reset}");
+    assert_eq!(reset["automation"]["version"], 1, "{reset}");
     ok(
         &router,
         &session,

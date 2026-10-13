@@ -256,14 +256,14 @@ fn body_too_large() -> ApiError {
 }
 
 /// Shared with `capture/file`, whose JSON body is a different document read the same way.
-pub fn json_rejection(rejection: &JsonRejection) -> ApiError {
+pub(crate) fn json_rejection(rejection: &JsonRejection) -> ApiError {
     if rejection.status() == StatusCode::PAYLOAD_TOO_LARGE {
         return body_too_large();
     }
     ApiError::bad_request("request.body_invalid", rejection.body_text())
 }
 
-pub fn is_json(headers: &HeaderMap) -> bool {
+pub(crate) fn is_json(headers: &HeaderMap) -> bool {
     headers
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok())

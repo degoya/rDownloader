@@ -36,7 +36,7 @@ async fn a_burst_of_imports_reaches_a_rule_as_one_notification() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::test_harness(directory.path()).await;
     let router = harness.router.clone();
-    let (endpoint, calls) = spawn_receiver().await;
+    let (_server, endpoint, calls) = spawn_receiver().await;
     let target = create_target(
         &router,
         json!({ "name": "local", "kind": "webhook", "endpoint": endpoint }),
@@ -84,7 +84,7 @@ async fn a_recording_starts_for_the_rule_that_lists_it_and_finishes_for_every_ru
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::parked_harness(directory.path()).await;
     let router = harness.router.clone();
-    let (endpoint, _calls) = spawn_receiver().await;
+    let (_server, endpoint, _calls) = spawn_receiver().await;
     let target = create_target(
         &router,
         json!({ "name": "local", "kind": "webhook", "endpoint": endpoint }),
@@ -189,7 +189,7 @@ async fn only_a_subscription_check_that_accepted_items_notifies() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::test_harness(directory.path()).await;
     let router = harness.router.clone();
-    let (endpoint, calls) = spawn_receiver().await;
+    let (_server, endpoint, calls) = spawn_receiver().await;
     let target = create_target(
         &router,
         json!({ "name": "local", "kind": "webhook", "endpoint": endpoint }),

@@ -67,7 +67,7 @@ function verdictTitle(url: string): string {
           </li>
         </ul>
       </template>
-      <p v-else-if="!props.result.links.length" class="mt-2 text-xs text-muted">{{ t('siterules.test.no_links') }}</p>
+      <UEmpty v-else-if="!props.result.links.length" class="mt-2" :description="t('siterules.test.no_links')" />
       <ul v-else-if="!groups.length" class="mt-2 space-y-1">
         <li v-for="link in props.result.links" :key="link.url" class="flex flex-wrap items-center gap-2">
           <span class="min-w-0 flex-1 truncate font-mono text-2xs">{{ link.url }}</span>

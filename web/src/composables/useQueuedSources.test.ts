@@ -5,6 +5,7 @@
  */
 import { screen } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import type { LinkCandidate } from '@/api/types'
 import common from '@/locales/en/common.json'
@@ -17,8 +18,8 @@ import { downloadedBefore, queuedCount, refreshQueuedSources } from './useQueued
 
 const lookup = vi.hoisted(() => vi.fn())
 vi.mock('@/api/storage', () => ({ lookupDuplicates: lookup }))
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn(async () => ({ data: [] })) }, responseError: () => 'failed', errorMessage: () => 'failed' }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })), responseError: () => 'failed', errorMessage: () => 'failed' }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const HOLIDAY = 'https://files.example.com/holiday.zip'
 const OTHER = 'https://files.example.com/other.zip'

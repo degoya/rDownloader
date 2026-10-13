@@ -80,7 +80,7 @@ impl Cidr {
 
 /// Turns an IPv4-mapped IPv6 address back into the IPv4 address it stands for.
 #[must_use]
-pub fn unmap(address: IpAddr) -> IpAddr {
+pub(crate) fn unmap(address: IpAddr) -> IpAddr {
     match address {
         IpAddr::V6(v6) => match v6.to_ipv4_mapped() {
             Some(v4) => IpAddr::V4(v4),

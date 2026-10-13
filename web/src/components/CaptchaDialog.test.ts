@@ -2,44 +2,38 @@ import { fireEvent, render, screen } from '@testing-library/vue'
 import axe from 'axe-core'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import type { PendingCaptcha } from '@/api/types'
 import en from '@/locales/en/captcha.json'
 import { useCaptchasStore } from '@/stores/captchas'
-import { createTestI18n, uiStubs } from '@/test/mount'
+import { createTestI18n, mountComponent, uiStubs } from '@/test/mount'
 
 import CaptchaDialog from './CaptchaDialog.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn() },
-  responseError: vi.fn(),
-  resultMessage: vi.fn()
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(), resultMessage: vi.fn() }))
 
 const push = vi.fn()
 vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
-const toast = { add: vi.fn() }
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => toast }))
+const toast = vi.hoisted(() => ({ add: vi.fn() }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toast.add }))
 
 /**
- * The shared stubs, with the modal rendered only while open and the notice as an `alert`.
- * Rendered directly rather than through the shared mount helper, which starts a fresh Pinia: each
- * test fills the captcha store first.
+ * The shared stubs, with the modal rendered only while open and the notice as an `alert`, over
+ * the Pinia the test made active: each test fills the captcha store first.
  */
-const global = {
-  plugins: [createTestI18n({ captcha: en })],
-  stubs: {
-    ...uiStubs,
-    UModal: {
-      props: ['open', 'ui'],
-      template: '<div v-if="open" data-testid="captcha-modal" :data-overlay="ui?.overlay" :data-content="ui?.content"><slot name="body" /><slot name="footer" /></div>'
-    },
-    UAlert: {
-      props: ['title', 'description'],
-      template: '<div role="alert">{{ title }} {{ description }}</div>'
-    }
-  } as never
+const i18n = createTestI18n({ captcha: en })
+const stubs = {
+  UModal: {
+    props: ['open', 'ui'],
+    template: '<div v-if="open" data-testid="captcha-modal" :data-overlay="ui?.overlay" :data-content="ui?.content"><slot name="body" /><slot name="footer" /></div>'
+  },
+  UAlert: {
+    props: ['title', 'description'],
+    template: '<div role="alert">{{ title }} {{ description }}</div>'
+  }
 }
+const global = { plugins: [i18n], stubs: { ...uiStubs, ...stubs } as never }
 
 function imageCaptcha(): PendingCaptcha {
   return {
@@ -97,7 +91,7 @@ function sizeImage(rendered: { width: number, height: number }, natural: { width
 function renderDialog(queue: PendingCaptcha[]) {
   const store = useCaptchasStore()
   store.pending = queue
-  render(CaptchaDialog, { global })
+  mountComponent(CaptchaDialog, { i18n, stubs, keepPinia: true })
   return store
 }
 

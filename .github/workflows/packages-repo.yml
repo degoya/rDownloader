@@ -23,6 +23,7 @@ on:
       - ".github/workflows/packages-repo.yml"
       - "packaging/repository/**"
       - "scripts/package-repo.sh"
+      - "scripts/ci-package-repo.sh"
       - "scripts/tests/package-repo.sh"
   # The same list as above; keep the two in step.
   pull_request:
@@ -30,6 +31,7 @@ on:
       - ".github/workflows/packages-repo.yml"
       - "packaging/repository/**"
       - "scripts/package-repo.sh"
+      - "scripts/ci-package-repo.sh"
       - "scripts/tests/package-repo.sh"
   workflow_dispatch:
 
@@ -61,195 +63,49 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  apt:
+  # One matrix over the clients (RD-1280-15: three jobs with the same step pair before); the
+  # steps are scripts/ci-package-repo.sh's, per package manager. apt runs on Ubuntu and Debian.
+  # zypper reads the same rdownloader.repo as dnf (the script says what differs).
+  install:
     needs: build
     strategy:
       fail-fast: false
       matrix:
-        image: ["ubuntu:24.04", "debian:stable"]
+        image: ["ubuntu:24.04", "debian:stable", "fedora:latest", "opensuse/tumbleweed"]
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        include:
+          - image: "ubuntu:24.04"
+            pm: apt
+          - image: "debian:stable"
+            pm: apt
+          - image: "fedora:latest"
+            pm: dnf
+          - image: "opensuse/tumbleweed"
+            pm: zypper
+    name: install (${{ matrix.pm }}, ${{ matrix.image }}, ${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.image }}
-    permissions: {}
+    permissions:
+      contents: read
     timeout-minutes: 10
     defaults:
       run:
         shell: bash
     steps:
+      # The script only: the images need not carry git, and checkout falls back to the API then.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/ci-package-repo.sh
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: package-repo-states
           path: states
       - name: Install from the repository, upgrade and downgrade
-        run: |
-          set -euxo pipefail
-          installed() { cat /usr/lib/rdownloader-fixture/version; }
-          ln -sfn "$PWD/states/1" /repo
-          install -d -m 0755 /etc/apt/keyrings
-          cp /repo/rdownloader.asc /etc/apt/keyrings/rdownloader.asc
-          cp /repo/rdownloader.sources /etc/apt/sources.list.d/rdownloader.sources
-          # `!` would not stop the step under set -e, hence the if.
-          if grep -i 'trusted=' /etc/apt/sources.list.d/rdownloader.sources; then exit 1; fi
-          apt-get update
-          apt-get install -y rdownloader
-          [[ "$(installed)" == 1.0.0 ]]
-          ln -sfn "$PWD/states/2" /repo
-          apt-get update
-          apt-get upgrade -y
-          [[ "$(installed)" == 1.2.0 ]]
-          apt-get install -y --allow-downgrades rdownloader=1.1.0-1
-          [[ "$(installed)" == 1.1.0 ]]
+        env:
+          PM: ${{ matrix.pm }}
+        run: bash scripts/ci-package-repo.sh "${PM}" install
       - name: An altered index is refused
-        run: |
-          set -euxo pipefail
-          cp -a states/2 tampered
-          sed -i 's/^Label: rDownloader$/Label: someone else/' \
-            tampered/deb/dists/stable/InRelease tampered/deb/dists/stable/Release
-          ln -sfn "$PWD/tampered" /repo
-          apt-get purge -y rdownloader
-          rm -rf /var/lib/apt/lists/*
-          if apt-get update; then
-            echo "::error::apt-get update succeeds on a repository whose signed index was altered"
-            exit 1
-          fi
-          if apt-cache show rdownloader; then
-            echo "::error::apt offers rdownloader from a repository whose signed index was altered"
-            exit 1
-          fi
-          if apt-get install -y rdownloader; then
-            echo "::error::apt installs rdownloader from a repository whose signed index was altered"
-            exit 1
-          fi
-          ln -sfn "$PWD/states/2" /repo
-          apt-get update
-          apt-get install -y rdownloader
-          [[ "$(cat /usr/lib/rdownloader-fixture/version)" == 1.2.0 ]]
-
-  dnf:
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.runner }}
-    container: fedora:latest
-    permissions: {}
-    timeout-minutes: 10
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: package-repo-states
-          path: states
-      - name: Install from the repository, upgrade and downgrade
-        run: |
-          set -euxo pipefail
-          installed() { cat /usr/lib/rdownloader-fixture/version; }
-          ln -sfn "$PWD/states/1" /repo
-          cp /repo/rdownloader.repo /etc/yum.repos.d/rdownloader.repo
-          # gpgcheck=1 makes dnf refuse an unsigned rpm, so the install proves the package signature.
-          grep -x 'gpgcheck=1' /etc/yum.repos.d/rdownloader.repo
-          grep -x 'repo_gpgcheck=1' /etc/yum.repos.d/rdownloader.repo
-          # Fedora's dnf5 sets skip_if_unavailable=True in /usr/share/dnf5/libdnf.conf.d/20-fedora-defaults.conf;
-          # the repository's own skip_if_unavailable=0 turns a failed signature check into a hard error.
-          grep -x 'skip_if_unavailable=0' /etc/yum.repos.d/rdownloader.repo
-          dnf install -y rdownloader
-          [[ "$(installed)" == 1.0.0 ]]
-          ln -sfn "$PWD/states/2" /repo
-          dnf upgrade -y --refresh rdownloader
-          [[ "$(installed)" == 1.2.0 ]]
-          dnf downgrade -y rdownloader
-          [[ "$(installed)" == 1.1.0 ]]
-      - name: An altered repomd.xml is refused
-        run: |
-          set -euxo pipefail
-          cp -a states/2 tampered
-          sed -i 's#<revision>#<revision>1#' tampered/rpm/repodata/repomd.xml
-          ln -sfn "$PWD/tampered" /repo
-          dnf remove -y rdownloader
-          dnf clean all
-          if dnf makecache --refresh --repo rdownloader; then
-            echo "::error::dnf accepts a repomd.xml that no longer matches its signature"
-            exit 1
-          fi
-          if dnf install -y --refresh rdownloader; then
-            echo "::error::dnf installs rdownloader from a repository whose repomd.xml was altered"
-            exit 1
-          fi
-          # With skipping switched back on dnf ends with 0 (run 36781008221), but the altered
-          # metadata are still never used: the repository is dropped and nothing is offered.
-          if dnf install -y --refresh --setopt=rdownloader.skip_if_unavailable=1 rdownloader; then
-            echo "::error::dnf installs rdownloader from an altered repomd.xml once skipping is allowed"
-            exit 1
-          fi
-          if rpm -q rdownloader; then exit 1; fi
-          ln -sfn "$PWD/states/2" /repo
-          dnf install -y --refresh rdownloader
-          [[ "$(cat /usr/lib/rdownloader-fixture/version)" == 1.2.0 ]]
-
-  # zypper reads the same rdownloader.repo as dnf, keys and all: gpgcheck=1 and repo_gpgcheck=1
-  # are libzypp's too, skip_if_unavailable is not (zypper never skips a failed repository
-  # silently). The key is imported with rpm, as `zypper addrepo` would otherwise ask to trust it
-  # interactively; a failed signature check aborts in --non-interactive mode, it is not accepted.
-  zypper:
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.runner }}
-    container: opensuse/tumbleweed
-    permissions: {}
-    timeout-minutes: 10
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: package-repo-states
-          path: states
-      - name: Install from the repository, upgrade and downgrade
-        run: |
-          set -euxo pipefail
-          # The minimal image need not carry them; asked for before the fixture repository exists.
-          zypper --non-interactive install --no-recommends grep sed
-          installed() { cat /usr/lib/rdownloader-fixture/version; }
-          ln -sfn "$PWD/states/1" /repo
-          grep -x 'gpgcheck=1' /repo/rdownloader.repo
-          grep -x 'repo_gpgcheck=1' /repo/rdownloader.repo
-          rpm --import /repo/rdownloader.asc
-          # As the README says: the .repo file by its URL.
-          zypper --non-interactive addrepo file:///repo/rdownloader.repo
-          zypper --non-interactive refresh rdownloader
-          zypper --non-interactive install rdownloader
-          [[ "$(installed)" == 1.0.0 ]]
-          ln -sfn "$PWD/states/2" /repo
-          zypper --non-interactive refresh rdownloader
-          zypper --non-interactive update rdownloader
-          [[ "$(installed)" == 1.2.0 ]]
-          zypper --non-interactive install --oldpackage rdownloader=1.1.0-1
-          [[ "$(installed)" == 1.1.0 ]]
-      - name: An altered repomd.xml is refused
-        run: |
-          set -euxo pipefail
-          cp -a states/2 tampered
-          sed -i 's#<revision>#<revision>1#' tampered/rpm/repodata/repomd.xml
-          ln -sfn "$PWD/tampered" /repo
-          zypper --non-interactive remove rdownloader
-          zypper --non-interactive clean --all
-          if zypper --non-interactive refresh --force rdownloader; then
-            echo "::error::zypper accepts a repomd.xml that no longer matches its signature"
-            exit 1
-          fi
-          if zypper --non-interactive install rdownloader; then
-            echo "::error::zypper installs rdownloader from a repository whose repomd.xml was altered"
-            exit 1
-          fi
-          if rpm -q rdownloader; then exit 1; fi
-          ln -sfn "$PWD/states/2" /repo
-          zypper --non-interactive refresh --force rdownloader
-          zypper --non-interactive install rdownloader
-          [[ "$(cat /usr/lib/rdownloader-fixture/version)" == 1.2.0 ]]
+        env:
+          PM: ${{ matrix.pm }}
+        run: bash scripts/ci-package-repo.sh "${PM}" refused

@@ -13,9 +13,10 @@
 # (RD-1110-15), a red gate stops it before any generator with every error shown,
 # a green one lets the generators run and archive-jobs' rewrite into the generated commit, and
 # the detached check runs --windows first and --full only after a green Windows lint, and with
-# --public-ci the public CI and the release workflows beside them (RD-1120-06, RD-1270-10); a
-# run.sh in the log directory that integrate.sh did not write is moved aside with a warning
-# (RD-1270-17).
+# --public-ci the public CI's Windows run and the release workflows beside them (RD-1120-06,
+# RD-1270-10), and Linux on GitHub after --full only when no local Rust green covers the tree
+# (RD-1280-14); a run.sh in the log directory that integrate.sh did not write is moved aside with a
+# warning (RD-1270-17).
 #
 #   scripts/tests/integrate.sh
 set -euo pipefail
@@ -41,7 +42,7 @@ MAIN="$SCRATCH/repo"
 git init -q -b development "$MAIN"
 mkdir -p "$MAIN/scripts/lib" "$MAIN/web/node_modules" "$MAIN/web/dist" "$MAIN/crates/rd-db/migrations"
 cp "$ROOT/scripts/integrate.sh" "$ROOT/scripts/worktree.sh" "$MAIN/scripts/"
-cp "$ROOT/scripts/lib/"{integrate,verified,lanes,inert-paths,web-dist}.sh \
+cp "$ROOT/scripts/lib/"{integrate,verified,verified-ci,lanes,inert-paths,web-dist}.sh \
     "$ROOT/scripts/lib/workspace-version.sh" "$MAIN/scripts/lib/"
 cp -r "$ROOT/scripts/lib/merge-drivers" "$MAIN/scripts/lib/"
 cp "$ROOT/.gitattributes" "$MAIN/"
@@ -57,8 +58,9 @@ echo '| Job Inventory | 1 |' > "$MAIN/docs/roadmap/jobs/README.md"
 
 # Stand-ins for everything past the merges: each logs its call. check.sh fails --preflight while
 # $FAKE/preflight-red exists and --gate while $FAKE/gate-red does, each with a failure list as the
-# real one writes it, and --windows while $FAKE/windows-red does; archive-jobs.sh rewrites the job
-# index as its recount would.
+# real one writes it, and --windows while $FAKE/windows-red does; --full records the Rust half's green
+# for its tree while $FAKE/full-records exists; archive-jobs.sh rewrites the job index as its recount
+# would.
 stub() {
     printf '#!/usr/bin/env bash\necho "%s $*" >> "$FAKE/calls"\n%s\n' "$1" "${2:-}" > "$MAIN/scripts/$1"
     chmod +x "$MAIN/scripts/$1"
@@ -74,6 +76,10 @@ if [[ "$*" == --gate && -f "$FAKE/gate-red" ]]; then
     exit 1
 fi
 if [[ "$*" == --windows && -f "$FAKE/windows-red" ]]; then exit 1; fi
+if [[ "$*" == --full && -f "$FAKE/full-records" ]]; then
+    source scripts/lib/verified.sh
+    rd_record_full "$PWD" rust "$(rd_worktree_tree "$PWD")"
+fi
 echo "==> all requested checks passed"'
 stub api-contract.sh
 stub mcp-coverage.sh
@@ -237,17 +243,34 @@ rm -f "$FAKE/calls"
 run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --public-ci
 expect_status "--public-ci: the detached check starts" 0
 expect "GitHub's exit beside the local ones" "full=0 windows=0 prune=0 public-ci=0" "$(wait_status)"
-expect_true "on the integration branch, Linux and Windows and the release workflows" 'grep -qx "public-ci.sh integration/w3 --platforms linux,windows --release-workflows" "$FAKE/calls"'
-expect "after the gate and the generators: the run starts it before --windows and --full" \
-    "public-ci.sh|check.sh --windows|check.sh --full" \
+expect_true "on the integration branch, Windows and the release workflows" 'grep -qx "public-ci.sh integration/w3 --platforms windows --release-workflows" "$FAKE/calls"'
+expect_true "no local Rust green: Linux and Windows after --full (RD-1280-14)" \
+    '[[ "$(grep "^public-ci.sh" "$FAKE/calls" | tail -1)" == "public-ci.sh integration/w3 --platforms linux,windows" ]]'
+expect_true "the derived list in the log" 'grep -q "^==> platforms derived from the recorded green: linux,windows — no local Rust green" "$RD_INTEGRATE_LOGS/public-ci.log"'
+expect "after the gate and the generators: the run starts Windows before --windows and --full, the rest after them" \
+    "public-ci.sh|check.sh --windows|check.sh --full|public-ci.sh" \
     "$(grep -oE 'scripts/(public-ci\.sh|check\.sh --(windows|full))' "$RD_INTEGRATE_LOGS/run.sh" | sed 's|^scripts/||' | paste -sd'|' -)"
 expect_true "the gate and every generator ran before the detached run" \
-    '[[ "$(grep -nE "^(check.sh --gate|archive-jobs.sh)" "$FAKE/calls" | tail -1 | cut -d: -f1)" -lt "$(grep -n "^public-ci.sh" "$FAKE/calls" | cut -d: -f1)" ]]'
-expect_output "the output names it" "and beside them scripts/public-ci.sh integration/w3 --platforms linux,windows --release-workflows"
+    '[[ "$(grep -nE "^(check.sh --gate|archive-jobs.sh)" "$FAKE/calls" | tail -1 | cut -d: -f1)" -lt "$(grep -n -m1 "^public-ci.sh" "$FAKE/calls" | cut -d: -f1)" ]]'
+expect_output "the output names it" "and beside them scripts/public-ci.sh integration/w3 --platforms windows --release-workflows; Linux on GitHub after --full only without its green"
 expect_true "its log ends with the real exit" '[[ "$(tail -1 "$RD_INTEGRATE_LOGS/public-ci.log")" == "REAL EXIT: 0" ]]'
+
+# A local Rust green of the tree (RD-1280-14): GitHub runs Windows alone.
+touch "$FAKE/full-records"
+rm -f "$FAKE/calls"
+run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --public-ci
+expect "with the local green: green" "full=0 windows=0 prune=0 public-ci=0" "$(wait_status)"
+expect "Windows alone on GitHub" "public-ci.sh integration/w3 --platforms windows --release-workflows" \
+    "$(grep "^public-ci.sh" "$FAKE/calls" | paste -sd'|' -)"
+expect_true "the derived list in the log" 'grep -q "^==> platforms derived from the recorded green: windows — the local Rust green covers this tree" "$RD_INTEGRATE_LOGS/public-ci.log"'
+expect_true "which still ends with the real exit" '[[ "$(tail -1 "$RD_INTEGRATE_LOGS/public-ci.log")" == "REAL EXIT: 0" ]]'
+rm -f "$FAKE/full-records"
+
 touch "$FAKE/public-ci-red"
+rm -f "$FAKE/calls"
 run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --public-ci
 expect "a red GitHub run is in the status, the local check unaffected" "full=0 windows=0 prune=0 public-ci=1" "$(wait_status)"
+expect "and a red Windows run starts no Linux one" "1" "$(grep -c "^public-ci.sh" "$FAKE/calls")"
 rm -f "$FAKE/public-ci-red"
 
 # run.sh is integrate.sh's (RD-1270-17): a coordinator's wrapper there is moved aside, not lost.

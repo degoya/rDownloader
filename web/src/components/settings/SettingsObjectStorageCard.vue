@@ -15,7 +15,7 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFormFocus } from '@/composables/useFormFocus'
-import { editingRowClass } from '@/utils/editingRow'
+import ProfileListRow from '@/components/settings/ProfileListRow.vue'
 import FormFeedback from '@/components/FormFeedback.vue'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 import {
@@ -260,57 +260,30 @@ async function confirmRemove(profile: ObjectStorageProfile): Promise<void> {
       </template>
 
       <template #list>
-        <div class="divide-y divide-muted border border-muted">
-          <div
+        <div v-if="profiles.length" class="divide-y divide-muted border border-muted">
+          <ProfileListRow
             v-for="profile in profiles"
             :key="profile.id"
-            class="flex flex-wrap items-center gap-3 p-3"
-            :class="editingRowClass(editingId === profile.id, 'stripe')"
+            icon="i-lucide-cylinder"
+            :name="profile.name"
+            :subtitle="`${endpointLabel(profile)} · ${bucketLink(profile) ?? t('remote.object_storage.any_bucket')}`"
+            :editing="editingId === profile.id"
+            editing-shape="stripe"
+            :busy="busyId === profile.id"
             data-testid="object-storage-row"
+            @test="runTest(profile)"
+            @edit="startEdit(profile)"
+            @remove="confirmRemove(profile)"
           >
-            <UAvatar icon="i-lucide-cylinder" color="primary" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-highlighted">{{ profile.name }}</p>
-              <p class="truncate font-mono text-2xs text-muted">
-                {{ endpointLabel(profile) }} · {{ bucketLink(profile) ?? t('remote.object_storage.any_bucket') }}
-              </p>
-            </div>
-            <UBadge v-if="editingId === profile.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
-            <UBadge color="neutral" variant="outline">{{ t(`remote.object_storage.sources.${profile.credential_source}`) }}</UBadge>
-            <UBadge v-if="isIncomplete(profile)" color="warning" variant="subtle">{{ t('remote.object_storage.incomplete') }}</UBadge>
-            <UBadge v-if="profile.enabled" color="success" variant="subtle">{{ t('remote.object_storage.enabled') }}</UBadge>
-            <UBadge v-else color="neutral" variant="outline">{{ t('remote.object_storage.disabled') }}</UBadge>
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-plug-zap"
-              :label="t('common.actions.test')"
-              :loading="busyId === profile.id"
-              @click="runTest(profile)"
-            />
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-pencil"
-              :aria-label="t('common.actions.edit')"
-              :title="t('common.actions.edit')"
-              @click="startEdit(profile)"
-            />
-            <UButton
-              size="xs"
-              color="error"
-              variant="ghost"
-              icon="i-lucide-trash-2"
-              :aria-label="t('common.actions.delete')"
-              :title="t('common.actions.delete')"
-              :disabled="busyId === profile.id"
-              @click="confirmRemove(profile)"
-            />
-          </div>
-          <p v-if="!loading && !profiles.length" class="p-5 text-center text-sm text-muted">{{ t('remote.object_storage.empty') }}</p>
+            <template #badges>
+              <UBadge color="neutral" variant="outline">{{ t(`remote.object_storage.sources.${profile.credential_source}`) }}</UBadge>
+              <UBadge v-if="isIncomplete(profile)" color="warning" variant="subtle">{{ t('remote.object_storage.incomplete') }}</UBadge>
+              <UBadge v-if="profile.enabled" color="success" variant="subtle">{{ t('remote.object_storage.enabled') }}</UBadge>
+              <UBadge v-else color="neutral" variant="outline">{{ t('remote.object_storage.disabled') }}</UBadge>
+            </template>
+          </ProfileListRow>
         </div>
+        <UEmpty v-else-if="!loading" :description="t('remote.object_storage.empty')" />
       </template>
     </FormListLayout>
   </UCard>

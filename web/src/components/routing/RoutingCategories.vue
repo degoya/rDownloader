@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { api, resultMessage, responseError } from '@/api/client'
+import { api, resultMessage } from '@/api/client'
 import { listCollisionPolicies, setCategoryCollisionPolicy, type CollisionPolicy } from '@/api/storage'
 import type { Category, CreateCategory, PackageNameRegex, PackageNameRulesOverride, SortTemplates, StorageRoot } from '@/api/types'
 import DataState from '@/components/DataState.vue'
@@ -15,7 +15,7 @@ import RoutingCategoryPluginSteps from '@/components/routing/RoutingCategoryPlug
 import RoutingCategoryRow from '@/components/routing/RoutingCategoryRow.vue'
 import RoutingCategorySorting from '@/components/routing/RoutingCategorySorting.vue'
 import {
-  categoryPostprocessBody, sortingBody, sortingForm, useCategoryForm, type SortingForm
+  sortingBody, sortingForm, useCategoryForm, type SortingForm
 } from '@/composables/useCategoryForm'
 import { useCategoryDownloadWindow } from '@/composables/useCategoryDownloadWindow'
 import { useCategoryGroups } from '@/composables/useCategoryGroups'
@@ -24,7 +24,7 @@ import { useEditableList } from '@/composables/useEditableList'
 import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useFormFocus } from '@/composables/useFormFocus'
 import { usePostprocessStore } from '@/stores/postprocess'
-import { categoryCopyBody, seedingRequest } from '@/utils/categoryCopy'
+import { copyCategory, saveCategoryExtras } from '@/composables/categoryRequests'
 import { packageNameOverrideBody } from '@/utils/packageNameRules'
 import SectionHeader from '@/components/SectionHeader.vue'
 import CollisionPolicySelect from '@/components/storage/CollisionPolicySelect.vue'
@@ -187,35 +187,6 @@ const list = useEditableList<Category, CreateCategory>({
 })
 const { editingId, pending, error } = list
 
-/**
- * Sends the plugin-step override and the sort templates, and only when there is something to
- * send: the endpoint replaces every post-processing field it carries, so the rest of them are
- * passed back unchanged rather than reset. The plugin steps follow an update only, as before;
- * the templates follow a create too, which has only just produced the id they need.
- */
-async function savePostprocessExtras(
-  category: Category,
-  updating: boolean,
-  templates: SortTemplates | null,
-  stored: SortTemplates | null,
-  names: { rules: PackageNameRulesOverride | null, regex: PackageNameRegex[] | null, stored: boolean }
-): Promise<Category | null> {
-  const steps = updating && postprocess.pluginSteps.length > 0
-  // Sent while either side has an override, like the templates: the create and update routes
-  // answer without it, so the row is only current once this endpoint has answered.
-  const namesInvolved = names.rules !== null || names.regex !== null || names.stored
-  if (!steps && templates === null && stored === null && !namesInvolved) return null
-  const response = await api.PATCH('/api/v1/categories/{id}/postprocess', {
-    params: { path: { id: category.id } },
-    body: categoryPostprocessBody(category, updating && pluginStepsOverride.value ? [...pluginStepIds.value] : null, templates, { rules: names.rules, regex: names.regex })
-  })
-  if (!response.data) {
-    error.value = responseError(response)
-    return null
-  }
-  return response.data
-}
-
 async function submit(): Promise<void> {
   message.value = null
   const updating = editingId.value !== null
@@ -235,7 +206,15 @@ async function submit(): Promise<void> {
   if (!saved) return
   // The plugin steps and the sort templates ride a second endpoint, which needs an id the create
   // call has only just produced.
-  const withSteps = await savePostprocessExtras(saved, updating, templates, stored, names)
+  const extras = await saveCategoryExtras(saved, {
+    steps: updating && postprocess.pluginSteps.length > 0,
+    pluginSteps: updating && pluginStepsOverride.value ? [...pluginStepIds.value] : null,
+    templates,
+    stored,
+    names
+  })
+  if (extras.error) error.value = extras.error
+  const withSteps = extras.category
   const current = withSteps ?? saved
   if ((collisionPolicies.value[current.id] ?? null) !== collisionPolicy.value) {
     const answer = await setCategoryCollisionPolicy(current.id, collisionPolicy.value)
@@ -273,48 +252,17 @@ function edit(category: Category): void {
   void focusForm()
 }
 
-/**
- * Copies a category and opens the copy in the form (RD-150-12).
- *
- * The copy takes every setting — root, path, post-processing, upload, cleanup, the plugin steps,
- * the sort templates, the package-name rules and the seeding override — through the routes that set them: the create route, then the
- * post-processing and seeding routes, which the create route does not cover. What hangs on a
- * relation stays with the original: the default mark, and the rules that point at it.
- */
+/** Copies a category (`copyCategory`) and opens the copy in the form. */
 async function duplicate(category: Category): Promise<void> {
   duplicatingId.value = category.id
   error.value = null
   message.value = null
   const name = copyName(category.name, categories.value.map(item => item.name), MAX_CATEGORY_NAME)
-  const created = await api.POST('/api/v1/categories', { body: categoryCopyBody(category, name) })
-  if (!created.data) {
-    duplicatingId.value = null
-    error.value = responseError(created)
-    return
-  }
-  let copy: Category = created.data
-  if (category.plugin_steps || category.sorting || category.package_name_rules || category.package_name_regex) {
-    const steps = await api.PATCH('/api/v1/categories/{id}/postprocess', {
-      params: { path: { id: copy.id } },
-      body: categoryPostprocessBody(
-        copy,
-        category.plugin_steps ? [...category.plugin_steps] : null,
-        category.sorting ?? null,
-        { rules: category.package_name_rules ?? null, regex: category.package_name_regex ?? null }
-      )
-    })
-    if (steps.data) copy = steps.data
-    else error.value = responseError(steps)
-  }
-  if (category.seeding) {
-    const seeding = await api.PUT('/api/v1/categories/{id}/seeding', {
-      params: { path: { id: copy.id } },
-      body: seedingRequest(category.seeding)
-    })
-    if (seeding.error === undefined) copy = { ...copy, seeding: category.seeding }
-    else error.value = responseError(seeding)
-  }
+  const made = await copyCategory(category, name)
   duplicatingId.value = null
+  error.value = made.error
+  if (!made.category) return
+  let copy = made.category
   categories.value = [...categories.value, copy]
   error.value = await saveWindow(copy.id, { window: category.download_window ?? null, before: null }, categories) ?? error.value
   copy = categories.value.find(item => item.id === copy.id) ?? copy

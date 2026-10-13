@@ -118,7 +118,10 @@ fn a_program_running_from_previous_does_not_stop_the_next_update() {
 const WAIT_VARIABLE: &str = "RD_UPDATE_TEST_WAIT";
 
 /// Not a test: the program [`a_program_running_from_previous_does_not_stop_the_next_update`]
-/// runs from `.previous/`. Waits only when that test asks it to.
+/// runs from `.previous/`. That test copies this test binary there and starts it with
+/// `--exact … --ignored`, so this function is the running program that holds the folder; it
+/// waits only when that test sets [`WAIT_VARIABLE`]. Ignored, because in an ordinary run it is
+/// nothing to check; a test, because a test binary can run nothing else (RD-1280-22).
 #[cfg(windows)]
 #[test]
 #[ignore = "started by a_program_running_from_previous_does_not_stop_the_next_update"]

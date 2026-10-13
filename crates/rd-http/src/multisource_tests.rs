@@ -90,7 +90,7 @@ async fn serve_range(State(fixture): State<Arc<Fixture>>, headers: HeaderMap) ->
     (StatusCode::PARTIAL_CONTENT, response_headers, body).into_response()
 }
 
-async fn origin(behaviour: Behaviour) -> (SocketAddr, Arc<Seen>) {
+async fn origin(behaviour: Behaviour) -> (rd_testkit::TestServer, SocketAddr, Arc<Seen>) {
     let seen = Arc::new(Seen::default());
     let app = Router::new()
         .route("/file", get(serve_range))
@@ -98,14 +98,9 @@ async fn origin(behaviour: Behaviour) -> (SocketAddr, Arc<Seen>) {
             behaviour,
             seen: Arc::clone(&seen),
         }));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind fixture");
-    let address = listener.local_addr().expect("fixture address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    (address, seen)
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
+    (server, address, seen)
 }
 
 fn endpoint(position: u32, address: SocketAddr) -> SourceEndpoint {
@@ -241,8 +236,8 @@ fn engine() -> DownloadEngine {
 
 #[tokio::test]
 async fn chunks_of_one_file_are_fetched_from_two_sources_at_once() {
-    let (first, first_seen) = origin(Behaviour::Honest).await;
-    let (second, second_seen) = origin(Behaviour::Honest).await;
+    let (_server, first, first_seen) = origin(Behaviour::Honest).await;
+    let (_server, second, second_seen) = origin(Behaviour::Honest).await;
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("two.part");
     let ledger = Arc::new(Ledger::default());
@@ -286,8 +281,8 @@ async fn chunks_of_one_file_are_fetched_from_two_sources_at_once() {
 
 #[tokio::test]
 async fn a_broken_mirror_hands_its_chunk_on_without_losing_confirmed_bytes() {
-    let (down, _) = origin(Behaviour::Down).await;
-    let (good, good_seen) = origin(Behaviour::Honest).await;
+    let (_server, down, _) = origin(Behaviour::Down).await;
+    let (_server, good, good_seen) = origin(Behaviour::Honest).await;
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("failover.part");
     // An earlier run confirmed the first five bytes of the first chunk.
@@ -332,8 +327,8 @@ async fn a_broken_mirror_hands_its_chunk_on_without_losing_confirmed_bytes() {
 
 #[tokio::test]
 async fn a_piece_that_does_not_match_isolates_the_mirror_that_sent_it() {
-    let (liar, _) = origin(Behaviour::Corrupt).await;
-    let (honest, _) = origin(Behaviour::Honest).await;
+    let (_server, liar, _) = origin(Behaviour::Corrupt).await;
+    let (_server, honest, _) = origin(Behaviour::Honest).await;
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("isolated.part");
     let ledger = Arc::new(Ledger::default());
@@ -371,8 +366,8 @@ async fn a_piece_that_does_not_match_isolates_the_mirror_that_sent_it() {
 
 #[tokio::test]
 async fn wrong_bytes_from_every_source_never_complete() {
-    let (liar, _) = origin(Behaviour::Corrupt).await;
-    let (other_liar, _) = origin(Behaviour::Corrupt).await;
+    let (_server, liar, _) = origin(Behaviour::Corrupt).await;
+    let (_server, other_liar, _) = origin(Behaviour::Corrupt).await;
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("refused.part");
 
@@ -397,7 +392,7 @@ async fn wrong_bytes_from_every_source_never_complete() {
 
 #[tokio::test]
 async fn an_unchecked_chunk_from_before_a_restart_is_checked_first() {
-    let (honest, honest_seen) = origin(Behaviour::Honest).await;
+    let (_server, honest, honest_seen) = origin(Behaviour::Honest).await;
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("restart.part");
     // The first chunk was completed by source 3 before the restart, with a wrong byte in its
@@ -439,8 +434,8 @@ async fn an_unchecked_chunk_from_before_a_restart_is_checked_first() {
 
 #[tokio::test]
 async fn without_a_hash_basis_one_source_works_at_a_time() {
-    let (first, _) = origin(Behaviour::Honest).await;
-    let (second, second_seen) = origin(Behaviour::Honest).await;
+    let (_server, first, _) = origin(Behaviour::Honest).await;
+    let (_server, second, second_seen) = origin(Behaviour::Honest).await;
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("serial.part");
     let mut request = request(
@@ -477,8 +472,8 @@ impl crate::HostLookup for Rebound {
 
 #[tokio::test]
 async fn a_mirror_that_points_inside_at_connect_time_is_isolated_and_the_others_finish() {
-    let (rebound, rebound_seen) = origin(Behaviour::Honest).await;
-    let (good, _) = origin(Behaviour::Honest).await;
+    let (_server, rebound, rebound_seen) = origin(Behaviour::Honest).await;
+    let (_server, good, _) = origin(Behaviour::Honest).await;
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("rebound.part");
     let ledger = Arc::new(Ledger::default());

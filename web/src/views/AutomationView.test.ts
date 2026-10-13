@@ -9,6 +9,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock, toastMock } from '@/test/mocks'
 
 import common from '@/locales/en/common.json'
 import automation from '@/locales/en/automation.json'
@@ -17,27 +18,14 @@ import { axeViolations } from '@/test/axe'
 
 const get = vi.fn()
 const post = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: vi.fn(),
-    PATCH: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'The service did not answer'),
-  resultMessage: vi.fn(() => '')
-}))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args), POST: (...args: unknown[]) => post(...args) }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
 // The view subscribes to `automation.changed` on mount, and jsdom has no `EventSource`. These
 // tests are about the form, so the stream is stubbed away; the subscription itself is covered
 // in `stores/automations.test.ts`.
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 // The backup buttons import a toast through the Nuxt UI barrel, which needs a Nuxt build.
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: vi.fn() }) })
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock({ overlay: { open: vi.fn() } }))
 
 const { default: AutomationView } = await import('./AutomationView.vue')
 

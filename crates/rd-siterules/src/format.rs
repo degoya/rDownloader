@@ -17,10 +17,10 @@ use crate::{
 };
 
 /// Longest display name a rule may carry.
-pub const MAX_NAME_LENGTH: usize = 120;
+pub(crate) const MAX_NAME_LENGTH: usize = 120;
 
 /// Longest description a rule may carry (RD-1230-03).
-pub const MAX_DESCRIPTION_LENGTH: usize = 2000;
+pub(crate) const MAX_DESCRIPTION_LENGTH: usize = 2000;
 
 /// One rule for one service.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]

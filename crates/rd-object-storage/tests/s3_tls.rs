@@ -31,7 +31,8 @@ use rustls::{
 use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::{TlsAcceptor, server::TlsStream};
 
-use support::{Harness, lock, respond};
+use rd_testkit::{lock, respond};
+use support::Harness;
 
 const BUCKET: &str = "tls-bucket";
 

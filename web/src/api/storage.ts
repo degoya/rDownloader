@@ -15,7 +15,6 @@ type Schemas = components['schemas']
 
 export type CollisionPolicy = Schemas['CollisionPolicy']
 export type CollisionDecision = Schemas['CollisionDecision']
-type CollisionPolicySource = Schemas['CollisionPolicySource']
 
 export const COLLISION_POLICIES: readonly CollisionPolicy[] = ['rename', 'skip', 'overwrite', 'compare', 'ask']
 export const COLLISION_DECISIONS: readonly CollisionDecision[] = ['rename', 'skip', 'overwrite']
@@ -23,8 +22,6 @@ export const COLLISION_DECISIONS: readonly CollisionDecision[] = ['rename', 'ski
 type CollisionPolicies = Schemas['CollisionPoliciesResponse']
 export type PackageCollisionPolicy = Schemas['PackageCollisionPolicyResponse']
 export type CollisionPrompt = Schemas['CollisionPromptResponse']
-type SourceIdentity = Schemas['SourceIdentity']
-type SourceDuplicate = Schemas['SourceDuplicate']
 export type ContentDuplicate = Schemas['ContentDuplicate']
 export type DuplicateReport = Schemas['DuplicateReport']
 type DuplicateLookupEntry = Schemas['DuplicateLookupEntry']

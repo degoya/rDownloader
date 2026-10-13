@@ -45,11 +45,11 @@ mod download_state;
 mod install_state;
 
 /// The settings key the floors and the last result are stored under.
-pub const STATE_KEY: &str = "update.state";
+pub(crate) const STATE_KEY: &str = "update.state";
 /// How long after the start the first check waits.
 pub const STARTUP_DELAY: Duration = Duration::from_secs(180);
 /// The most the first check is delayed beyond [`STARTUP_DELAY`], at random.
-pub const STARTUP_JITTER_SECONDS: u64 = 180;
+pub(crate) const STARTUP_JITTER_SECONDS: u64 = 180;
 /// How often the loop looks whether a check is due.
 pub const TICK: Duration = Duration::from_secs(600);
 
@@ -104,7 +104,8 @@ pub struct StoredState {
 /// Where the manifests come from and what they are verified against.
 struct Source {
     fetcher: Arc<dyn Fetcher>,
-    sources: Sources,
+    /// `None`: the official repository's addresses.
+    sources: Option<Sources>,
     /// `None`: the compiled-in release root.
     trust: Option<TrustStore>,
 }
@@ -138,7 +139,7 @@ impl UpdateService {
             capture_agents,
             source: RwLock::new(Source {
                 fetcher: Arc::new(HttpFetcher::new()),
-                sources: Sources::official(),
+                sources: None,
                 trust: None,
             }),
             installation: RwLock::new(Installation {
@@ -166,7 +167,7 @@ impl UpdateService {
         if let Ok(mut source) = self.0.source.write() {
             *source = Source {
                 fetcher,
-                sources,
+                sources: Some(sources),
                 trust: Some(trust),
             };
         }
@@ -196,7 +197,7 @@ impl UpdateService {
     /// The channel actually read: a package manager that publishes no pre-releases is read on
     /// stable whatever was chosen, so it is never shown a command that installs nothing new.
     #[must_use]
-    pub fn effective_channel(&self, settings: &UpdateSettings) -> Channel {
+    pub(crate) fn effective_channel(&self, settings: &UpdateSettings) -> Channel {
         match settings.channel() {
             Channel::Beta if self.install_kind().receives_betas() => Channel::Beta,
             _ => Channel::Stable,
@@ -235,6 +236,10 @@ impl UpdateService {
                 source.sources.clone(),
                 source.trust.clone(),
             )
+        };
+        let sources = match sources {
+            Some(sources) => sources,
+            None => Sources::official()?,
         };
         let now = Utc::now();
         let trust = match trust {

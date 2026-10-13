@@ -17,7 +17,6 @@
 //! application's selection surface, and `awaiting-choice` exists for providers that have to
 //! be told *before* they fetch. `docs/roadmap/jobs/120-23-*.md` records the contract change
 //! this would need instead.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, CacheState, Guest, JobSource, RemoteArtifact, RemoteHandle,

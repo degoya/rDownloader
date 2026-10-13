@@ -13,9 +13,9 @@ use rd_files::NoConsoleWindow as _;
 use super::{APPLY_COMMAND, Journal, remove_any, update_dir};
 
 /// Inside `<data>/update`: the copy of the executable the updater runs from.
-pub const UPDATER_DIR: &str = "updater";
+pub(crate) const UPDATER_DIR: &str = "updater";
 /// Inside `<data>/update`: what the updater writes to its output.
-pub const UPDATER_LOG: &str = "updater.log";
+pub(crate) const UPDATER_LOG: &str = "updater.log";
 
 /// Windows Installer's exit codes that mean the package is installed: done, and done with a
 /// restart that is needed (3010) or was started (1641).
@@ -90,7 +90,7 @@ pub fn spawn_detached<S: AsRef<OsStr>>(
 /// The updater's file name inside [`UPDATER_DIR`]: not `rdownloader(.exe)`, so nothing that stops
 /// the service by its image name (the MSI's upgrade, `stop-rdownloader.bat`) stops the updater.
 #[must_use]
-pub fn updater_file_name() -> &'static str {
+pub(crate) fn updater_file_name() -> &'static str {
     if cfg!(windows) {
         "rdownloader-updater.exe"
     } else {
@@ -117,7 +117,7 @@ pub fn launch_updater(journal: &Journal) -> Result<()> {
 /// # Errors
 ///
 /// As [`launch_updater`].
-pub fn launch_agent_updater(journal: &Journal) -> Result<()> {
+pub(crate) fn launch_agent_updater(journal: &Journal) -> Result<()> {
     launch_copy(
         journal,
         if cfg!(windows) {
@@ -151,7 +151,12 @@ fn launch_copy(journal: &Journal, file_name: &str) -> Result<()> {
 /// # Errors
 ///
 /// When the copy or the start fails.
-pub fn launch_copy_with(data: &Path, cwd: &Path, file_name: &str, args: &[&OsStr]) -> Result<()> {
+pub(crate) fn launch_copy_with(
+    data: &Path,
+    cwd: &Path,
+    file_name: &str,
+    args: &[&OsStr],
+) -> Result<()> {
     let current = std::env::current_exe().context("locate the running executable")?;
     let update = update_dir(data);
     let directory = update.join(UPDATER_DIR);
@@ -233,7 +238,7 @@ pub fn msiexec_arguments(
 /// folder of the running executable first, and a portable installation's folder may be
 /// writable by every signed-in user, who would have planted the program an update runs.
 #[must_use]
-pub fn msiexec_path() -> PathBuf {
+pub(crate) fn msiexec_path() -> PathBuf {
     system_program(std::env::var_os("SystemRoot"), "msiexec.exe")
 }
 

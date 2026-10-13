@@ -3,29 +3,13 @@
 # CI-parity checks, scoped to what the change touches, with the parallelism this machine
 # survives.
 #
-# Two levels (RD-120-58). Without --full a run is BRANCH level: clippy and all tests of the
-# touched crates, the library and binary tests of one level of reverse dependencies, rd-api's
-# library, and only the rd-api integration suites the change needs (scripts/lib/rd-api-tests.map).
-# --full runs everything, and belongs at the end of a wave on `development` and in the release
-# chain; a tag and a Windows package refuse a tree without one. Nothing is dropped — the branch
-# level moves the wide tests to the one run per wave that has to happen anyway. Of eight
-# branch checks on 2026-09-24, seven ran all rd-api batches, and every full run after the merges
-# was green: the wide branch runs found nothing the full run would not have found.
-#
-# Three things are deliberately not done the obvious way.
-#
-#   * A run checks what the change touches, not everything, every time. The honest limit: the
-#     reverse-dependency step is ONE level, not a transitive hull.
-#   * The rd-api tests run in batches of four binaries. Each of its integration binaries links
-#     the whole dependency graph; when there were 55 of them, a plain `--workspace` run built
-#     them all at once and OOM-killed WSL even at JOBS=2. Fewer binaries at a time is the fix,
-#     and since RD-150-10 there are six (the suites are their modules); a lower job count is
-#     not, because it does not make a single link cheaper.
-#   * `cargo clippy --workspace --all-targets --all-features` is NOT run by default: it has
-#     taken WSL into swap and required a hard restart more than once. Lint what you touched:
-#
-#   scripts/check.sh --clippy rd-scheduler rd-files
-#   scripts/check.sh --clippy-all          # the full run, at JOBS=2, on purpose deliberate
+# Two levels (RD-120-58): without --full a run is BRANCH level, scoped to what the change touches
+# (the reverse-dependency step is ONE level, not a transitive hull; the rd-api suites come from
+# scripts/lib/rd-api-tests.map); --full runs everything, once per wave on `development` and in the
+# release chain, and a tag and a Windows package refuse a tree without one. The modes:
+# scripts/README.md ("check.sh's modes"). Why the scope, the rd-api batches of four and no default
+# `clippy --workspace --all-targets` — each an incident that took WSL down — with the measurements:
+# docs/architecture.md#build ("Never build every rd-api test binary at once", "Two levels").
 #
 # Usage:
 #   scripts/check.sh                       # branch level: what the change touches
@@ -38,6 +22,8 @@
 #   scripts/check.sh --preflight --again   # ... all of it even then
 #   scripts/check.sh --rust                # skip the web half
 #   scripts/check.sh --web                 # skip the Rust half
+#   scripts/check.sh --clippy rd-scheduler rd-files   # lint what you touched
+#   scripts/check.sh --clippy-all          # the whole workspace, at JOBS=2, deliberately
 #   scripts/check.sh --windows             # only the Windows lint: cargo xwin clippy, every crate
 #   scripts/check.sh --windows --again     # ... even when its green covers this content
 #   scripts/check.sh --gate                # integrate.sh's gate: clippy for Linux and Windows,
@@ -113,59 +99,10 @@ source "$ROOT/scripts/lib/scope.sh"
 TARGET_DIR="$(rd_target_dir "$ROOT")"
 BASE="${RD_BASE:-development}"
 
-run_rust=1
-run_web=1
-full=0
-defer=0
-clippy_crates=()
-clippy_all=0
-windows=0
-gate=0
-again=0
-preflight=0
-
-if [[ " $* " == *" --preflight "* && "$*" != --preflight && "$*" != "--preflight --again" \
-    && "$*" != "--again --preflight" ]]; then
-    echo "--preflight runs alone (--again aside)" >&2
-    exit 2
-fi
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --rust) run_web=0; shift ;;
-        --web) run_rust=0; shift ;;
-        --full) full=1; shift ;;
-        --again) again=1; shift ;;
-        --defer) defer=1; shift ;;
-        --clippy-all) clippy_all=1; shift ;;
-        --windows) windows=1; shift ;;
-        --gate) gate=1; shift ;;
-        --preflight) preflight=1; shift ;;
-        --clippy)
-            shift
-            while [[ $# -gt 0 && "$1" != --* ]]; do clippy_crates+=("$1"); shift; done
-            ;;
-        *) echo "unknown argument: $1" >&2; exit 2 ;;
-    esac
-done
-
-if [[ "$full" -eq 1 && "$defer" -eq 1 ]]; then
-    echo "--full and --defer are opposites" >&2
-    exit 2
-fi
-if [[ "$windows" -eq 1 || "$gate" -eq 1 ]] \
-    && [[ "$full" -eq 1 || "$defer" -eq 1 || "$clippy_all" -eq 1 || ${#clippy_crates[@]} -gt 0 \
-        || "$run_rust" -eq 0 || "$run_web" -eq 0 || "$windows$gate" == 11 ]]; then
-    echo "--windows and --gate each run alone; start the other run separately" >&2
-    exit 2
-fi
-
-# Every stage is timed, skips are listed, failures collected (scripts/lib/stages.sh).
-RUN_KIND=branch
-if [[ "$full" -eq 1 ]]; then RUN_KIND=full; fi
-if [[ "$windows" -eq 1 ]]; then RUN_KIND=windows; fi
-if [[ "$gate" -eq 1 ]]; then RUN_KIND=gate; fi
-if [[ "$defer" -eq 1 ]]; then RUN_KIND=defer; fi
-if [[ "$preflight" -eq 1 ]]; then RUN_KIND=preflight; fi
+# The flags and the run kind (lib/check-args.sh); a usage error ends the run with 2.
+# shellcheck source=lib/check-args.sh
+source "$ROOT/scripts/lib/check-args.sh"
+rd_check_args "$@" || exit 2
 CHECK_LOGS="${RD_CHECK_LOGS:-/tmp/claude-$(id -u)/check-$(basename "$ROOT")}"
 # shellcheck source=lib/stages.sh
 source "$ROOT/scripts/lib/stages.sh"
@@ -196,18 +133,18 @@ if [[ "$gate" -eq 1 ]]; then rd_check_gate; fi
 # revision; its green is recorded by tree as the half `preflight` (audit C2), and a --full of the
 # same content up to the generators' output skips the script lints and tests it ran.
 # Not twice (RD-1270-13): with a preflight green of this very tree, or of HEAD's before a version
-# bump (lib/preflight-reuse.sh), only the file checks run — seconds, and they read what a tree
-# does not hold: the job layout's environment, and the version copies a bump rewrote. --again
-# runs everything.
+# bump (lib/preflight-reuse.sh), only the two file checks that read what a tree does not hold run:
+# the job layout's environment, and the version copies a bump rewrote (RD-1280-13). --again runs
+# everything.
 if [[ "$preflight" -eq 1 ]]; then
     preflight_tree="$(rd_worktree_tree "$ROOT")"
     preflight_green=""
     [[ "$again" -eq 1 ]] || preflight_green="$(rd_preflight_green "$ROOT" "$preflight_tree")"
     if [[ -n "$preflight_green" ]]; then
-        rd_file_checks "$(rd_scope_boundary "$BASE" "$ROOT")"
-        skip "cargo fmt, the test maps, gitleaks, bash -n, shellcheck, actionlint and the script tests" \
-            "a recorded preflight green covers this tree ($([[ "$preflight_green" == "$preflight_tree" ]] \
-                && echo 'this very content' || echo "tree ${preflight_green:0:12} before a version bump")); --again runs them"
+        preflight_reason="a recorded preflight green covers this tree ($([[ "$preflight_green" == "$preflight_tree" ]] \
+            && echo 'this very content' || echo "tree ${preflight_green:0:12} before a version bump")); --again runs them"
+        rd_file_checks "$(rd_scope_boundary "$BASE" "$ROOT")" "$preflight_reason"
+        skip "cargo fmt, the test maps, gitleaks, bash -n, shellcheck, actionlint and the script tests" "$preflight_reason"
     else
         rd_preflight "$(rd_scope_boundary "$BASE" "$ROOT")"
     fi
@@ -222,6 +159,10 @@ fi
 # The halves of a --full a recorded green covers are not run again (lib/check-reuse.sh); the
 # Rust and the web half name the green as their skip reason.
 rd_check_reuse_apply
+# What a --full shares with the preflight — the file checks, cargo fmt, the test maps, gitleaks
+# and the script checks — skips itself when a preflight green covers the tree (RD-1280-13): the
+# reason, or nothing (lib/preflight.sh).
+preflight_cover="$(rd_preflight_cover_reason)"
 
 # Runs one test selection through nextest, or through cargo test when nextest is absent. Both
 # with --no-fail-fast: a run lists every failing test, not the first (RD-1100-13).
@@ -303,7 +244,7 @@ rd_check_reuse_crates
 # git diff --check, the job layout, the version copies, the action pins, the release notes and the
 # container's Python tools (scripts/lib/preflight.sh): files only, well under a second, whatever
 # the change touched.
-rd_file_checks "$boundary"
+rd_file_checks "$boundary" "$preflight_cover"
 
 # The scripts themselves: bash -n, shellcheck and every test under scripts/tests/ (RD-140-22),
 # whenever something under scripts/ changed — a script included, not only its libraries — and
@@ -314,7 +255,7 @@ rd_script_checks
 # gitleaks over what the public export would publish (RD-1110-15): a second, so --full runs it
 # and a secret is found before the export refuses it.
 if [[ "$full" -eq 1 ]]; then
-    rd_secret_scan
+    rd_secret_scan "$preflight_cover"
 else
     skip "gitleaks" "branch level; --full and --preflight scan the tree"
 fi
@@ -327,11 +268,13 @@ rd_check_web_start
 # ---------------------------------------------------------------------------------------------
 
 if [[ "$run_rust" -eq 1 ]]; then
-    # Seconds, so it is not worth scoping: a stray .rs anywhere fails the run either way. The
-    # preflight runs it too, so its red is both halves' (lib/check-record.sh).
-    stage_half="rust preflight"
-    step "cargo fmt --all --check"
-    attempt cargo fmt --all --check
+    # Seconds, so not worth scoping: a stray .rs anywhere fails the run either way. cargo fmt's red
+    # is both halves' (lib/check-record.sh); a problem of the rd-api test map or of the Rust test
+    # inputs map — a row naming a suite that is gone, a suite no row names, a path a Rust source
+    # reads without its row (RD-191-09) — stops the run here. The preflight runs all three.
+    rd_rust_tree_checks "$preflight_cover"
+    # Every stage from here on is the Rust half's, whichever path the call above took: a red one
+    # holds the rust half's record (lib/check-record.sh).
     stage_half=rust
 
     # Feature worktrees share this checkout's target/ through CARGO_TARGET_DIR, and cargo
@@ -367,16 +310,6 @@ if [[ "$run_rust" -eq 1 ]]; then
     # script — this is here so the answer arrives before the push rather than after it.
     step "the headless Linux tree of the capture agent"
     attempt scripts/check-capture-linux-tree.sh
-
-    # The rd-api test map is only as good as its upkeep, so its failure modes stop the run here,
-    # in a second: a row naming a suite that is gone, a suite that no row names, a suite its
-    # binary does not declare, a test file outside the binaries.
-    step "the rd-api test map against the test suites"
-    rd_api_map_check || exit 1
-
-    # The same for the files outside crates/ that Rust tests read (RD-191-09).
-    step "the Rust test inputs map against the sources"
-    rd_rust_inputs_check || exit 1
 
     # Only for a run that tests Rust: a scripts-only change has no use for a component, and since
     # the gates build the stale ones themselves (RD-1100-13) asking would cost minutes.

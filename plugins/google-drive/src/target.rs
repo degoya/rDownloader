@@ -165,15 +165,15 @@ mod tests {
 
     #[test]
     fn an_address_belonging_to_somebody_else_is_never_claimed() {
-        assert_eq!(
-            claim("https://drive.google.com.evil.test/file/d/abc/view"),
-            None
-        );
-        assert_eq!(claim("https://x@drive.google.com/file/d/abc/view"), None);
-        assert_eq!(claim("ftp://drive.google.com/file/d/abc/view"), None);
-        assert_eq!(claim("https://ddownload.com/f/abc"), None);
-        assert_eq!(claim("https://drive.google.com/"), None);
-        assert_eq!(claim("https://www.googleapis.com/oauth2/v1/userinfo"), None);
+        for foreign in plugin_common::foreign::around("https://drive.google.com/file/d/abc/view") {
+            assert_eq!(claim(&foreign), None, "{foreign}");
+        }
+        for own_but_not_this in [
+            "https://drive.google.com/",
+            "https://www.googleapis.com/oauth2/v1/userinfo",
+        ] {
+            assert_eq!(claim(own_but_not_this), None, "{own_but_not_this}");
+        }
     }
 
     #[test]

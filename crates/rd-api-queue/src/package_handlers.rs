@@ -341,7 +341,7 @@ pub async fn reorder_downloads(
     )))
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn apply_package_change(
     state: &AppState,
     ids: Vec<PackageId>,

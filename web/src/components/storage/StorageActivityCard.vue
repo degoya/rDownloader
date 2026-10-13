@@ -149,7 +149,7 @@ onMounted(() => void load())
         <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-scan-search" :label="t('settings.storage.activity.check_index')" :loading="checking" @click="check" />
         <SettingsDataResetButton target="content_index" :count="indexed" @cleared="indexCleared" />
       </div>
-      <p v-if="!operations.length" class="mt-2 text-xs text-muted">{{ t('settings.storage.activity.history_empty') }}</p>
+      <UEmpty v-if="!operations.length" class="mt-2" :description="t('settings.storage.activity.history_empty')" />
       <ul v-else class="mt-2 space-y-2 text-xs" data-testid="storage-history">
         <li v-for="operation in operations" :key="operation.id">
           <USeparator class="mb-2" />

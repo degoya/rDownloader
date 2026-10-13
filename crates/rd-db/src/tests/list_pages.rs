@@ -4,13 +4,7 @@
 use rd_core::{DownloadPriority, IngressSource, PackageId};
 
 use super::{dropped_nzb, mirror_batch};
-use crate::{Database, NewPackage};
-
-async fn open(directory: &std::path::Path) -> Database {
-    Database::open(directory.join("pages.sqlite"))
-        .await
-        .expect("database")
-}
+use crate::NewPackage;
 
 /// A page is a slice of the whole list in its order, and every page counts all of it: `middle`
 /// was read with offset 1 and limit 2, `rest` with offset 2 and no limit, `beyond` with an
@@ -37,7 +31,7 @@ fn assert_slices<I: PartialEq + std::fmt::Debug>(
 #[tokio::test]
 async fn the_package_list_pages_in_its_queue_order() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     // Priorities out of creation order, so the queue order is not the order of the rows.
     for (index, priority) in [
         DownloadPriority::Low,
@@ -85,7 +79,7 @@ async fn the_package_list_pages_in_its_queue_order() {
 #[tokio::test]
 async fn the_linkgrabber_lists_page_in_their_own_order() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     for index in 0..4 {
         let urls = [
             format!("https://one.example/paged-{index}.bin"),
@@ -186,7 +180,7 @@ async fn the_linkgrabber_lists_page_in_their_own_order() {
 #[tokio::test]
 async fn the_nzb_review_list_pages_in_its_own_order() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     for (index, digest) in ["b1", "b2", "b3", "b4"].into_iter().enumerate() {
         database
             .add_nzb_import(dropped_nzb(

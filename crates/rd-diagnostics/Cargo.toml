@@ -15,6 +15,8 @@ chrono.workspace = true
 hex.workspace = true
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }
+rd-http = { path = "../rd-http" }
+rd-sign = { path = "../rd-sign" }
 # RD-110-03: the OTLP exporter posts one JSON document to one URL. See `src/otlp.rs` for why
 # that is not an OpenTelemetry SDK; `reqwest` is already in the tree for every other crate
 # that speaks HTTP.
@@ -32,6 +34,7 @@ zip.workspace = true
 workspace = true
 
 [dev-dependencies]
+rd-testkit = { path = "../rd-testkit" }
 # Its own integration tests reach the `test-support` hooks this way.
 rd-diagnostics = { path = ".", features = ["test-support"] }
 tempfile.workspace = true

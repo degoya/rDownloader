@@ -140,7 +140,13 @@
     "restore": "Restaurer",
     "restore_title": "Restaurer la version {version} ?",
     "restore_description": "Le déclencheur, la condition et les actions de la version {version} redeviennent la définition de « {name} », enregistrés comme une nouvelle version. Le nom et l’interrupteur d’activation restent tels quels.",
-    "restored": "La version {version} est de nouveau en vigueur, enregistrée comme version {current}."
+    "restored": "La version {version} est de nouveau en vigueur, enregistrée comme version {current}.",
+    "reset": "Réinitialiser les versions",
+    "reset_title": "Réinitialiser les versions de « {name} » ?",
+    "reset_versions": "{count} version antérieure | {count} versions antérieures",
+    "reset_runs": "aucune exécution | {count} de leurs exécutions | {count} de leurs exécutions",
+    "reset_description": "{versions} et {runs} sont supprimées. La version {version} reste, devient la version 1 et garde ses propres exécutions. Cette action est irréversible.",
+    "reset_done": "Historique réinitialisé : {versions} et {runs} ont été supprimées, la version actuelle est désormais la version 1."
   },
   "schedule": {
     "heading": "Planification",

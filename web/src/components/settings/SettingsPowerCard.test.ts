@@ -6,6 +6,7 @@
  */
 import { fireEvent, screen, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 import { reactive } from 'vue'
 
 import type { Settings } from '@/api/types'
@@ -15,7 +16,7 @@ import { defaultSettings, emptyNumberFields } from '@/settingsDefaults'
 import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn(async () => ({ data: undefined })) } }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })) }))
 
 import SettingsPowerCard from './SettingsPowerCard.vue'
 

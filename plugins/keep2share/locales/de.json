@@ -27,6 +27,7 @@
     "keep2share.password_missing": "Das Keep2Share-Passwort fehlt",
     "keep2share.premium_required": "Für diesen Keep2Share-Download ist ein Premium-Konto erforderlich",
     "keep2share.private_file": "Die Keep2Share-Datei kann nur vom Besitzer heruntergeladen werden",
+    "keep2share.request_encoding": "Keep2Share-Anfrage konnte nicht kodiert werden: {error}",
     "keep2share.server_error": "Keep2Share-Serverfehler",
     "keep2share.session_invalid": "Keep2Share hat das Auth-Token als ungültig gemeldet",
     "keep2share.temporarily_unavailable": "Keep2Share hat den Download als vorübergehend nicht verfügbar gemeldet",

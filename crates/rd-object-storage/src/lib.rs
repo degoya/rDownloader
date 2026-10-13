@@ -58,11 +58,11 @@ pub const TEST_NEEDS_BUCKET: &str = "object_storage.test_needs_bucket";
 /// Stable code of a provider whose connector this build was made without.
 pub const PROVIDER_UNSUPPORTED: &str = "object_storage.provider_unsupported";
 /// Stable code of an Azure account key that is not the base64 the portal hands out.
-pub const ACCOUNT_KEY_INVALID: &str = "object_storage.account_key_invalid";
+pub(crate) const ACCOUNT_KEY_INVALID: &str = "object_storage.account_key_invalid";
 /// Stable code of an Azure shared access signature without its version or signature.
-pub const SAS_INVALID: &str = "object_storage.sas_invalid";
+pub(crate) const SAS_INVALID: &str = "object_storage.sas_invalid";
 /// Stable code of a Google service account key that is not the console's JSON key file.
-pub const SERVICE_ACCOUNT_INVALID: &str = "object_storage.service_account_invalid";
+pub(crate) const SERVICE_ACCOUNT_INVALID: &str = "object_storage.service_account_invalid";
 /// Stable code of a profile that would send the machine's own credentials to a custom endpoint
 /// nobody confirmed (RD-1190-20).
 pub const AMBIENT_ENDPOINT_UNCONFIRMED: &str = "object_storage.ambient_endpoint_unconfirmed";

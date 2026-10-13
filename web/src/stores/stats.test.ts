@@ -1,19 +1,17 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 
 import { useStatsStore } from './stats'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'The statistics are unavailable')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The statistics are unavailable') }))
 
 let stateEvent: (() => void) | null = null
 let usenetEvent: (() => void) | null = null
 const released = vi.fn()
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, () => void>) => {
     stateEvent = handlers['download.state'] ?? null
     usenetEvent = handlers['usenet.changed'] ?? null

@@ -67,7 +67,7 @@ pub const OFFICIAL_INDEX_URL: &str =
     "https://github.com/degoya/rDownloader/releases/latest/download/rdownloader-plugin-index.json";
 
 /// Hours between two automatic refreshes when nobody chose otherwise.
-pub const DEFAULT_REFRESH_HOURS: u32 = 24;
+pub(crate) const DEFAULT_REFRESH_HOURS: u32 = 24;
 /// Bounds of the refresh interval, in hours: at most hourly, at least weekly.
 pub const REFRESH_HOURS_RANGE: std::ops::RangeInclusive<u32> = 1..=168;
 /// How long after start the first refresh waits, so it never competes with the start itself.
@@ -435,7 +435,7 @@ fn repository_url(repository: &PluginRepository) -> Result<url::Url, RepositoryE
 }
 
 /// An absolute https URL with a host and no credentials, at most 1,024 bytes.
-pub fn parse_https(value: &str) -> Result<url::Url, RepositoryError> {
+pub(crate) fn parse_https(value: &str) -> Result<url::Url, RepositoryError> {
     let value = value.trim();
     if value.len() > 1024 {
         return Err(RepositoryError::InvalidUrl);

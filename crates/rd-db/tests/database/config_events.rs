@@ -8,14 +8,7 @@
 //! subscriber may see.
 
 use rd_core::EventKind;
-use rd_db::{Database, NewAutomation, NewManagedTool, NewPluginTrustedKey};
-use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("events.sqlite"))
-        .await
-        .expect("database")
-}
+use rd_db::{NewAutomation, NewManagedTool, NewPluginTrustedKey};
 
 fn automation(name: &str) -> NewAutomation {
     NewAutomation {
@@ -48,7 +41,7 @@ fn drain(
 #[tokio::test]
 async fn every_automation_write_announces_exactly_one_change() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut events = database.subscribe();
 
     let created = database
@@ -88,7 +81,7 @@ async fn every_automation_write_announces_exactly_one_change() {
 #[tokio::test]
 async fn deleting_an_automation_that_is_gone_publishes_nothing() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut events = database.subscribe();
 
     database
@@ -109,7 +102,7 @@ async fn deleting_an_automation_that_is_gone_publishes_nothing() {
 #[tokio::test]
 async fn a_managed_tool_write_names_the_tool_and_not_its_source() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut events = database.subscribe();
 
     database
@@ -175,7 +168,7 @@ async fn a_managed_tool_write_names_the_tool_and_not_its_source() {
 #[tokio::test]
 async fn a_trust_decision_announces_the_key_id_and_nothing_else() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut events = database.subscribe();
 
     database

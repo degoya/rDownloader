@@ -114,14 +114,16 @@ pub struct ManagedTool {
 /// tool store. A runner only ever needs to keep the value alive, never to look inside it.
 #[derive(Clone)]
 // The value exists to be *held* and then dropped, never read: that is the whole mechanism,
-// and it is precisely the shape `dead_code` cannot see.
-pub struct ToolLease(#[allow(dead_code)] Arc<dyn Any + Send + Sync>);
+// which the leading underscore tells `dead_code`.
+pub struct ToolLease {
+    _lease: Arc<dyn Any + Send + Sync>,
+}
 
 impl ToolLease {
     /// Wraps a store-owned guard. Called by `rd-tools`; nothing else has a guard to pass.
     #[must_use]
     pub fn new(guard: Arc<dyn Any + Send + Sync>) -> Self {
-        Self(guard)
+        Self { _lease: guard }
     }
 }
 

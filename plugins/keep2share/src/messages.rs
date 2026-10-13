@@ -143,6 +143,13 @@ pub(crate) const NO_TOKEN: (&str, &str) = (
     "Keep2Share did not return a login token",
 );
 
+/// A request body could not be serialized; carries the serializer's `error`. Never expected —
+/// it replaces a panic in the guest.
+pub(crate) const REQUEST_ENCODING: (&str, &str) = (
+    "keep2share.request_encoding",
+    "Keep2Share request could not be encoded",
+);
+
 /// `/geturl` reported no error but omitted the `url` field.
 pub(crate) const NO_DOWNLOAD_URL: (&str, &str) = (
     "keep2share.no_download_url",

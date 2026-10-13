@@ -3,7 +3,7 @@ import { reactive } from 'vue'
 import { lookupDuplicates } from '@/api/storage'
 import type { components } from '@/api/schema'
 
-export type HistoryDuplicate = components['schemas']['HistoryDuplicate']
+type HistoryDuplicate = components['schemas']['HistoryDuplicate']
 
 /**
  * Which LinkGrabber addresses are already in the queue, by source identity (RD-150-01).

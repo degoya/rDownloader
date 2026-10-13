@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import history from '@/locales/en/history.json'
 import system from '@/locales/en/system.json'
@@ -13,20 +14,15 @@ import { axeViolations } from '@/test/axe'
 
 const get = vi.fn()
 const post = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: (...args: unknown[]) => post(...args),
-    PUT: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'This entry has no source address that could be added again.'),
-  resultMessage: vi.fn(() => '')
+vi.mock('@/api/client', () => apiClientMock({
+  GET: (...args: unknown[]) => get(...args),
+  POST: (...args: unknown[]) => post(...args),
+  responseError: vi.fn(() => 'This entry has no source address that could be added again.')
 }))
 
-const added = vi.fn()
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: added }) }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true }))
+const added = vi.hoisted(() => vi.fn())
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: added }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
 
 const push = vi.fn()
 vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))

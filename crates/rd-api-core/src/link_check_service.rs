@@ -62,7 +62,7 @@ pub struct LinkCheckService {
 
 impl LinkCheckService {
     #[must_use]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn start(
         database: Database,
         scheduler: SchedulerHandle,
@@ -111,7 +111,10 @@ impl LinkCheckService {
 
     /// Lets the check ask the remote-job plugins' caches (RD-130-11). Only the first call
     /// counts; a second one is a wiring mistake (API-06).
-    pub fn attach_cache_checkers(&self, checkers: crate::remote_job_service::RemoteJobService) {
+    pub(crate) fn attach_cache_checkers(
+        &self,
+        checkers: crate::remote_job_service::RemoteJobService,
+    ) {
         let first = self.inner.cache_checkers.set(checkers).is_ok();
         debug_assert!(first, "the cache checkers are attached once");
     }

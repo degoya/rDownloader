@@ -19,8 +19,11 @@
 #
 # Usage:
 #   scripts/check-capture-linux-tree.sh [<cargo-tree-arg> ...]
+#   scripts/check-capture-linux-tree.sh --help
 #
 set -euo pipefail
+
+case "${1:-}" in -h | --help) sed -n '2,23p' "$0"; exit 0 ;; esac
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 

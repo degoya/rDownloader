@@ -8,6 +8,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import captcha from '@/locales/en/captcha.json'
 import system from '@/locales/en/system.json'
@@ -17,16 +18,9 @@ import { mountComponent } from '@/test/mount'
 import { EXTENSION_POLL_MS } from '@/composables/useExtensionConnection'
 
 const get = vi.fn()
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: (...args: unknown[]) => get(...args),
-    POST: vi.fn(),
-    DELETE: vi.fn()
-  },
-  responseError: vi.fn(() => 'The service did not answer')
-}))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
+vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
+vi.mock('@/composables/useConfirm', () => confirmMock())
 // The account and Usenet tabs are their own subject.
 const empty = { default: { template: '<div />' } }
 vi.mock('@/components/settings/SettingsAccountsTab.vue', () => empty)

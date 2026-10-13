@@ -43,7 +43,7 @@ use tokio::{
 pub const PROGRESS_INTERVAL: Duration = Duration::from_millis(750);
 
 /// How much of a running tool's stderr is kept: its last 64 KiB.
-pub const STDERR_TAIL: usize = 64 * 1024;
+pub(crate) const STDERR_TAIL: usize = 64 * 1024;
 
 /// How long a download tool may go without a line on stdout before it counts as hung.
 ///
@@ -62,8 +62,7 @@ pub const SILENCE_LIMIT: Duration = Duration::from_secs(30 * 60);
 #[derive(Debug)]
 pub struct PreparedTool {
     path: PathBuf,
-    #[allow(dead_code)]
-    lease: Option<ToolLease>,
+    _lease: Option<ToolLease>,
 }
 
 impl PreparedTool {
@@ -105,7 +104,10 @@ pub async fn prepare(
     if assessment.blocks(capability) {
         return Err(crate::compat::incompatible_failure(&assessment, capability));
     }
-    Ok(PreparedTool { path, lease })
+    Ok(PreparedTool {
+        path,
+        _lease: lease,
+    })
 }
 
 /// Whether a spawned tool's stdout is read or thrown away.

@@ -7,16 +7,15 @@
 import { fireEvent, render, screen } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import wizard from '@/locales/en/wizard.json'
 import { useSessionStore } from '@/stores/session'
 import { createTestI18n, uiStubs } from '@/test/mount'
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async () => ({ data: undefined })),
-    POST: vi.fn(async () => ({ data: undefined }))
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async () => ({ data: undefined })),
+  POST: vi.fn(async () => ({ data: undefined })),
   responseError: vi.fn(() => '')
 }))
 

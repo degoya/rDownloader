@@ -5,6 +5,7 @@
  */
 import { fireEvent, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import settings from '@/locales/en/settings.json'
@@ -14,12 +15,9 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsNotificationsTab from './SettingsNotificationsTab.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: [] })) },
-  responseError: vi.fn(() => 'The service did not answer')
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })) }))
 // The shared lists follow the event stream (WEB-3); jsdom has no `EventSource`.
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const reload = vi.fn()
 

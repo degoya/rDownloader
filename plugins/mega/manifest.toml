@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "stream-transform"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000132"
 name = "MEGA"
-version = "0.1.14"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.1.15"
 
 # MEGA's file key is the fragment of the link (ADR 0011). Declaring the hosts here is what
 # keeps the key out of the candidate row and in the vault instead of being dropped with the
@@ -77,15 +73,10 @@ filled_by = "flow"
 
 [metadata]
 description = "Resolves MEGA file links and files of the signed-in account, and describes how the host decrypts their bytes."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 # An account file is found in the account's node list, which MEGA answers in one piece
 # (`a=f`, no cursor), so this plugin carries the crawler's bounds rather than a file link's.
 [limits]
-memory_bytes = 67108864
 fuel = 1000000000
 timeout_milliseconds = 30000
 max_response_bytes = 16777216

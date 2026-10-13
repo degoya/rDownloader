@@ -46,17 +46,17 @@ pub const PLUGIN_INDEX_SCHEMA_VERSION: u32 = 1;
 /// entries with full release notes; the official index is a few dozen.
 pub const MAX_INDEX_BYTES: usize = 4 * 1024 * 1024;
 /// Most packages one index may list.
-pub const MAX_INDEX_PACKAGES: usize = 512;
+pub(crate) const MAX_INDEX_PACKAGES: usize = 512;
 /// Longest release note per package, in characters. Plain text; the interface renders it as
 /// text, never as markup.
 pub const MAX_RELEASE_NOTES_CHARS: usize = 2000;
 /// Most withdrawn package digests one index may carry.
-pub const MAX_REVOKED_DIGESTS: usize = 4096;
+pub(crate) const MAX_REVOKED_DIGESTS: usize = 4096;
 /// Most withdrawn plugin signing keys one index may carry.
-pub const MAX_REVOKED_KEYS: usize = 256;
+pub(crate) const MAX_REVOKED_KEYS: usize = 256;
 /// Largest `.rdplug` an entry may declare: the component, manifest and locale ceilings the
 /// archive reader enforces, plus room for the zip framing.
-pub const MAX_PACKAGE_BYTES: u64 = 96 * 1024 * 1024;
+pub(crate) const MAX_PACKAGE_BYTES: u64 = 96 * 1024 * 1024;
 /// How long an index built without an explicit window stays valid.
 pub const DEFAULT_VALIDITY_DAYS: i64 = 90;
 /// Longest window between `issued_at` and `not_after`. A replay of a genuine index is useful
@@ -184,7 +184,7 @@ impl Permissions {
 
     /// The same permissions, whatever order either lists them in.
     #[must_use]
-    pub fn same_as(&self, other: &Self) -> bool {
+    pub(crate) fn same_as(&self, other: &Self) -> bool {
         !self.widens(other) && !other.widens(self)
     }
 
@@ -319,7 +319,7 @@ impl IndexPackage {
     /// Always `https://`: a relative entry inherits the index's scheme and host, and an index
     /// fetched over anything else is refused here rather than turning into a plain-HTTP
     /// download.
-    pub fn resolve_url(&self, index_url: &url::Url) -> anyhow::Result<url::Url> {
+    pub(crate) fn resolve_url(&self, index_url: &url::Url) -> anyhow::Result<url::Url> {
         let resolved = if self.url.starts_with("https://") {
             url::Url::parse(&self.url)?
         } else {

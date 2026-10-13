@@ -30,10 +30,10 @@ fn component() -> Vec<u8> {
     rd_plugin_host::artifact::component("rd-plugin-premiumize")
 }
 
-/// The resolver's shipped manifest, with the signing identity replaced.
+/// The resolver's shipped manifest as a package carries it (`plugins/metadata.toml`'s shared
+/// fields filled in, RD-1280-18), with the signing identity replaced.
 fn manifest_for(key_id: &str, public_key: &str) -> Vec<u8> {
-    let text = std::fs::read_to_string(root().join("plugins/premiumize/manifest.toml"))
-        .expect("the premiumize manifest");
+    let text = rd_plugin_host::artifact::bundled_manifest("premiumize");
     text.lines()
         .map(|line| {
             if line.starts_with("key_id = ") {

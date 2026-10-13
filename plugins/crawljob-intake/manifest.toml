@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "intake"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000102"
 name = "Crawljob"
-version = "0.9.12"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.9.13"
 
 # Nothing granted. A crawljob carries its links; there is nothing to fetch.
 [capabilities]
@@ -17,10 +13,6 @@ claims = []
 
 [metadata]
 description = "Reads JDownloader .crawljob files and proposes the links and package names in them."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

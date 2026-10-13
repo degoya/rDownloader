@@ -286,3 +286,34 @@ fn the_script_computes_the_same_source_hash() {
         assert_eq!(script, source_hash(&root, package), "{package}");
     }
 }
+
+/// RD-1280-18: `rd-pack plugin package --defaults` and `build-plugins.sh`'s drift check fill the
+/// shared fields in by the same rule, so the manifest a signed package holds is the one the
+/// script compares against. Every bundled plugin, because the manifests differ in shape. Linux
+/// only, like the source hash above: on Windows `bash` is WSL's.
+#[cfg(target_os = "linux")]
+#[test]
+fn the_script_completes_every_manifest_the_same_way() {
+    let root = workspace_root();
+    let mut names: Vec<String> = std::fs::read_dir(root.join("plugins"))
+        .expect("plugins")
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().join("manifest.toml").is_file())
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert!(names.len() > 50, "only {} plugins", names.len());
+    let output = std::process::Command::new("bash")
+        .arg(root.join("scripts/build-plugins.sh"))
+        .arg("--completed-manifest")
+        .args(&names)
+        .current_dir(&root)
+        .output()
+        .expect("the script runs");
+    assert!(output.status.success(), "{output:?}");
+    let expected: String = names
+        .iter()
+        .map(|name| super::bundled_manifest(name))
+        .collect();
+    assert_eq!(String::from_utf8_lossy(&output.stdout), expected);
+}

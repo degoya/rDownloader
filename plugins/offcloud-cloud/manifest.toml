@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "remote-job"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000139"
 name = "Offcloud cloud downloads"
-version = "0.1.13"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.1.14"
 
 [capabilities]
 # The API key the person typed, the same slot the resolver sibling reads. It is read back here
@@ -25,10 +21,6 @@ claims = ["offcloud"]
 
 [metadata]
 description = "Runs magnets and web addresses as cloud downloads on an Offcloud account."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432
@@ -37,5 +29,3 @@ memory_bytes = 33554432
 # one memory-shaped operation is reading a finished job's file tree, which `api::MAX_ENTRIES`
 # bounds before anything crosses the boundary.
 fuel = 500000000
-timeout_milliseconds = 15000
-max_response_bytes = 8388608

@@ -161,7 +161,7 @@ onMounted(() => {
             <div>
               <p class="text-sm font-medium text-highlighted">{{ t('downloads.duplicates.source_title') }}</p>
               <p class="mt-1 text-xs leading-5 text-muted">{{ t('downloads.duplicates.source_description', { kind: t(`downloads.duplicates.identity.${report.identity.kind}`) }) }}</p>
-              <p v-if="!report.source.length" class="mt-2 text-xs text-muted">{{ t('downloads.duplicates.none') }}</p>
+              <UEmpty v-if="!report.source.length" class="mt-2" :description="t('downloads.duplicates.none')" />
               <ul v-else class="mt-2 space-y-1 text-xs" data-testid="source-duplicates">
                 <li v-for="(entry, index) in report.source" :key="`${entry.download_id ?? entry.candidate_id}-${index}`" class="flex items-center gap-2">
                   <UBadge :color="entry.location === 'queue' ? 'info' : 'neutral'" variant="subtle" size="sm" :label="t(`downloads.duplicates.location.${entry.location}`)" />
@@ -174,7 +174,7 @@ onMounted(() => {
               <p class="mt-1 text-xs leading-5 text-muted">
                 {{ report.content_basis ? t(`downloads.duplicates.basis.${report.content_basis}`) : t('downloads.duplicates.basis.none') }}
               </p>
-              <p v-if="report.content_basis && !report.content.length" class="mt-2 text-xs text-muted">{{ t('downloads.duplicates.none') }}</p>
+              <UEmpty v-if="report.content_basis && !report.content.length" class="mt-2" :description="t('downloads.duplicates.none')" />
               <ul v-else-if="report.content.length" class="mt-2 space-y-2 text-xs" data-testid="content-duplicates">
                 <li v-for="entry in report.content" :key="entry.download_id" class="flex flex-wrap items-center gap-2">
                   <span class="min-w-0 flex-1 truncate font-mono" :title="entry.path">{{ entry.path }}</span>

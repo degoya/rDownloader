@@ -23,7 +23,8 @@ import {
   install as installPackage,
   preview as loadPreview,
   type PluginPreview,
-  type PreviewSource
+  type PreviewSource,
+  userNotes
 } from '@/api/pluginRepositories'
 import { currentLocale } from '@/i18n'
 import { loadPluginMessages, resetPluginMessages } from '@/i18n/plugins'
@@ -53,6 +54,8 @@ const open = computed({
   }
 })
 
+/** The index's notes, without a maintenance sentence alone (RD-1280-17). */
+const releaseNotes = computed(() => userNotes(preview.value?.release_notes))
 /** A key nobody confirmed yet is confirmed by installing; the button says so. */
 const needsTrust = computed(() => preview.value?.key_status === 'untrusted')
 const keyIcon = computed(() => preview.value?.key_status === 'trusted' ? 'i-lucide-shield-check' : 'i-lucide-shield-alert')
@@ -231,9 +234,9 @@ const added = computed(() => {
           </dl>
 
           <!-- Plain text from the index, shown as text: never markup, whoever wrote it. -->
-          <dl v-if="preview.release_notes" class="grid items-start gap-x-3 gap-y-1 sm:grid-cols-[8.5rem_minmax(0,1fr)]">
+          <dl v-if="releaseNotes" class="grid items-start gap-x-3 gap-y-1 sm:grid-cols-[8.5rem_minmax(0,1fr)]" data-preview-release-notes>
             <dt class="pt-1 text-2xs uppercase tracking-wide text-muted">{{ t('plugins.preview.release_notes') }}</dt>
-            <dd class="whitespace-pre-line break-words text-sm leading-6 text-toned">{{ preview.release_notes }}</dd>
+            <dd class="whitespace-pre-line break-words text-sm leading-6 text-toned">{{ releaseNotes }}</dd>
           </dl>
 
           <UCollapsible class="border-t border-default pt-3" data-preview-digest>

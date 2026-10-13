@@ -19,7 +19,7 @@ import {
   webPushKey
 } from '@/api/webPush'
 
-export type WebPushState = 'insecure' | 'unsupported' | 'denied' | 'off' | 'on'
+type WebPushState = 'insecure' | 'unsupported' | 'denied' | 'off' | 'on'
 
 /** How long the page waits for its service worker before it gives up. */
 const WORKER_WAIT_MS = 10_000
@@ -43,7 +43,7 @@ function environment(): WebPushState | null {
 }
 
 /** `URL-safe base64` to bytes, as `applicationServerKey` takes them. */
-export function keyBytes(value: string): Uint8Array<ArrayBuffer> {
+function keyBytes(value: string): Uint8Array<ArrayBuffer> {
   const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
   const binary = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4))
   const bytes = new Uint8Array(binary.length)

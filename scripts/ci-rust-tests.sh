@@ -27,7 +27,7 @@
 #   scripts/ci-rust-tests.sh --no-run   # build every group's executables, run none
 set -euo pipefail
 
-# --no-fail-fast only for a real run: nextest 0.9.146 refuses it beside --no-run, and the
+# --no-fail-fast only for a real run: nextest refuses it beside --no-run, and the
 # release push's warm-cache job, the one caller with --no-run, failed on v1.10.0 for it.
 no_run=()
 fail_fast=(--no-fail-fast)

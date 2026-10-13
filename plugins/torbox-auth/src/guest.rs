@@ -4,7 +4,6 @@
 //! invocation and remembers nothing of its own, and this check has nothing to remember: it
 //! reads a credential the person already stored. That is what makes a sign-in interrupted by
 //! a restart finish afterwards with no `flow-state` at all.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_auth::{
     AuthState, Guest, host,

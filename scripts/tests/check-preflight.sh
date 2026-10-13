@@ -51,6 +51,7 @@ printf 'import os, sys\nsys.exit(1 if os.path.exists(os.environ["FAKE"] + "/inpu
     > "$TREE/scripts/lib/rust-test-inputs.py"
 stand_in "$TREE/scripts/archive-jobs.sh" archive-jobs.sh
 stand_in "$TREE/scripts/set-version.sh" set-version.sh
+stand_in "$TREE/scripts/tool-versions.sh" tool-versions.sh
 stand_in "$TREE/scripts/check-actions-pinned.sh" check-actions-pinned.sh
 stand_in "$TREE/scripts/plugin-release-notes.sh" plugin-release-notes.sh
 stand_in "$TREE/scripts/release-notes.sh" release-notes.sh
@@ -127,6 +128,7 @@ preflight
 expect_status "the same tree again" 0
 expect_true "the file checks run, they read the environment and the version copies" \
     'grep -qx "archive-jobs.sh --check" "$FAKE/calls" && grep -qx "set-version.sh --check" "$FAKE/calls"'
+expect_true "and the tool pins' copies (RD-1280-12)" 'grep -qx "tool-versions.sh --check" "$FAKE/calls"'
 expect_true "nothing else: no cargo fmt, no shellcheck, no script test" \
     '! grep -qE "^(cargo|shellcheck|gitleaks|a\.sh|b\.sh)" "$FAKE/calls"'
 

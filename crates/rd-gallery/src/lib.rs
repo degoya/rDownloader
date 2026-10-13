@@ -23,7 +23,7 @@ pub type SharedGallerySettings = Arc<RwLock<GallerySettings>>;
 /// Read once at start-up, field by field (owner, 2026-10-04, RA-DB-02): a value that does not
 /// parse reads as its default with a warning naming it, instead of refusing the start; only
 /// the scheduler's runtime values refuse one.
-pub async fn load_gallery_settings(database: &Database) -> Result<GallerySettings> {
+pub(crate) async fn load_gallery_settings(database: &Database) -> Result<GallerySettings> {
     database.service_settings_per_field().await
 }
 

@@ -21,11 +21,14 @@ use rd_plugin_host::{
     extension::{StreamTransformProvider, TransformedDownload},
 };
 
-const MANIFEST: &str = include_str!("../../../../plugins/example-stream-transform/manifest.toml");
 const HOST: &str = "https://transform.example.invalid";
 
 fn manifest() -> PluginManifest {
-    toml::from_str(MANIFEST).expect("the plugin manifest")
+    // As a package carries it: `plugins/metadata.toml`'s shared fields filled in (RD-1280-18).
+    toml::from_str(&rd_plugin_host::artifact::bundled_manifest(
+        "example-stream-transform",
+    ))
+    .expect("the plugin manifest")
 }
 
 /// The plugin component, or a failure naming the build command when it has not been built.

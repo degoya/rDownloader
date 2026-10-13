@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
 # scripts/plugin-release-notes.sh against scratch plugins (RD-1140-03): the section of a version
-# in a plugin's CHANGES.md becomes its notes, as plain text, and nothing else does; --check
+# in a plugin's CHANGES.md becomes its notes, as plain text, and nothing else does; a maintenance
+# section gives way to the newest older section with content (RD-1280-17); --check
 # refuses a missing file, a version without its section, and a section that is too long or names
 # a job, a path, a Rust identifier or other plugins.
 #
@@ -66,8 +67,30 @@ notes() { "$TREE/scripts/plugin-release-notes.sh" "$@"; }
 
 expect "the section, plain text, wrapped lines joined" \
     "Links to folders are recognised again, see the handbook." "$(notes alpha 0.2.2)"
-expect "an older section" \
-    "Maintenance release: internal changes only, no change in behaviour." "$(notes alpha 0.2.1)"
+expect "a maintenance section with nothing older has no notes" "" "$(notes alpha 0.2.1)"
+cat > "$SCRATCH/CASCADE.md" <<'EOF'
+# Changes
+
+## 0.1.15
+
+Maintenance release: internal changes only, no change in behaviour.
+
+## 0.1.14
+
+Maintenance release: internal changes only, no change in behaviour.
+
+## 0.1.13
+
+Captcha pages are **solved** again.
+
+## 0.1.12
+
+The first release.
+EOF
+expect "a maintenance section shows the newest older one with content, named" \
+    "In 0.1.13: Captcha pages are solved again." "$(notes cascade 0.1.15 "$SCRATCH/CASCADE.md")"
+expect "a section with content is its own notes" \
+    "Captcha pages are solved again." "$(notes cascade 0.1.13 "$SCRATCH/CASCADE.md")"
 expect "a version without a section has no notes" "" "$(notes alpha 0.2.3)"
 expect "a longer version is another version" "" "$(notes alpha 0.2.21)"
 expect "a plugin without the file has no notes" "" "$(notes delta 0.1.0)"

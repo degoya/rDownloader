@@ -28,7 +28,7 @@ use crate::{
 };
 
 /// The settings row the agent's settings live in.
-pub const CAPTURE_AGENT_SETTINGS_KEY: &str = "capture.agent";
+pub(crate) const CAPTURE_AGENT_SETTINGS_KEY: &str = "capture.agent";
 /// The row holding what an agent last said about its shortcut registrations.
 const SHORTCUT_REPORT_KEY: &str = "capture.agent.shortcut_report";
 
@@ -105,7 +105,7 @@ async fn stored_report(
 ///
 /// Shortcuts are validated as a whole and stored in their canonical spelling; a refusal names
 /// the command and, for a duplicate, the command that has the combination already.
-pub async fn apply_capture_agent_patch(
+pub(crate) async fn apply_capture_agent_patch(
     state: &AppState,
     patch: CaptureAgentSettingsPatch,
 ) -> Result<CaptureAgentSettings, ApiError> {
@@ -139,7 +139,7 @@ pub async fn apply_capture_agent_patch(
 
 /// Switches game mode on or off under the same lock, keeping its triggers and its action: the
 /// tray's "Pause while gaming" (RD-1240-23).
-pub async fn set_capture_game_mode_enabled(
+pub(crate) async fn set_capture_game_mode_enabled(
     state: &AppState,
     enabled: bool,
 ) -> Result<CaptureAgentSettings, ApiError> {

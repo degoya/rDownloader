@@ -1,5 +1,4 @@
 //! The component: one rDownloader notification, one ntfy request.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_notifier::{
     Guest, Notification, delivered, destination_settings,

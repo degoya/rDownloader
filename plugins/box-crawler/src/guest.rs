@@ -9,7 +9,6 @@
 //! A shared link's password never leaves this plugin except inside the `boxapi` header, which
 //! is the one place Box's API takes it. It is not in an address, not in a query parameter and
 //! not in anything that is logged.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use box_common::{address, reason};
 use plugin_guest_crawler::{

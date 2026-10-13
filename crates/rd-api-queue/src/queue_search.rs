@@ -12,9 +12,9 @@ use utoipa::{IntoParams, ToSchema};
 use crate::{ApiError, AppState};
 
 /// Rows of each kind when the request names no `limit`.
-pub const QUEUE_SEARCH_DEFAULT_LIMIT: u32 = 8;
+pub(crate) const QUEUE_SEARCH_DEFAULT_LIMIT: u32 = 8;
 /// The most rows of each kind one answer holds.
-pub const QUEUE_SEARCH_MAX_LIMIT: u32 = 50;
+pub(crate) const QUEUE_SEARCH_MAX_LIMIT: u32 = 50;
 /// The longest search text, in characters.
 const QUEUE_SEARCH_MAX_TERM: usize = 200;
 
@@ -30,7 +30,7 @@ pub struct QueueSearchQuery {
 
 /// `400` for a search text over 200 characters or a limit outside 1 to 50.
 #[must_use]
-pub fn queue_search_invalid() -> ApiError {
+pub(crate) fn queue_search_invalid() -> ApiError {
     ApiError::bad_request(
         "queue.search_invalid",
         "The search needs at most 200 characters and a limit from 1 to 50",

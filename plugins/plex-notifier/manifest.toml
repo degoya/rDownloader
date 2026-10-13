@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "notifier"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000182"
 name = "Plex"
-version = "0.2.1"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.2.2"
 
 # The media server is the person's own, so the manifest names no host: `*` is "the server the
 # destination names" (RD-130-15), and the host narrows every delivery to the host of the address
@@ -36,13 +32,8 @@ multiline = true
 
 [metadata]
 description = "Refreshes the Plex libraries when a package finishes."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432
 fuel = 500000000
-timeout_milliseconds = 15000
 max_response_bytes = 262144

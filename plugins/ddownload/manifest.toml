@@ -1,14 +1,10 @@
-manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000001"
 name = "DDownload"
 # The version must rise with every change, or a running instance keeps the package it
 # already has (`sync_bundled` only installs newer ones). Pinned jobs are unaffected: the
 # older version stays installed.
-version = "0.10.23"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.10.24"
 match_domains = ["ddownload.com", "www.ddownload.com"]
 download_domains = ["ddownload.com", "*.ddownload.com", "*.zeuscdn.org"]
 max_concurrent_downloads = 10
@@ -28,10 +24,6 @@ domains = ["ddownload.com", "*.ddownload.com", "api-v2.ddownload.com", "*.zeuscd
 
 [metadata]
 description = "Resolves DDownload links by signing in with the account credentials, or with an API key."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [provider]
 slug = "ddownload"
@@ -56,12 +48,3 @@ mode = "api_key"
 reference = "ddownload_password"
 domains = ["ddownload.com"]
 mode = "login"
-
-[limits]
-memory_bytes = 67108864
-fuel = 2000000000
-timeout_milliseconds = 15000
-max_response_bytes = 8388608
-# A free download waits out the hoster's countdown and one captcha round trip; this budget is
-# spent on waiting only and does not extend the compute timeout above.
-wait_budget_milliseconds = 600000

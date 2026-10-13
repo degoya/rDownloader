@@ -1,12 +1,13 @@
 name: Set up Rust
 description: >
-  The workspace's Rust toolchain, 1.99.0, with the components and targets a job asks for, and
-  RUSTUP_TOOLCHAIN for every later step of the job (RD-191-09: the version stood in 16 setup
-  steps and 12 env blocks). rust-toolchain.toml pins 1.99.0 as well, and a toolchain file outranks
-  the installed default; RUSTUP_TOOLCHAIN outranks the file. Without it a new Rust release reached CI on its
-  own day (1.99's deprecation of fetch_update, 2026-10-01). The version moves here, in
-  docs/development.md and in the component cache keys of ci-components.yml and
-  release-plugins.yml together.
+  The workspace's Rust toolchain, the `channel` of rust-toolchain.toml, with the components and
+  targets a job asks for, and RUSTUP_TOOLCHAIN for every later step of the job (RD-191-09: the
+  version stood in 16 setup steps and 12 env blocks). RUSTUP_TOOLCHAIN outranks a toolchain file,
+  so a tag's own rust-toolchain.toml cannot change what repro.yml builds with. Without a pinned
+  version a new Rust release reached CI on its own day (1.99's deprecation of fetch_update,
+  2026-10-01). The version is read from rust-toolchain.toml (input `toolchain-file`,
+  RD-1280-12); the component cache keys of ci-components.yml and release-plugins.yml
+  name it too, held to it by scripts/tool-versions.sh --check.
 inputs:
   components:
     description: Comma-separated rustup components (rustfmt, clippy, …)
@@ -16,6 +17,10 @@ inputs:
     description: Comma-separated additional targets
     required: false
     default: ""
+  toolchain-file:
+    description: "The rust-toolchain.toml whose `channel` is installed, relative to the workspace (repro.yml: ci-actions/rust-toolchain.toml)"
+    required: false
+    default: rust-toolchain.toml
 outputs:
   toolchain:
     description: The toolchain installed, as rustup names it
@@ -23,12 +28,24 @@ outputs:
 runs:
   using: composite
   steps:
-    # dtolnay/rust-toolchain has no releases: pinned to a commit of its `stable` branch, the
+    # The one pin: the `channel` of rust-toolchain.toml.
+    - id: channel
+      shell: bash
+      env:
+        TOOLCHAIN_FILE: ${{ inputs.toolchain-file }}
+      run: |
+        version="$(sed -n 's/^channel = "\(.*\)"$/\1/p' "${TOOLCHAIN_FILE}")"
+        if [[ -z "${version}" ]]; then
+          echo "::error::no channel in ${TOOLCHAIN_FILE}"
+          exit 1
+        fi
+        echo "version=${version}" >> "${GITHUB_OUTPUT}"
+    # dtolnay/rust-toolchain has no release tags: pinned to a commit of its `stable` branch, the
     # toolchain named explicitly (docs/development.md, "GitHub CI").
     - id: toolchain
-      uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+      uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (branch; the action has no release tags)
       with:
-        toolchain: 1.99.0
+        toolchain: ${{ steps.channel.outputs.version }}
         components: ${{ inputs.components }}
         targets: ${{ inputs.targets }}
     - shell: bash

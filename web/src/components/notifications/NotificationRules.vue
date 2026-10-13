@@ -16,6 +16,12 @@ import { NO_SELECTION, optionalSelection, selectionValue } from '@/utils/select'
 import { editingRowClass } from '@/utils/editingRow'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 import { NOTIFICATION_EVENTS } from '@/components/notifications/notificationEvents'
+import NotificationTemplateFields from '@/components/notifications/NotificationTemplateFields.vue'
+import type { NotificationRuleWording } from '@/api/notificationPlaceholders'
+
+/** A rule and its request with their own wording (RD-1280-02), until the schema names it. */
+type WordedRule = NotificationRule & NotificationRuleWording
+type WordedRequest = NotificationRuleRequest & NotificationRuleWording
 
 const props = defineProps<{
   targets: NotificationTarget[]
@@ -25,7 +31,7 @@ const props = defineProps<{
   /** The tab's fetch failure, so an unreachable service is not drawn as an empty list. */
   loadError?: string | null | undefined
 }>()
-const rules = defineModel<NotificationRule[]>({ required: true })
+const rules = defineModel<WordedRule[]>({ required: true })
 const { t } = useI18n()
 const formElement = ref<HTMLFormElement | null>(null)
 const focusForm = useFormFocus(formElement)
@@ -34,18 +40,20 @@ const duplicatingId = ref<string | null>(null)
 /** Matches the name check in `crates/rd-api-admin/src/notify_handlers.rs`. */
 const MAX_RULE_NAME = 100
 
-function emptyForm(): NotificationRuleRequest {
+function emptyForm(): WordedRequest {
   return {
     name: '',
     enabled: true,
     target_id: props.targets[0]?.id ?? '',
     events: [],
     category_id: null,
-    min_severity: 'info'
+    min_severity: 'info',
+    title_template: null,
+    body_template: null
   }
 }
 
-const form = reactive<NotificationRuleRequest>(emptyForm())
+const form = reactive<WordedRequest>(emptyForm())
 
 const targetItems = computed(() => props.targets.map(target => ({ value: target.id, label: target.name })))
 const categoryItems = computed(() => [
@@ -68,7 +76,7 @@ const events = computed({
   set: (value: NotificationEvent[]) => { form.events = value }
 })
 
-const list = useEditableList<NotificationRule, NotificationRuleRequest>({
+const list = useEditableList<WordedRule, WordedRequest>({
   list: rules,
   create: body => api.POST('/api/v1/notifications/rules', { body }),
   update: (id, body) => api.PUT('/api/v1/notifications/rules/{id}', { params: { path: { id } }, body }),
@@ -92,7 +100,7 @@ async function submit(): Promise<void> {
   await list.submit({ ...form, events: [...(form.events ?? [])] })
 }
 
-function edit(rule: NotificationRule): void {
+function edit(rule: WordedRule): void {
   list.edit(rule)
   Object.assign(form, {
     name: rule.name,
@@ -100,16 +108,18 @@ function edit(rule: NotificationRule): void {
     target_id: rule.target_id,
     events: [...rule.events],
     category_id: rule.category_id ?? null,
-    min_severity: rule.min_severity
+    min_severity: rule.min_severity,
+    title_template: rule.title_template ?? null,
+    body_template: rule.body_template ?? null
   })
   void focusForm()
 }
 
 /**
- * Copies a rule — target, events, category, severity — under a free name and opens the copy for
- * editing (RD-150-12). Its delivery history stays with the original.
+ * Copies a rule — target, events, category, severity, its own wording — under a free name and
+ * opens the copy for editing (RD-150-12). Its delivery history stays with the original.
  */
-async function duplicate(rule: NotificationRule): Promise<void> {
+async function duplicate(rule: WordedRule): Promise<void> {
   duplicatingId.value = rule.id
   error.value = null
   const response = await api.POST('/api/v1/notifications/rules', {
@@ -119,8 +129,10 @@ async function duplicate(rule: NotificationRule): Promise<void> {
       target_id: rule.target_id,
       events: [...rule.events],
       category_id: rule.category_id ?? null,
-      min_severity: rule.min_severity
-    }
+      min_severity: rule.min_severity,
+      title_template: rule.title_template ?? null,
+      body_template: rule.body_template ?? null
+    } as WordedRequest
   })
   duplicatingId.value = null
   if (!response.data) return void (error.value = responseError(response))
@@ -128,7 +140,7 @@ async function duplicate(rule: NotificationRule): Promise<void> {
   edit(response.data)
 }
 
-async function remove(rule: NotificationRule): Promise<void> {
+async function remove(rule: WordedRule): Promise<void> {
   await list.remove(rule)
 }
 </script>
@@ -162,9 +174,10 @@ async function remove(rule: NotificationRule): Promise<void> {
             <UCheckboxGroup v-model="events" :items="eventItems" :legend="t('notifications.rule.events_label')" size="sm" />
             <p class="mt-1 text-xs leading-5 text-muted">{{ t('notifications.rule.events_description') }}</p>
           </div>
+          <NotificationTemplateFields v-model:title="form.title_template" v-model:body="form.body_template" :events="events" />
           <FormActions :editing="editingId !== null" :create-label="t('notifications.rule.create')" :loading="pending" @cancel="list.reset" />
         </form>
-        <p v-else class="border border-muted p-5 text-center text-sm text-muted">{{ t('notifications.rule.needs_target') }}</p>
+        <UEmpty v-else :description="t('notifications.rule.needs_target')" />
       </template>
       <template #list>
         <div class="divide-y divide-muted border border-muted">
@@ -181,6 +194,7 @@ async function remove(rule: NotificationRule): Promise<void> {
             <div class="ms-auto flex flex-wrap items-center justify-end gap-2">
             <UBadge v-if="editingId === rule.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
             <UBadge v-if="!rule.enabled" color="neutral" variant="outline">{{ t('notifications.target.disabled') }}</UBadge>
+            <UBadge v-if="rule.title_template || rule.body_template" color="neutral" variant="subtle" icon="i-lucide-text-cursor-input">{{ t('notifications.template.badge') }}</UBadge>
             <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-copy-plus" :label="t('common.actions.duplicate')" :title="t('common.duplicate_hint')" :loading="duplicatingId === rule.id" @click="duplicate(rule)" />
             <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="edit(rule)" />
             <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" @click="remove(rule)" />

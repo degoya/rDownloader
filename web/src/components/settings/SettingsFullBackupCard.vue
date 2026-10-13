@@ -309,7 +309,7 @@ onUnmounted(() => {
 
       <div class="mt-6">
         <h3 class="mb-3 text-sm font-semibold text-highlighted">{{ t('system.backup.full.history.title') }}</h3>
-        <p v-if="!runs.length" class="text-sm text-muted">{{ t('system.backup.full.history.empty') }}</p>
+        <UEmpty v-if="!runs.length" :description="t('system.backup.full.history.empty')" />
         <ul v-else class="divide-y divide-muted border border-muted" data-testid="full-backup-history">
           <li v-for="run in runs" :key="run.id" class="flex flex-wrap items-center gap-x-3 gap-y-1 p-3 text-sm">
             <UBadge :color="STATE_COLORS[run.state]" variant="subtle">{{ t(`system.backup.full.history.state.${run.state}`) }}</UBadge>

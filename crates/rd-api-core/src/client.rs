@@ -76,7 +76,7 @@ pub struct ListenAddress(pub SocketAddr);
 /// address still sets; `CF-Connecting-IP` and `True-Client-IP` are the CDNs' own (security review
 /// 2026-09-30, finding 4). A proxy that sets none of them cannot be told from a local client —
 /// `docs/reverse-proxy.md` asks for `X-Forwarded-For`.
-pub const FORWARDING_HEADERS: [&str; 8] = [
+pub(crate) const FORWARDING_HEADERS: [&str; 8] = [
     rd_authn::client_ip::X_FORWARDED_FOR,
     rd_authn::client_ip::FORWARDED,
     "x-real-ip",

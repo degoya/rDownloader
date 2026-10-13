@@ -7,12 +7,6 @@ use rd_core::{DownloadId, DownloadPriority, DownloadState, EventKind, PackageId}
 use super::SELECTION;
 use crate::{Database, NewDownload, NewPackage, StoreErrorKind, store_kind};
 
-async fn open(directory: &std::path::Path) -> Database {
-    Database::open(directory.join("batches.sqlite"))
-        .await
-        .expect("database")
-}
-
 /// A package of `files` queued rows; answers their ids in queue order.
 async fn package(
     database: &Database,
@@ -73,7 +67,7 @@ fn ids(rows: &[rd_core::DownloadFile]) -> Vec<DownloadId> {
 #[tokio::test]
 async fn a_page_is_a_slice_of_the_whole_list_and_counts_all_of_it() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     package(&database, directory.path(), "low", DownloadPriority::Low, 3).await;
     package(
         &database,
@@ -100,7 +94,7 @@ async fn a_page_is_a_slice_of_the_whole_list_and_counts_all_of_it() {
 #[tokio::test]
 async fn many_rows_go_in_one_answer_with_a_refusal_per_row() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let (kept_package, rows) = package(
         &database,
         directory.path(),
@@ -181,7 +175,7 @@ async fn many_rows_go_in_one_answer_with_a_refusal_per_row() {
 #[tokio::test]
 async fn the_rows_of_one_enqueue_are_announced_with_one_event() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let mut events = database.subscribe();
     let (package_id, rows) = package(
         &database,
@@ -244,7 +238,7 @@ fn moved_to(
 #[tokio::test]
 async fn many_rows_are_paused_and_resumed_with_one_event_each() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(directory.path()).await;
+    let database = crate::tests::temp_database(directory.path()).await;
     let (_, rows) = package(
         &database,
         directory.path(),

@@ -13,7 +13,7 @@
 //!
 //! Every part is paced by the upload limit (RD-150-15) before it is sent; see [`read_part`].
 
-use std::{path::Path as LocalPath, time::Duration};
+use std::path::Path as LocalPath;
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -28,6 +28,11 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{ObjectStorageService, connect::Store, head};
 
+#[path = "upload_sweep.rs"]
+mod sweep;
+
+pub use sweep::STALE_UPLOAD_AGE;
+
 /// Smallest part used. S3 and Google refuse parts below 5 MiB except the last; 16 MiB keeps
 /// the number of requests — and of rows recorded — low without holding much in memory.
 const MIN_PART_SIZE: u64 = 16 * 1024 * 1024;
@@ -37,11 +42,6 @@ const MAX_PARTS: u64 = 10_000;
 /// switch or a stop reaches a waiting part within a moment, large enough to cost nothing when
 /// the upload is unlimited.
 const PACE_SLICE: usize = 256 * 1024;
-/// How long an unfinished upload is kept before the sweep aborts it.
-///
-/// A week: long enough for any stopped package to be resumed by somebody who was away, short
-/// enough that an abandoned one does not sit in the bucket as billed, invisible parts.
-pub const STALE_UPLOAD_AGE: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
 /// The part size for a file: at least [`MIN_PART_SIZE`], and large enough to stay within
 /// [`MAX_PARTS`], rounded up to whole mebibytes.
@@ -442,55 +442,6 @@ async fn read_part(
 async fn modified_at(path: &LocalPath) -> Option<String> {
     let modified = tokio::fs::metadata(path).await.ok()?.modified().ok()?;
     Some(DateTime::<Utc>::from(modified).to_rfc3339())
-}
-
-impl ObjectStorageService {
-    /// Aborts the unfinished uploads started more than `age` ago and forgets every record of
-    /// that age, finished or not.
-    ///
-    /// Run at start: a package that was removed while its upload was half done leaves parts
-    /// in the bucket that are billed and invisible until somebody aborts them.
-    pub async fn sweep_stale_uploads(&self, age: Duration) -> Result<usize> {
-        let before = Utc::now() - chrono::Duration::from_std(age)?;
-        let stale = self.database().object_uploads(None, Some(before)).await?;
-        self.abort_uploads(stale).await
-    }
-
-    /// Aborts every unfinished upload of one profile, before the profile is deleted and its
-    /// credentials with it.
-    pub async fn abort_profile_uploads(&self, profile: &ObjectStorageProfile) -> Result<usize> {
-        let uploads = self
-            .database()
-            .object_uploads(Some(profile.id), None)
-            .await?;
-        self.abort_uploads(uploads).await
-    }
-
-    async fn abort_uploads(&self, uploads: Vec<UploadRecord>) -> Result<usize> {
-        let mut aborted = 0;
-        for record in uploads {
-            if let Some(upload_id) = &record.upload_id
-                && let Some(profile) = self
-                    .database()
-                    .object_storage_profile(record.profile_id)
-                    .await?
-                && let Ok(store) = self.open(&profile, &record.bucket).await?
-                && let Ok(location) = Path::parse(&record.object_key)
-            {
-                match store.parts.abort_multipart(&location, upload_id).await {
-                    Ok(()) | Err(object_store::Error::NotFound { .. }) => aborted += 1,
-                    Err(error) => {
-                        tracing::warn!(%error, "a stale multipart upload could not be aborted");
-                        continue;
-                    }
-                }
-            }
-            self.database()
-                .forget_object_uploads(Some(record.id), None)
-                .await?;
-        }
-        Ok(aborted)
-    }
 }
 
 #[cfg(test)]

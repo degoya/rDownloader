@@ -92,15 +92,18 @@ mod tests {
 
     #[test]
     fn an_address_belonging_to_somebody_else_is_never_claimed() {
-        for url in [
-            "https://mediafire.com.evil.test/folder/rww7bhhi0yc1l",
-            "https://x@www.mediafire.com/folder/rww7bhhi0yc1l",
+        for foreign in
+            plugin_common::foreign::around("https://www.mediafire.com/folder/rww7bhhi0yc1l")
+        {
+            assert_eq!(claim(&foreign), None, "{foreign}");
+        }
+        for own_but_not_this in [
             "https://www.mediafire.com/",
             "https://www.mediafire.com/folder/abc",
             "https://www.dropbox.com/sh/abc/h1",
             "https://download1514.mediafire.com/token/rww7bhhi0yc1l/x",
         ] {
-            assert_eq!(claim(url), None, "{url}");
+            assert_eq!(claim(own_but_not_this), None, "{own_but_not_this}");
         }
     }
 }

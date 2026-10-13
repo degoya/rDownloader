@@ -4,16 +4,10 @@
 
 use rd_core::EventKind;
 use rd_db::{
-    Database, NewPluginRepository, NewPluginTrustedKey, OFFICIAL_REPOSITORY_ID,
-    PluginRepositoryInstall, PluginWithdrawnKey, RepositoryCheck,
+    NewPluginRepository, NewPluginTrustedKey, OFFICIAL_REPOSITORY_ID, PluginRepositoryInstall,
+    PluginWithdrawnKey, RepositoryCheck,
 };
 use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("repositories.sqlite"))
-        .await
-        .expect("database")
-}
 
 fn third_party(id: &str, url: &str) -> NewPluginRepository {
     NewPluginRepository {
@@ -29,7 +23,7 @@ fn third_party(id: &str, url: &str) -> NewPluginRepository {
 #[tokio::test]
 async fn the_official_repository_is_seeded_enabled_and_cannot_be_deleted() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let repositories = database.list_plugin_repositories().await.expect("list");
     assert_eq!(repositories.len(), 1);
     let official = &repositories[0];
@@ -58,7 +52,7 @@ async fn the_official_repository_is_seeded_enabled_and_cannot_be_deleted() {
 #[tokio::test]
 async fn a_third_party_repository_is_added_disabled_and_removed() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut events = database.subscribe();
     let added = database
         .add_plugin_repository(third_party("r1", "https://plugins.example.test/index.json"))
@@ -137,7 +131,7 @@ async fn a_third_party_repository_is_added_disabled_and_removed() {
 #[tokio::test]
 async fn the_replay_floor_only_rises_and_a_failure_keeps_it() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let official = OFFICIAL_REPOSITORY_ID.to_owned();
     for sequence in [7, 5] {
         database
@@ -173,7 +167,7 @@ async fn the_replay_floor_only_rises_and_a_failure_keeps_it() {
 #[tokio::test]
 async fn a_withdrawn_key_is_recorded_once_and_untrusts_the_matching_key() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let fingerprint = "ef".repeat(32);
     for (key_id, print) in [
         ("leaked-v1", fingerprint.clone()),

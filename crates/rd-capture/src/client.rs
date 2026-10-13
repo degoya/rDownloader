@@ -105,6 +105,8 @@ pub(crate) fn user_agent() -> String {
 /// Applies one set of deadlines. Separate from [`build`] so a test can drive a short budget
 /// without waiting out the real one.
 fn build_with(deadlines: Deadlines) -> Result<Client> {
+    // Not `rd_http::client_builder`: the desktop agent does not link the download engine, and it
+    // names itself with its own user agent. It talks to the service only, never through a proxy.
     let mut builder = Client::builder()
         .no_proxy()
         .user_agent(user_agent())

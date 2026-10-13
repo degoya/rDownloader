@@ -435,7 +435,10 @@ async fn an_archive_arrives_in_chunks_at_their_offsets() {
     let (status, body) = common::post_json(
         &harness.router,
         "/api/v1/backups/restore/preview",
-        json!({ "source": { "upload_id": "../../api-test.sqlite3" }, "passphrase": PASSPHRASE }),
+        json!({
+            "source": { "upload_id": format!("../../{}", rd_testkit::DATABASE_FILE) },
+            "passphrase": PASSPHRASE,
+        }),
     )
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");

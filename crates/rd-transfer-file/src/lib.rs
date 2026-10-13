@@ -68,10 +68,21 @@ pub enum Resume {
     Continue,
     /// The partial file already holds the whole payload.
     Complete,
-    /// The remote file moved under the partial download. The caller raises its own
-    /// `file_changed` failure, because every stable code the queue reports names its
-    /// protocol and the client translates that code rather than any text.
+    /// The remote file moved under the partial download. The caller raises [`file_changed`]
+    /// with its own code, because every stable code the queue reports names its protocol and
+    /// the client translates that code rather than any text.
     Refused,
+}
+
+/// The failure for [`Resume::Refused`], under the caller's own stable `code`
+/// (`ftp.file_changed`, `sftp.file_changed`).
+#[must_use]
+pub fn file_changed(code: &str) -> Failure {
+    Failure::coded(
+        FailureKind::Permanent,
+        code,
+        "The remote file changed since the partial download was written",
+    )
 }
 
 /// The stable codes and wording one protocol puts on the shared failures.

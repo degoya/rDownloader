@@ -4,16 +4,14 @@
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 
 import { useQueuePauseStore } from './queuePause'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'That download or package is already finished')
-}))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: vi.fn(() => () => {}) }))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'That download or package is already finished') }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 
 const MARK = { download_id: 'd1', package_id: null, name: 'release.rar', set_at: '2026-10-08T10:00:00Z' }
 

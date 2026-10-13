@@ -139,7 +139,7 @@ impl FetchedNzb {
 /// file it would have saved as — both of which SABnzbd reads for the same reason. The
 /// address's own last segment comes last: it is `api` for every hit of an indexer.
 #[must_use]
-pub fn declared_nzb_name(
+pub(crate) fn declared_nzb_name(
     candidate: &LinkCandidate,
     fetched: &rd_http::FetchedDocument,
 ) -> Option<String> {

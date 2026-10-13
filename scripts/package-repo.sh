@@ -36,6 +36,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=lib/render-template.sh
+source "$ROOT/scripts/lib/render-template.sh"
 # Bash 5.2 would put the matched text in place of a `&` in a substitution's replacement.
 shopt -u patsub_replacement 2> /dev/null || true
 shopt -s nullglob
@@ -211,18 +213,7 @@ fi
 # The files a user adds to their system, the key they trust and the pages that explain both.
 gpg --batch --armor --export "$fingerprint" > "$site/rdownloader.asc"
 values=("BASE_URL=$base_url" "FINGERPRINT=$fingerprint" "KEEP=$keep")
-render() {
-    local template="$ROOT/packaging/repository/$1" output="$site/${1%.in}" content pair
-    content="$(< "$template")"
-    for pair in "${values[@]}"; do
-        content="${content//@${pair%%=*}@/${pair#*=}}"
-    done
-    if [[ "$content" =~ @[A-Z0-9_]+@ ]]; then
-        echo "error: $template keeps ${BASH_REMATCH[0]} after rendering" >&2
-        exit 1
-    fi
-    printf '%s\n' "$content" > "$output"
-}
+render() { rd_render_template "$ROOT/packaging/repository/$1" "$site/${1%.in}" "${values[@]}" || exit 1; }
 [[ -d "$site/deb" ]] && render rdownloader.sources.in
 [[ -d "$site/rpm" ]] && render rdownloader.repo.in
 render README.md.in

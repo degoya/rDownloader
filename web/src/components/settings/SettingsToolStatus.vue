@@ -111,7 +111,7 @@ const incompatible = computed(() =>
         </li>
       </ol>
       <!-- "No directories searched" is only true once the status has arrived (RD-104-07). -->
-      <p v-else-if="!loading" class="mt-2 text-xs text-muted">{{ t('settings.vendor.searched_empty') }}</p>
+      <UEmpty v-else-if="!loading" class="mt-2" :description="t('settings.vendor.searched_empty')" />
     </div>
 
     <div class="mt-4 divide-y divide-muted border border-muted">

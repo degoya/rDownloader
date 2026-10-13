@@ -314,7 +314,7 @@ impl Database {
 
     /// Removes the vault entries no row points at any more. Never fails an operation: a
     /// failure is logged and the entry stays recorded for the next sweep.
-    pub async fn sweep_archive_passwords(&self) {
+    pub(crate) async fn sweep_archive_passwords(&self) {
         if let Err(error) = self.sweep(false).await {
             tracing::warn!(%error, "released archive passwords could not be swept");
         }

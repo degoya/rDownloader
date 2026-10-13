@@ -73,10 +73,3 @@ fn an_example_writes_back_what_was_read() {
         );
     }
 }
-
-/// A file of the old layout, the bodies without their switches, is not an exchange file.
-#[test]
-fn the_old_layout_does_not_read_as_an_exchange_file() {
-    let old = serde_json::json!({ "format_version": 1, "rules": [{ "id": "x" }] });
-    assert!(serde_json::from_value::<Exchange>(old).is_err());
-}

@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "postprocess"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000109"
 name = "Tidy file names"
-version = "0.9.15"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.9.16"
 
 # Nothing granted. Renaming inside the package is part of what a post-processing step is, and
 # the host hands over a handle and a file list, never a path — a name carrying a separator or
@@ -19,10 +15,6 @@ claims = []
 
 [metadata]
 description = "Replaces spaces with dots and collapses runs of separators in the package's file names."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

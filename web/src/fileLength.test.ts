@@ -31,12 +31,12 @@ const GENERATED = new Set(['web/src/api/schema.d.ts', 'web/components.d.ts', 'we
 const BASELINE: Record<string, number> = {
   'extension/test/captcha.test.mjs': 752,
   'web/src/components/CollectorCandidateRow.test.ts': 602,
-  'web/src/components/IndexerReviewList.test.ts': 672,
-  'web/src/components/IndexerSearchPanel.test.ts': 551,
+  'web/src/components/IndexerReviewList.test.ts': 664,
+  'web/src/components/IndexerSearchPanel.test.ts': 523,
   'web/src/components/routing/RoutingCategories.test.ts': 547,
   'web/src/components/settings/SettingsAccountsCard.test.ts': 591,
-  'web/src/components/settings/SettingsPluginsTab.test.ts': 995,
-  'web/src/views/DownloadsView.test.ts': 920,
+  'web/src/components/settings/SettingsPluginsTab.test.ts': 993,
+  'web/src/views/DownloadsView.test.ts': 909,
   'web/src/views/LinkGrabberView.test.ts': 1281,
   'web/src/views/SubscriptionsView.test.ts': 1011
 }

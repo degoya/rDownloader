@@ -27,6 +27,7 @@
     "keep2share.password_missing": "Le mot de passe Keep2Share est manquant",
     "keep2share.premium_required": "Un compte premium Keep2Share est requis pour télécharger ce fichier",
     "keep2share.private_file": "Le fichier Keep2Share ne peut être téléchargé que par son propriétaire",
+    "keep2share.request_encoding": "Impossible d’encoder la requête Keep2Share : {error}",
     "keep2share.server_error": "Erreur serveur Keep2Share",
     "keep2share.session_invalid": "Keep2Share a signalé que le jeton d'authentification n'est pas valide",
     "keep2share.temporarily_unavailable": "Keep2Share a signalé que le téléchargement est temporairement indisponible",

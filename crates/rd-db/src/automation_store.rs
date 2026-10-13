@@ -37,7 +37,7 @@ pub struct NewRun {
 }
 
 #[derive(FromRow)]
-struct AutomationRow {
+pub(crate) struct AutomationRow {
     id: String,
     name: String,
     enabled: bool,
@@ -329,7 +329,7 @@ pub(crate) async fn delete(
 /// tree and the action list are the automation's contents, and an event that carried them
 /// would hand every `Config`-scoped stream subscriber the rule bodies of the installation.
 /// A client learns which automation to refetch, which is what it needs.
-fn changed_event(id: AutomationId) -> EventEnvelope {
+pub(crate) fn changed_event(id: AutomationId) -> EventEnvelope {
     EventEnvelope::new(
         EventKind::AutomationChanged,
         serde_json::json!({ "automation_id": id }),

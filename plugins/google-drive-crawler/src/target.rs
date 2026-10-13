@@ -107,15 +107,16 @@ mod tests {
 
     #[test]
     fn an_address_belonging_to_somebody_else_is_never_claimed() {
-        assert_eq!(
-            claim("https://drive.google.com.evil.test/drive/folders/abc"),
-            None
-        );
-        assert_eq!(claim("https://x@drive.google.com/drive/folders/abc"), None);
-        assert_eq!(claim("ftp://drive.google.com/drive/folders/abc"), None);
-        assert_eq!(claim("https://ddownload.com/f/abc"), None);
-        assert_eq!(claim("https://drive.google.com/drive/my-drive"), None);
-        assert_eq!(claim("https://drive.google.com/"), None);
+        for foreign in plugin_common::foreign::around("https://drive.google.com/drive/folders/abc")
+        {
+            assert_eq!(claim(&foreign), None, "{foreign}");
+        }
+        for own_but_not_this in [
+            "https://drive.google.com/drive/my-drive",
+            "https://drive.google.com/",
+        ] {
+            assert_eq!(claim(own_but_not_this), None, "{own_but_not_this}");
+        }
     }
 
     #[test]

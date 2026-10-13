@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import common from '@/locales/en/common.json'
@@ -9,13 +10,10 @@ import { leaveFor } from '@/utils/identityProvider'
 
 import SettingsOidcCard from './SettingsOidcCard.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), PUT: vi.fn(), POST: vi.fn(), DELETE: vi.fn() },
-  responseError: () => 'refused'
-}))
-const toastAdd = vi.fn()
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: toastAdd }) }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => async () => true }))
+vi.mock('@/api/client', () => apiClientMock({ responseError: () => 'refused' }))
+const toastAdd = vi.hoisted(() => vi.fn())
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toastAdd }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
 vi.mock('@/composables/useCopy', () => ({ useCopy: () => async () => true }))
 vi.mock('@/utils/identityProvider', () => ({ leaveFor: vi.fn() }))
 const route = { path: '/settings/security', query: {} as Record<string, string>, hash: '' }

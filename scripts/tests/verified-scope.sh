@@ -258,8 +258,8 @@ expect "and records no verified revision, which only --full's two halves do" "" 
 expect_true "the README's pictures are inert" 'rd_inert_path .github/readme/x.png'
 expect_true "and so is the owner's private material" 'rd_inert_path private/site-rules/owner-rules.json'
 expect_true "documentation is" 'rd_inert_path docs/x.md && rd_inert_path crates/rd-api/README.md'
-expect_true "the two .md files a test reads are not" \
-    '! rd_inert_path crates/rd-core/recovery-matrix.md && ! rd_inert_path crates/rd-api/mcp-coverage.md'
+expect_true "the .md files a test reads are not" \
+    '! rd_inert_path crates/rd-core/recovery-matrix.md && ! rd_inert_path crates/rd-api/mcp-coverage.md && ! rd_inert_path crates/rd-notify/placeholders.md'
 expect_true "nor is a workflow" '! rd_inert_path .github/workflows/ci.yml'
 expect "check.sh --defer takes a README picture for documentation" "docs" "$(rd_defer_class HEAD .github/readme/x.png)"
 expect "but not a .md a test reads" "no" "$(rd_defer_class HEAD crates/rd-core/recovery-matrix.md)"

@@ -31,17 +31,6 @@ use crate::{ChunkSpec, hostlimit::HostLimits};
 
 struct NoopCheckpoint;
 
-async fn serve(app: Router) -> SocketAddr {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind fixture");
-    let address = listener.local_addr().expect("fixture address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    address
-}
-
 /// A single whole-file chunk, the shape a file below the chunk size is planned as.
 fn whole_file(total: u64, committed: u64) -> Vec<ChunkSpec> {
     vec![ChunkSpec {
@@ -130,11 +119,12 @@ impl CheckpointSink for NoopCheckpoint {
 /// the range. Either way the bytes already on disk must survive untouched.
 #[tokio::test]
 async fn a_full_response_to_resume_reports_a_changed_remote_and_keeps_the_part_file() {
-    let address = serve(Router::new().route(
+    let server = rd_testkit::serve(Router::new().route(
         "/file",
         get(|| async { full_body(b"replacement", "application/octet-stream") }),
     ))
     .await;
+    let address = server.addr();
 
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("payload.part");
@@ -163,11 +153,12 @@ async fn a_full_response_to_resume_reports_a_changed_remote_and_keeps_the_part_f
 #[tokio::test]
 async fn a_full_body_on_a_whole_file_chunk_is_written_from_the_start() {
     const PAYLOAD: &[u8] = b"whole-file-payload";
-    let address = serve(Router::new().route(
+    let server = rd_testkit::serve(Router::new().route(
         "/file",
         get(|| async { full_body(PAYLOAD, "application/octet-stream") }),
     ))
     .await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("whole.part");
     let total = PAYLOAD.len() as u64;
@@ -194,11 +185,12 @@ async fn a_full_body_on_a_whole_file_chunk_is_written_from_the_start() {
 #[tokio::test]
 async fn a_page_instead_of_the_payload_is_retryable_and_translatable() {
     const PAGE: &[u8] = b"<html><body>please wait 30 minutes</body></html>";
-    let address = serve(Router::new().route(
+    let server = rd_testkit::serve(Router::new().route(
         "/file",
         get(|| async { full_body(PAGE, "text/html; charset=utf-8") }),
     ))
     .await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("page.part");
     let engine = DownloadEngine::new(reqwest::Client::new(), ScopedLimiter::unlimited());
@@ -241,7 +233,7 @@ async fn a_page_instead_of_the_payload_is_retryable_and_translatable() {
 async fn a_described_range_is_accepted_even_with_status_200() {
     const PAYLOAD: &[u8] = b"content-range-payload";
     const COMMITTED: usize = 8;
-    let address = serve(Router::new().route(
+    let server = rd_testkit::serve(Router::new().route(
         "/file",
         get(|| async {
             Response::builder()
@@ -256,6 +248,7 @@ async fn a_described_range_is_accepted_even_with_status_200() {
         }),
     ))
     .await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("described.part");
     tokio::fs::write(&part_path, &PAYLOAD[..COMMITTED])
@@ -305,12 +298,13 @@ async fn the_host_limit_bounds_the_connections_one_host_sees() {
     }
 
     let seen = Arc::new(Concurrency::default());
-    let address = serve(
+    let server = rd_testkit::serve(
         Router::new()
             .route("/file", get(counted))
             .with_state(Arc::clone(&seen)),
     )
     .await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("limited.part");
     let total = PAYLOAD.len() as u64;
@@ -352,13 +346,8 @@ async fn the_host_limit_bounds_the_connections_one_host_sees() {
 async fn parallel_ranges_reconstruct_the_exact_file() {
     const PAYLOAD: &[u8] = b"parallel-range-payload";
     let app = Router::new().route("/file", get(ranged_fixture));
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind fixture");
-    let address = listener.local_addr().expect("fixture address");
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.expect("serve fixture");
-    });
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("parallel.part");
     let split = 9_u64;

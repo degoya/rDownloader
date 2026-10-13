@@ -11,12 +11,6 @@ use rd_core::{
 };
 use rd_db::{Database, PersistedChunk};
 
-async fn open(directory: &std::path::Path) -> Database {
-    Database::open(directory.join("queue.sqlite3"))
-        .await
-        .expect("database")
-}
-
 fn metalink_set() -> SourceSet {
     SourceSet::checked(
         [
@@ -101,7 +95,7 @@ async fn download_with_set(
 async fn the_order_and_the_health_of_sources_survive_a_restart() {
     let directory = tempfile::tempdir().expect("tempdir");
     let id = {
-        let database = open(directory.path()).await;
+        let database = rd_testkit::temp_database(directory.path()).await;
         let id = download_with_sources(&database, directory.path()).await;
         database
             .record_source_outcome(
@@ -132,7 +126,7 @@ async fn the_order_and_the_health_of_sources_survive_a_restart() {
         id
     };
 
-    let database = open(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let sources = database.download_sources(id).await.expect("sources");
     let order: Vec<_> = sources
         .iter()
@@ -180,7 +174,7 @@ async fn the_order_and_the_health_of_sources_survive_a_restart() {
 #[tokio::test]
 async fn a_refused_chunk_goes_back_and_loses_its_verification() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let id = download_with_sources(&database, directory.path()).await;
     let first = ChunkId::new();
     let second = ChunkId::new();
@@ -237,7 +231,7 @@ async fn a_refused_chunk_goes_back_and_loses_its_verification() {
 #[tokio::test]
 async fn a_candidate_keeps_its_set_until_it_is_queued() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let (_, _, candidates) = database
         .add_collector_batch(rd_db::NewCollectorBatch {
             package_hints: Vec::new(),
@@ -286,7 +280,7 @@ async fn a_candidate_keeps_its_set_until_it_is_queued() {
 #[tokio::test]
 async fn the_network_a_set_may_reach_is_written_with_its_sources() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = open(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let strict = download_with_sources(&database, directory.path()).await;
     let mut pasted = metalink_set();
     pasted.local_network = true;

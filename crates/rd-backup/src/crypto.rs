@@ -24,7 +24,7 @@ pub const KDF_P_COST: u32 = 1;
 /// Length of the Argon2id salt.
 pub const SALT_LEN: usize = 16;
 /// Length of the derived key.
-pub const KEY_LEN: usize = 32;
+pub(crate) const KEY_LEN: usize = 32;
 /// Shortest passphrase accepted, in characters; the settings bundle's rule.
 pub const MIN_PASSPHRASE_CHARS: usize = 8;
 

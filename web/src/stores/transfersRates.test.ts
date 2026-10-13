@@ -1,15 +1,12 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 
 import { useTransfersStore } from './transfers'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn() },
-  responseError: vi.fn(() => 'failed'),
-  resultMessage: vi.fn(() => 'done')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'failed'), resultMessage: vi.fn(() => 'done') }))
 
 const PACKAGE = { id: 'pkg-1', name: 'Release', state: 'active', postprocess: null }
 

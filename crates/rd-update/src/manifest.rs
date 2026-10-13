@@ -31,18 +31,18 @@ mod artifact;
 pub use artifact::{Artifact, kind};
 
 /// Domain separator for the manifest's signatures (`rd_sign::envelope`).
-pub const UPDATE_MANIFEST_DOMAIN: &str = "rdownloader.update-manifest.v1";
+pub(crate) const UPDATE_MANIFEST_DOMAIN: &str = "rdownloader.update-manifest.v1";
 /// The manifest layout this build understands. Anything else is refused as a whole.
 pub const UPDATE_MANIFEST_SCHEMA_VERSION: u32 = 1;
 /// Largest signed manifest accepted, checked before a byte of it is parsed.
 pub const MAX_MANIFEST_BYTES: usize = 256 * 1024;
 /// Longest release note, in characters. Plain text; the interface renders it as text.
-pub const MAX_NOTES_CHARS: usize = 8000;
+pub(crate) const MAX_NOTES_CHARS: usize = 8000;
 /// Most artifacts one manifest may list, the application's and the capture agent's together:
 /// five archives and a handful of installers each today.
 pub const MAX_ARTIFACTS: usize = 64;
 /// Largest artifact a manifest may declare. The biggest archive is ~60 MB.
-pub const MAX_ARTIFACT_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+pub(crate) const MAX_ARTIFACT_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 /// How long a manifest built without an explicit window stays valid. Long, because a stable
 /// release can stay the newest for months, and an expired manifest turns every installation's
 /// check into an error; a replay of a genuine manifest can only hide a newer version, never
@@ -215,7 +215,7 @@ impl UpdateError {
     /// it: a signature, schema, channel, freshness or content refusal. Those are what a check
     /// reports even when another channel's manifest verified.
     #[must_use]
-    pub fn is_integrity(&self) -> bool {
+    pub(crate) fn is_integrity(&self) -> bool {
         matches!(
             self,
             Self::TooLarge

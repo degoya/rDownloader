@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use rd_core::LogRetentionSettings;
-use rd_db::{Database, LogQuery};
+use rd_db::LogQuery;
 use rd_diagnostics::{
     capture::{CaptureStats, LogCaptureLayer},
     sink,
@@ -11,16 +11,10 @@ use rd_diagnostics::{
 use tracing::subscriber::with_default;
 use tracing_subscriber::{layer::SubscriberExt, registry};
 
-async fn database(directory: &tempfile::TempDir) -> Database {
-    Database::open(directory.path().join("diag.sqlite"))
-        .await
-        .expect("database")
-}
-
 #[tokio::test]
 async fn what_the_layer_captured_is_what_the_store_holds_and_nothing_more() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let (layer, mut stream) = LogCaptureLayer::with_stats(Arc::new(CaptureStats::default()));
     with_default(registry().with(layer), || {
         tracing::info!(download_id = "dl-1", "started");
@@ -64,7 +58,7 @@ async fn what_the_layer_captured_is_what_the_store_holds_and_nothing_more() {
 #[tokio::test]
 async fn the_sweep_applies_the_configured_retention_in_bounded_steps() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let (layer, mut stream) = LogCaptureLayer::with_stats(Arc::new(CaptureStats::default()));
     with_default(registry().with(layer), || {
         for index in 0..3_000 {

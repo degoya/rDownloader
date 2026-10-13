@@ -4,7 +4,7 @@ use super::Reply;
 
 /// The commands `Writer::handle_indexers` applies.
 // The variant names were the flat enum's; within one area they share a postfix.
-#[allow(clippy::enum_variant_names)]
+#[expect(clippy::enum_variant_names)]
 pub(crate) enum IndexersCommand {
     /// Newznab indexers defined once (RD-180-19).
     CreateIndexer {

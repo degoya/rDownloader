@@ -12,7 +12,7 @@ use std::path::Path;
 use std::str::FromStr;
 
 use anyhow::{Context, Result};
-use sqlx::{Connection, SqliteConnection, sqlite::SqliteConnectOptions};
+use sqlx::{SqliteConnection, sqlite::SqliteConnectOptions};
 
 /// `(type, name)` to the statement that created it, whitespace collapsed.
 type Objects = BTreeMap<(String, String), String>;
@@ -66,7 +66,7 @@ async fn reference_objects() -> Result<Objects> {
 pub async fn foreign_schema_objects(copy: &Path) -> Result<Vec<String>> {
     let mut connection = super::open_read_only(copy).await?;
     let found = objects_of(&mut connection).await;
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     let found = found?;
     let reference = reference_objects().await?;
     let mut foreign = Vec::new();

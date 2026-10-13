@@ -11,7 +11,7 @@ impl AuthFlowService {
     /// 25 s for a list the start had just had in hand. A set that is already there stays; the
     /// start hands them over once, before anything has asked, so a second set is a wiring
     /// mistake (API-06).
-    pub fn preload(
+    pub(crate) fn preload(
         &self,
         providers: rd_plugin_ext::AuthProviders,
         oauth: rd_plugin_ext::OAuthProviders,

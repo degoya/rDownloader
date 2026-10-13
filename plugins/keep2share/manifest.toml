@@ -1,14 +1,10 @@
-manifest_version = 3
 plugin_type = "resolver"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000007"
 name = "Keep2Share"
 # 0.3.0: free (account-less) downloads. The version must rise, or a running instance keeps
 # the installed package (`sync_bundled` only installs newer ones) and never picks the free
 # flow up. Pinned jobs are unaffected: the older version stays installed.
-version = "0.7.16"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.7.17"
 # IMPL-VERIFY: every API call
 # (login/geturl/accountinfo/getfilesinfo) targets k2s.cc specifically, regardless of which
 # mirror domain the file link used -- keep2share.cc and api.k2s.cc are never actually
@@ -43,10 +39,6 @@ domains = ["k2s.cc", "*.k2s.cc"]
 
 [metadata]
 description = "Resolves Keep2Share links with a premium account."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [provider]
 slug = "keep2share"
@@ -60,11 +52,3 @@ host_aliases = [
   ["k2share.cc", "k2s.cc"],
   ["keep2s.cc", "k2s.cc"],
 ]
-[limits]
-memory_bytes = 67108864
-fuel = 2000000000
-timeout_milliseconds = 15000
-max_response_bytes = 8388608
-# A free download waits out the hoster's countdown (up to five ~30s rounds) and one image-captcha
-# round trip; this budget is spent on waiting only and does not extend the compute timeout above.
-wait_budget_milliseconds = 600000

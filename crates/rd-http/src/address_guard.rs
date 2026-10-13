@@ -373,7 +373,7 @@ impl GuardedResolver {
 
     /// A resolver over any lookup; tests use it to make a name answer with a chosen address.
     #[must_use]
-    pub fn with_lookup(policy: AddressPolicy, lookup: Arc<dyn HostLookup>) -> Self {
+    pub(crate) fn with_lookup(policy: AddressPolicy, lookup: Arc<dyn HostLookup>) -> Self {
         Self { policy, lookup }
     }
 }

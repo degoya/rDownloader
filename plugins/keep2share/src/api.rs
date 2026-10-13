@@ -73,6 +73,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
 
+use crate::messages;
+
 pub(crate) const API_BASE: &str = "https://k2s.cc/api/v2";
 
 /// `{{username}}`/`{{secret:...}}` bodies must declare this content type for the host to
@@ -126,6 +128,17 @@ pub(crate) fn parse_download_url(raw: &str) -> Result<Url, ApiFailure> {
     Url::parse(raw).map_err(|error| invalid_url(&error))
 }
 
+/// Serializes a request body. None of this plugin's bodies can fail to serialize, but a failure
+/// is reported as `keep2share.request_encoding` rather than taking the guest down with a panic.
+pub(crate) fn json_body(payload: &impl Serialize) -> Result<Vec<u8>, ApiFailure> {
+    serde_json::to_vec(payload).map_err(|error| {
+        let (code, text) = messages::REQUEST_ENCODING;
+        let text = format!("{text}: {error}");
+        ApiFailure::new(ErrorKind::Permanent, (code, text.as_str()))
+            .with_param("error", error.to_string())
+    })
+}
+
 #[derive(Serialize)]
 struct LoginRequest {
     username: &'static str,
@@ -136,12 +149,12 @@ struct LoginRequest {
 /// literal template markers are the field values; the host expands and JSON-string-escapes them
 /// (see `crates/rd-plugin-host/src/native/expand.rs`). Built with `serde_json` rather than hand
 /// formatting so neither adapter can drift on escaping.
-pub(crate) fn login_body() -> Vec<u8> {
+pub(crate) fn login_body() -> Result<Vec<u8>, ApiFailure> {
     let payload = LoginRequest {
         username: USERNAME_MARKER,
         password: format!("{{{{secret:{}}}}}", crate::PASSWORD_REFERENCE),
     };
-    serde_json::to_vec(&payload).expect("LoginRequest always serializes")
+    json_body(&payload)
 }
 
 #[derive(Serialize)]
@@ -152,12 +165,11 @@ struct GetUrlRequest<'a> {
 
 /// `POST /geturl {"file_id":"<id>","auth_token":"<token>"}` — see the module doc's IMPL-VERIFY
 /// note on why no captcha/free-download fields are sent.
-pub(crate) fn geturl_body(file_id: &str, auth_token: &str) -> Vec<u8> {
-    serde_json::to_vec(&GetUrlRequest {
+pub(crate) fn geturl_body(file_id: &str, auth_token: &str) -> Result<Vec<u8>, ApiFailure> {
+    json_body(&GetUrlRequest {
         file_id,
         auth_token,
     })
-    .expect("GetUrlRequest always serializes")
 }
 
 #[derive(Serialize)]
@@ -166,9 +178,8 @@ struct AccountInfoRequest<'a> {
 }
 
 /// `POST /accountinfo {"auth_token":"<token>"}`.
-pub(crate) fn accountinfo_body(auth_token: &str) -> Vec<u8> {
-    serde_json::to_vec(&AccountInfoRequest { auth_token })
-        .expect("AccountInfoRequest always serializes")
+pub(crate) fn accountinfo_body(auth_token: &str) -> Result<Vec<u8>, ApiFailure> {
+    json_body(&AccountInfoRequest { auth_token })
 }
 
 #[derive(Serialize)]
@@ -178,8 +189,8 @@ struct GetFilesInfoRequest<'a> {
 
 /// `POST /getfilesinfo {"ids":["<id1>",...]}` — see the module doc's IMPL-VERIFY note on the
 /// omitted `extended_info` field.
-pub(crate) fn getfilesinfo_body(ids: &[&str]) -> Vec<u8> {
-    serde_json::to_vec(&GetFilesInfoRequest { ids }).expect("GetFilesInfoRequest always serializes")
+pub(crate) fn getfilesinfo_body(ids: &[&str]) -> Result<Vec<u8>, ApiFailure> {
+    json_body(&GetFilesInfoRequest { ids })
 }
 
 /// `/login`'s success payload.

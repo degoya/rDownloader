@@ -139,11 +139,7 @@ mod tests {
     async fn service(
         data: PathBuf,
         remove_after: Option<Duration>,
-    ) -> (SocketAddr, Arc<Mutex<u32>>) {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind");
-        let address = listener.local_addr().expect("address");
+    ) -> (rd_testkit::TestServer, SocketAddr, Arc<Mutex<u32>>) {
         let calls = Arc::new(Mutex::new(0_u32));
         let counted = calls.clone();
         let router = Router::new().route(
@@ -175,10 +171,9 @@ mod tests {
                 }
             }),
         );
-        tokio::spawn(async move {
-            axum::serve(listener, router).await.expect("serve");
-        });
-        (address, calls)
+        let server = rd_testkit::serve(router).await;
+        let address = server.addr();
+        (server, address, calls)
     }
 
     fn control_file(data: &Path, address: SocketAddr, token: &str) {
@@ -208,7 +203,8 @@ mod tests {
     async fn the_stop_is_asked_with_the_token_and_waits_until_the_service_ended() {
         let directory = tempfile::tempdir().expect("tempdir");
         let data = directory.path().to_path_buf();
-        let (address, calls) = service(data.clone(), Some(Duration::from_millis(500))).await;
+        let (_server, address, calls) =
+            service(data.clone(), Some(Duration::from_millis(500))).await;
         control_file(&data, address, "the-token");
         assert!(stop(&data, Duration::from_secs(10)).await.expect("stop"));
         assert_eq!(*calls.lock().expect("calls"), 1);
@@ -219,7 +215,7 @@ mod tests {
     async fn a_service_that_does_not_end_in_time_is_a_failure_the_launcher_can_act_on() {
         let directory = tempfile::tempdir().expect("tempdir");
         let data = directory.path().to_path_buf();
-        let (address, _) = service(data.clone(), None).await;
+        let (_server, address, _) = service(data.clone(), None).await;
         control_file(&data, address, "the-token");
         let error = stop(&data, Duration::from_millis(600))
             .await

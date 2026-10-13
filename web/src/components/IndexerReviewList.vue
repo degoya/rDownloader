@@ -369,7 +369,7 @@ async function decideAll(subscriptionId: string, state: 'queued' | 'dismissed'):
             </template>
           </UAlert>
           <p v-if="loading" class="text-sm text-muted">{{ t('common.app.loading') }}</p>
-          <p v-else-if="!groups.length" class="text-sm text-muted">{{ t('linkgrabber.indexers.empty') }}</p>
+          <UEmpty v-else-if="!groups.length" :description="t('linkgrabber.indexers.empty')" />
           <div v-else class="space-y-2">
             <IndexerReviewGroup
               v-for="group in groups"

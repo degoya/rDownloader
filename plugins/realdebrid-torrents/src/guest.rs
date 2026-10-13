@@ -5,7 +5,6 @@
 //! host's — it holds the row, the clock and the person's answer. That split is argued in
 //! `docs/adr/0003-a-job-that-runs-at-the-provider.md`, and it is what lets this plugin keep a
 //! fuel and timeout budget a crawler's could not have kept.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, Guest, JobSource, RemoteArtifact, RemoteEntry,

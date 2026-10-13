@@ -20,7 +20,9 @@ pub async fn store_admin_password(
 }
 
 /// Whether an administrator password is stored in `database` at all.
-pub async fn admin_password_configured(database: &rd_db::Database) -> Result<bool, ApiError> {
+pub(crate) async fn admin_password_configured(
+    database: &rd_db::Database,
+) -> Result<bool, ApiError> {
     Ok(database.get_setting(PASSWORD_SETTING).await?.is_some())
 }
 

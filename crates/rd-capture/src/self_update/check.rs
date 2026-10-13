@@ -27,7 +27,7 @@ pub(crate) async fn check_now(
     let channel = setup.channel(service_channel.or(state.service_channel));
     check_with(
         &HttpFetcher::new(),
-        (&Sources::official(), &trust),
+        (&Sources::official()?, &trust),
         channel,
         state,
         (running, now),

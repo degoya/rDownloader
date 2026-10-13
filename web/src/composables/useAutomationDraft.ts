@@ -21,7 +21,7 @@ export const MAX_NOTIFY_MESSAGE = 500
 export const MAX_INTERVAL_MINUTES = 1440
 
 /** Actions that work on the run's package; a time trigger names none (RD-1240-10). */
-export const PACKAGE_ACTIONS = ['set_category', 'pause_package', 'resume_package', 'set_priority', 'extract_package']
+const PACKAGE_ACTIONS = ['set_category', 'pause_package', 'resume_package', 'set_priority', 'extract_package']
 
 /**
  * An action while it is being edited. It differs from the wire type in two ways: the id an

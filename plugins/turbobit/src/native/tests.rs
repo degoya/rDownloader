@@ -138,7 +138,9 @@ fn the_manifest_declares_the_measured_domains_limits_and_budget() {
     assert!(manifest.contains("secrets = [\"turbobit_password\"]"));
     assert!(manifest.contains("captcha = true"));
     assert!(manifest.contains("cookies = false"));
-    assert!(manifest.contains("wait_budget_milliseconds = 600000"));
+    // The host's default wait budget, ten minutes, is the measured one: the manifest names only
+    // the limits it changes (RD-1280-18).
+    assert!(!manifest.contains("wait_budget_milliseconds"));
     assert!(manifest.contains("max_response_bytes = 1048576"));
     let metadata = rd_plugin_api::metadata_from_manifest(manifest);
     assert_eq!(metadata.provider_slug, "turbobit");

@@ -42,6 +42,7 @@ uuid.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
+rd-testkit = { path = "../rd-testkit", default-features = false }
 # The object storage destination's contract runs against a small S3 endpoint, the pattern of
 # `rd-object-storage/tests/s3.rs`.
 axum.workspace = true

@@ -28,14 +28,11 @@ use rd_backup::{
 use rd_core::{ObjectAddressing, ObjectCredentialSource, ObjectStorageProvider};
 use rd_db::{Database, NewObjectStorageProfile};
 use rd_object_storage::ObjectStorageService;
+use rd_testkit::{lock, payload, respond};
 use tokio::sync::RwLock;
 
 const NAME: &str = "rdownloader-backup-0a1b2c3d-20260928T030000Z.rdbackup";
 const BUCKET: &str = "backup-bucket";
-
-fn payload(length: usize) -> Vec<u8> {
-    (0..length).map(|index| (index % 241) as u8).collect()
-}
 
 /// The contract, run against one destination with `scratch` as its local side.
 async fn contract(destination: &dyn BackupDestination, scratch: &Path) {
@@ -116,22 +113,6 @@ async fn a_local_folder_meets_the_contract() {
 // --- A folder of an S3 bucket -------------------------------------------------------------
 
 type Objects = Arc<Mutex<BTreeMap<String, Vec<u8>>>>;
-
-fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    mutex
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
-fn respond(status: StatusCode, headers: &[(&str, String)], body: impl Into<Body>) -> Response {
-    let mut builder = Response::builder().status(status);
-    for (name, value) in headers {
-        builder = builder.header(*name, value);
-    }
-    builder
-        .body(body.into())
-        .unwrap_or_else(|_| Response::new(Body::empty()))
-}
 
 fn xml(status: StatusCode, body: String) -> Response {
     respond(
@@ -250,17 +231,12 @@ fn list(objects: &Objects, query: &BTreeMap<String, String>) -> Response {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_folder_of_a_bucket_meets_the_contract() {
     let objects = Objects::default();
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
     let app = Router::new()
         .fallback(s3)
         .layer(axum::extract::DefaultBodyLimit::disable())
         .with_state(objects.clone());
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
 
     let directory = tempfile::tempdir().expect("temp");
     let database = Database::open(directory.path().join("backup.sqlite3"))

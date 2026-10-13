@@ -61,7 +61,7 @@ pub fn parse_request_host(value: &str) -> Option<RequestHost> {
 /// Reads one entry of the allowed host list: a bare DNS name, no scheme, port or path.
 /// `None` when it is not one.
 #[must_use]
-pub fn parse_allowed_host(value: &str) -> Option<String> {
+pub(crate) fn parse_allowed_host(value: &str) -> Option<String> {
     let value = value.trim();
     if value.parse::<IpAddr>().is_ok() {
         // An address is accepted anyway; keeping it in the list is harmless and saves a
@@ -76,7 +76,11 @@ pub fn parse_allowed_host(value: &str) -> Option<String> {
 /// `external` is the external URL's host, `allowed` the operator's list, both already
 /// normalised.
 #[must_use]
-pub fn host_permitted(host: &RequestHost, external: Option<&str>, allowed: &[String]) -> bool {
+pub(crate) fn host_permitted(
+    host: &RequestHost,
+    external: Option<&str>,
+    allowed: &[String],
+) -> bool {
     let name = match host {
         RequestHost::Address(_) => return true,
         RequestHost::Name(name) => name.as_str(),

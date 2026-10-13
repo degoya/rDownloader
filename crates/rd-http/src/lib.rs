@@ -3,6 +3,7 @@
 #![warn(unreachable_pub)]
 
 mod address_guard;
+mod client;
 mod client_pool;
 mod cookies;
 mod engine;
@@ -22,6 +23,7 @@ pub use address_guard::{
     SystemLookup, TargetRefusal, address_scope, check_target, connect_addresses, is_refusal,
     literal_address, refusal_in, socket_addresses,
 };
+pub use client::{CLIENT_CONNECT_TIMEOUT, ClientPurpose, client_builder};
 pub use client_pool::{
     AuthMaterial, ClientContext, ClientKey, ClientPool, NetworkDefaults, ProxyCredentials,
     SharedNetworkDefaults,

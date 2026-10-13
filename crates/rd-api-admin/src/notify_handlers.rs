@@ -13,8 +13,10 @@ use utoipa::{IntoParams, ToSchema};
 use crate::{AppState, error::ApiError};
 
 mod destinations;
+mod placeholders;
 
 pub use destinations::*;
+pub use placeholders::*;
 
 /// Highest number of history rows one request may pull.
 const MAX_HISTORY: u32 = 500;
@@ -56,6 +58,14 @@ pub struct NotificationRuleRequest {
     pub category_id: Option<rd_core::CategoryId>,
     #[serde(default = "default_severity")]
     pub min_severity: Severity,
+    /// The rule's own title with `{placeholder}` holes (RD-1280-02), at most 200 characters;
+    /// left out or blank sends the built-in one. `GET /api/v1/notifications/placeholders` lists
+    /// which event fills which placeholder; `{{` and `}}` write a brace.
+    #[serde(default)]
+    pub title_template: Option<String>,
+    /// The rule's own text, at most 2000 characters, like `title_template`.
+    #[serde(default)]
+    pub body_template: Option<String>,
 }
 
 const fn default_severity() -> Severity {
@@ -424,6 +434,8 @@ async fn save_rule(
             "The rule references a target that does not exist",
         ));
     }
+    let title_template = checked_template(rd_notify::TemplatePart::Title, request.title_template)?;
+    let body_template = checked_template(rd_notify::TemplatePart::Body, request.body_template)?;
     state
         .database
         .upsert_notification_rule(
@@ -435,6 +447,8 @@ async fn save_rule(
                 events: request.events,
                 category_id: request.category_id,
                 min_severity: request.min_severity,
+                title_template,
+                body_template,
             },
         )
         .await

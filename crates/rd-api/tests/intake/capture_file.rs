@@ -110,19 +110,8 @@ async fn local_fetch_harness(directory: &std::path::Path) -> common::Harness {
     .await
 }
 
-async fn serve(app: Router) -> std::net::SocketAddr {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    address
-}
-
 /// An NNTmux-like cart: the NZB for a signed-in session, `400 Missing parameter` for anybody else.
-async fn indexer(seen: Seen) -> std::net::SocketAddr {
+async fn indexer(seen: Seen) -> rd_testkit::TestServer {
     let app = Router::new().route(
         "/getnzb/abc",
         axum::routing::get(move |headers: HeaderMap| {
@@ -146,7 +135,7 @@ async fn indexer(seen: Seen) -> std::net::SocketAddr {
             }
         }),
     );
-    serve(app).await
+    rd_testkit::serve(app).await
 }
 
 /// The session as the extension sends it: the Netscape rows `capture/cookies` takes too, for the
@@ -300,7 +289,8 @@ async fn the_route_needs_the_capture_token() {
 #[tokio::test]
 async fn an_address_with_its_cookies_is_fetched_exactly_once() {
     let seen = Seen::default();
-    let address = indexer(seen.clone()).await;
+    let server = indexer(seen.clone()).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = local_fetch_harness(directory.path()).await;
     let (status, body) = post_with_bearer(
@@ -330,7 +320,8 @@ async fn an_address_with_its_cookies_is_fetched_exactly_once() {
 #[tokio::test]
 async fn a_refused_fetch_is_a_bad_gateway_and_imports_nothing() {
     let seen = Seen::default();
-    let address = indexer(seen.clone()).await;
+    let server = indexer(seen.clone()).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = local_fetch_harness(directory.path()).await;
     let (status, body) = post_with_bearer(
@@ -360,9 +351,9 @@ async fn a_refused_fetch_is_a_bad_gateway_and_imports_nothing() {
 #[tokio::test]
 async fn cookies_never_follow_a_redirect_to_another_origin() {
     let elsewhere = Seen::default();
-    let target = {
+    let target_server = {
         let seen = elsewhere.clone();
-        serve(Router::new().route(
+        rd_testkit::serve(Router::new().route(
             "/file.nzb",
             axum::routing::get(move |headers: HeaderMap| {
                 let seen = seen.clone();
@@ -374,10 +365,11 @@ async fn cookies_never_follow_a_redirect_to_another_origin() {
         ))
         .await
     };
+    let target = target_server.addr();
     let origin = Seen::default();
-    let start = {
+    let start_server = {
         let seen = origin.clone();
-        serve(Router::new().route(
+        rd_testkit::serve(Router::new().route(
             "/getnzb/abc",
             axum::routing::get(move |headers: HeaderMap| {
                 let seen = seen.clone();
@@ -389,6 +381,7 @@ async fn cookies_never_follow_a_redirect_to_another_origin() {
         ))
         .await
     };
+    let start = start_server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = local_fetch_harness(directory.path()).await;
     let (status, body) = post_with_bearer(
@@ -410,7 +403,8 @@ async fn cookies_never_follow_a_redirect_to_another_origin() {
 #[tokio::test]
 async fn an_address_on_this_machine_is_refused_and_never_asked() {
     let seen = Seen::default();
-    let address = indexer(seen.clone()).await;
+    let server = indexer(seen.clone()).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = test_harness(directory.path()).await;
     for url in [
@@ -433,7 +427,8 @@ async fn an_address_on_this_machine_is_refused_and_never_asked() {
 #[tokio::test]
 async fn a_cookie_that_could_break_the_header_is_refused_before_anything_is_sent() {
     let seen = Seen::default();
-    let address = indexer(seen.clone()).await;
+    let server = indexer(seen.clone()).await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = test_harness(directory.path()).await;
     let (status, body) = post_with_bearer(

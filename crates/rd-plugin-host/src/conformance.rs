@@ -4,7 +4,10 @@
 //! question. Everything checked here is something the host would otherwise only tell the
 //! author about through a user's bug report: a manifest field out of bounds, an import the
 //! manifest never granted, a world that does not match, a translation that lacks codes English
-//! has, a resolver or crawler that claims links on hosts it does not declare.
+//! has, a resolver or crawler that claims links on hosts it does not declare, and for every
+//! other type but OAuth one behavioural question of its own (`questions.rs`, RD-1280-19): a
+//! notifier that reports a delivery to nowhere, a sign-in that authorizes nobody, a storage
+//! destination that confirms an upload it never reached.
 //!
 //! Deliberately not here: whether the plugin resolves a real link. That needs a hoster, an
 //! account and a network, none of which belong in a conformance run — and a plugin that
@@ -12,6 +15,8 @@
 //! verified, not that the plugin is good.
 
 use serde::Serialize;
+
+mod questions;
 
 use crate::{PluginType, PluginVerifier, locales::REQUIRED_LANGUAGES};
 
@@ -138,6 +143,10 @@ pub async fn check_package(bytes: &[u8], verifier: &PluginVerifier) -> Conforman
                     })
                     .await,
                 ),
+                Some(Claimer::Typed(typed)) => {
+                    let answer = questions::ask(&typed, manifest).await;
+                    report.push(answer.id, answer.about, answer.result);
+                }
                 None => {}
             }
         }
@@ -198,9 +207,11 @@ enum Claimer {
     // Both boxed: the two components differ in size by hundreds of bytes (clippy large_enum_variant).
     Resolver(Box<crate::ComponentResolver>),
     Crawler(Box<crate::extension::FolderCrawler>),
+    /// Every other type with a question (RD-1280-19).
+    Typed(questions::Typed),
 }
 
-/// Builds the package as the core would, returning it when it is a resolver or a crawler.
+/// Builds the package as the core would, returning it when the run has a question for it.
 async fn instantiate(package: &crate::VerifiedPackage) -> Result<Option<Claimer>, String> {
     match package.manifest.plugin_type {
         PluginType::Resolver => crate::ComponentResolver::new(
@@ -220,28 +231,22 @@ async fn instantiate(package: &crate::VerifiedPackage) -> Result<Option<Claimer>
         )
         .map(|crawler| Some(Claimer::Crawler(Box::new(crawler))))
         .map_err(|error| format!("{error:#}")),
-        PluginType::Transfer => {
-            crate::TransferBackend::new(package.manifest.clone(), &package.component)
-                .map(|_| None)
-                .map_err(|error| format!("{error:#}"))
-        }
-        // The other extension types are built through the shared loader, which links the
-        // world their manifest names. Nothing is returned: they have no behavioural check
-        // beyond "it instantiates".
-        PluginType::Intake
-        | PluginType::Auth
-        | PluginType::OAuth
-        | PluginType::Enricher
-        | PluginType::Notifier
-        | PluginType::Postprocess
-        | PluginType::Storage
-        | PluginType::RemoteJob
-        | PluginType::StreamTransform => {
-            crate::extension::instantiate(&package.manifest, &package.component)
-                .map(|()| None)
-                .map_err(|error| format!("{error:#}"))
-        }
+        // OAuth is built through the shared loader, which links the world its manifest names.
+        // Nothing is returned: it has no behavioural question beyond "it instantiates" yet.
+        PluginType::OAuth => crate::extension::instantiate(&package.manifest, &package.component)
+            .map(|()| None)
+            .map_err(|error| format!("{error:#}")),
         PluginType::Unknown(ref other) => Err(format!("unknown plugin type `{other}`")),
+        // Every other type is built by its own adapter, the one the service uses, which
+        // types the exports exactly as `extension::instantiate` does.
+        _ => match questions::build(&package.manifest, &package.component, refusing_host()) {
+            Some(built) => built
+                .map(|typed| Some(Claimer::Typed(typed)))
+                .map_err(|error| format!("{error:#}")),
+            None => crate::extension::instantiate(&package.manifest, &package.component)
+                .map(|()| None)
+                .map_err(|error| format!("{error:#}")),
+        },
     }
 }
 

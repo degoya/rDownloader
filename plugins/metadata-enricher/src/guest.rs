@@ -5,7 +5,6 @@
 //! an enricher must never turn a link that resolved perfectly well into one somebody has to
 //! think about. And no request is made until [`release::parse`] has said there is a film or an
 //! episode to ask about, which for most links it does not.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_enricher::{EnrichField, EnrichSubject, Guest, http, types::Failure};
 

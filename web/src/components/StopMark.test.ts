@@ -5,18 +5,16 @@
  */
 import { fireEvent, screen, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 import { nextTick } from 'vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async () => ({ data: undefined })),
   responseError: vi.fn(() => 'That download or package is already finished'),
   errorMessage: vi.fn()
 }))
 const toastAdd = vi.hoisted(() => vi.fn())
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: toastAdd }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(null) }) }) })
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toastAdd, answer: null }))
 vi.mock('@/composables/useStagedResolvers', () => ({
   useStagedResolvers: () => ({ stagedFor: () => null, trial: vi.fn() })
 }))

@@ -98,7 +98,7 @@ pub fn is_archive_name(name: &str) -> bool {
 /// # Errors
 ///
 /// [`DestinationError::InvalidName`] for anything else.
-pub fn check_archive_name(name: &str) -> Result<(), DestinationError> {
+pub(crate) fn check_archive_name(name: &str) -> Result<(), DestinationError> {
     if is_archive_name(name) {
         Ok(())
     } else {

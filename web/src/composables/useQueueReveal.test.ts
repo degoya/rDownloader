@@ -6,15 +6,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { computed, effectScope, nextTick, reactive, ref } from 'vue'
 
+import { settle as flush } from '@/test/mount'
+
 import { revealKey, useQueueReveal } from './useQueueReveal'
 
 const route = reactive({ path: '/downloads', hash: '', query: {} as Record<string, string> })
 const replace = vi.fn(async (location: { query: Record<string, string> }) => { route.query = location.query })
 vi.mock('vue-router', () => ({ useRoute: () => route, useRouter: () => ({ replace }) }))
-
-function flush(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve))
-}
 
 describe('revealKey', () => {
   it('takes a package or a file key and nothing else', () => {

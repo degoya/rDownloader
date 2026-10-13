@@ -1,0 +1,28 @@
+[package]
+name = "rd-testkit"
+version = "1.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+# What the workspace's tests share (RD-1280-04): a database in a test's directory, a one-shot
+# HTTP server aborted on drop, and the small helpers several crates' fake servers spelled out
+# for themselves. A dev-dependency only, never on a production path; its own version, not the
+# workspace's, so a release bump rebuilds no test-only code for its own sake.
+[features]
+default = ["db"]
+# `temp_database`. A crate that only serves, or one `rd-db` itself depends on (`rd-http`), takes
+# the kit with `default-features = false`: its tests then build no database crate for it.
+db = ["dep:rd-db"]
+
+[dependencies]
+axum.workspace = true
+rd-db = { path = "../rd-db", optional = true }
+tokio.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

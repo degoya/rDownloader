@@ -96,7 +96,7 @@ fn tar_xz(members: &[(String, &[u8])]) -> Vec<u8> {
 
 /// A local server answering `/yt-dlp/<version>` with [`PAYLOAD`], `/ffmpeg/<version>` with
 /// the tar.xz fixture and `/ffmpeg-foreign/<version>` with its wrongly named twin.
-async fn serve_releases() -> SocketAddr {
+async fn serve_releases() -> (rd_testkit::TestServer, SocketAddr) {
     let app = Router::new()
         .route(
             "/yt-dlp/{version}",
@@ -110,14 +110,9 @@ async fn serve_releases() -> SocketAddr {
             "/ffmpeg-foreign/{version}",
             get(|| async { axum::body::Bytes::from_static(foreign_ffmpeg_archive()) }),
         );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    address
+    let server = rd_testkit::serve(app).await;
+    let address = server.addr();
+    (server, address)
 }
 
 fn entry(address: SocketAddr, version: &str) -> ToolEntry {
@@ -316,7 +311,7 @@ async fn a_manifest_url_that_is_not_https_is_refused() {
 /// matters — nothing of it survives: no version directory, no staging leftover, no row.
 #[tokio::test]
 async fn a_download_whose_hash_differs_is_refused_and_leaves_nothing_behind() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     let mut wrong = entry(address, "2024.09.07");
     wrong.sha256 = "f".repeat(64);
@@ -356,7 +351,7 @@ async fn a_download_whose_hash_differs_is_refused_and_leaves_nothing_behind() {
 /// A body larger than the manifest declares is cut off rather than written out.
 #[tokio::test]
 async fn a_release_that_does_not_match_the_declared_size_is_refused() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     let mut lying = entry(address, "2024.09.07");
     lying.size = 4;
@@ -375,7 +370,7 @@ async fn a_release_that_does_not_match_the_declared_size_is_refused() {
 /// atomically, and answered by the tool lookup as a managed version.
 #[tokio::test]
 async fn a_verified_release_is_installed_activated_and_resolved_as_managed() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     fixture
         .service
@@ -418,7 +413,7 @@ async fn a_verified_release_is_installed_activated_and_resolved_as_managed() {
 /// this installation manages nothing of still resolves the way it always did.
 #[tokio::test]
 async fn a_system_tool_is_untouched_by_the_managed_store() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     fixture
         .service
@@ -455,7 +450,7 @@ async fn a_system_tool_is_untouched_by_the_managed_store() {
 /// The third acceptance criterion: back to the version that was working.
 #[tokio::test]
 async fn a_rollback_returns_to_the_previously_installed_version() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     fixture.service.adopt_unverified_manifest(manifest(
         2,
@@ -502,7 +497,7 @@ async fn a_rollback_returns_to_the_previously_installed_version() {
 /// silent no-op that leaves the user unsure whether anything happened.
 #[tokio::test]
 async fn a_rollback_with_nothing_to_return_to_is_refused() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     fixture
         .service
@@ -534,7 +529,7 @@ async fn activating_a_version_that_is_not_installed_is_refused() {
 /// out from under it. Everything else — including the other tools — carries on.
 #[tokio::test]
 async fn a_version_a_running_job_holds_is_not_removed() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     fixture.service.adopt_unverified_manifest(manifest(
         2,
@@ -593,7 +588,7 @@ async fn a_version_a_running_job_holds_is_not_removed() {
 /// The active version is never removed either, whatever asks.
 #[tokio::test]
 async fn the_active_version_cannot_be_removed() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     fixture
         .service
@@ -610,7 +605,7 @@ async fn the_active_version_cannot_be_removed() {
 /// Switched off means switched off: nothing is fetched and nothing is written.
 #[tokio::test]
 async fn nothing_is_installed_while_managed_tools_are_switched_off() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(false).await;
     fixture
         .service
@@ -634,7 +629,7 @@ async fn a_tool_this_application_does_not_manage_is_refused() {
 /// The pointer survives a restart, which is what makes activation more than a runtime flag.
 #[tokio::test]
 async fn the_active_version_is_read_back_after_a_restart() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let directory = tempfile::tempdir().expect("tempdir");
     let database = rd_db::Database::open(directory.path().join("tools.sqlite3"))
         .await
@@ -675,7 +670,7 @@ async fn active_version(service: &ManagedToolService) -> Option<String> {
 /// unpacked into two managed tools that each resolve to their own binary.
 #[tokio::test]
 async fn a_tar_xz_release_installs_both_binaries_it_carries() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     fixture.service.adopt_unverified_manifest(manifest(
         2,
@@ -719,7 +714,7 @@ async fn a_tar_xz_release_installs_both_binaries_it_carries() {
 /// the same rule as for a raw download, on the path that writes more than one file.
 #[tokio::test]
 async fn a_tar_xz_release_with_the_wrong_hash_is_refused_and_leaves_nothing_behind() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     let mut wrong = ffmpeg_entry(address, "ffmpeg");
     wrong.sha256 = "a".repeat(64);
@@ -749,7 +744,7 @@ async fn a_tar_xz_release_with_the_wrong_hash_is_refused_and_leaves_nothing_behi
 /// that looks installed.
 #[tokio::test]
 async fn a_tar_xz_release_missing_its_member_is_refused() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     let mut absent = ffmpeg_entry(address, "ffmpeg");
     absent.members = vec![format!("{FFMPEG_PREFIX}/bin/ffmpeg-static")];
@@ -770,7 +765,7 @@ async fn a_tar_xz_release_missing_its_member_is_refused() {
 /// `executable_name`, so activating it would report an install nothing can ever run.
 #[tokio::test]
 async fn a_release_whose_binary_has_the_other_platforms_name_is_refused() {
-    let address = serve_releases().await;
+    let (_server, address) = serve_releases().await;
     let fixture = fixture(true).await;
     let mut foreign = ffmpeg_entry(address, "ffmpeg");
     foreign.url = format!("http://{address}/ffmpeg-foreign/9.0.1");

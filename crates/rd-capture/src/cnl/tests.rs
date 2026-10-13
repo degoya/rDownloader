@@ -1,7 +1,6 @@
-use std::{net::SocketAddr, time::Duration};
+use std::time::Duration;
 
 use axum::http::{StatusCode, header};
-use tokio_util::sync::CancellationToken;
 use url::Url;
 
 use super::{CnlState, MAX_ADDCRYPTED_BODY_BYTES, NO_LINK_DETAIL, Pace, code, router};
@@ -13,17 +12,12 @@ use crate::client::CaptureClient;
 /// The client points at a port nothing listens on: every test here is about a request that
 /// is refused before anything is handed over, and a hand-over that did happen would fail
 /// loudly rather than reach a real service.
-async fn spawn() -> (SocketAddr, CancellationToken) {
+async fn spawn() -> rd_testkit::TestServer {
     spawn_paced(Pace::new(super::pace::MAX_HAND_OVERS, super::pace::WINDOW)).await
 }
 
 /// [`spawn`] with a pace of the test's own.
-async fn spawn_paced(pace: Pace) -> (SocketAddr, CancellationToken) {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind an ephemeral port");
-    let address = listener.local_addr().expect("the bound address");
-    let cancellation = CancellationToken::new();
+async fn spawn_paced(pace: Pace) -> rd_testkit::TestServer {
     let state = CnlState {
         client: CaptureClient::new(
             Url::parse("http://127.0.0.1:9/").expect("valid URL"),
@@ -32,13 +26,7 @@ async fn spawn_paced(pace: Pace) -> (SocketAddr, CancellationToken) {
         .expect("build a capture client"),
         pace: std::sync::Arc::new(pace),
     };
-    let shutdown = cancellation.clone();
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, router(state))
-            .with_graceful_shutdown(shutdown.cancelled_owned())
-            .await;
-    });
-    (address, cancellation)
+    rd_testkit::serve(router(state)).await
 }
 
 fn client() -> reqwest::Client {
@@ -53,7 +41,8 @@ fn client() -> reqwest::Client {
 /// through the agent's credential, with a page's headers or without.
 #[tokio::test]
 async fn the_port_takes_no_nzb_for_the_agent_to_hand_over() {
-    let (address, cancellation) = spawn().await;
+    let server = spawn().await;
+    let address = server.addr();
     let endpoint = format!("http://{address}/rdownloader/nzb");
     for origin in [None, Some("https://evil.test")] {
         let mut request = client().post(&endpoint).body("<nzb/>");
@@ -63,13 +52,13 @@ async fn the_port_takes_no_nzb_for_the_agent_to_hand_over() {
         let response = request.send().await.expect("the listener answers");
         assert_eq!(response.status(), StatusCode::NOT_FOUND, "{origin:?}");
     }
-    cancellation.cancel();
 }
 
 /// The JDownloader-compatible routes keep their wildcard, as the documented exception.
 #[tokio::test]
 async fn the_flash_routes_keep_their_documented_wildcard() {
-    let (address, cancellation) = spawn().await;
+    let server = spawn().await;
+    let address = server.addr();
     let response = client()
         .get(format!("http://{address}/flash"))
         .header(header::ORIGIN, "https://hoster.test")
@@ -91,14 +80,14 @@ async fn the_flash_routes_keep_their_documented_wildcard() {
             .and_then(|value| value.to_str().ok()),
         Some("true")
     );
-    cancellation.cancel();
 }
 
 /// A page that posts with `fetch()` and a header of its own is asked about first: hide.cx
 /// sends `X-Referer`, and a preflight that does not name it makes the browser drop the post.
 #[tokio::test]
 async fn the_preflight_allows_the_headers_hoster_pages_send() {
-    let (address, cancellation) = spawn().await;
+    let server = spawn().await;
+    let address = server.addr();
     let response = client()
         .request(
             reqwest::Method::OPTIONS,
@@ -128,14 +117,14 @@ async fn the_preflight_allows_the_headers_hoster_pages_send() {
             "{wanted} must be allowed: {allowed:?}"
         );
     }
-    cancellation.cancel();
 }
 
 /// The body of a refusal is a code. Neither the decryption's own account of itself nor
 /// anything the service said may be readable by the page that made the call.
 #[tokio::test]
 async fn a_refusal_answers_with_a_code_and_no_prose() {
-    let (address, cancellation) = spawn().await;
+    let server = spawn().await;
+    let address = server.addr();
     let response = client()
         .post(format!("http://{address}/flash/addcrypted2"))
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
@@ -169,13 +158,13 @@ async fn a_refusal_answers_with_a_code_and_no_prose() {
         !body.contains("127.0.0.1"),
         "nothing about the service may leak into the answer: {body}"
     );
-    cancellation.cancel();
 }
 
 /// `crossdomain.xml` is gone, and `OPTIONS` no longer says yes to paths that do not exist.
 #[tokio::test]
 async fn only_paths_that_exist_answer_at_all() {
-    let (address, cancellation) = spawn().await;
+    let server = spawn().await;
+    let address = server.addr();
     for path in ["/crossdomain.xml", "/nothing/here"] {
         for method in [reqwest::Method::GET, reqwest::Method::OPTIONS] {
             let response = client()
@@ -200,7 +189,6 @@ async fn only_paths_that_exist_answer_at_all() {
         .await
         .expect("the listener answers");
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    cancellation.cancel();
 }
 
 /// The limit that matters has to be reached before the body is decoded, not after. A 413
@@ -214,7 +202,8 @@ async fn only_paths_that_exist_answer_at_all() {
 async fn an_oversized_addcrypted_body_is_refused_before_it_is_decoded() {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    let (address, cancellation) = spawn().await;
+    let server = spawn().await;
+    let address = server.addr();
     let mut socket = tokio::net::TcpStream::connect(address)
         .await
         .expect("connect to the listener");
@@ -238,7 +227,6 @@ async fn an_oversized_addcrypted_body_is_refused_before_it_is_decoded() {
         status_line.starts_with("HTTP/1.1 413"),
         "the body limit has to fire before the form extractor runs, got {status_line:?}"
     );
-    cancellation.cancel();
 }
 
 /// The refusal used to name HTTP(S) only, while the collector had long taken more.
@@ -273,7 +261,8 @@ fn the_link_free_refusal_names_the_schemes_that_are_really_accepted() {
 /// and nothing is handed over.
 #[tokio::test]
 async fn hand_overs_past_the_allowance_are_refused() {
-    let (address, cancellation) = spawn_paced(Pace::new(1, Duration::from_secs(60))).await;
+    let server = spawn_paced(Pace::new(1, Duration::from_secs(60))).await;
+    let address = server.addr();
     let mut codes = Vec::new();
     for _ in 0..2 {
         let response = client()
@@ -291,5 +280,4 @@ async fn hand_overs_past_the_allowance_are_refused() {
         codes[1],
         (StatusCode::TOO_MANY_REQUESTS, code::RATE_LIMITED.to_owned())
     );
-    cancellation.cancel();
 }

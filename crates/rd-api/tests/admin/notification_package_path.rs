@@ -30,7 +30,7 @@ async fn a_finished_package_queues_its_folder_and_a_failed_one_none() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::parked_harness(directory.path()).await;
     let router = harness.router.clone();
-    let (endpoint, calls) = spawn_receiver().await;
+    let (_server, endpoint, calls) = spawn_receiver().await;
     let target = create_target(
         &router,
         json!({ "name": "local", "kind": "webhook", "endpoint": endpoint }),

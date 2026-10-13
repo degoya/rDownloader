@@ -3,7 +3,7 @@ import { ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, errorMessage } from '@/api/client'
-import type { Category, DownloadPriority, PostprocessLevel } from '@/api/types'
+import type { Category, DownloadPriority } from '@/api/types'
 import { useErrorToast } from '@/composables/useErrorToast'
 import { isContainerFile } from '@/composables/nzbImportRequest'
 import { useFileImportModal, type FileImportEntry } from '@/composables/useNzbImportModal'

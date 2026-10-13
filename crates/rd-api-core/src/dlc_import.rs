@@ -104,9 +104,8 @@ pub async fn decrypt_container(
             "The DLC decryption service must be an http or https URL",
         )
     })?;
-    let client = reqwest::Client::builder()
+    let client = rd_http::client_builder(rd_http::ClientPurpose::Service)
         .timeout(SERVICE_TIMEOUT)
-        .user_agent(rd_core::user_agent!())
         .build()
         .map_err(anyhow::Error::new)?;
     let response = client
@@ -438,5 +437,5 @@ fn service_unreachable(detail: &str) -> ApiError {
 
 /// Keeps a foreign service's wording out of an unbounded error field.
 fn truncated(detail: &str) -> String {
-    detail.chars().take(200).collect()
+    rd_core::text::truncate_chars(detail, 200).to_owned()
 }

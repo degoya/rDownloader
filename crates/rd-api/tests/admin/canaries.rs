@@ -292,7 +292,8 @@ async fn the_canary_run() {
 
 /// Signs in, plants every row of [`PLANTINGS`] and mints an API token; returns the session.
 async fn plant(router: &Router, planted: &mut Planted, scan: &mut Scan) -> String {
-    let refusing = refusing_http().await;
+    let (server, refusing) = refusing_http().await;
+    planted.servers.push(server);
     planted.known.push(("refusing".to_owned(), refusing));
     let ftp_port = refusing_ftp().await;
     planted

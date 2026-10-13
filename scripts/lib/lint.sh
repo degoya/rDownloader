@@ -47,13 +47,19 @@ rd_lint_windows() {
     local manifest dir
     local -a args=()
     if ! cargo xwin --version > /dev/null 2>&1; then
-        echo "cargo xwin is not installed (cargo install cargo-xwin --version 0.23.1 --locked)" >&2
+        # shellcheck source=tool-versions.sh
+        source "$ROOT/scripts/lib/tool-versions.sh"
+        echo "cargo xwin is not installed (cargo install cargo-xwin --version $RD_CARGO_XWIN_VERSION --locked)" >&2
         return 1
     fi
     dir="$(rd_lint_windows_dir)"
     for manifest in crates/*/Cargo.toml; do args+=(-p "$(basename "$(dirname "$manifest")")"); done
     echo "==> cargo xwin clippy for x86_64-pc-windows-msvc over $(( ${#args[@]} / 2 )) crates (--keep-going, -j 2) in $dir"
     mkdir -p "$dir"
+    # The one `flock` outside lib/lock.sh, and on purpose (RD-1280-15): rd_take_lock and
+    # rd_take_lane run the whole script again under the lock, for a script's start; this is one
+    # command inside a run that already holds the checkout target's lock, and needs the lane's
+    # lock around exactly it, which prune-target.sh takes too. Never wrapped around a script.
     CARGO_TARGET_DIR="$dir" CARGO_BUILD_JOBS=2 flock -w "${RD_LOCK_WAIT:-7200}" -E 199 \
         "$(rd_target_lock_file "$dir" "$ROOT")" \
         cargo xwin clippy --target x86_64-pc-windows-msvc -j 2 "${args[@]}" \

@@ -557,7 +557,6 @@
       }
     },
     "indexer_images": {
-      "eyebrow": "Indexer hits",
       "title": "Cover images",
       "description": "An indexer sends a cover address alongside each hit, in the same search answer the subscription already makes. Showing it costs no extra request; loading the picture is done by the browser.",
       "enabled": {

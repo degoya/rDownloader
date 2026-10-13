@@ -7,19 +7,18 @@
  * `UDropdownMenu` does when an item is chosen. What is covered is this component's own
  * wiring: the face and name of the gear, the items it offers and where a choice lands.
  */
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { fireEvent, screen } from '@testing-library/vue'
 import axe from 'axe-core'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn()
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })), responseError: vi.fn() }))
 
 import PreferencesFooter from './PreferencesFooter.vue'
 import { useTheme } from '@/composables/useTheme'
 import { i18n, languageItems, REQUIRED_LOCALES } from '@/i18n'
 import { loadEveryLocale } from '@/test/locales'
+import { mountComponent } from '@/test/mount'
 
 beforeAll(loadEveryLocale)
 
@@ -37,7 +36,7 @@ const stubs = {
 }
 
 function mount(collapsed: boolean) {
-  return render(PreferencesFooter, { props: { collapsed }, global: { plugins: [i18n], stubs } })
+  return mountComponent(PreferencesFooter, { props: { collapsed }, i18n, stubs })
 }
 
 async function violations(container: Element): Promise<string> {

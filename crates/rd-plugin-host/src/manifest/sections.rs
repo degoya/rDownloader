@@ -103,6 +103,9 @@ impl Capabilities {
 pub struct PluginMetadata {
     /// Default description. Localised overrides live in `locales/<lang>.json`.
     pub description: String,
+    /// Required in a package; read as empty when absent so a bundled source manifest that
+    /// leaves it to `plugins/metadata.toml` still parses (RD-1280-18).
+    #[serde(default)]
     pub author: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub homepage: Option<String>,

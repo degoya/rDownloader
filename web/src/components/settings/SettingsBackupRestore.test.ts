@@ -7,6 +7,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import common from '@/locales/en/common.json'
@@ -20,22 +21,19 @@ import { downloadJson } from '@/utils/jsonFile'
 
 import SettingsBackupRestore from './SettingsBackupRestore.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { POST: vi.fn() },
-  responseError: vi.fn(() => 'The passphrase does not open this bundle')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The passphrase does not open this bundle') }))
 
 vi.mock('@/utils/jsonFile', async importOriginal => ({
   ...await importOriginal<typeof import('@/utils/jsonFile')>(),
   downloadJson: vi.fn()
 }))
 
-const toastAdd = vi.fn()
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: toastAdd }) }))
+const toastAdd = vi.hoisted(() => vi.fn())
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toastAdd }))
 
 /** Replacing the configuration asks first; the tests drive the answer. */
-const confirmed = vi.fn(async () => true)
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
+const confirmed = vi.hoisted(() => vi.fn(async () => true))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirmed))
 
 const en = system.backup
 

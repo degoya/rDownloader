@@ -84,8 +84,8 @@ fn server_unavailable_failure(detail: &str) -> Failure {
 /// How long the queue waits before it asks the server again.
 const SERVER_RETRY_SECONDS: u64 = 60;
 
-/// [`download_file_counted`] for a file nobody counts: the tests and the bench.
-#[cfg(test)]
+/// [`download_file_counted`] for a file nobody counts: the tests and the bench (feature `bench`).
+#[cfg(any(test, feature = "bench"))]
 pub(crate) async fn download_file(
     database: &Database,
     pool: &NntpPool,
@@ -110,7 +110,7 @@ pub(crate) async fn download_file(
 
 /// `download_file`, telling `open` about every article that is answered, so the runner
 /// knows how much work its running files still hold (RD-130-22).
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub(crate) async fn download_file_counted(
     database: &Database,
     pool: &NntpPool,
@@ -241,7 +241,7 @@ async fn fetch_segment(
 /// Takes one answered article in: written into place and booked for the next checkpoint, or
 /// counted as a hole. `Break` when the file ends here, cancelled; an error ends it failed.
 /// Either way the articles written so far are confirmed and the ones in flight go back.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn take_in(
     result: Result<FetchedSegment>,
     assembly: &mut Assembly,

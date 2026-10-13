@@ -49,7 +49,7 @@ impl PluginVerifier {
     }
 
     /// Adds an explicitly trusted Ed25519 public key.
-    pub fn trust_key(&self, key_id: String, key: VerifyingKey) -> Result<()> {
+    pub(crate) fn trust_key(&self, key_id: String, key: VerifyingKey) -> Result<()> {
         self.trusted_keys
             .trust(key_id, key)
             .context("trust a plugin signing key")
@@ -101,7 +101,7 @@ impl PluginVerifier {
     }
 
     /// Whether this exact package has been withdrawn.
-    pub fn is_package_revoked(&self, digest: &[u8; 32]) -> Result<bool> {
+    pub(crate) fn is_package_revoked(&self, digest: &[u8; 32]) -> Result<bool> {
         self.revoked.contains(digest)
     }
 
@@ -121,7 +121,7 @@ impl PluginVerifier {
     /// next package signed with it to ask for trust again, while a withdrawn key is refused
     /// outright, trust prompt included. Named by fingerprint, so no other key that happens to
     /// carry the same id is touched.
-    pub fn withdraw_key(&self, fingerprint: &str) -> Result<bool> {
+    pub(crate) fn withdraw_key(&self, fingerprint: &str) -> Result<bool> {
         self.withdrawn_keys.insert(fingerprint)
     }
 
@@ -131,7 +131,7 @@ impl PluginVerifier {
     }
 
     /// Whether the key with this fingerprint was withdrawn.
-    pub fn is_key_withdrawn(&self, fingerprint: &str) -> Result<bool> {
+    pub(crate) fn is_key_withdrawn(&self, fingerprint: &str) -> Result<bool> {
         self.withdrawn_keys.contains(fingerprint)
     }
 

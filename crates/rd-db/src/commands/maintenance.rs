@@ -5,7 +5,7 @@ use super::Reply;
 /// The commands `Writer::handle_maintenance` applies.
 // `ReplaceConfig` outweighs the rest of the area; every message is as large as the largest
 // command, as it was with one flat enum.
-#[allow(clippy::large_enum_variant)]
+#[expect(clippy::large_enum_variant)]
 pub(crate) enum MaintenanceCommand {
     ReplaceConfig {
         replacement: crate::backup_store::ConfigReplacement,

@@ -3,16 +3,8 @@
 //! written and before it commits.
 #![cfg(feature = "failpoints")]
 
-use std::path::Path;
-
 use rd_core::{DownloadPriority, PackageId, PackageState, failpoint::FailpointGuard};
 use rd_db::{Database, HistoryQuery, NewPackage};
-
-async fn open(directory: &Path) -> Database {
-    Database::open(directory.join("rdownloader.sqlite3"))
-        .await
-        .expect("database")
-}
 
 async fn entries(database: &Database) -> u64 {
     database
@@ -30,7 +22,7 @@ async fn an_outcome_stopped_before_its_commit_leaves_no_entry_and_is_recorded_on
     let data = directory.path();
     let id = PackageId::new();
     {
-        let database = open(data).await;
+        let database = rd_testkit::temp_database(data).await;
         database
             .create_package(NewPackage {
                 id,
@@ -52,7 +44,7 @@ async fn an_outcome_stopped_before_its_commit_leaves_no_entry_and_is_recorded_on
         assert!(guard.fired());
     }
     {
-        let database = open(data).await;
+        let database = rd_testkit::temp_database(data).await;
         let package = database.get_package(id).await.expect("read").expect("kept");
         assert_eq!(
             package.state,
@@ -70,7 +62,7 @@ async fn an_outcome_stopped_before_its_commit_leaves_no_entry_and_is_recorded_on
             .expect("completed again");
         assert_eq!(entries(&database).await, 1);
     }
-    let database = open(data).await;
+    let database = rd_testkit::temp_database(data).await;
     let page = database
         .list_download_history(&HistoryQuery::default())
         .await

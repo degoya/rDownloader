@@ -9,14 +9,8 @@
 
 use chrono::Utc;
 use rd_core::EventKind;
-use rd_db::{Database, NewSubscription, PollResult};
+use rd_db::{NewSubscription, PollResult};
 use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("subscriptions.sqlite"))
-        .await
-        .expect("database")
-}
 
 fn subscription() -> NewSubscription {
     NewSubscription {
@@ -78,7 +72,7 @@ fn finished(
 #[tokio::test]
 async fn a_finished_poll_names_its_subscription_and_what_it_found() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let created = database
         .create_subscription(subscription())
         .await
@@ -106,7 +100,7 @@ async fn a_finished_poll_names_its_subscription_and_what_it_found() {
 #[tokio::test]
 async fn a_failed_poll_carries_its_reason() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let created = database
         .create_subscription(subscription())
         .await
@@ -127,7 +121,7 @@ async fn a_failed_poll_carries_its_reason() {
 #[tokio::test]
 async fn an_ordinary_change_does_not_claim_a_poll_finished() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let created = database
         .create_subscription(subscription())
         .await

@@ -30,13 +30,13 @@ use rand::Rng;
 use crate::crypto::{BackupKey, KDF_M_COST, KDF_P_COST, KDF_T_COST, SALT_LEN};
 
 /// The first eight bytes of every archive.
-pub const MAGIC: &[u8; 8] = b"RDBACKUP";
+pub(crate) const MAGIC: &[u8; 8] = b"RDBACKUP";
 /// The container version this build writes and reads.
-pub const CONTAINER_VERSION: u8 = 1;
+pub(crate) const CONTAINER_VERSION: u8 = 1;
 /// Plaintext bytes per sealed chunk.
-pub const CHUNK_LEN: usize = 1 << 20;
+pub(crate) const CHUNK_LEN: usize = 1 << 20;
 /// Length of the header in bytes.
-pub const HEADER_LEN: usize = 8 + 1 + 1 + 12 + SALT_LEN + NONCE_PREFIX_LEN + 4;
+pub(crate) const HEADER_LEN: usize = 8 + 1 + 1 + 12 + SALT_LEN + NONCE_PREFIX_LEN + 4;
 
 const KDF_ARGON2ID: u8 = 1;
 const TAG_LEN: usize = 16;

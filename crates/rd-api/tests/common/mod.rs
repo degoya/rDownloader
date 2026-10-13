@@ -10,7 +10,11 @@
 //! it is re-exported here, so a test file names `common::…` and nothing deeper. The stand-in
 //! identity provider is `common::idp`, by name: two suites in two binaries need it.
 
-#![allow(dead_code, unused_imports)]
+#![allow(
+    dead_code,
+    unused_imports,
+    reason = "shared by six test binaries, and none uses every helper or re-export"
+)]
 
 mod fixtures;
 pub mod idp;
@@ -132,10 +136,8 @@ pub async fn auth_harness(directory: &std::path::Path) -> Harness {
 
 /// The harness `options` describe.
 pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
-    let database_path = directory.join("api-test.sqlite3");
-    let database = rd_db::Database::open(&database_path)
-        .await
-        .expect("database");
+    let database_path = directory.join(rd_testkit::DATABASE_FILE);
+    let database = rd_testkit::temp_database(directory).await;
     // Reopening the same directory builds a second router over the same database, which is
     // how a restart is tested; the token from the first run is already there.
     let standard = [

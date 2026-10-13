@@ -87,16 +87,17 @@ pub(crate) struct Tray {
 /// Everything that can fail before the agent starts happens here, so `main` can
 /// still fall back to the headless path.
 pub(crate) fn prepare() -> Result<Tray> {
+    let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     // `set_activation_policy` needs a mutable loop; on Windows nothing does.
-    #[allow(unused_mut)]
-    let mut event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     #[cfg(target_os = "macos")]
-    {
+    let event_loop = {
         use tao::platform::macos::{ActivationPolicy, EventLoopExtMacOS};
 
+        let mut event_loop = event_loop;
         // Menu-bar extra: no Dock icon and no application menu.
         event_loop.set_activation_policy(ActivationPolicy::Accessory);
-    }
+        event_loop
+    };
     Ok(Tray {
         event_loop,
         marks: Marks::prepare()?,

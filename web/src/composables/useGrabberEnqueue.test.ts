@@ -6,6 +6,7 @@
 import { render } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { defineComponent, ref } from 'vue'
 
 import { api } from '@/api/client'
@@ -17,15 +18,12 @@ import { createTestI18n } from '@/test/mount'
 
 import { useGrabberEnqueue } from './useGrabberEnqueue'
 
-const toastAdd = vi.fn()
-vi.mock('@/api/client', async importOriginal => ({
-  ...await importOriginal<typeof import('@/api/client')>(),
-  api: { GET: vi.fn(), POST: vi.fn(), PATCH: vi.fn(), DELETE: vi.fn() }
-}))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: toastAdd }), useOverlay: () => ({ create: () => ({ open: vi.fn() }) }) }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
+const toastAdd = vi.hoisted(() => vi.fn())
+vi.mock('@/api/client', async importOriginal => apiClientMock({}, await importOriginal<Record<string, unknown>>()))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toastAdd, overlay: { open: vi.fn() } }))
+vi.mock('@/composables/useConfirm', () => confirmMock())
 vi.mock('@/composables/useReplayConsent', () => ({ useReplayConsent: () => vi.fn() }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 vi.mock('@/stores/transfers', () => ({ useTransfersStore: () => ({ refresh: vi.fn(async () => {}) }) }))
 
 /** `packages` packages of `perPackage` online links each, as the store and the view hold them. */

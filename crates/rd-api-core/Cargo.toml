@@ -74,6 +74,7 @@ webauthn-rs.workspace = true
 workspace = true
 
 [dev-dependencies]
+rd-testkit = { path = "../rd-testkit" }
 dunce.workspace = true
 # The lib tests read and write the database behind the service's back.
 sqlx.workspace = true

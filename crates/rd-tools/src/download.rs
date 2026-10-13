@@ -30,10 +30,10 @@ use crate::{
 /// Hard ceiling on one tool download, whatever the manifest declares.
 ///
 /// A full ffmpeg build is around 100 MB; half a gigabyte is generous and still bounded.
-pub const MAX_TOOL_BYTES: u64 = 512 * 1024 * 1024;
+pub(crate) const MAX_TOOL_BYTES: u64 = 512 * 1024 * 1024;
 
 /// How long one tool download may take in total.
-pub const DOWNLOAD_TIMEOUT_SECONDS: u64 = 900;
+pub(crate) const DOWNLOAD_TIMEOUT_SECONDS: u64 = 900;
 
 /// Largest amount this will unpack out of one archive, so a decompression bomb cannot expand
 /// into the data directory.
@@ -41,12 +41,12 @@ pub const DOWNLOAD_TIMEOUT_SECONDS: u64 = 900;
 /// A budget for the whole archive rather than a per-member cap: a thousand members just under
 /// a per-member limit fill a disk exactly as well as one member over it, and an xz stream
 /// says nothing trustworthy about how much it expands to until it has been expanded.
-pub const MAX_UNPACKED_BYTES: u64 = MAX_TOOL_BYTES;
+pub(crate) const MAX_UNPACKED_BYTES: u64 = MAX_TOOL_BYTES;
 
 /// Downloads `entry`, verifies its hash and lays the executables out in `staging`.
 ///
 /// On any failure the caller discards the staging directory; nothing here promotes anything.
-pub async fn fetch_into(
+pub(crate) async fn fetch_into(
     client: &reqwest::Client,
     entry: &ToolEntry,
     staging: &Path,

@@ -5,21 +5,19 @@
 //! `BODY` is answered `RTT` after it arrives and written at `RATE` on its connection, which
 //! is the shape of a line whose latency and per-connection throughput are both bounded. The
 //! number is only comparable with itself - the same command on the code before and after a
-//! change - and that is what it is for. Ignored by default because it takes seconds and
-//! prints rather than asserts:
+//! change - and that is what it is for. It takes seconds and prints rather than asserts, so it
+//! is no test but the example `usenet_bench` (RD-1280-22), built with the feature `bench` that
+//! compiles this module and the fixture into the library:
 //!
 //! ```bash
-//! cargo nextest run -p rd-usenet --run-ignored ignored-only -E 'test(fixture_throughput)' --no-capture
+//! cargo run --release -p rd-usenet --features bench --example usenet_bench -- fixture
 //! ```
 //!
 //! `RD_BENCH_RTT_MS` and `RD_BENCH_RATE_MIB` override the line: `RD_BENCH_RTT_MS=1
 //! RD_BENCH_RATE_MIB=0` is a link so fast that the disk is what remains.
 //!
-//! `parallel_files_sweep` (RD-130-22) is the measurement for the number of files at once:
-//!
-//! ```bash
-//! cargo nextest run -p rd-usenet --run-ignored ignored-only -E 'test(parallel_files_sweep)' --no-capture
-//! ```
+//! `many_small_files` is `-- small-files`, and `sweep::parallel_files_sweep` (RD-130-22), the
+//! measurement for the number of files at once, is `-- sweep`.
 
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
@@ -33,7 +31,7 @@ use crate::{
     },
 };
 
-mod sweep;
+pub mod sweep;
 
 const CONNECTIONS: u16 = 10;
 const ARTICLES: usize = 200;
@@ -48,9 +46,8 @@ fn setting(name: &str, default: u64) -> u64 {
         .unwrap_or(default)
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "prints a throughput number; run on purpose, on a quiet machine"]
-async fn fixture_throughput() {
+/// The article set through the worker path; prints the throughput.
+pub async fn fixture_throughput() {
     let directory = tempfile::tempdir().expect("temporary directory");
     let database = Database::open(directory.path().join("bench.sqlite"))
         .await
@@ -153,11 +150,9 @@ const SMALL_ARTICLE_BYTES: usize = 192 * 1024;
 /// connection setup, and the connections opened say why.
 ///
 /// ```bash
-/// cargo nextest run -p rd-usenet --run-ignored ignored-only -E 'test(many_small_files)' --no-capture
+/// cargo run --release -p rd-usenet --features bench --example usenet_bench -- small-files
 /// ```
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "prints two throughput numbers; run on purpose, on a quiet machine"]
-async fn many_small_files() {
+pub async fn many_small_files() {
     let rtt = Duration::from_millis(setting("RD_BENCH_RTT_MS", DEFAULT_RTT_MS));
     let rate_mib = setting("RD_BENCH_RATE_MIB", DEFAULT_RATE_MIB);
     for pool_per_file in [true, false] {

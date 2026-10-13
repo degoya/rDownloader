@@ -21,7 +21,7 @@ export const COLOR_PALETTES = {
   amber: { primary: 'amber', neutral: 'stone' }
 } as const satisfies Record<string, { primary: keyof typeof colors, neutral: keyof typeof colors } | null>
 
-export type ColorPalette = keyof typeof COLOR_PALETTES
+type ColorPalette = keyof typeof COLOR_PALETTES
 
 export const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950] as const
 

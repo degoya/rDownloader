@@ -35,6 +35,9 @@ pub(crate) fn validate_manifest(manifest: &PluginManifest) -> Result<()> {
         }
         .into());
     }
+    if manifest.api_version.trim().is_empty() {
+        bail!("plugin api_version is required");
+    }
     if !SUPPORTED_API_VERSIONS.contains(&manifest.api_version.as_str()) {
         return Err(ManifestRejection::Unknown {
             kind: "api_version",

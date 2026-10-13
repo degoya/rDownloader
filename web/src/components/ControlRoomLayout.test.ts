@@ -16,22 +16,20 @@
  * is a browser matter and is not claimed here.
  */
 import { provideDashboardContext, useDashboard } from '@nuxt/ui/utils/dashboard'
-import { fireEvent, render, screen } from '@testing-library/vue'
+import { fireEvent, screen } from '@testing-library/vue'
 import axe from 'axe-core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 import { computed, defineComponent, nextTick, ref, toRef } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn()
-}))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })), responseError: vi.fn() }))
 // Both pull in `@nuxt/ui/composables`, which needs the `#imports` alias.
 vi.mock('@/composables/useAppShortcuts', () => ({ useAppShortcuts: () => {} }))
 // The update dialog asks through useConfirm, which Nuxt UI's overlay backs; the tests never confirm.
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn() }))
+vi.mock('@/composables/useConfirm', () => confirmMock(vi.fn()))
 // The update dialog's copy button reports a refused clipboard with a toast.
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
 vi.mock('./CaptchaDialog.vue', () => ({ default: { template: '<div />' } }))
 // The restart line subscribes to the event stream, which jsdom has no EventSource for (RD-1240-32).
 vi.mock('./RestartNotice.vue', () => ({ default: { template: '<div />' } }))
@@ -51,7 +49,7 @@ import ControlRoomLayout from './ControlRoomLayout.vue'
 import { i18n, SUPPORTED_LOCALES } from '@/i18n'
 import { sidebarCollapsed } from '@/composables/sidebarCollapse'
 import { SETTINGS_SECTION_GROUPS } from '@/settingsSections'
-import { passthrough } from '@/test/mount'
+import { mountComponent, passthrough } from '@/test/mount'
 
 /** Mirrors `@nuxt/ui`'s `DashboardSidebar`: provides the context, exposes `collapsed` as a model. */
 const UDashboardSidebar = defineComponent({
@@ -125,27 +123,23 @@ function mountLayout() {
   })
   return {
     router,
-    ...render(ControlRoomLayout, {
-      global: {
-        plugins: [router, i18n],
-        stubs: {
-          LiveAnnouncer: true,
-          NzbDropOverlay: true,
-          SearchPalette: true,
-          TransferRail: true,
-          UButton: { template: '<button type="button" v-bind="$attrs" />' },
-          UDashboardGroup: passthrough,
-          UDashboardSidebar,
-          UDashboardSidebarCollapse,
-          UDashboardSearchButton: { props: ['label', 'collapsed', 'tooltip'], template: '<button type="button">{{ label }}</button>' },
-          UDropdownMenu: passthrough,
-          UIcon: { template: '<span aria-hidden="true" />' },
-          ULink: passthrough,
-          UNavigationMenu,
-          USelect: { props: ['modelValue', 'items', 'size', 'icon'], template: '<select v-bind="$attrs" />' },
-          USeparator: { template: '<div role="separator" v-bind="$attrs" />' },
-          UTooltip: passthrough
-        }
+    ...mountComponent(ControlRoomLayout, {
+      i18n,
+      plugins: [router],
+      stubs: {
+        LiveAnnouncer: true,
+        NzbDropOverlay: true,
+        SearchPalette: true,
+        TransferRail: true,
+        UButton: { template: '<button type="button" v-bind="$attrs" />' },
+        UDashboardGroup: passthrough,
+        UDashboardSidebar,
+        UDashboardSidebarCollapse,
+        UDashboardSearchButton: { props: ['label', 'collapsed', 'tooltip'], template: '<button type="button">{{ label }}</button>' },
+        UDropdownMenu: passthrough,
+        ULink: passthrough,
+        UNavigationMenu,
+        USelect: { props: ['modelValue', 'items', 'size', 'icon'], template: '<select v-bind="$attrs" />' }
       }
     })
   }

@@ -187,6 +187,19 @@ every code your `en.json` does (`locales_required`), instantiates the component 
 world its type declares, and — for a resolver (`match_url`) or a folder crawler (`claims_url`) —
 asks the component itself whether it wrongly claims a link on a host nobody declares.
 
+Every other type but OAuth answers one question of its own, without a network: a notifier
+refuses an empty destination (`notifier_empty_destination`), a sign-in begun without credentials
+authorizes nobody (`auth_no_credentials`), an intake parser proposes nothing for text it does not
+read (`intake_unknown_input`), a transfer backend refuses a scheme it does not declare
+(`transfer_undeclared_scheme`), a storage destination confirms no upload it could not reach
+(`storage_unreached_verify`), a remote-job plugin claims a `.torrent` or an `.nzb` exactly when
+`[extension] containers` declares it (`remote_job_containers`), and an enricher, a
+post-processing step and a stream transform answer an empty input with an empty result rather
+than a failure (`enricher_empty_input`, `postprocess_empty_input`,
+`stream_transform_empty_input`). A trap is never a refusal. The wiki's
+[Developing a plugin](https://github.com/degoya/rDownloader/wiki/developing-a-plugin#conformance)
+page has the table.
+
 It does **not** check that your plugin resolves a real link. That needs a hoster, an account and
 a network, none of which belong in a conformance run. A package that passes every check can
 still be wrong about its provider; the report says what was verified, not that the plugin is

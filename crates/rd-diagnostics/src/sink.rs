@@ -20,19 +20,19 @@ use tokio::task::JoinHandle;
 use crate::capture::LogStream;
 
 /// Records per writer command.
-pub const FLUSH_BATCH: usize = 200;
+pub(crate) const FLUSH_BATCH: usize = 200;
 /// How long a record waits in the buffer at most.
 pub const FLUSH_INTERVAL: Duration = Duration::from_millis(250);
 /// How often the sweep runs regardless of traffic.
-pub const SWEEP_INTERVAL: Duration = Duration::from_secs(60);
+pub(crate) const SWEEP_INTERVAL: Duration = Duration::from_secs(60);
 /// A sweep also runs after this many records since the last one.
-pub const SWEEP_AFTER_RECORDS: u64 = 2_000;
+pub(crate) const SWEEP_AFTER_RECORDS: u64 = 2_000;
 /// Rows one prune command removes at most.
 pub const PRUNE_BATCH: u64 = 2_000;
 /// Audit rows one prune command removes at most. Smaller than the log batch on purpose: the
 /// audit log is orders of magnitude quieter, so a sweep has little to do and there is no
 /// reason for it to hold the writer for as long.
-pub const AUDIT_PRUNE_BATCH: u64 = 500;
+pub(crate) const AUDIT_PRUNE_BATCH: u64 = 500;
 
 /// Starts the sink for the life of the process. It ends when every sender is gone.
 pub fn spawn(stream: LogStream, database: Database) -> JoinHandle<()> {
@@ -167,7 +167,10 @@ async fn sweep_history(database: &Database) {
 ///
 /// A record is removed *whole* — the table has no update path at all (migration `0079`
 /// aborts one), so "retention" here can only mean deleting old rows and never editing them.
-pub async fn prune_audit(database: &Database, settings: &AuditRetentionSettings) -> Result<u64> {
+pub(crate) async fn prune_audit(
+    database: &Database,
+    settings: &AuditRetentionSettings,
+) -> Result<u64> {
     let older_than = Utc::now() - ChronoDuration::days(i64::from(settings.audit_retention_days));
     in_batches(|| {
         database.prune_audit_records(

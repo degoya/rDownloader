@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import type { DownloadPackage } from '@/api/types'
@@ -17,12 +18,8 @@ import PackageStartAfterModal from '@/components/PackageStartAfterModal.vue'
 import { pendingStartAfter, startAfterFields, startAfterMoment } from './usePackageStartAfter'
 
 const toasts = vi.hoisted(() => vi.fn())
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: toasts }), useOverlay: () => ({ create: vi.fn() }) }))
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(async () => ({ data: [] })), PUT: vi.fn() },
-  responseError: () => 'failed',
-  errorMessage: () => 'failed'
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: toasts }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: [] })), responseError: () => 'failed', errorMessage: () => 'failed' }))
 
 /** The modal's body and footer, which the shared `passthrough` stub leaves out. */
 const UModal = { template: '<div><slot name="body" /><slot name="footer" /></div>' }

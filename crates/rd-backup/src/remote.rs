@@ -63,7 +63,7 @@ fn text(config: &serde_json::Value, field: &str) -> Option<String> {
 /// Whether `remote` reads as an rclone `name:path`: a remote name, a colon, no flag and no
 /// control character.
 #[must_use]
-pub fn is_rclone_remote(remote: &str) -> bool {
+pub(crate) fn is_rclone_remote(remote: &str) -> bool {
     let remote = remote.trim();
     let Some((name, _)) = remote.split_once(':') else {
         return false;

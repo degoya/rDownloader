@@ -1,11 +1,7 @@
-manifest_version = 3
 plugin_type = "intake"
-api_version = "0.11.0"
 id = "019d0000-0000-7000-8000-000000000101"
 name = "Metalink"
-version = "0.10.9"
-key_id = "rdownloader-release-v1"
-public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
+version = "0.10.10"
 
 # Nothing granted. The parser reads the text it is handed and answers; a metalink carries
 # every address it needs, so there is nothing to fetch and no reason to reach the network.
@@ -18,10 +14,6 @@ claims = []
 
 [metadata]
 description = "Reads Metalink documents (.metalink, .meta4) and proposes the files they list."
-author = "DEGOYA.digital"
-homepage = "https://rdownloader.net"
-license = "MIT"
-min_app_version = "1.9.0"
 
 [limits]
 memory_bytes = 33554432

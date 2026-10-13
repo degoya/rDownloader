@@ -140,7 +140,13 @@
     "restore": "Wiederherstellen",
     "restore_title": "Version {version} wiederherstellen?",
     "restore_description": "Auslöser, Bedingung und Aktionen von Version {version} werden wieder die Definition von „{name}“, gespeichert als neue Version. Name und Aktiv-Schalter bleiben, wie sie sind.",
-    "restored": "Version {version} ist wieder in Kraft, gespeichert als Version {current}."
+    "restored": "Version {version} ist wieder in Kraft, gespeichert als Version {current}.",
+    "reset": "Versionen zurücksetzen",
+    "reset_title": "Versionen von „{name}“ zurücksetzen?",
+    "reset_versions": "{count} ältere Version | {count} ältere Versionen",
+    "reset_runs": "keine Läufe | {count} Lauf davon | {count} Läufe davon",
+    "reset_description": "{versions} und {runs} werden gelöscht. Version {version} bleibt, wird zu Version 1 und behält ihre eigenen Läufe. Das lässt sich nicht rückgängig machen.",
+    "reset_done": "Verlauf zurückgesetzt: {versions} und {runs} wurden gelöscht, die aktuelle Version ist jetzt Version 1."
   },
   "schedule": {
     "heading": "Zeitplan",

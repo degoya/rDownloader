@@ -11,7 +11,6 @@ use crate::{
 
 impl Database {
     /// Creates or advances one persistent postprocessing checkpoint.
-    #[allow(clippy::too_many_arguments)]
     pub async fn checkpoint_postprocess(
         &self,
         owner_id: String,
@@ -39,7 +38,7 @@ impl Database {
     /// Separate rather than two more parameters on every existing call: only the outcomes
     /// worth naming carry a code, and the rest should not have to say `None` twice
     /// (RD-107-04).
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub async fn checkpoint_postprocess_coded(
         &self,
         owner_id: String,
@@ -72,7 +71,7 @@ impl Database {
     ///
     /// Separate rather than a seventh parameter on every existing call: only plugin steps
     /// have a checkpoint to keep, and the built-in stages should not have to say `None`.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub async fn checkpoint_postprocess_with(
         &self,
         owner_id: String,

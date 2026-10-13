@@ -9,7 +9,7 @@ import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFormFocus } from '@/composables/useFormFocus'
-import { editingRowClass } from '@/utils/editingRow'
+import ProfileListRow from '@/components/settings/ProfileListRow.vue'
 import FormFeedback from '@/components/FormFeedback.vue'
 import {
   type AuthProfileForm,
@@ -174,54 +174,38 @@ async function confirmRemove(profile: AuthProfile): Promise<void> {
       </template>
 
       <template #list>
-        <div class="divide-y divide-muted border border-muted">
-          <div
+        <div v-if="profiles.length" class="divide-y divide-muted border border-muted">
+          <ProfileListRow
             v-for="profile in profiles"
             :key="profile.id"
-            class="flex flex-wrap items-center gap-3 p-3"
-            :class="editingRowClass(editingId === profile.id, 'outline')"
+            icon="i-lucide-shield-check"
+            :name="profile.name"
+            :subtitle="scopeLabel(profile)"
+            :editing="editingId === profile.id"
+            :busy="busyId === profile.id"
             data-profile-row
+            @test="test(profile.id)"
+            @edit="startEdit(profile)"
+            @remove="confirmRemove(profile)"
           >
-            <UAvatar icon="i-lucide-shield-check" color="primary" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-highlighted">{{ profile.name }}</p>
-              <p class="truncate font-mono text-2xs text-muted">{{ scopeLabel(profile) }}</p>
-            </div>
-            <UBadge v-if="editingId === profile.id" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
-            <UBadge color="neutral" variant="subtle">{{ profile.method }}</UBadge>
-            <UBadge v-if="isExpired(profile)" color="warning" variant="subtle">{{ t('settings.auth_profiles.badge_expired') }}</UBadge>
-            <UBadge v-else-if="!profile.enabled" color="neutral" variant="outline">{{ t('settings.auth_profiles.badge_disabled') }}</UBadge>
-            <UIcon v-if="profile.has_client_certificate" name="i-lucide-file-badge" class="text-success" :title="t('settings.auth_profiles.badge_certificate')" />
-            <UIcon v-if="profile.origin === 'browser_capture'" name="i-lucide-globe" class="text-muted" :title="t('settings.auth_profiles.badge_captured')" />
-            <USwitch
-              :model-value="profile.enabled"
-              :aria-label="t('settings.auth_profiles.enabled_label')"
-              :loading="busyId === profile.id"
-              @update:model-value="setEnabled(profile.id, $event)"
-            />
-            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('common.actions.test')" :loading="busyId === profile.id" @click="test(profile.id)" />
-            <UButton
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-pencil"
-              :aria-label="t('common.actions.edit')"
-              :title="t('common.actions.edit')"
-              @click="startEdit(profile)"
-            />
-            <UButton
-              size="xs"
-              color="error"
-              variant="ghost"
-              icon="i-lucide-trash-2"
-              :aria-label="t('common.actions.delete')"
-              :title="t('common.actions.delete')"
-              :loading="busyId === profile.id"
-              @click="confirmRemove(profile)"
-            />
-          </div>
-          <p v-if="!loading && !profiles.length" class="p-5 text-center text-sm text-muted">{{ t('settings.auth_profiles.empty') }}</p>
+            <template #badges>
+              <UBadge color="neutral" variant="subtle">{{ profile.method }}</UBadge>
+              <UBadge v-if="isExpired(profile)" color="warning" variant="subtle">{{ t('settings.auth_profiles.badge_expired') }}</UBadge>
+              <UBadge v-else-if="!profile.enabled" color="neutral" variant="outline">{{ t('settings.auth_profiles.badge_disabled') }}</UBadge>
+              <UIcon v-if="profile.has_client_certificate" name="i-lucide-file-badge" class="text-success" :title="t('settings.auth_profiles.badge_certificate')" />
+              <UIcon v-if="profile.origin === 'browser_capture'" name="i-lucide-globe" class="text-muted" :title="t('settings.auth_profiles.badge_captured')" />
+            </template>
+            <template #controls>
+              <USwitch
+                :model-value="profile.enabled"
+                :aria-label="t('settings.auth_profiles.enabled_label')"
+                :loading="busyId === profile.id"
+                @update:model-value="setEnabled(profile.id, $event)"
+              />
+            </template>
+          </ProfileListRow>
         </div>
+        <UEmpty v-else-if="!loading" :description="t('settings.auth_profiles.empty')" />
       </template>
     </FormListLayout>
   </UCard>

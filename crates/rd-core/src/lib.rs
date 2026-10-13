@@ -48,6 +48,7 @@ mod storage;
 mod stream;
 mod stream_schedule;
 mod subscription;
+pub mod text;
 mod timing;
 mod toolpath;
 mod torrent;

@@ -378,7 +378,7 @@ async fn roll_back_partial_package(
 
 impl SchedulerHandle {
     /// Adds a direct URL with an explicit account and/or job proxy selection.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub async fn enqueue_direct_to_with_network(
         &self,
         source: Url,
@@ -423,7 +423,7 @@ impl SchedulerHandle {
         .await
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     async fn enqueue(
         &self,
         source: Url,

@@ -54,13 +54,3 @@ fn a_name_out_of_somebody_elses_attribute_block_cannot_be_a_path() {
     assert_eq!(clean(Some("  . ")), None);
     assert_eq!(clean(None), None);
 }
-
-/// The file limit is the host's `MAX_CRAWLED_LINKS`, not a number of this plugin's own. It
-/// cannot be imported here -- a guest links nothing outside `rdownloader:plugin` -- so it is
-/// written down, and `mega_contract.rs` holds the two against each other over the real
-/// component, where the host's constant is in scope.
-#[test]
-fn the_limits_are_the_ones_the_manifest_was_written_for() {
-    assert_eq!(MAX_FILES, 1_000);
-    assert_eq!(MAX_DEPTH, 32);
-}

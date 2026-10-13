@@ -13,12 +13,8 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use rd_core::failpoint::FailpointGuard;
 use rd_plugin_host::{PluginManifest, TransferBackend};
+use rd_testkit::payload;
 use tokio_util::sync::CancellationToken;
-
-/// Every byte says where it belongs, so a resume at the wrong offset cannot look right.
-fn payload(len: usize) -> Vec<u8> {
-    (0..len).map(|index| (index % 251) as u8).collect()
-}
 
 fn limits() -> rd_scheduler::RunLimits {
     rd_scheduler::RunLimits {

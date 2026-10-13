@@ -35,7 +35,7 @@ pub struct EncryptedSecrets {
     pub ciphertext: String,
 }
 
-pub async fn encrypt_secrets(
+pub(crate) async fn encrypt_secrets(
     passphrase: &str,
     secrets: &BTreeMap<String, String>,
 ) -> Result<EncryptedSecrets, ApiError> {
@@ -75,7 +75,7 @@ pub async fn encrypt_secrets(
 /// The bundle records the key's salt as its own, with the same parameters, so
 /// [`decrypt_secrets`] opens it with the passphrase the backup key was derived from — a restore
 /// asks for the passphrase again and needs nothing else.
-pub fn encrypt_secrets_with_key(
+pub(crate) fn encrypt_secrets_with_key(
     key: &rd_backup::BackupKey,
     secrets: &BTreeMap<String, String>,
 ) -> Result<EncryptedSecrets, ApiError> {
@@ -107,7 +107,7 @@ pub fn encrypt_secrets_with_key(
     })
 }
 
-pub async fn decrypt_secrets(
+pub(crate) async fn decrypt_secrets(
     passphrase: &str,
     encrypted: &EncryptedSecrets,
 ) -> Result<BTreeMap<String, String>, ApiError> {

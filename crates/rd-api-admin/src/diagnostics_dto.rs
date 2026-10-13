@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
 /// Records one read returns at most; the default when `limit` is absent is 200.
-pub const MAX_LOG_PAGE: u32 = 500;
-pub const DEFAULT_LOG_PAGE: u32 = 200;
+pub(crate) const MAX_LOG_PAGE: u32 = 500;
+pub(crate) const DEFAULT_LOG_PAGE: u32 = 200;
 
 /// The filters of `GET /api/v1/diagnostics/logs`. Every one is optional.
 #[derive(Debug, Default, Deserialize, IntoParams)]

@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { confirmMock, eventStreamMock } from '@/test/mocks'
 
 import type { PluginRepository } from '@/api/pluginRepositories'
 import pluginsCatalogue from '@/locales/en/plugins.json'
@@ -25,8 +26,8 @@ vi.mock('@/api/pluginRepositories', async importOriginal => ({
   setRefreshHours: vi.fn()
 }))
 const confirmed = vi.fn<(options: Record<string, unknown>) => Promise<boolean>>()
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useConfirm', () => confirmMock((...args: never[]) => (confirmed as (...args: never[]) => unknown)(...args)))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 vi.mock('@/i18n', () => ({
   i18n: { global: { d: (value: Date) => value.toISOString(), t: (key: string) => key } }
 }))

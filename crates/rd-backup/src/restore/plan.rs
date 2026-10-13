@@ -230,7 +230,7 @@ pub async fn plan_paths(
 }
 
 /// The torrent session file below the unpacked `torrent-session` folder.
-pub const SESSION_FILE: &str = "session.json";
+pub(crate) const SESSION_FILE: &str = "session.json";
 
 /// What the torrent session holds, and what a remap made of it.
 #[derive(Clone, Debug, Default)]

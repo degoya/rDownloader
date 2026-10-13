@@ -44,7 +44,7 @@ pub fn open_artifact(plan: &Plan) -> Result<fs::File, InstallError> {
 ///
 /// `update.digest_mismatch` when size or SHA-256 differ, `update.download_failed` when the file
 /// cannot be read.
-pub fn open_checked(
+pub(crate) fn open_checked(
     path: &Path,
     sha256: &str,
     size: Option<u64>,
@@ -165,7 +165,7 @@ pub fn keep_installer(journal: &Journal) -> Result<()> {
 }
 
 /// Beside a kept installer: its SHA-256 as the update that installed it checked it.
-pub const INSTALLER_DIGEST_SUFFIX: &str = ".sha256";
+pub(crate) const INSTALLER_DIGEST_SUFFIX: &str = ".sha256";
 
 fn digest_path(installer: &Path) -> PathBuf {
     let mut name = installer.as_os_str().to_owned();

@@ -223,7 +223,7 @@ pub(crate) async fn schema_on(
 pub async fn copy_schema(copy: &Path) -> Result<CopySchema> {
     let mut connection = open_read_only(copy).await?;
     let schema = schema_on(&mut connection, &crate::MIGRATOR).await;
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     schema
 }
 
@@ -236,7 +236,7 @@ pub async fn copy_schema(copy: &Path) -> Result<CopySchema> {
 pub async fn migrate_copy(copy: &Path) -> Result<CopySchema> {
     let mut connection = open_writable(copy).await?;
     let schema = schema_on(&mut connection, &crate::MIGRATOR).await?;
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     if schema.is_newer() {
         anyhow::bail!(
             "the database copy was written by a newer rDownloader (migrations {:?})",
@@ -292,7 +292,7 @@ pub async fn copy_counts(copy: &Path) -> Result<CopyCounts> {
         accounts: count(&mut connection, "SELECT COUNT(*) FROM accounts").await?,
         hotfolders: count(&mut connection, "SELECT COUNT(*) FROM hotfolders").await?,
     };
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     Ok(counts)
 }
 
@@ -321,7 +321,7 @@ pub async fn read_cells(copy: &Path, columns: &[CopyColumn]) -> Result<Vec<Vec<C
                 .collect(),
         );
     }
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     Ok(all)
 }
 
@@ -358,7 +358,7 @@ pub async fn apply_updates(copy: &Path, updates: &[CopyUpdate]) -> Result<()> {
         );
     }
     transaction.commit().await?;
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     Ok(())
 }
 
@@ -377,7 +377,7 @@ pub async fn clear_backup_key(copy: &Path) -> Result<()> {
     .execute(&mut connection)
     .await
     .context("clear the copy's backup key")?;
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     Ok(())
 }
 
@@ -393,7 +393,7 @@ pub async fn backup_key_of(copy: &Path) -> Result<Option<(String, String)>> {
             .fetch_optional(&mut connection)
             .await
             .context("read the copy's backup key")?;
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     Ok(row.and_then(|(fingerprint, reference)| fingerprint.zip(reference)))
 }
 
@@ -418,7 +418,7 @@ pub async fn dangling_references(copy: &Path) -> Result<Vec<DanglingReference>> 
         .fetch_all(&mut connection)
         .await
         .context("check the copy's references")?;
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     let mut found: Vec<DanglingReference> = Vec::new();
     for (table, _, parent, _) in rows {
         match found
@@ -451,7 +451,7 @@ pub async fn unfinished_destinations(copy: &Path) -> Result<Vec<String>> {
     .fetch_all(&mut connection)
     .await
     .context("read the unfinished downloads' folders")?;
-    connection.close().await.ok();
+    crate::helpers::close_quietly(connection).await;
     Ok(rows)
 }
 

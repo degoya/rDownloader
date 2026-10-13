@@ -45,11 +45,11 @@ pub const KEPT: usize = 3;
 /// The database copy could not be written.
 pub const COPY_FAILED: &str = "update.copy_failed";
 /// The database copy was written but did not pass its check.
-pub const COPY_DAMAGED: &str = "update.copy_damaged";
+pub(crate) const COPY_DAMAGED: &str = "update.copy_damaged";
 /// The archive was sealed but did not open again under its key, or its digest changed.
-pub const ARCHIVE_DAMAGED: &str = "update.archive_damaged";
+pub(crate) const ARCHIVE_DAMAGED: &str = "update.archive_damaged";
 /// The archive could not be moved into the folder.
-pub const ARCHIVE_FAILED: &str = "update.archive_failed";
+pub(crate) const ARCHIVE_FAILED: &str = "update.archive_failed";
 
 const STAGING: &str = "staging";
 const PARTIAL: &str = ".partial";
@@ -94,13 +94,6 @@ pub fn directory(data_directory: &Path) -> PathBuf {
     data_directory.join(DIRECTORY)
 }
 
-fn failure(code: &'static str, detail: impl Into<String>) -> BackupError {
-    BackupError {
-        code,
-        detail: detail.into(),
-    }
-}
-
 /// Whether a version may become part of a file name: what a version string needs and nothing
 /// that could leave the folder.
 #[must_use]
@@ -125,40 +118,40 @@ pub async fn copy_database(
 ) -> Result<VerifiedCopy, BackupError> {
     let _folder = FOLDER_LOCK.lock().await;
     if !is_version(plan.from_version) || !is_version(plan.target_version) {
-        return Err(failure(
+        return Err(BackupError::new(
             COPY_FAILED,
             "a version is not usable in a file name",
         ));
     }
     let folder = directory(plan.data_directory);
-    private_folder(&folder)
-        .await
-        .map_err(|error| failure(COPY_FAILED, format!("create {}: {error}", folder.display())))?;
+    private_folder(&folder).await.map_err(|error| {
+        BackupError::new(COPY_FAILED, format!("create {}: {error}", folder.display()))
+    })?;
     let name = rd_db::pre_migration::copy_name(plan.from_version, plan.target_version, plan.at);
     let partial = folder.join(format!("{name}{PARTIAL}"));
     database
         .snapshot_into(&partial)
         .await
-        .map_err(|error| failure(COPY_FAILED, format!("{error:#}")))?;
-    sync(&partial)
-        .await
-        .map_err(|error| failure(COPY_FAILED, format!("sync {}: {error}", partial.display())))?;
+        .map_err(|error| BackupError::new(COPY_FAILED, format!("{error:#}")))?;
+    sync(&partial).await.map_err(|error| {
+        BackupError::new(COPY_FAILED, format!("sync {}: {error}", partial.display()))
+    })?;
     // The copy is on disk under its `.partial` name and has not been checked: a stop from here
     // on leaves it for the sweep, never under the name a copy is trusted by.
-    rd_core::failpoint!("pre_update.before_copy_published", || failure(
+    rd_core::failpoint!("pre_update.before_copy_published", || BackupError::new(
         "backup.interrupted",
         "crash point"
     ));
     rd_db::snapshot::check_integrity(&partial)
         .await
-        .map_err(|error| failure(COPY_DAMAGED, format!("{error:#}")))?;
+        .map_err(|error| BackupError::new(COPY_DAMAGED, format!("{error:#}")))?;
     let schema = rd_db::restore_copy::copy_schema(&partial)
         .await
-        .map_err(|error| failure(COPY_DAMAGED, format!("{error:#}")))?;
+        .map_err(|error| BackupError::new(COPY_DAMAGED, format!("{error:#}")))?;
     let schema_version = match schema.applied {
         Some(applied) if schema.pending == 0 && !schema.is_newer() => applied,
         _ => {
-            return Err(failure(
+            return Err(BackupError::new(
                 COPY_DAMAGED,
                 format!(
                     "the copy is not at the schema this version runs on (applied {:?}, {} \
@@ -170,11 +163,11 @@ pub async fn copy_database(
     };
     let counts = rd_db::restore_copy::copy_counts(&partial)
         .await
-        .map_err(|error| failure(COPY_DAMAGED, format!("{error:#}")))?;
+        .map_err(|error| BackupError::new(COPY_DAMAGED, format!("{error:#}")))?;
     let path = folder.join(&name);
-    tokio::fs::rename(&partial, &path)
-        .await
-        .map_err(|error| failure(COPY_FAILED, format!("publish {}: {error}", path.display())))?;
+    tokio::fs::rename(&partial, &path).await.map_err(|error| {
+        BackupError::new(COPY_FAILED, format!("publish {}: {error}", path.display()))
+    })?;
     let size_bytes = tokio::fs::metadata(&path)
         .await
         .map(|metadata| metadata.len())
@@ -208,11 +201,11 @@ pub async fn seal_archive(
     // Anything an earlier stop left there is no archive anybody has.
     sweep_staging(&staging)
         .await
-        .map_err(|error| failure(ARCHIVE_FAILED, format!("{error:#}")))?;
+        .map_err(|error| BackupError::new(ARCHIVE_FAILED, format!("{error:#}")))?;
     // The staging holds an unencrypted copy of the database until the archive is sealed.
     for private in [&folder, &staging] {
         private_folder(private).await.map_err(|error| {
-            failure(
+            BackupError::new(
                 ARCHIVE_FAILED,
                 format!("create {}: {error}", private.display()),
             )
@@ -222,18 +215,18 @@ pub async fn seal_archive(
     let checked = {
         let path = sealed.path.clone();
         let key = BackupKey::from_stored(key.key_bytes(), &key.salt())
-            .map_err(|error| failure(ARCHIVE_DAMAGED, format!("{error:#}")))?;
+            .map_err(|error| BackupError::new(ARCHIVE_DAMAGED, format!("{error:#}")))?;
         tokio::task::spawn_blocking(move || -> anyhow::Result<(u64, String)> {
             let digest = digest_file(&path)?;
             archive::verify_archive(&path, &key)?;
             Ok(digest)
         })
         .await
-        .map_err(|error| failure(ARCHIVE_DAMAGED, error.to_string()))?
-        .map_err(|error| failure(ARCHIVE_DAMAGED, format!("{error:#}")))?
+        .map_err(|error| BackupError::new(ARCHIVE_DAMAGED, error.to_string()))?
+        .map_err(|error| BackupError::new(ARCHIVE_DAMAGED, format!("{error:#}")))?
     };
     if checked != (sealed.size_bytes, sealed.sha256.clone()) {
-        return Err(failure(
+        return Err(BackupError::new(
             ARCHIVE_DAMAGED,
             format!(
                 "{} holds {} bytes with SHA-256 {}; {} bytes with {} were sealed",
@@ -247,7 +240,7 @@ pub async fn seal_archive(
     }
     // Checked and complete in staging, not yet in the folder: a stop here leaves it for the
     // sweep, and the folder never shows an archive that was not checked.
-    rd_core::failpoint!("pre_update.before_archive_published", || failure(
+    rd_core::failpoint!("pre_update.before_archive_published", || BackupError::new(
         "backup.interrupted",
         "crash point"
     ));
@@ -256,7 +249,7 @@ pub async fn seal_archive(
     tokio::fs::rename(&sealed.path, &path)
         .await
         .map_err(|error| {
-            failure(
+            BackupError::new(
                 ARCHIVE_FAILED,
                 format!("publish {}: {error}", path.display()),
             )

@@ -9,6 +9,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 
 import type { Account } from '@/api/types'
 import en from '@/locales/en/remote_jobs.json'
@@ -70,37 +71,35 @@ const confirmResult = vi.hoisted(() => ({ value: true }))
 const posts = vi.hoisted(() => [] as { path: string, init: unknown }[])
 const deletes = vi.hoisted(() => [] as string[])
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async (path: string) => {
-      if (path === '/api/v1/remote-jobs/providers') {
-        if (providersGate.value) await providersGate.value
-        return providers.value ? { data: providers.value } : { error: { code: 'x' } }
-      }
-      if (path === '/api/v1/collector/packages') return { data: collectorPackages.value }
-      if (path === '/api/v1/collector/candidates' || path === '/api/v1/nzb/imports') return { data: [] }
-      // The provider names the filter and *Clear list* show (`useAccountProviders`, RD-1200-01).
-      if (path === '/api/v1/providers' || path === '/api/v1/accounts') return { data: [] }
-      return { data: jobs.value }
-    }),
-    POST: vi.fn(async (path: string, init: unknown) => {
-      posts.push({ path, init })
-      if (path === '/api/v1/accounts/{id}/remote-jobs') {
-        const next = submitAnswers.shift()
-        if (typeof next === 'function') return await (next as () => Promise<unknown>)()
-        if (next) return next
-        return { data: { job: { ...WORKING, id: `j${posts.length + 2}`, source_kind: 'container' }, already_running: false } }
-      }
-      return { data: { ...ASKING, state: 'working' } }
-    }),
-    DELETE: vi.fn(async (path: string) => {
-      deletes.push(path)
-      return { data: { message: 'gone', code: 'remote_job.removed' } }
-    })
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async (path: string) => {
+    if (path === '/api/v1/remote-jobs/providers') {
+      if (providersGate.value) await providersGate.value
+      return providers.value ? { data: providers.value } : { error: { code: 'x' } }
+    }
+    if (path === '/api/v1/collector/packages') return { data: collectorPackages.value }
+    if (path === '/api/v1/collector/candidates' || path === '/api/v1/nzb/imports') return { data: [] }
+    // The provider names the filter and *Clear list* show (`useAccountProviders`, RD-1200-01).
+    if (path === '/api/v1/providers' || path === '/api/v1/accounts') return { data: [] }
+    return { data: jobs.value }
+  }),
+  POST: vi.fn(async (path: string, init: unknown) => {
+    posts.push({ path, init })
+    if (path === '/api/v1/accounts/{id}/remote-jobs') {
+      const next = submitAnswers.shift()
+      if (typeof next === 'function') return await (next as () => Promise<unknown>)()
+      if (next) return next
+      return { data: { job: { ...WORKING, id: `j${posts.length + 2}`, source_kind: 'container' }, already_running: false } }
+    }
+    return { data: { ...ASKING, state: 'working' } }
+  }),
+  DELETE: vi.fn(async (path: string) => {
+    deletes.push(path)
+    return { data: { message: 'gone', code: 'remote_job.removed' } }
+  }),
   responseError: (response: { error?: { code?: string } }) => response.error?.code ?? 'failed'
 }))
-vi.mock('@/composables/useEventStream', () => ({ subscribeEvents: () => () => {} }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock())
 /** The route the filter reads and writes (`useRemoteJobsFilter`, RD-1200-01), reactive like the real one. */
 const router = vi.hoisted(() => ({
   route: null as unknown as { path: string, hash: string, query: Record<string, string | undefined> },
@@ -114,10 +113,7 @@ vi.mock('vue-router', async () => {
   })
   return { useRoute: () => router.route, useRouter: () => ({ replace: router.replace }) }
 })
-vi.mock('@nuxt/ui/composables', () => ({
-  useToast: () => ({ add: vi.fn() }),
-  useOverlay: () => ({ create: () => ({ open: () => ({ result: Promise.resolve(confirmResult.value) }) }) })
-}))
+vi.mock('@nuxt/ui/composables', () => toastMock({ overlay: { open: () => ({ result: Promise.resolve(confirmResult.value) }) } }))
 
 function mount(accounts: Account[] = [ACCOUNT], installed: string[] | null = ['realdebrid', 'premiumize']) {
   posts.length = 0

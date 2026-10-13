@@ -3,7 +3,6 @@
 //! Redirect only. pCloud has no device flow, so `device-begin` and `device-poll` answer with a
 //! stable code rather than a trap — the world requires them to exist, and the manifest's
 //! `oauth_flows = ["redirect"]` means the host never calls them anyway.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use pcloud_common::address::Region;
 use plugin_guest_oauth::{

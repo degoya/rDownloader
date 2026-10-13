@@ -37,9 +37,15 @@ pub enum UpdateCommand {
     Manifest(ManifestCommand),
 }
 
-// `Build` carries every flag of the release step and `Verify` two paths; the value is parsed once
-// per command-line call, so boxing it would buy nothing.
-#[allow(clippy::large_enum_variant)]
+// `Build` carries every flag of the release step and `Verify` three paths; the value is parsed
+// once per command-line call, so boxing it would buy nothing.
+#[cfg_attr(
+    windows,
+    expect(
+        clippy::large_enum_variant,
+        reason = "`Build` outweighs `Verify` past the threshold only with Windows' larger `PathBuf`"
+    )
+)]
 #[derive(Subcommand)]
 pub enum ManifestCommand {
     /// Builds and signs the manifest of one release from its SHA256SUMS and files.
@@ -432,13 +438,12 @@ async fn verify(args: &VerifyArgs) -> Result<()> {
 
 /// Every listed artifact present in `directory` has its size and SHA-256.
 fn check_assets(verified: &UpdateManifest, directory: &Path) -> Result<()> {
-    use sha2::{Digest, Sha256};
     for artifact in verified.artifacts.iter().chain(&verified.agent_artifacts) {
         let name = artifact.url.rsplit('/').next().unwrap_or(&artifact.url);
         let path = directory.join(name);
         let bytes = std::fs::read(&path).with_context(|| format!("read {}", path.display()))?;
         if u64::try_from(bytes.len()).unwrap_or(u64::MAX) != artifact.size
-            || hex::encode(Sha256::digest(&bytes)) != artifact.sha256
+            || rd_sign::hex_sha256(&bytes) != artifact.sha256
         {
             bail!("{} does not match its manifest entry", path.display());
         }

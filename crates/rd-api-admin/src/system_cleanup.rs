@@ -36,7 +36,7 @@ use database::Pass;
 pub use database::{DatabaseCleanup, REWRITE_BUSY, REWRITE_FAILED, REWRITE_NO_SPACE};
 
 /// How long a start runs before its clean-up.
-pub const START_DELAY: Duration = Duration::from_secs(10 * 60);
+pub(crate) const START_DELAY: Duration = Duration::from_secs(10 * 60);
 /// How long the service waits between two clean-ups after that.
 pub const INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 

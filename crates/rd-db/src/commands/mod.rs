@@ -60,8 +60,6 @@ pub(crate) type Reply<T> = oneshot::Sender<Result<T>>;
 /// sign-in held.
 pub(crate) type ReleasedAccountRefs = ((Option<String>, Option<String>), Vec<String>);
 
-// Every message is as large as the largest command, as it was with one flat enum.
-#[allow(clippy::large_enum_variant)]
 pub(crate) enum WriterCommand {
     /// Closes the writer's connection and ends its task; every later command fails.
     Close {

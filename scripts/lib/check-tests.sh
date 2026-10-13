@@ -15,8 +15,19 @@
 # sets `test_packages_label`, `rd_api_lib`, `crash_packages` and the `*_skip_reason`s.
 
 rd_check_rust_tests() {
-    local crate binary batch_index batch_count crash_line
-    local -a args=() batch=() names=() crash_runs=() crash_run=()
+    rd_check_rust_tests_crates
+    rd_check_rust_tests_rd_api
+    rd_check_rust_tests_crash
+    rd_check_rust_tests_sqlx
+}
+
+# The named steps of rd_check_rust_tests (RD-1280-08), in its order.
+
+# The workspace but rd-api in a wide run; otherwise the touched crates and one level of reverse
+# dependencies, library and binaries.
+rd_check_rust_tests_crates() {
+    local crate
+    local -a args=()
     if [[ -n "$wide_reason" ]]; then
         step "tests (everything except rd-api) — $wide_reason"
         attempt run_tests --workspace --exclude rd-api
@@ -45,7 +56,12 @@ rd_check_rust_tests() {
             skip "integration tests of ${#dependant_packages[@]} reverse dependencies" "branch level"
         fi
     fi
+}
 
+# rd-api: its library, and the integration suites the scope selected, four binaries per batch.
+rd_check_rust_tests_rd_api() {
+    local binary batch_index batch_count
+    local -a batch=() names=()
     # rd-api is split out because its integration binaries each link the entire dependency
     # graph, and a plain `--workspace` run builds all of them at once. That has OOM-killed
     # WSL even at JOBS=2: lowering the job count does not make a single link cheaper, so
@@ -86,7 +102,12 @@ rd_check_rust_tests() {
         skip "$(( ${#rd_api_all[@]} - ${#rd_api_selected[@]} )) of ${#rd_api_all[@]} rd-api integration suites" \
             "${rd_api_skip_reason:-the change does not map to them ($RD_API_MAP)}"
     fi
+}
 
+# The crash and restart matrix, when the scope calls for it.
+rd_check_rust_tests_crash() {
+    local crash_line
+    local -a crash_runs=() crash_run=()
     if [[ "$failpoints" -eq 1 ]]; then
         step "crash and restart matrix"
         # Off in every other run, including the one above: with the feature disabled the
@@ -102,7 +123,10 @@ rd_check_rust_tests() {
     else
         skip "crash and restart matrix" "${crash_skip_reason:-none of ${crash_triggers[*]}, failpoint.rs, the recovery matrix or scripts/lib/crash-matrix.list changed}"
     fi
+}
 
+# The sqlx offline data, when an rd-db source or a .sql file changed.
+rd_check_rust_tests_sqlx() {
     if [[ "$sqlx" -eq 1 ]]; then
         step "sqlx offline data"
         if cargo sqlx --version > /dev/null 2>&1; then
@@ -110,7 +134,9 @@ rd_check_rust_tests() {
             attempt env SQLX_OFFLINE=true DATABASE_URL="${DATABASE_URL:-sqlite::memory:}" \
                 cargo sqlx prepare --check --workspace
         else
-            echo "    sqlx-cli not installed; skipping (install: cargo install sqlx-cli --version 0.9.0 \\"
+            # shellcheck source=tool-versions.sh
+            source "$ROOT/scripts/lib/tool-versions.sh"
+            echo "    sqlx-cli not installed; skipping (install: cargo install sqlx-cli --version $RD_SQLX_CLI_VERSION \\"
             echo "      --locked --no-default-features --features sqlite-unbundled)"
             skip "sqlx offline data" "sqlx-cli is not installed"
         fi

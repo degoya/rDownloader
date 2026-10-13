@@ -326,16 +326,9 @@ impl SolverCalls {
     }
 }
 
-/// Starts a stand-in for any 2captcha-compatible service and returns its base URL.
-async fn solver_service(router: Router) -> String {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        axum::serve(listener, router).await.expect("serve");
-    });
-    format!("http://{address}")
+/// Starts a stand-in for any 2captcha-compatible service; its `url("")` is the base URL.
+async fn solver_service(router: Router) -> rd_testkit::TestServer {
+    rd_testkit::serve(router).await
 }
 
 fn balance_service(calls: SolverCalls, response: Value) -> Router {
@@ -356,11 +349,12 @@ fn balance_service(calls: SolverCalls, response: Value) -> Router {
 async fn testing_the_solver_reports_the_balance_without_ever_sending_the_key_in_a_url() {
     let fixture = fixture().await;
     let calls = SolverCalls::default();
-    let endpoint = solver_service(balance_service(
+    let endpoint_server = solver_service(balance_service(
         calls.clone(),
         json!({ "errorId": 0, "balance": 12.5 }),
     ))
     .await;
+    let endpoint = endpoint_server.url("");
     let reference = fixture.store_key("secret-key").await;
     fixture
         .configure(json!({
@@ -394,11 +388,12 @@ async fn testing_the_solver_reports_the_balance_without_ever_sending_the_key_in_
 async fn an_unsaved_key_can_be_tested_before_it_is_stored() {
     let fixture = fixture().await;
     let calls = SolverCalls::default();
-    let endpoint = solver_service(balance_service(
+    let endpoint_server = solver_service(balance_service(
         calls.clone(),
         json!({ "errorId": 0, "balance": 3.0 }),
     ))
     .await;
+    let endpoint = endpoint_server.url("");
 
     let balance = fixture
         .broker
@@ -413,11 +408,12 @@ async fn an_unsaved_key_can_be_tested_before_it_is_stored() {
 #[tokio::test]
 async fn a_rejected_key_is_reported_as_the_users_problem_and_a_dead_service_as_ours() {
     let fixture = fixture().await;
-    let rejected = solver_service(balance_service(
+    let rejected_server = solver_service(balance_service(
         SolverCalls::default(),
         json!({ "errorId": 1, "errorCode": "ERROR_KEY_DOES_NOT_EXIST" }),
     ))
     .await;
+    let rejected = rejected_server.url("");
 
     let failure = fixture
         .broker
@@ -436,11 +432,12 @@ async fn a_rejected_key_is_reported_as_the_users_problem_and_a_dead_service_as_o
         "the UI needs the service's own wording to explain the refusal"
     );
 
-    let busy = solver_service(balance_service(
+    let busy_server = solver_service(balance_service(
         SolverCalls::default(),
         json!({ "errorId": 1, "errorCode": "ERROR_NO_SLOT_AVAILABLE" }),
     ))
     .await;
+    let busy = busy_server.url("");
     let failure = fixture
         .broker
         .test_solver(Some(busy), Some("fine".to_owned()))
@@ -492,7 +489,8 @@ async fn a_configured_solver_answers_a_widget_challenge_nobody_could_type() {
             ),
         )
         .with_state(calls.clone());
-    let endpoint = solver_service(router).await;
+    let endpoint_server = solver_service(router).await;
+    let endpoint = endpoint_server.url("");
     let reference = fixture.store_key("service-key").await;
     fixture
         .configure(json!({

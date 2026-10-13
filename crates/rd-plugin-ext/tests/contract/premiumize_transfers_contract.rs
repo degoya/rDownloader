@@ -905,56 +905,6 @@ async fn discard_deletes_one_transfer_and_never_clears_the_account() {
     );
 }
 
-/// Nothing that could be a credential, an account's real identifier or a live link is
-/// committed to the repository.
-#[test]
-fn fixtures_carry_no_credential_material() {
-    fn walk(value: &serde_json::Value, path: &std::path::Path) {
-        match value {
-            serde_json::Value::Object(fields) => {
-                for (name, inner) in fields {
-                    assert!(
-                        !matches!(
-                            name.as_str(),
-                            "apikey" | "api_key" | "access_token" | "token" | "customer_id"
-                        ),
-                        "{path:?} carries a `{name}` field"
-                    );
-                    if matches!(name.as_str(), "id" | "folder_id" | "file_id")
-                        && let Some(id) = inner.as_str()
-                    {
-                        assert!(id.starts_with("REDACTED"), "{path:?} carries a real id");
-                    }
-                    walk(inner, path);
-                }
-            }
-            serde_json::Value::Array(items) => {
-                for item in items {
-                    walk(item, path);
-                }
-            }
-            serde_json::Value::String(text) if text.starts_with("http") => {
-                assert!(
-                    text.contains("REDACTED"),
-                    "{path:?} carries a live link: {text}"
-                );
-            }
-            _ => {}
-        }
-    }
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/premiumize_transfers");
-    let mut checked = 0;
-    for entry in std::fs::read_dir(&directory).expect("the fixture directory") {
-        let path = entry.expect("a fixture").path();
-        let body = std::fs::read_to_string(&path).expect("a fixture");
-        let value: serde_json::Value = serde_json::from_str(&body).expect("fixture is JSON");
-        walk(&value, &path);
-        checked += 1;
-    }
-    assert!(checked >= 18, "only {checked} fixtures were checked");
-}
-
 fn torrent_query(magnet: &str) -> CacheQuery {
     CacheQuery {
         source: RemoteJobSource::Magnet(magnet.to_owned()),

@@ -218,3 +218,50 @@ fn an_invalid_account_is_announced_at_most_once_a_day() {
         "an unreachable provider says nothing about the account"
     );
 }
+
+/// RD-1280-02: a notice carries what its event's placeholders name, and the account by its label
+/// and provider only -- never the user name a rule's wording could otherwise put in a chat.
+#[test]
+fn a_notice_carries_its_placeholder_values_and_no_user_name() {
+    use rd_notify::Placeholder as P;
+    let failed =
+        Notice::plugin_update_failed("hoster", "Example Hoster", "2.1.0", "plugin.signature");
+    assert_eq!(failed.values.get(P::Plugin), "Example Hoster");
+    assert_eq!(failed.values.get(P::Version), "2.1.0");
+    assert_eq!(failed.values.get(P::Error), "plugin.signature");
+    let verify = Notice::backup_verify_failed("v-1", "a.rdbackup", "NAS", "backup.changed", "hash");
+    assert_eq!(verify.values.get(P::StorageTarget), "NAS");
+    assert_eq!(verify.values.get(P::Error), "hash");
+    assert_eq!(
+        Notice::update_installed("1.28.0", "1.27.3")
+            .values
+            .get(P::Version),
+        "1.28.0"
+    );
+
+    let invalid = Notice::account_invalid(&account(), "refused", day("2026-10-13"));
+    assert_eq!(invalid.values.get(P::Account), "Main (rapidgator)");
+    assert_eq!(invalid.values.get(P::Error), "refused");
+    let expiring = Notice::account_expiring(&account(), Some(day("2026-10-15")), day("2026-10-13"));
+    assert_eq!(expiring.values.get(P::Account), "Main (rapidgator)");
+    for notice in [invalid, expiring] {
+        for placeholder in P::ALL {
+            assert!(
+                !notice
+                    .values
+                    .get(placeholder)
+                    .contains("someone@example.test"),
+                "{placeholder:?}"
+            );
+        }
+        // Every value a notice carries is one its event fills.
+        for placeholder in P::ALL {
+            if !notice.values.get(placeholder).is_empty() {
+                assert!(
+                    notice.event.placeholders().contains(&placeholder),
+                    "{placeholder:?}"
+                );
+            }
+        }
+    }
+}

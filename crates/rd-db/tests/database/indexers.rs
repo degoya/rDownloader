@@ -2,14 +2,8 @@
 //! reference handed back for the vault, and a subscription's search parameters (RD-180-20).
 
 use rd_core::EventKind;
-use rd_db::{Database, NewIndexer, StoreErrorKind, store_kind};
+use rd_db::{NewIndexer, StoreErrorKind, store_kind};
 use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("indexers.sqlite"))
-        .await
-        .expect("database")
-}
 
 fn indexer(name: &str, secret_ref: Option<&str>) -> NewIndexer {
     NewIndexer {
@@ -25,7 +19,7 @@ fn indexer(name: &str, secret_ref: Option<&str>) -> NewIndexer {
 #[tokio::test]
 async fn an_indexer_round_trips_and_never_serialises_its_key_reference() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let mut events = database.subscribe();
 
     let created = database
@@ -49,7 +43,7 @@ async fn an_indexer_round_trips_and_never_serialises_its_key_reference() {
 #[tokio::test]
 async fn an_edit_without_a_key_keeps_it_and_a_new_key_hands_the_old_one_back() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let created = database
         .create_indexer(indexer("Example", Some("vault://first")))
         .await
@@ -82,7 +76,7 @@ async fn an_edit_without_a_key_keeps_it_and_a_new_key_hands_the_old_one_back() {
 #[tokio::test]
 async fn the_list_style_is_stored_and_changed_by_an_edit() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let created = database
         .create_indexer(indexer("Example", Some("vault://first")))
         .await
@@ -109,7 +103,7 @@ async fn the_list_style_is_stored_and_changed_by_an_edit() {
 #[tokio::test]
 async fn a_second_indexer_of_the_same_name_is_a_duplicate_and_an_unknown_one_is_not_found() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .create_indexer(indexer("Example", Some("vault://first")))
         .await
@@ -134,7 +128,7 @@ async fn a_second_indexer_of_the_same_name_is_a_duplicate_and_an_unknown_one_is_
 #[tokio::test]
 async fn a_subscription_keeps_its_search_parameters() {
     let directory = TempDir::new().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let search = rd_core::IndexerSearch {
         query: Some("some show !german".to_owned()),
         max_age_days: Some(14),

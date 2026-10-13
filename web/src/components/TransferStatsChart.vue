@@ -80,7 +80,7 @@ const accessibleLabel = computed(() => t('stats.chart.description', { peak: form
       </div>
       <span class="numeric text-lg font-semibold text-highlighted">{{ formatBytes(String(peak)) }}</span>
     </figcaption>
-    <p v-if="!bars.length" class="py-6 text-center text-sm text-muted">{{ t('stats.chart.empty') }}</p>
+    <UEmpty v-if="!bars.length" :description="t('stats.chart.empty')" />
     <svg
       v-else
       :viewBox="`0 0 ${WIDTH} ${HEIGHT}`"

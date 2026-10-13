@@ -14,18 +14,18 @@ use super::{RemoteJobService, tests::NoHost};
 /// Bytes no compiler takes. Nothing here may try.
 const NOT_A_COMPONENT: &[u8] = b"not a component";
 
-/// The bundled manifest of `plugins/<directory>`, read at run time (AGENTS.md: a test binary
-/// outlives the worktree that built it).
+/// The bundled manifest of `plugins/<directory>` as a package carries it, read at run time
+/// (AGENTS.md: a test binary outlives the worktree that built it): `plugins/metadata.toml`'s
+/// shared fields filled in (RD-1280-18), which loading an installed manifest validates.
 fn bundled_manifest(directory: &str) -> String {
     let crate_root =
         std::env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR at run time");
-    std::fs::read_to_string(
-        Path::new(&crate_root)
-            .join("../../plugins")
-            .join(directory)
-            .join("manifest.toml"),
-    )
-    .expect("the bundled manifest")
+    let plugins = Path::new(&crate_root).join("../../plugins");
+    let source = std::fs::read_to_string(plugins.join(directory).join("manifest.toml"))
+        .expect("the bundled manifest");
+    let defaults = rd_plugin_host::ManifestDefaults::read(&plugins.join("metadata.toml"))
+        .expect("the shared manifest fields");
+    rd_plugin_host::complete_manifest(&source, Some(&defaults), None).expect("a completed manifest")
 }
 
 /// Lays one package out the way the installer does, unsigned and with a component that is not

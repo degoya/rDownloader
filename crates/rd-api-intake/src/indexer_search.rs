@@ -43,13 +43,13 @@ pub use rd_subscription::IndexerSearchType;
 /// What stands in for the API key in an address handed to a client.
 ///
 /// Unreserved characters only, so it survives in a query and in a path segment unencoded.
-pub const KEY_PLACEHOLDER: &str = "rdownloader-indexer-key";
+pub(crate) const KEY_PLACEHOLDER: &str = "rdownloader-indexer-key";
 /// Results a search page asks for when the request names no limit.
 const DEFAULT_SEARCH_LIMIT: u32 = 100;
 /// Deepest offset a search may ask for; far beyond what any indexer pages through.
 const MAX_SEARCH_OFFSET: u32 = 100_000;
 /// Most hits one grab takes.
-pub const MAX_GRAB_ITEMS: usize = 50;
+pub(crate) const MAX_GRAB_ITEMS: usize = 50;
 /// How long one indexer may take to answer a search.
 const SEARCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 

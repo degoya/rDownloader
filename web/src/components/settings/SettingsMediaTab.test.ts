@@ -6,6 +6,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 import { defineComponent, h, reactive } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
@@ -19,7 +20,7 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsMediaTab from './SettingsMediaTab.vue'
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn(async () => ({ data: undefined })), POST: vi.fn() } }))
+vi.mock('@/api/client', () => apiClientMock({ GET: vi.fn(async () => ({ data: undefined })) }))
 
 const TABS = settingsMessages.subtabs.media
 

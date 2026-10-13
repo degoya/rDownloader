@@ -2253,6 +2253,24 @@ The regex editor (`RegexEditorModal.vue`) draws its pattern under the input as a
   valid pattern past the depth or node limit says so in one muted line (the code
   `category_rule.regex_structure_limits`).
 
+### Message Templates
+
+A notification rule's own title and text (`NotificationTemplateFields.vue`, RD-1280-02) are the
+pattern for any field a person fills with `{placeholder}` holes.
+
+- **Optional and said so.** Both fields start empty; the description says that empty sends the
+  built-in wording and how a placeholder and a literal brace are written. The list row of a rule
+  with its own wording carries a subtle *Own wording* badge.
+- **The service's table, not a copy.** The placeholders come from the service with a sample value
+  each; the editor offers only those the chosen events fill, as small outline mono buttons in a
+  named group, each titled with what it holds. A click appends it to the field last in focus.
+  When every chosen event keeps its own text (a burst summary), one muted line says so instead.
+- **A preview under the fields**, in a bordered box (`aria-live="polite"`), with the sample
+  values: a placeholder the chosen events do not fill is empty there as it will be in the
+  message, and a part left empty shows the built-in wording.
+- **Wrong before the save.** A name that is no placeholder or a brace out of place is the field's
+  error at once, in the words the service's refusal uses; the save is checked again.
+
 ### Empty States, Notices, Opening and Dividers
 
 The four building blocks the audit of 2026-10-05 found drawn by hand all over the interface are
@@ -2265,7 +2283,11 @@ Nuxt UI's (RD-1110-11):
   button in `actions`. `signal-grid` stays a class on the ones that carried it (the queue, the
   LinkGrabber, the Usenet servers and indexers); `DataState` frames its loading panel the same way,
   and what a caller hands it for "nothing here" is a `UEmpty` too, never a muted `<p>` — the guard
-  test counts the paragraph as `empty-paragraph` (RD-1120-14).
+  test counts the paragraph as `empty-paragraph` (RD-1120-14), and the same paragraph anywhere
+  else in place of an empty list as `empty-list-paragraph` (RD-1280-10). A muted line that tells
+  what an empty list means for the rest of a form is a hint, not an empty state, and stays a line
+  beside its control: no time span means downloads at any time, no step means the category runs
+  none, and a field with nothing to choose names where its first entry is added.
 - **No direction that only one layout keeps.** An empty state or a hint names no "above",
   "below", "left" or "right" that is true in one layout only: `FormListLayout` puts the form
   beside the list from `lg` and above it below `lg`, so it says "with the form"; something in

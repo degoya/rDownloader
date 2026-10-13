@@ -10,7 +10,6 @@
 //! restart story: `identify` derives the content key locally, so the host can write the row —
 //! and refuse a duplicate — before anything is handed over, and `adopt` is what finds a job
 //! whose submit answer never arrived.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_remote_job::{
     CacheAnswer, CacheKind, CacheQuery, Guest, JobSource, RemoteArtifact, RemoteHandle,

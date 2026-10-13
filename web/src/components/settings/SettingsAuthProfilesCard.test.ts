@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import common from '@/locales/en/common.json'
@@ -8,15 +9,14 @@ import { mountComponent, openablePopover } from '@/test/mount'
 
 import SettingsAuthProfilesCard from './SettingsAuthProfilesCard.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
+vi.mock('@/api/client', () => apiClientMock({
   responseError: vi.fn(() => 'The domain rejected the credential'),
   resultMessage: vi.fn(() => 'Auth profile deleted')
 }))
 
 /** Deleting asks for confirmation; the tests drive the answer. */
-const confirmed = vi.fn(async () => true)
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
+const confirmed = vi.hoisted(() => vi.fn(async () => true))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirmed))
 
 const en = settings.auth_profiles
 

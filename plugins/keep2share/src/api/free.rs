@@ -73,8 +73,8 @@ struct FileIdRequest<'a> {
 /// `POST /geturl {"file_id":"<id>"}` — the unauthenticated probe (see the module doc's assumption
 /// note). Answers with the download URL, with errorcode 30 ("send the captcha fields"), or with a
 /// limit error before any captcha has been paid for.
-pub(crate) fn geturl_probe_body(file_id: &str) -> Vec<u8> {
-    serde_json::to_vec(&FileIdRequest { file_id }).expect("FileIdRequest always serializes")
+pub(crate) fn geturl_probe_body(file_id: &str) -> Result<Vec<u8>, ApiFailure> {
+    super::json_body(&FileIdRequest { file_id })
 }
 
 /// `POST /requestcaptcha {}` — the endpoint takes an empty map.
@@ -90,13 +90,16 @@ struct CaptchaAnswerRequest<'a> {
 }
 
 /// `POST /geturl {"file_id":..,"captcha_challenge":..,"captcha_response":..}`.
-pub(crate) fn geturl_captcha_body(file_id: &str, challenge: &str, response: &str) -> Vec<u8> {
-    serde_json::to_vec(&CaptchaAnswerRequest {
+pub(crate) fn geturl_captcha_body(
+    file_id: &str,
+    challenge: &str,
+    response: &str,
+) -> Result<Vec<u8>, ApiFailure> {
+    super::json_body(&CaptchaAnswerRequest {
         file_id,
         captcha_challenge: challenge,
         captcha_response: response,
     })
-    .expect("CaptchaAnswerRequest always serializes")
 }
 
 #[derive(Serialize)]
@@ -107,12 +110,14 @@ struct FreeKeyRequest<'a> {
 
 /// `POST /geturl {"file_id":..,"free_download_key":..}` — the post-countdown round, with the
 /// captcha fields removed.
-pub(crate) fn geturl_free_key_body(file_id: &str, free_download_key: &str) -> Vec<u8> {
-    serde_json::to_vec(&FreeKeyRequest {
+pub(crate) fn geturl_free_key_body(
+    file_id: &str,
+    free_download_key: &str,
+) -> Result<Vec<u8>, ApiFailure> {
+    super::json_body(&FreeKeyRequest {
         file_id,
         free_download_key,
     })
-    .expect("FreeKeyRequest always serializes")
 }
 
 /// `/requestcaptcha`'s success payload.

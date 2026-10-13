@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { useOverlay, useToast } from '@nuxt/ui/composables'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api } from '@/api/client'
-import type { Download, DownloadSourcesResponse, TorrentPlanRequest } from '@/api/types'
+import type { Download, DownloadSourcesResponse } from '@/api/types'
 import DragHandle from '@/components/DragHandle.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import TorrentFileTree from '@/components/TorrentFileTree.vue'
@@ -17,11 +17,12 @@ import { scopeLabel, useAuthProfileSelector } from '@/composables/useAuthProfile
 import { useErrorToast } from '@/composables/useErrorToast'
 import { isResolvingNow } from '@/composables/useReresolve'
 import { useStagedResolvers } from '@/composables/useStagedResolvers'
-import { STOP_MARK_DONE_STATES, useStopMark } from '@/composables/useStopMark'
+import { useTransferTorrent } from '@/composables/useTransferTorrent'
 import { useTorrentsStore } from '@/stores/torrents'
+import { STOP_MARK_DONE_STATES, useStopMark } from '@/composables/useStopMark'
 import { RESETTABLE_STATES } from '@/stores/transfers'
 import { translateServerMessage } from '@/i18n/server'
-import { formatByteProgress, formatBytes, formatDuration, formatPauseEnd, formatRate, progressOf, stateColor, stateLabel } from '@/utils/format'
+import { formatByteProgress, formatDuration, formatPauseEnd, formatRate, progressOf, stateColor, stateLabel } from '@/utils/format'
 import { sourcePageUrl } from '@/utils/sourcePage'
 
 /** `connections`: the NNTP connections working for a running Usenet file (RD-1270-21). */
@@ -102,63 +103,13 @@ const sourcePage = computed(() => sourcePageUrl(props.download.media?.page_url))
 /** The queue's stop mark on this file (RD-1210-02): its glyph and its menu entry. */
 const { marked: stopMarked, items: stopMarkItems } = useStopMark('download', () => props.download.id, () => STOP_MARK_DONE_STATES.includes(props.download.state))
 
-/** Torrent detail: the file tree and the tracker list, both loaded when first opened. */
+/** Torrent detail: files, trackers, peers and seeding, loaded when first opened (`useTransferTorrent`). */
 const torrents = useTorrentsStore()
-const isTorrent = computed(() => props.download.kind === 'torrent')
-const torrentDetail = computed(() => torrents.detail('download', props.download.id))
-const torrentTrackers = computed(() => torrents.trackersOf(props.download.id))
-const torrentBusy = computed(() => torrents.isBusy('download', props.download.id))
-const torrentError = computed(() => torrents.errorOf('download', props.download.id))
-type TorrentTab = 'files' | 'trackers' | 'peers' | 'seeding'
-const TORRENT_TABS: TorrentTab[] = ['files', 'trackers', 'peers', 'seeding']
-const torrentTab = ref<TorrentTab>('files')
-const torrentTabItems = computed(() => TORRENT_TABS.map(value => ({ label: t(`torrent.tabs.${value}`), value })))
-const torrentStats = computed(() => torrents.statsOf(props.download.id))
-const torrentPeers = computed(() => torrents.peersOf(props.download.id))
-const torrentPieces = computed(() => torrents.piecesOf(props.download.id))
-const torrentSeeding = computed(() => torrents.seedingOf(props.download.id))
-
-/**
- * Recheck and change location (RD-1100-10). Both are refused while a move runs; a move is offered
- * for a seed and a paused torrent, the two whose files no runner is writing.
- */
-const relocating = computed(() => Boolean(torrentDetail.value?.relocation))
-const recheckable = computed(() => isTorrent.value && !relocating.value
-  && ['queued', 'paused', 'retry_wait', 'failed', 'blocked', 'cancelled', 'resolving', 'downloading', 'seeding'].includes(props.download.state))
-const movable = computed(() => isTorrent.value && !relocating.value && ['seeding', 'paused'].includes(props.download.state))
-const checkingPercent = computed(() => {
-  const sample = torrentStats.value
-  if (!sample?.checking) return null
-  const total = Number(sample.total_bytes)
-  return total > 0 ? Math.min(100, Math.round((Number(sample.progress_bytes) / total) * 100)) : 0
-})
-const recheckLabel = computed(() => {
-  const recheck = torrentDetail.value?.recheck
-  if (!recheck) return ''
-  if (!recheck.finished_at) return t('torrent.recheck.pending')
-  if (recheck.verified_bytes >= recheck.total_bytes) return t('torrent.recheck.complete')
-  return t('torrent.recheck.incomplete', {
-    verified: formatBytes(String(recheck.verified_bytes)),
-    total: formatBytes(String(recheck.total_bytes))
-  })
-})
-// The check's result is written once it has run, so the detail is read again when it ends.
-watch(() => torrentStats.value?.checking, (now, before) => {
-  if (before && !now && torrentDetail.value) void torrents.load('download', props.download.id)
-})
-
-/** Peers and pieces are pulled, and only while the tab is actually open. */
-async function openTab(tab: TorrentTab): Promise<void> {
-  torrentTab.value = tab
-  if (tab === 'peers') {
-    await Promise.all([
-      torrents.loadPeers(props.download.id),
-      torrents.loadPieces(props.download.id)
-    ])
-  } else if (tab === 'seeding') {
-    await torrents.loadSeeding(props.download.id)
-  }
-}
+const {
+  isTorrent, torrentDetail, torrentTrackers, torrentBusy, torrentError, torrentTab, torrentTabItems,
+  torrentStats, torrentPeers, torrentPieces, torrentSeeding, recheckable, movable, checkingPercent, recheckLabel,
+  openTab, saveTorrentPlan
+} = useTransferTorrent(() => props.download)
 
 /**
  * The mirrors of a Metalink download (RD-150-03), read again at every opening: their health
@@ -222,9 +173,6 @@ async function moveTorrent(): Promise<void> {
   if (typeof message === 'string' && message) toast.add({ title: message, color: 'success', icon: 'i-lucide-folder-input' })
 }
 
-function saveTorrentPlan(plan: TorrentPlanRequest): void {
-  void torrents.savePlan('download', props.download.id, plan)
-}
 /** The dots' entries; a right-click on the row opens the same ones (`UContextMenu`, RD-1240-14). */
 const actions = computed(() => [[
   ...(pausable.value
@@ -405,7 +353,7 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
             :busy="torrentBusy"
             @change="saveTorrentPlan"
           />
-          <p v-else class="text-xs text-muted">{{ t('torrent.tree.empty') }}</p>
+          <UEmpty v-else :description="t('torrent.tree.empty')" />
           <USeparator v-if="torrentDetail?.web_seeds?.length" />
           <div v-if="torrentDetail?.web_seeds?.length" class="grid gap-1">
             <p class="text-xs text-toned">{{ t('torrent.web_seeds.title') }}</p>

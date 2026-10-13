@@ -351,7 +351,7 @@ impl CompatRules {
     /// [`RuleError`] when any single rule is unusable. The whole set is refused rather than
     /// the offending rule dropped: a document this build cannot read completely is one it
     /// should not act on partially.
-    pub fn layered_over_base(delivered: Vec<CompatRule>) -> Result<Self, RuleError> {
+    pub(crate) fn layered_over_base(delivered: Vec<CompatRule>) -> Result<Self, RuleError> {
         if delivered.len() > MAX_RULES {
             return Err(RuleError::TooMany(delivered.len()));
         }
@@ -374,7 +374,7 @@ impl CompatRules {
     ///
     /// [`RuleError`] when the manifest's rules cannot be read; see
     /// [`Self::layered_over_base`].
-    pub fn from_manifest(manifest: &ToolManifest) -> Result<Self, RuleError> {
+    pub(crate) fn from_manifest(manifest: &ToolManifest) -> Result<Self, RuleError> {
         Self::layered_over_base(manifest.compatibility.clone())
     }
 

@@ -557,7 +557,6 @@
       }
     },
     "indexer_images": {
-      "eyebrow": "Indexer-Treffer",
       "title": "Titelbilder",
       "description": "Ein Indexer liefert zu jedem Treffer eine Bildadresse mit, in derselben Suchantwort, die das Abo ohnehin stellt. Das Anzeigen kostet keine zusätzliche Anfrage; das Bild selbst lädt der Browser.",
       "enabled": {

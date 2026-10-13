@@ -93,7 +93,7 @@ pub struct LinkedIdentity {
 impl LinkedIdentity {
     /// Whether this binding belongs to `config`'s provider and client.
     #[must_use]
-    pub fn belongs_to(&self, config: &ProviderConfig) -> bool {
+    pub(crate) fn belongs_to(&self, config: &ProviderConfig) -> bool {
         self.issuer == config.issuer && self.client_id == config.client_id
     }
 }
@@ -384,7 +384,7 @@ impl OidcClient {
     /// # Errors
     ///
     /// When the provider cannot be reached, refuses the code, or answers without an ID token.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub async fn redeem(
         &self,
         state: &AppState,

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { toastMock } from '@/test/mocks'
 
 import { useErrorToast } from './useErrorToast'
 
-const add = vi.fn()
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add }) }))
+const add = vi.hoisted(() => vi.fn())
+vi.mock('@nuxt/ui/composables', () => toastMock({ add }))
 
 beforeEach(() => add.mockReset())
 

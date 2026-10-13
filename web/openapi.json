@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.27.0"
+    "version": "1.28.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -2276,6 +2276,28 @@
           "automations"
         ],
         "operationId": "list_automation_runs",
+        "parameters": [
+          {
+            "name": "automation_id",
+            "in": "query",
+            "description": "Only this automation's runs",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/AutomationId"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Newest runs to return, 1-500",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -2462,6 +2484,43 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/automations/{id}/versions/reset": {
+      "post": {
+        "tags": [
+          "automations"
+        ],
+        "summary": "Keeps only the version in force, renumbered to 1, and deletes the older versions with their\nruns (RD-1280-01). Refused with `409 automation.version_reset_run_active` while a run of an\nolder version is still queued, running or waiting for a retry.",
+        "operationId": "reset_automation_versions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AutomationId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionReset"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
           }
         }
       }
@@ -11130,6 +11189,26 @@
                   "items": {
                     "$ref": "#/components/schemas/NotificationDestination"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/placeholders": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "operationId": "list_notification_placeholders",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPlaceholders"
                 }
               }
             }
@@ -33426,6 +33505,71 @@
           "automation"
         ]
       },
+      "NotificationEventPlaceholders": {
+        "type": "object",
+        "description": "What one event fills.",
+        "required": [
+          "event",
+          "takes_template",
+          "placeholders"
+        ],
+        "properties": {
+          "event": {
+            "$ref": "#/components/schemas/NotificationEvent"
+          },
+          "placeholders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Placeholder"
+            },
+            "description": "Empty when `takes_template` is false."
+          },
+          "takes_template": {
+            "type": "boolean",
+            "description": "False for the events whose bursts arrive as one summary: they keep their own text."
+          }
+        }
+      },
+      "NotificationPlaceholder": {
+        "type": "object",
+        "description": "One placeholder, written `{name}` in a template.",
+        "required": [
+          "name",
+          "example"
+        ],
+        "properties": {
+          "example": {
+            "type": "string"
+          },
+          "name": {
+            "$ref": "#/components/schemas/Placeholder"
+          }
+        }
+      },
+      "NotificationPlaceholders": {
+        "type": "object",
+        "description": "The placeholders a rule's title and text may name, and which event fills which.",
+        "required": [
+          "placeholders",
+          "events"
+        ],
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationEventPlaceholders"
+            },
+            "description": "Every event a rule can name, with the placeholders it fills."
+          },
+          "placeholders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationPlaceholder"
+            },
+            "description": "Every placeholder, with a sample value for the editor's preview; `time` and `date` are\nthe service's clock, in its time zone and format."
+          }
+        }
+      },
       "NotificationRule": {
         "type": "object",
         "description": "Which events of which packages reach which target.",
@@ -33438,6 +33582,13 @@
           "min_severity"
         ],
         "properties": {
+          "body_template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The rule's own text, like [`Self::title_template`]."
+          },
           "category_id": {
             "oneOf": [
               {
@@ -33470,6 +33621,13 @@
           },
           "target_id": {
             "$ref": "#/components/schemas/NotificationTargetId"
+          },
+          "title_template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The rule's own title with `{placeholder}` holes (RD-1280-02); `None` sends the built-in\none. Which event fills which placeholder: [`NotificationEvent::placeholders`]."
           }
         }
       },
@@ -33484,6 +33642,13 @@
           "target_id"
         ],
         "properties": {
+          "body_template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The rule's own text, at most 2000 characters, like `title_template`."
+          },
           "category_id": {
             "oneOf": [
               {
@@ -33512,6 +33677,13 @@
           },
           "target_id": {
             "$ref": "#/components/schemas/NotificationTargetId"
+          },
+          "title_template": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The rule's own title with `{placeholder}` holes (RD-1280-02), at most 200 characters;\nleft out or blank sends the built-in one. `GET /api/v1/notifications/placeholders` lists\nwhich event fills which placeholder; `{{` and `}}` write a brace."
           }
         }
       },
@@ -35195,6 +35367,29 @@
             "minimum": 0
           }
         }
+      },
+      "Placeholder": {
+        "type": "string",
+        "description": "One value a template may name in braces, `{package}`.",
+        "enum": [
+          "event",
+          "severity",
+          "time",
+          "date",
+          "title",
+          "message",
+          "package",
+          "file",
+          "category",
+          "state",
+          "size",
+          "path",
+          "error",
+          "storage_target",
+          "version",
+          "plugin",
+          "account"
+        ]
       },
       "PluginAddedPermissionsResponse": {
         "type": "object",
@@ -46950,6 +47145,31 @@
           "known_bad",
           "unknown"
         ]
+      },
+      "VersionReset": {
+        "type": "object",
+        "description": "What resetting an automation's version history removed (RD-1280-01).\n\nOnly the version in force stays, renumbered to 1; the older versions go with the runs that\npoint at them. The counts are what the confirmation promised, read back from the deletes.",
+        "required": [
+          "automation",
+          "removed_versions",
+          "removed_runs"
+        ],
+        "properties": {
+          "automation": {
+            "$ref": "#/components/schemas/Automation",
+            "description": "The automation afterwards, at version 1."
+          },
+          "removed_runs": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "removed_versions": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
       },
       "VideoCodecFamily": {
         "type": "string",

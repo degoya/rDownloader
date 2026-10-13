@@ -142,7 +142,7 @@ impl SidecarClients {
 /// A thumbnail client with the caps above, the custom CA and, when given, the proxy alone:
 /// the service's own proxy variables do not apply beside a profile, as in `rd-http`.
 fn build_client(custom_ca_pem: &[Vec<u8>], proxy: Option<&ToolProxy>) -> Option<reqwest::Client> {
-    let mut builder = reqwest::Client::builder()
+    let mut builder = rd_http::client_builder(rd_http::ClientPurpose::Service)
         .connect_timeout(THUMBNAIL_CONNECT_TIMEOUT)
         .timeout(THUMBNAIL_TIMEOUT)
         .redirect(reqwest::redirect::Policy::limited(MAX_THUMBNAIL_REDIRECTS));

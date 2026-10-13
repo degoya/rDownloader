@@ -12,7 +12,7 @@ use common::{parked_harness, post_json};
 use serde_json::json;
 
 /// A server with one file, `/file`, that names itself, and `/gone`, which answers 404.
-async fn server() -> std::net::SocketAddr {
+async fn serve_origin() -> rd_testkit::TestServer {
     let app = axum::Router::new()
         .route(
             "/file",
@@ -30,14 +30,7 @@ async fn server() -> std::net::SocketAddr {
             "/gone",
             axum::routing::get(|| async { StatusCode::NOT_FOUND }),
         );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("listener");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, app).await;
-    });
-    address
+    rd_testkit::serve(app).await
 }
 
 /// One paused download of `url` in a package of its own, with no size known yet.
@@ -85,7 +78,8 @@ async fn paused_download(database: &rd_db::Database, url: String) -> rd_core::Do
 async fn re_resolving_now_writes_size_and_name_back_without_starting_the_download() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = parked_harness(directory.path()).await;
-    let address = server().await;
+    let server = serve_origin().await;
+    let address = server.addr();
     let download = paused_download(&harness.database, format!("http://{address}/file")).await;
 
     let (status, body) = post_json(
@@ -122,7 +116,8 @@ async fn re_resolving_now_writes_size_and_name_back_without_starting_the_downloa
 async fn a_file_the_server_no_longer_has_is_counted_as_failed_and_carries_the_reason() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = parked_harness(directory.path()).await;
-    let address = server().await;
+    let server = serve_origin().await;
+    let address = server.addr();
     let gone = paused_download(&harness.database, format!("http://{address}/gone")).await;
     let there = paused_download(&harness.database, format!("http://{address}/file")).await;
 
@@ -168,7 +163,8 @@ async fn a_file_the_server_no_longer_has_is_counted_as_failed_and_carries_the_re
 async fn without_check_now_nothing_is_resolved_before_the_start() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = parked_harness(directory.path()).await;
-    let address = server().await;
+    let server = serve_origin().await;
+    let address = server.addr();
     let download = paused_download(&harness.database, format!("http://{address}/file")).await;
 
     let (status, body) = post_json(

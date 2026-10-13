@@ -5,6 +5,273 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.28.0] - 2026-10-13
+
+### Added
+
+- **`rd-testkit`, what the tests share (RD-1280-04).** A dev-only crate (`publish = false`, own
+  version): `temp_database(dir)`, `serve(router)` whose `TestServer` (`addr()`, `url()`) aborts
+  the server on drop, and the fake servers' `lock`, `respond` and `payload`; the database half is
+  the default feature `db`. The 22 temp-database helpers and 48 of 50 hand-written one-shot
+  axum servers in tests (44 files, 10 crates) go through it, `rd-api`'s harness opens its database
+  with it, and a helper that builds a fake server returns the handle beside what it built. No
+  test count changed.
+
+- **The release closes its own superseded winget pull requests (RD-1280-03).** After komac's
+  submission `scripts/winget-supersede.sh` closes every open pull request of the `WINGET_TOKEN`
+  account in `microsoft/winget-pkgs` for an older `degoya.rDownloader` version with "Superseded by
+  #<new>" — never another author's, a merged one or one for the same or a newer version; failures
+  are warnings (`release-channels.yml`, tested against a fake `gh`).
+
+- **Tool pins from one source each, every copy checked (RD-1280-12).** Rust from
+  `rust-toolchain.toml` (`setup-rust` reads it), wasm-tools from `lib/plugin-stamp.sh`, nextest,
+  sqlx-cli, cargo-xwin, shellcheck and actionlint from `scripts/lib/tool-versions.sh`;
+  `scripts/tool-versions.sh --check` holds the workflows, actions, `sdk/ci/`, the Dockerfile and
+  the documentation to them in `--preflight` and CI's `supply-chain` job, and replaces
+  `workflow-shape.sh`'s wasm-tools block. `docs/development.md` carries the one tool table.
+
+- **Plugin versions are raised by a script, and maintenance-only notes leave the plugin cards
+  (RD-1280-17).** `scripts/plugin-bump.sh --cascade` raises exactly the plugins
+  `build-plugins.sh --list-unbumped` names by one patch number and writes the maintenance section
+  on top of each `CHANGES.md`; `<plugin>... --note "<text>"` raises named plugins with notes of
+  their own, `--dry-run` lists, `plugin-release-notes.sh --check` ends every run (unchanged, as
+  strict). `plugin-release-notes.sh <plugin> <version>` prints the newest older section with
+  content for a maintenance section (`In <version>: …`), `rd-pack plugin index build` drops a
+  maintenance-only notes file, and the version panel and install preview drop the sentence and
+  repeated notes. A dry run of `--cascade` on 2026-10-13 named 0 plugins.
+
+- **`scripts/host-liveness.sh` asks every hoster domain whether it still exists (RD-1280-20).**
+  `match_domains` of every resolver and crawler manifest, wildcards left out, by `dig` and an
+  HTTPS `HEAD`: `alive`, `dead` or `unsure` per domain, as a table or `--json`; a full run writes
+  `docs/plugins-liveness.md`. Never in `check.sh` or CI's checks: by hand before a release, or the
+  `workflow_dispatch` workflow `host-liveness.yml` with the result as an artifact. Tested against a
+  stand-in `dig` and `curl`. `docs/plugins.md` names `xfs-generic`, `torbox-auth` and
+  `md5-postprocess` (the authentication paragraph now counts five providers).
+
+- **An automation's version history can be reset (RD-1280-01, owner 2026-10-12).** *Reset
+  versions* in the history dialog keeps only the version in force, renumbered to 1, and deletes
+  the older versions with their runs in one transaction (`rd-db` `automation_reset_store`, crash
+  point `automation_versions.before_reset_committed` with its case in
+  `tests/automation_reset_crash.rs`); the confirmation states how many versions and runs go. A
+  run of an older version still queued, running or retrying refuses it with `409
+  automation.version_reset_run_active` (de/en/es/fr). `POST
+  /api/v1/automations/{id}/versions/reset` answers `VersionReset`; MCP
+  `reset_automation_versions` asks the person first; `GET /api/v1/automations/runs` now documents
+  its `automation_id` and `limit` query parameters.
+
+- **A notification rule can word its notifications itself (RD-1280-02, owner 2026-10-12).** An
+  optional `title_template` and `body_template` per rule (migration 0146) with `{placeholder}`
+  holes, filled in `rd-notify` (`template.rs`) from one per-event table (`placeholder.rs`;
+  `crates/rd-notify/placeholders.md` is its generated copy for the wiki, held to it by a test and
+  no longer inert to the checks): `{event}`, `{severity}`, `{time}`, `{date}` (the service's zone),
+  `{title}`, `{message}` everywhere, plus `{package}`, `{file}`, `{category}`, `{state}`, `{size}`,
+  `{path}`, `{error}`, `{storage_target}`, `{version}`, `{plugin}`, `{account}` per event. Filled
+  once when the delivery is queued (bus events read their values only when a matching rule has a
+  template; operational notices carry theirs), values as data (control characters become
+  spaces), cut to 250/2000 characters and 4000 bytes; an empty result keeps the built-in part.
+  Refused on save with `notification.template_syntax`, `notification.template_unknown_placeholder`
+  (`placeholder`) or `notification.template_too_long` (`max`), each with its `field` (de/en/es/fr).
+  `GET /api/v1/notifications/placeholders` (`api:config`) and the MCP tool
+  `list_notification_placeholders`; `create_notification_rule`/`update_notification_rule` take
+  and clear the templates. The rule editor has the two fields, the placeholders of the chosen
+  events as buttons that insert into the last field, a preview with sample data and an *Own
+  wording* badge in the list. Webhook JSON keeps its fields; bursts keep their summary text.
+
+- **oxlint lints the web interface (RD-1280-11, owner 2026-10-13).** `oxlint` 1.86.0, pinned as a
+  dev dependency of `web/`, runs its default rule set over `web/src` with `--deny-warnings` as the
+  last step of `pnpm run typecheck:full` (`pnpm run lint` alone), so `check.sh` and CI fail on a
+  finding; `web/.oxlintrc.json` switches off, for `*.test.ts` only, the four rules whose first-run
+  findings wait for the test rewrite of RD-1280-09. The first run's findings outside tests are
+  fixed: unused types, a constant and an import, ternaries used as statements,
+  empty spread fallbacks, a needless spread, `new Array(n)`; the five copies a loop iterates while
+  listeners unsubscribe keep their spread with a reasoned `oxlint-disable-next-line`.
+
+### Changed
+
+- **Test odds and ends (RD-1280-22).** `crates/rdownloader/tests/i18n_key.rs` keeps only the key
+  order; its other cases are `scripts/tests/i18n-key.sh` (39 checks). The TR-15 measurement is
+  `cargo run --release -p rd-http --example tr15_measure`, the Usenet throughput runs are the
+  example `usenet_bench` behind `rd-usenet`'s feature `bench`; neither is an ignored test any
+  more. Constant asserts went or now test what the constant is for (the restart exit code is
+  neither 0 nor 1, the shortcut's argument parses as `open`); the test of the exchange file's
+  layout 1, which nothing writes, went; `scripts/tests/file-length.sh` is a hard limit without
+  its empty baseline.
+
+- **Migration-forward keeps the last two releases (RD-1280-23, owner 2026-10-13).** The suite
+  upgrades the newest release of each of the two newest minor versions (1.26.0 and 1.27.0, both
+  at `0145`) instead of 0.6.0 to 1.5.0, and `per_migration.rs` measures only migrations the older
+  of the two did not ship (the ten per-migration and the two site-rule origin tests went).
+  `scripts/migration-baselines.sh X.Y.Z` moves the ratchet before a release; a test holds the
+  newest row to the release the tree is, another fails on a per-migration test left behind.
+
+- **Plugin manifests state only what differs (RD-1280-18).** Every `[limits]` field defaults
+  (`DEFAULT_*`, the ceilings `MAX_*` exported beside them; `examples/mega_login_fuel.rs` imports
+  `MAX_FUEL`). The eight fields all 75 bundled manifests repeated live once in
+  `plugins/metadata.toml`; `rd-pack plugin package --defaults` writes each one a manifest leaves
+  out into the packaged copy (the public key from the signing key), so every package still
+  carries a complete manifest, and a third-party manifest stays complete without the file.
+  `scripts/plugin-manifest-defaults.sh` converted the manifests (rerunnable, `--check`);
+  `build-plugins.sh --completed-manifest` and the same-version comparison use the same rule.
+  Every packaged manifest changes, so every plugin needs a version raise before its next signed
+  build.
+
+- **Conformance asks every plugin type a question of its own (RD-1280-19).** Notifier, auth,
+  intake, transfer, storage, remote-job, enricher, post-processing and stream-transform packages
+  each answer one network-free behavioural question with a stable check id
+  (`notifier_empty_destination`, `auth_no_credentials`, `intake_unknown_input`,
+  `transfer_undeclared_scheme`, `storage_unreached_verify`, `remote_job_containers`,
+  `enricher_empty_input`, `postprocess_empty_input`, `stream_transform_empty_input`); each judge
+  has a negative case in `rd-plugin-host`.
+
+- **Scripts share their helpers; CI setups in one place (RD-1280-15).** `rd_render_template`,
+  `rd_macos_capture_helper` (workspace version through `lib/workspace-version.sh`), `pub` and
+  `manifest_version` live in `scripts/lib/`; `release-smoke.sh` uses `tests/lib/expect.sh`;
+  `measure-mega-login-fuel.sh` is gone (the example names its commands). The 18 untested scripts
+  get `bash -n` and usage tests (`scripts/tests/script-usage.sh`). `packages-repo.yml` runs one
+  install matrix over `scripts/ci-package-repo.sh`, the e2e smoke sets pnpm up once, `repro.yml`
+  uses `setup-rust` from a sparse checkout of the workflow's commit.
+
+- **A `--full` no longer repeats what a preflight green of its tree covers (RD-1280-13).**
+  `git diff --check`, the action pins, both release-note checks, the released sections, the
+  container's Python tools, `cargo fmt`, both test maps and gitleaks skip themselves with one line
+  each, as the script checks already did; the job layout and the version copies still run. The
+  preflight over a covered tree runs those two alone (`lib/preflight.sh`,
+  `scripts/tests/full-preflight-covered.sh`).
+
+- **A wave runs Linux on GitHub only without a local Linux green (RD-1280-14, owner 2026-10-13).**
+  `integrate.sh --public-ci` starts Windows and the release workflows beside the local runs and,
+  after `--full`, derives the rest from the recorded green (`rd_integrate_ci_platforms`): nothing
+  when the Rust half's green covers the tree, `linux,windows` otherwise, named in `public-ci.log`.
+  The release candidate runs Linux on GitHub; `job-evidence.sh` takes the local green for Linux.
+
+- **The check scripts at the 500-line edge split (RD-1280-08, scripts).** `check.sh`'s argument
+  parsing in `lib/check-args.sh`, the GitHub greens in `lib/verified-ci.sh`, the soak run's
+  service side in `lib/soak_service.py`, `build-plugins.sh`'s component build in
+  `lib/plugin-build.sh`, each re-exported or sourced where it was; `rd_check_scope`,
+  `rd_reuse_rust_scope` and `rd_check_rust_tests` in named steps. No behaviour changed.
+
+- **Copied Rust helpers consolidated (RD-1280-06).** `rd_core::text::truncate`/`truncate_chars`
+  replace five char-boundary copies; one-shot SHA-256 hex goes through `rd_sign::hex_sha256`
+  (rd-plugin-host's `hex_digest`, rd-hotfolder, rd-diagnostics' bundle, rd-pack); every service
+  reqwest client starts from `rd_http::client_builder(ClientPurpose)`: the rDownloader user agent
+  (now also on tracker scrapes, webhooks, tool and repository downloads, thumbnails, OIDC and
+  OTLP), a 30 s connect deadline unless the caller sets its own, and the proxy rule (`Service`
+  honours `HTTP_PROXY`, `Direct` ignores it) — only rd-update and the capture agent keep their
+  own, which do not link rd-http. `ReuseCapability::STAGED`, `BackupError::new`,
+  `rd_transfer_file::file_changed`, rd-db's `close_quietly` and the restore fetch's
+  `discard_partial` replace their copies; four production `.expect()` became `let … else`/`?`
+  (`Sources::official()` now returns a `Result`); `http-body-util` and `librqbit` are pinned in
+  `[workspace.dependencies]`. No error code changed.
+
+- **Plugin odds and ends (RD-1280-21).** Keep2Share builds its request bodies without `expect`
+  (`keep2share.request_encoding`, de/en/es/fr) and `mega-login-probe` derives without one; the
+  progress arithmetic of three remote-job plugins is `plugin_guest_remote_job::permille_of_*`,
+  the account label's name `plugin_common::label::account_name`; the twelve foreign-address claim
+  tests share `plugin_common::foreign` (test-support), and the weaker of the two cycle tests is
+  gone. `#[allow(unsafe_code)]` sits in the seven `*_plugin!` export macros instead of 42
+  `guest.rs`; the resolver, transfer and extension linkers link their grants through one
+  `link_granted`. `docker/README.md` names `runtime` for `scripts/docker.sh` alone and
+  `build-plugins.sh` before either target. 48 plugins raise their version.
+
+- **Unused fixtures removed (RD-1280-24).** Five plugin fixtures nothing loaded, and the three
+  rd-plugin-ext fixtures only the credential check counted; its thresholds are the real counts.
+
+- **Empty lists are a `UEmpty`, not a muted paragraph (RD-1280-10).** 33 lists and previews —
+  the torrent trees, peers and trackers, the indexer review and search, the NZB history, the
+  backup destinations and runs, the profile and credential lists, the duplicate report and more —
+  show the dashed empty state of `design.md`. `nuxtUiFirst.test.ts` counts a muted sentence in
+  place of an empty list as `empty-list-paragraph` (a negated `length`, or the `v-else` of a
+  filled one); three hints that say what an empty list means for their form stay, allowed with
+  the `design.md` passage that now names them, and the update dialog's line waits for RD-1280-17.
+
+- **Web: the copies of the redundancy audit folded together (RD-1280-11).** `ProfileListRow.vue`
+  draws the row of the authentication profiles, the object storage profiles and the remote
+  credentials; `useMfaCredentials` removes an authenticator app or a passkey for both cards (with
+  its own test); seven types nobody used, 38 exports only their own file read and three orphan
+  keys in all four catalogues are gone.
+
+- **Web files at the 500-line edge split (RD-1280-08, web part).** Eleven components, views and
+  stores from 454–497 lines to 391–445: the category requests, the downloads summary polling and
+  the direct add, the account row actions, a row's torrent detail, a package's counts, the
+  LinkGrabber intake, a link's state messages, the site rules' labels, a plugin version's removal,
+  the subscription hits' shapes and the collector's deletions each in a module of its own, the
+  old import paths unchanged.
+
+- **The cloud-drive contract tests share one harness, and the fixture check is one table
+  (RD-1280-05).** Box, Dropbox, Google Drive, OneDrive and pCloud are rows of a provider table in
+  `crates/rd-plugin-ext/tests/contract/support/storage/`; their claims, crawl refusals, sandbox,
+  the redirect sign-in through renewal and the shape of the three manifests run through shared
+  cases (`shared_cases!` keeps each test's module path and name), and each module keeps its own
+  protocol cases with its mock in a `mock.rs` beside it. The seventeen copies of
+  `fixtures_carry_no_credential_material` are one test over a table of eighteen fixture
+  directories (`support/fixtures.rs`), which also takes the remote-job modules' fixture walk;
+  `--test contract` goes from 445 to 429 tests, the sixteen fewer being the merged copies, and
+  the five storage files leave the file-length ratchet.
+
+- **Rust files at the 500-line edge split ahead of the next feature (RD-1280-08).** Eleven files
+  of 497 to 500 lines are at 326 to 449 now, each split into a module of its own with the old
+  path re-exported: the OpenAPI intake schemas (`schemas_intake.rs`), the MCP torrent parameters
+  (`params_torrent.rs`), the event stream's and the content transform's tests, the passkey store,
+  the plugin transfer's resume half, the stale multipart sweep, the download removal path, the
+  transformed resume plan and the package enrichment carry. Three long functions are named steps:
+  the capture agent's `run` (`agent_run.rs`, 214 to 38 lines), the privileged settings fields
+  (four groups in their original order) and the site rule `step`, whose seven kinds are methods
+  of their own while the dispatcher stays. No behaviour changes.
+
+- **Web tests share their mocks, stubs and waits (RD-1280-09).** `web/src/test/mocks.ts` hands
+  out `apiClientMock`, `toastMock`, `confirmMock` and `eventStreamMock`; all 163 hand-written
+  `vi.mock('@/api/client', …)` copies and the toast, confirm and event-stream copies call them
+  (none left by hand). The Nuxt UI stubs moved to `test/stubs.ts` (`mount.ts` 475 to 117 lines,
+  every name re-exported), with `listViewStubs` for the two list views' common table;
+  `mountComponent` takes `keepPinia` and `i18n`, so the helpers that rendered directly to keep a
+  seeded store go through it; `settle()` replaces nine local copies, and `passTime()` runs the six
+  real debounce waits of 220 to 400 ms on fake timers. The audit page and the update offer and
+  status are fixture modules under `test/fixtures/`. The extension's injected-page tests take
+  their browser from `fakes.mjs` (`pageChrome`), and `extension/src/captcha.js` hands its tab and
+  grant helpers to `captcha-tabs.js` (498 to 449 lines, RD-1280-08).
+
+- **Lint hygiene: `#[expect]` instead of `#[allow]`, 301 `pub` items narrowed, ratchets lowered
+  (RD-1280-07).** Of the 48 `#[allow]` in `crates/`, 26 became `#[expect]` (`too_many_arguments`
+  with more than seven parameters, `large_enum_variant`, `enum_variant_names`), three
+  `too_many_arguments` with seven went, `notify_service` names its classified event once
+  (`type Classified`) instead of eight `type_complexity` allows, the four held leases are fields
+  named `_lease`/`_leases`/`_lock`, and the tray builds its event loop without `unused_mut`;
+  what is left are the shared test-support modules, each with its `reason`. 301 `pub` items no
+  other crate, test, plugin or SDK template names are `pub(crate)` (functions, constants, two
+  structs, two enums), chosen by a rerunnable script that narrows only items with a live use in
+  their crate. The eight file-length ratchet counters are at today's counts, and five failed
+  clean-ups in the plugin install, the update preparation and the restore cut-over are logged at
+  `debug`. `rd-object-storage` keeps its `azure`/`gcs` features: CI's `--no-default-features`
+  run is their check.
+
+- **Documentation and agent rules in one place each (RD-1280-16).** ADR 0022 records the site
+  rules' selection, the request per list entry and `device_id`, and supersedes ADR 0013 and ADR
+  0017 part B; ADR 0003 gets a dated addendum (`job-context`, NZB to a remote job);
+  `docs/adr/README.md` indexes all records with their status. `scripts/README.md` lists
+  `check.sh`'s modes as a table and `owner-site-rules.sh`; `docs/development.md` lists every
+  `RD_*` knob. Each wave rule now stands once (`wave-worker.md` for agents, the `wave` skill for
+  the coordinator, `AGENTS.md` for the three every session keeps), and `AGENTS.md` drops the
+  incident recipes and tool versions for pointers (305 to 272 lines). A repo lint,
+  `repo_lints/http_area_graph.rs`, holds the eight HTTP crates to their area graph, with
+  `rd-api-compat`'s and `rd-api-mcp`'s edges written down as exceptions.
+
+- **Plugin versions.** The versions this release raises: `metadata-enricher` 0.1.13; `box-crawler`,
+  `box-oauth`, `directory-index-crawler`, `dropbox-crawler`, `dropbox-oauth`,
+  `google-drive-crawler`, `google-drive-oauth`, `hitfile`, `offcloud-cloud`, `onedrive-crawler`,
+  `onedrive-oauth`, `pcloud-crawler`, `pixeldrain-crawler`, `premiumize-crawler`, `putio-oauth`,
+  `torbox-auth` and `turbobit` 0.1.14; `box`, `dropbox`, `google-drive`, `mediafire`,
+  `mediafire-crawler`, `mega`, `mega-crawler`, `nextcloud-crawler`, `offcloud`, `onedrive`,
+  `pcloud`, `pcloud-oauth`, `peeplink-crawler`, `seedr-jobs` and `xfs-generic` 0.1.15;
+  `krakenfiles`, `mega-auth`, `pixeldrain`, `putio`, `putio-transfers`, `seedr` and `torbox` 0.1.16;
+  `emby-notifier`, `jellyfin-notifier` and `plex-notifier` 0.2.2; `realdebrid-auth` 0.2.11;
+  `realdebrid-torrents` 0.2.12; `example-oauth`, `premiumize-transfers`, `realdebrid` and
+  `torbox-jobs` 0.2.13; `alldebrid`, `debridlink`, `keep2share`, `linksnappy`, `nitroflare` and
+  `rapidgator` 0.7.17; `onefichier` 0.7.18; `premiumize` 0.7.19; `filejoker` 0.7.20;
+  `crawljob-intake` and `sponsorblock-enricher` 0.9.13; `alldebrid-auth`, `debridlink-auth`,
+  `discord-notifier`, `premiumize-auth`, `sha256-postprocess` and `webdav-storage` 0.9.14;
+  `md5-postprocess` and `telegram-notifier` 0.9.15; `rename-postprocess` 0.9.16; `katfile` 0.9.20;
+  `ntfy-notifier` 0.10.8; `metalink-intake` 0.10.10; `ddownload` 0.10.24.
+
 ## [1.27.0] - 2026-10-12
 
 ### Added

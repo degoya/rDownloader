@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import common from '@/locales/en/common.json'
@@ -14,14 +15,11 @@ import { mountComponent } from '@/test/mount'
 
 import CaptureAgentCard from './CaptureAgentCard.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), PATCH: vi.fn() },
-  responseError: vi.fn(() => 'refused by the service')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'refused by the service') }))
 
 let changed: ((event: MessageEvent<string>) => void) | null = null
 const released = vi.fn()
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, (event: MessageEvent<string>) => void>) => {
     changed = handlers['capture.changed'] ?? null
     return () => { changed = null; released() }

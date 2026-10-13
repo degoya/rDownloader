@@ -3,7 +3,15 @@
 # Windows .ico from the single source of truth, web/public/favicon.svg.
 # Rasterizes with sharp (librsvg) via npx — ImageMagick's builtin SVG
 # renderer drops the stroke elements. ImageMagick only assembles the .ico.
+#
+#   scripts/generate-icons.sh          # takes no arguments; --help prints this
 set -euo pipefail
+
+case "${1:-}" in
+    "") ;;
+    -h | --help) sed -n '2,7p' "$0"; exit 0 ;;
+    *) echo "usage: scripts/generate-icons.sh (no arguments)" >&2; exit 2 ;;
+esac
 
 cd "$(dirname "$0")/.."
 SVG=web/public/favicon.svg

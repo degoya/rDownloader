@@ -11,6 +11,7 @@ import { appendFileSync } from 'node:fs'
 import { fireEvent, render, waitFor } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -27,17 +28,16 @@ import { useNzbImportsStore } from '@/stores/nzbImports'
 import { axeViolations } from '@/test/axe'
 import { setShowNzbHandOver } from '@/utils/nzbHandOver'
 import { setPackagesClosedByDefault } from '@/utils/packageGroups'
+import { listViewStubs, mountComponent, passTime, settle } from '@/test/mount'
 
 import LinkGrabberView from './LinkGrabberView.vue'
 
-vi.mock('@/api/client', () => ({
-  api: {
-    GET: vi.fn(async () => ({ data: [] })),
-    POST: vi.fn(async () => ({ data: undefined })),
-    PUT: vi.fn(async () => ({ data: undefined })),
-    PATCH: vi.fn(async () => ({ data: undefined })),
-    DELETE: vi.fn(async () => ({ data: undefined }))
-  },
+vi.mock('@/api/client', () => apiClientMock({
+  GET: vi.fn(async () => ({ data: [] })),
+  POST: vi.fn(async () => ({ data: undefined })),
+  PUT: vi.fn(async () => ({ data: undefined })),
+  PATCH: vi.fn(async () => ({ data: undefined })),
+  DELETE: vi.fn(async () => ({ data: undefined })),
   responseError: vi.fn(),
   errorMessage: vi.fn(),
   resultMessage: vi.fn()
@@ -46,9 +46,8 @@ vi.mock('@/api/client', () => ({
 const { overlayOpen } = vi.hoisted(() => ({
   overlayOpen: vi.fn((_component: unknown, _props?: Record<string, unknown>): { result: Promise<unknown> } => ({ result: Promise.resolve(false) }))
 }))
-vi.mock('@nuxt/ui/composables', () => ({
-  useOverlay: () => ({ create: (component: unknown) => ({ open: (props?: Record<string, unknown>) => overlayOpen(component, props) }) }),
-  useToast: () => ({ add: vi.fn() })
+vi.mock('@nuxt/ui/composables', () => toastMock({
+  create: (component: unknown) => ({ open: (props?: Record<string, unknown>) => overlayOpen(component, props) })
 }))
 /** The query the view is opened with; a remote job's package link sets `package` (RD-1120-02). */
 const routeQuery = vi.hoisted(() => ({ value: {} as Record<string, unknown> }))
@@ -63,7 +62,7 @@ vi.mock('vue-router', async importOriginal => ({
 // `useAccountProviders.test.ts` — here the view only must not open a stream. The handlers are
 // kept, so the hand-over cases can announce an account (RD-191-13).
 const stream = vi.hoisted(() => ({ handlers: {} as Record<string, ((event: MessageEvent) => void)[]> }))
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (registered: Record<string, (event: MessageEvent) => void>) => {
     for (const [name, handler] of Object.entries(registered)) (stream.handlers[name] ??= []).push(handler)
     return () => {}
@@ -72,39 +71,9 @@ vi.mock('@/composables/useEventStream', () => ({
 
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { common, linkgrabber, torrent } } })
 
-const passthrough = { template: '<div v-bind="$attrs"><slot /></div>' }
 const stubs = {
-  UAlert: { props: ['description'], template: '<div v-bind="$attrs">{{ description }}</div>' },
-  UBadge: passthrough,
-  UButton: {
-    props: ['label', 'ariaLabel', 'disabled'],
-    template: '<button type="button" v-bind="$attrs" :disabled="disabled" :aria-label="ariaLabel">{{ label }}<slot /></button>'
-  },
-  UCheckbox: {
-    props: ['modelValue', 'label', 'ariaLabel'],
-    emits: ['update:modelValue'],
-    template: '<input type="checkbox" v-bind="$attrs" :aria-label="ariaLabel" :checked="modelValue === true" @change="$emit(\'update:modelValue\', $event.target.checked)" />'
-  },
-  UDashboardNavbar: passthrough,
-  UDashboardPanel: { template: '<div><slot name="header" /><slot name="body" /></div>' },
-  UDashboardSidebarCollapse: true,
-  UDashboardToolbar: { template: '<div><slot name="left" /><slot name="right" /></div>' },
-  UDropdownMenu: passthrough,
-  UIcon: { template: '<span aria-hidden="true" />' },
+  ...listViewStubs,
   UProgress: { template: '<div role="progressbar" v-bind="$attrs" />' },
-  USelect: {
-    props: ['modelValue', 'items'],
-    emits: ['update:modelValue'],
-    template: '<select v-bind="$attrs" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>'
-  },
-  /** A real checkbox with the switch's role, so a test flips it and reads it back (RD-150-19). */
-  USwitch: {
-    inheritAttrs: false,
-    props: ['modelValue', 'label'],
-    emits: ['update:modelValue'],
-    template: '<label>{{ label }}<input type="checkbox" role="switch" v-bind="$attrs" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /></label>'
-  },
-  UTooltip: passthrough,
   IndexerReviewList: true, SiteRulePickPanel: true, IndexerSearchDrawer: true, NzbHistoryModal: true,
   UPopover: { template: '<div><slot /><slot name="content" /></div>' },
   BulkActionBar: { template: '<div><slot /></div>' }
@@ -171,13 +140,7 @@ function seedNzbImport(position = 0) {
 }
 
 function mountView() {
-  return render(LinkGrabberView, { global: { plugins: [i18n], stubs } })
-}
-
-/** Lets the handler chain — store write, re-render, focus restore — finish. */
-async function settle(): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, 0))
-  await nextTick()
+  return mountComponent(LinkGrabberView, { i18n, stubs, keepPinia: true })
 }
 
 function handleOf(container: Element, key: string): HTMLElement {
@@ -1219,9 +1182,10 @@ describe('LinkGrabberView NZB hand-over', () => {
       if (path === '/api/v1/providers') return { data: [{ slug: 'torbox', display_name: 'TorBox', credentials: 'api_key', kind: 'remote' }] }
       return { data: [] }
     }) as unknown as typeof api.GET)
-    for (const handler of stream.handlers['account.changed'] ?? []) handler(new MessageEvent('account.changed', { data: '{}' }))
     // The debounce, and the reads behind it.
-    await new Promise(resolve => setTimeout(resolve, 400))
+    await passTime(400, () => {
+      for (const handler of stream.handlers['account.changed'] ?? []) handler(new MessageEvent('account.changed', { data: '{}' }))
+    })
   }
 
   function seedHandedOver() {

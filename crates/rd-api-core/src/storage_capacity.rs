@@ -126,7 +126,7 @@ pub(crate) async fn intake_block(
 }
 
 /// REST form of the intake stop.
-pub async fn ensure_intake_allowed(
+pub(crate) async fn ensure_intake_allowed(
     capacity: &rd_files::CapacityService,
     destination: &std::path::Path,
 ) -> Result<(), ApiError> {

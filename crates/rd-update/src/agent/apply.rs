@@ -33,9 +33,9 @@ use crate::{Artifact, InstallKind, is_newer};
 
 /// Inside `<data>/update`: the version the agent that started last runs, while an update is
 /// recorded.
-pub const PROOF_FILE: &str = "agent-started";
+pub(crate) const PROOF_FILE: &str = "agent-started";
 /// The plan's database: the agent keeps none, and nothing ever writes this name.
-pub const NO_DATABASE: &str = "no-database";
+pub(crate) const NO_DATABASE: &str = "no-database";
 /// How long the updater waits for the new agent's proof: the relaunch rule notices the replaced
 /// file within half a minute, and the new agent waits up to ten seconds for the old one's lock.
 pub const START_TIMEOUT_SECS: u64 = 120;
@@ -188,13 +188,13 @@ fn take_back(journal: &mut Journal, code: &str, detail: String) -> Result<()> {
 
 /// `<data>/update/agent-started`.
 #[must_use]
-pub fn proof_path(data: &Path) -> PathBuf {
+pub(crate) fn proof_path(data: &Path) -> PathBuf {
     update_dir(data).join(PROOF_FILE)
 }
 
 /// The version the proof names, if there is one.
 #[must_use]
-pub fn read_proof(data: &Path) -> Option<String> {
+pub(crate) fn read_proof(data: &Path) -> Option<String> {
     let text = fs::read_to_string(proof_path(data)).ok()?;
     let version = text.trim();
     (!version.is_empty()).then(|| version.to_owned())

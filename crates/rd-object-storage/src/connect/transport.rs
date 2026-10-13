@@ -47,7 +47,8 @@ impl HttpConnector for NoRedirects {
 impl NoRedirects {
     fn client(&self, options: &ClientOptions) -> reqwest::Result<reqwest::Client> {
         let value = |key: ClientConfigKey| options.get_config_value(&key);
-        let mut builder = reqwest::Client::builder()
+        // The bucket's own user agent, from the options, replaces the service's.
+        let mut builder = rd_http::client_builder(rd_http::ClientPurpose::Service)
             .redirect(reqwest::redirect::Policy::none())
             .user_agent(value(ClientConfigKey::UserAgent).unwrap_or_default())
             .connect_timeout(self.connect_timeout(options))

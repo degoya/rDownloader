@@ -16,7 +16,7 @@ pub use condition::{ConditionError, ConditionNode, EventContext, Field, Operator
 pub use model::{
     Action, Automation, AutomationVersion, DefinitionError, LinkDestination, MAX_ACTION_LINKS,
     MAX_ACTIONS, MAX_CONDITION_DEPTH, MAX_LINK_LEN, MAX_NOTIFY_MESSAGE, Run, RunState, Trigger,
-    is_script_name, validate, validate_condition, validate_trigger,
+    VersionReset, is_script_name, validate, validate_condition, validate_trigger,
 };
 pub use rd_notify::{MAX_ATTEMPTS, backoff, next_attempt_at};
 pub use schedule::{

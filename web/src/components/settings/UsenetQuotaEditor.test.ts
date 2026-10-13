@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import common from '@/locales/en/common.json'
@@ -12,10 +13,7 @@ import { mountComponent, openablePopover } from '@/test/mount'
 
 import UsenetQuotaEditor from './UsenetQuotaEditor.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: () => 'The quota must be larger than zero'
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: () => 'The quota must be larger than zero' }))
 
 const GIB = 1024 ** 3
 const SERVER = {

@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import type { Download } from '@/api/types'
@@ -9,11 +10,7 @@ import { useTransfersStore } from './transfers'
 
 const { notify } = vi.hoisted(() => ({ notify: vi.fn() }))
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn() },
-  responseError: vi.fn(() => 'The queue could not be read'),
-  resultMessage: vi.fn(() => '')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The queue could not be read') }))
 
 vi.mock('@/composables/useNotifications', () => ({
   useNotifications: () => ({

@@ -4,16 +4,10 @@
 use chrono::{Duration, Utc};
 use rd_core::{BackupOrigin, BackupRunState, BackupVerifyState};
 use rd_db::{
-    BackupRunDestinationEnd, BackupVerification, BackupVerificationOutcome, Database,
-    NewBackupArchive, NewBackupDestination, NewBackupRun,
+    BackupRunDestinationEnd, BackupVerification, BackupVerificationOutcome, NewBackupArchive,
+    NewBackupDestination, NewBackupRun,
 };
 use tempfile::TempDir;
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("ledger.sqlite3"))
-        .await
-        .expect("database")
-}
 
 fn local(path: &str, keep_last: Option<u32>) -> NewBackupDestination {
     NewBackupDestination {
@@ -41,7 +35,7 @@ fn archive(destination_id: &str, run: &str, name: &str, days_ago: i64) -> NewBac
 #[tokio::test]
 async fn an_installation_has_an_id_and_any_number_of_destinations() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let config = database.backup_config().await.expect("config");
     assert_eq!(config.instance_id.len(), 8);
     assert!(
@@ -103,7 +97,7 @@ async fn an_installation_has_an_id_and_any_number_of_destinations() {
 #[tokio::test]
 async fn the_ledger_is_per_destination_and_goes_with_it() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let nas = database
         .create_backup_destination(local("/mnt/nas", Some(2)))
         .await
@@ -182,7 +176,7 @@ async fn the_ledger_is_per_destination_and_goes_with_it() {
 #[tokio::test]
 async fn each_destination_of_a_run_has_its_row_and_a_stop_interrupts_them() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let run = |id: &str| NewBackupRun {
         id: id.to_owned(),
         origin: BackupOrigin::Manual,
@@ -237,7 +231,7 @@ async fn each_destination_of_a_run_has_its_row_and_a_stop_interrupts_them() {
 #[tokio::test]
 async fn a_verification_lands_in_the_history_and_on_its_archive() {
     let directory = TempDir::new().expect("temp");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let nas = database
         .create_backup_destination(local("/mnt/nas", None))
         .await

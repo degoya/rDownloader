@@ -77,12 +77,27 @@ rd_reuse_differing_in() {
 # wide. Only the first wide reason of a green is looked for (rd_crate_first_wide), and one that
 # lies in a path holds against every further green that differs in the same path, which is then
 # passed over unread (RD-1270-06: after a version bump Cargo.lock differs from every green).
+#
+# In named steps (RD-1280-08), each below; they share this function's locals through bash's
+# dynamic scope — paths and demands of the green, hull, own, members and total of the selection.
 rd_reuse_rust_scope() {
-    local candidate paths demands wide="" kind package path name total index other
-    local -a demanded_hull=() hull=() members=() own=() binaries=() suites=() candidates=() further=()
-    local -A passed_over=()
+    local paths="" demands="" total
+    local -a hull=() own=() members=()
     echo
     rd_crate_load_graph
+    rd_reuse_rust_base || return 0
+    rd_reuse_rust_members
+    rd_reuse_rust_rd_api
+    rd_reuse_rust_crash_sqlx
+    rd_reuse_rust_report
+}
+
+# Finds the green: sets crate_reuse_base and the caller's paths and demands, or says the whole
+# half runs and fails.
+rd_reuse_rust_base() {
+    local candidate wide="" index other
+    local -a candidates=() further=()
+    local -A passed_over=()
     mapfile -t candidates < <(rd_reuse_candidates rust | awk '{ print $2 }')
     for (( index = 0; index < ${#candidates[@]}; index++ )); do
         candidate="${candidates[index]}"
@@ -105,9 +120,14 @@ rd_reuse_rust_scope() {
     done
     if [[ -z "$crate_reuse_base" ]]; then
         echo "==> the Rust half per crate (RD-1150-06): the whole half — ${wide:-no --full green of it on this target}"
-        return 0
+        return 1
     fi
+}
 
+# The members the change reaches: the hull of what it demands and the members whose own tests
+# changed, as the test selection.
+rd_reuse_rust_members() {
+    local -a demanded_hull=()
     mapfile -t demanded_hull < <(sed -n 's/^hull \([^ ]*\) .*/\1/p' <<< "$demands" | LC_ALL=C sort -u)
     mapfile -t hull < <(rd_crate_reverse_hull "${demanded_hull[@]+"${demanded_hull[@]}"}")
     mapfile -t own < <(sed -n 's/^own \([^ ]*\) .*/\1/p' <<< "$demands" | LC_ALL=C sort -u \
@@ -119,9 +139,13 @@ rd_reuse_rust_scope() {
     dependant_packages=()
     mapfile -t test_packages < <(printf '%s\n' "${members[@]+"${members[@]}"}" | grep -vx rd-api || true)
     test_packages_label="the change and what builds on it"
+}
 
-    # rd-api: built on the change, all of it; only its own test code changed, the binaries whose
-    # files changed (crates/rd-api/tests/<binary>/) and its library for a test module in src/.
+# rd-api: built on the change, all of it; only its own test code changed, the binaries whose
+# files changed (crates/rd-api/tests/<binary>/) and its library for a test module in src/.
+rd_reuse_rust_rd_api() {
+    local kind package path
+    local -a binaries=() suites=()
     rd_api_lib=0
     rd_api_selected=()
     rd_api_filter=()
@@ -149,8 +173,12 @@ rd_reuse_rust_scope() {
     mapfile -t rd_api_binaries < <(rd_api_test_binaries_of "${rd_api_selected[@]+"${rd_api_selected[@]}"}")
     rd_api_skip_reason="the --full green of tree ${crate_reuse_base:0:12} covers them; nothing they build on changed since"
     rd_api_lib_skip_reason="$rd_api_skip_reason"
+}
 
-    # The crash runs of the members selected, all of them when the list itself changed.
+# The crash runs of the members selected, all of them when the list itself changed; the sqlx
+# offline data, when a selected member builds on sqlx.
+rd_reuse_rust_crash_sqlx() {
+    local name
     crash_packages=()
     failpoints=0
     if git diff --no-renames --name-only "$crate_reuse_base" "$full_tree" | grep -qxF "$RD_CRASH_MATRIX_LIST"; then
@@ -167,7 +195,11 @@ rd_reuse_rust_scope() {
         if grep -qE '^sqlx([. ]|$)' "${RD_CRATE_DIR[$name]}/Cargo.toml" 2> /dev/null; then sqlx=1; fi
     done
     sqlx_skip_reason="no member that builds on sqlx builds on the change since the --full green of tree ${crate_reuse_base:0:12}"
+}
 
+# What the run builds on and checks, and the skip line for the rest.
+rd_reuse_rust_report() {
+    local kind package path
     echo "==> the Rust half per crate (RD-1150-06): builds on the --full green of tree ${crate_reuse_base:0:12}"
     echo "    changed since, read by the Rust half: $(grep -c . <<< "$paths" || true) path(s)"
     { grep -E '^(hull|own) ' <<< "$demands" || true; } | head -n 12 | while read -r kind package path _; do
@@ -184,6 +216,7 @@ rd_reuse_rust_scope() {
     [[ "${#members[@]}" -eq "$total" ]] \
         || skip "tests of $((total - ${#members[@]})) of $total workspace members" "the --full green of tree ${crate_reuse_base:0:12} covers them; nothing they build on changed since (RD-1150-06)"
 }
+
 
 # The packages of scripts/lib/crash-matrix.list whose run the demands $1 call for, given the hull
 # $2...: a package in the hull, always; one whose own tests changed, for the shared run, or for a

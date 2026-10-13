@@ -66,6 +66,7 @@ function dispatch(name: string, event: Event): void {
   const subscribers = listeners.get(name)
   if (!subscribers) return
   // Copy first: a handler may unsubscribe while we iterate.
+  // oxlint-disable-next-line unicorn/no-useless-spread -- the copy is the point, see above
   for (const listener of [...subscribers]) listener(event as MessageEvent)
 }
 
@@ -85,7 +86,9 @@ function dispatch(name: string, event: Event): void {
 function dispatchLagged(event: Event): void {
   const seen = new Set<StreamListener>()
   // Copy first: a handler may unsubscribe while we iterate.
+  // oxlint-disable-next-line unicorn/no-useless-spread -- the copy is the point, see above
   for (const subscribers of [...listeners.values()]) {
+    // oxlint-disable-next-line unicorn/no-useless-spread -- the copy is the point, see above
     for (const listener of [...subscribers]) {
       if (seen.has(listener)) continue
       seen.add(listener)
@@ -122,6 +125,8 @@ function open(): void {
     attempt = 0
     reportServiceReachable()
     // Copy first: a listener may unregister while we iterate.
+    // oxlint-disable-next-line unicorn/no-useless-spread -- the copy is the point, see above
+  // oxlint-disable-next-line unicorn/no-useless-spread -- the copy is the point, see above
     for (const listener of [...openListeners]) listener()
     if (!resync) return
     resync = false

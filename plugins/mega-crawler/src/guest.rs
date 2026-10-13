@@ -7,7 +7,6 @@
 //! A folder of the signed-in account (RD-120-30) is listed with the session as the host's
 //! marker and walked by `account`, which asks the host to unwrap each node's key under the
 //! session's key half. One host call per node, never the master key in here.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use mega_common::{Target, api};
 use plugin_guest_crawler::{

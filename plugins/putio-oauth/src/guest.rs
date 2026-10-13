@@ -4,7 +4,6 @@
 //! project could not find it stated in a published specification, so `device-begin` and
 //! `device-poll` answer with a stable code rather than a trap — the world requires them to
 //! exist, and the manifest's `oauth_flows = ["redirect"]` means the host never calls them.
-#![allow(unsafe_code)] // Generated canonical-ABI exports contain the only unsafe code here.
 
 use plugin_guest_oauth::{
     AuthorizationRequest, DeviceAuthorization, Guest, TokenOutcome, accept_json, credentials, form,

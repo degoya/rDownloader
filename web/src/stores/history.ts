@@ -20,7 +20,7 @@ export const HISTORY_KINDS: readonly DownloadKind[] = [
 
 /** The two file formats of the export (RD-1240-14). */
 export const HISTORY_EXPORT_FORMATS = ['csv', 'ndjson'] as const
-export type HistoryExportFormat = typeof HISTORY_EXPORT_FORMATS[number]
+type HistoryExportFormat = typeof HISTORY_EXPORT_FORMATS[number]
 
 /** The time ranges the filter offers, counted back from now. */
 export const HISTORY_PERIODS = ['day', 'week', 'month', 'year'] as const

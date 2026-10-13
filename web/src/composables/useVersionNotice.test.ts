@@ -6,17 +6,19 @@
  * (jsdom's `location.reload` cannot be replaced, so the button's click is not exercised here.)
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { effectScope, nextTick } from 'vue'
+import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
+import { settle } from '@/test/mount'
+import { effectScope } from 'vue'
 
-const add = vi.fn()
-const remove = vi.fn()
+const add = vi.hoisted(() => vi.fn())
+const remove = vi.hoisted(() => vi.fn())
 const GET = vi.fn()
 let streamOpened: (() => void) | null = null
 
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add, remove }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ add, remove }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
-vi.mock('@/api/client', () => ({ api: { GET } }))
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/api/client', () => apiClientMock({ GET }))
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   onEventStreamOpened: (listener: () => void) => {
     streamOpened = listener
     return () => { streamOpened = null }
@@ -25,12 +27,6 @@ vi.mock('@/composables/useEventStream', () => ({
 
 const { BUILD_VERSION, resetServiceVersionForTests, serviceVersion } = await import('./serviceVersion')
 const { useVersionNotice } = await import('./useVersionNotice')
-
-/** Lets the health request and the watcher behind it settle. */
-async function settle(): Promise<void> {
-  await Promise.resolve()
-  await nextTick()
-}
 
 function serviceAnswers(version: string): void {
   GET.mockResolvedValue({ data: { status: 'ok', version, service: 'rDownloader' } })

@@ -11,9 +11,10 @@
 #   * rd_inert_path — whether a path is read by no check at all: documentation (docs/, every
 #     *.md), the README's pictures (.github/readme/, which nothing but README.md and the
 #     documentation name) and the owner's private material (private/, which no build, test or
-#     release step reads; RD-1230-03). crates/rd-core/recovery-matrix.md and crates/rd-api/mcp-coverage.md
-#     are not: a test compares the first with rd_crash_points::CRASH_POINTS, rd-api's library
-#     include_str!s the second.
+#     release step reads; RD-1230-03). crates/rd-core/recovery-matrix.md, crates/rd-api/mcp-coverage.md
+#     and crates/rd-notify/placeholders.md are not: a test compares the first with
+#     rd_crash_points::CRASH_POINTS, rd-api's library include_str!s the second, and a test of
+#     rd-notify compares the third with the placeholder table (RD-1280-02).
 #   * rd_paths_read_by — which of the paths on stdin a recorded green's half reads, so a green
 #     still covers a tree that differs from its own only in what that half never looks at (audit
 #     C1): the lints and the Rust tests read the Rust inputs, the web half web/ and extension/,
@@ -23,7 +24,7 @@
 # memo of the Rust inputs' pattern (rd_read_patterns_load).
 
 RD_INERT_PATTERN='^docs/|\.md$|^\.github/readme/|^private/'
-RD_NOT_INERT_PATTERN='^crates/rd-core/recovery-matrix\.md$|^crates/rd-api/mcp-coverage\.md$'
+RD_NOT_INERT_PATTERN='^crates/rd-core/recovery-matrix\.md$|^crates/rd-api/mcp-coverage\.md$|^crates/rd-notify/placeholders\.md$'
 
 # The documentation the preflight reads all the same (PIPE-04), so a preflight green does not cover
 # a change to it: the job layout check reads the job files, the two release-note checks

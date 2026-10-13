@@ -141,7 +141,7 @@ async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
         if recorded.holds(&fetched).await? {
             return Ok(fetched);
         }
-        tokio::fs::remove_file(&fetched).await.ok();
+        discard_partial(&fetched).await;
     }
     let context = crate::backup_delivery::destination_context(state).await;
     let mut last = None;
@@ -164,7 +164,7 @@ async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
             .await
             .map_err(anyhow::Error::from)?;
         let partial = folder.join(format!("{name}.partial"));
-        tokio::fs::remove_file(&partial).await.ok();
+        discard_partial(&partial).await;
         match destination.fetch(&name, &partial).await {
             Ok(_) => {
                 if recorded.holds(&partial).await? {
@@ -173,11 +173,11 @@ async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
                         .map_err(anyhow::Error::from)?;
                     return Ok(fetched);
                 }
-                tokio::fs::remove_file(&partial).await.ok();
+                discard_partial(&partial).await;
                 changed = true;
             }
             Err(error) => {
-                tokio::fs::remove_file(&partial).await.ok();
+                discard_partial(&partial).await;
                 last = Some(error.to_string());
             }
         }
@@ -192,6 +192,16 @@ async fn run_archive(state: &AppState, id: &str) -> Result<PathBuf, ApiError> {
         "backup.restore_source_missing",
         last.unwrap_or_else(|| "No destination holds this run's archive".to_owned()),
     ))
+}
+
+/// Removes a fetched copy that is stale or failed its check. One already gone is what was
+/// wanted, and one that stays is overwritten by the next fetch, so neither fails the restore.
+async fn discard_partial(path: &Path) {
+    if let Err(error) = tokio::fs::remove_file(path).await
+        && error.kind() != std::io::ErrorKind::NotFound
+    {
+        tracing::debug!(%error, path = %path.display(), "a fetched archive copy could not be removed");
+    }
 }
 
 /// What a run recorded of the archive it wrote.

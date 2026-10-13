@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import system from '@/locales/en/system.json'
@@ -11,12 +12,9 @@ import { mountComponent } from '@/test/mount'
 
 import CapturePairingCard from './CapturePairingCard.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'refused')
-}))
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: vi.fn() }) }))
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => vi.fn(async () => true) }))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'refused') }))
+vi.mock('@nuxt/ui/composables', () => toastMock())
+vi.mock('@/composables/useConfirm', () => confirmMock())
 
 const TOKEN = {
   id: 'agent-1',

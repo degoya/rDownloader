@@ -32,7 +32,7 @@ pub const FILE: &str = "local-control.json";
 /// the password sign-in back on (`rdownloader auth password-login on`, RD-190-15) and a new
 /// administrator password without the current one (`rdownloader auth reset-password`,
 /// RD-190-24) — the ways back in that only this machine has.
-pub const ROUTES: &[(&str, Method)] = &[
+pub(crate) const ROUTES: &[(&str, Method)] = &[
     ("/api/v1/auth/password-login/on", Method::POST),
     ("/api/v1/auth/password/reset", Method::POST),
     ("/api/v1/system/shutdown", Method::POST),

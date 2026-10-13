@@ -1,10 +1,11 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { eventStreamMock } from '@/test/mocks'
 import { defineComponent, h } from 'vue'
 
 const handlers = new Map<string, (event: MessageEvent) => void>()
 const released = vi.fn()
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (map: Record<string, (event: MessageEvent) => void>) => {
     for (const [name, handler] of Object.entries(map)) handlers.set(name, handler)
     return () => {

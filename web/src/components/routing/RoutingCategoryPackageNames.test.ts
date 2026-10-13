@@ -5,15 +5,16 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import type { PackageNameRulesOverride } from '@/api/types'
 import routing from '@/locales/en/routing.json'
 import settings from '@/locales/en/settings.json'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, passTime } from '@/test/mount'
 import { INHERIT_LEVEL } from '@/utils/format'
 
 const post = vi.fn()
-vi.mock('@/api/client', () => ({ api: { POST: (...args: unknown[]) => post(...args) } }))
+vi.mock('@/api/client', () => apiClientMock({ POST: (...args: unknown[]) => post(...args) }))
 
 const { default: RoutingCategoryPackageNames } = await import('./RoutingCategoryPackageNames.vue')
 
@@ -89,12 +90,11 @@ describe('RoutingCategoryPackageNames', () => {
 describe('RoutingCategoryPackageNames while everything inherits', () => {
   it('asks for no preview', async () => {
     post.mockReset()
-    mountComponent(RoutingCategoryPackageNames, {
+    await passTime(350, () => mountComponent(RoutingCategoryPackageNames, {
       messages: { routing, settings },
       props: { modelValue: null },
       stubs: { USelect }
-    })
-    await new Promise(resolve => setTimeout(resolve, 350))
+    }))
     expect(post).not.toHaveBeenCalled()
     expect(screen.queryByTestId('category-package-names-preview')).toBeNull()
   })

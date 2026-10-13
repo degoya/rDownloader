@@ -6,7 +6,6 @@
 
 use rd_core::StorageRootId;
 use rd_db::{Database, NewStorageRoot};
-use tempfile::TempDir;
 
 fn root(name: &str, path: &str, is_default: bool) -> NewStorageRoot {
     NewStorageRoot {
@@ -15,12 +14,6 @@ fn root(name: &str, path: &str, is_default: bool) -> NewStorageRoot {
         is_default,
         minimum_free_bytes: None,
     }
-}
-
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("roots.sqlite"))
-        .await
-        .expect("database")
 }
 
 /// Names of the roots currently marked default, in list order.
@@ -38,7 +31,7 @@ async fn defaults(database: &Database) -> Vec<String> {
 #[tokio::test]
 async fn first_root_becomes_default_even_when_not_requested() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
 
     let created = database
         .create_storage_root(StorageRootId::new(), root("Downloads", "/downloads", false))
@@ -55,7 +48,7 @@ async fn first_root_becomes_default_even_when_not_requested() {
 #[tokio::test]
 async fn a_second_root_does_not_steal_the_default() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .create_storage_root(StorageRootId::new(), root("Downloads", "/downloads", false))
         .await
@@ -73,7 +66,7 @@ async fn a_second_root_does_not_steal_the_default() {
 #[tokio::test]
 async fn a_second_root_may_take_the_default_when_asked() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .create_storage_root(StorageRootId::new(), root("Downloads", "/downloads", false))
         .await
@@ -90,7 +83,7 @@ async fn a_second_root_may_take_the_default_when_asked() {
 #[tokio::test]
 async fn unticking_the_only_default_is_coerced_back() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let only = database
         .create_storage_root(StorageRootId::new(), root("Downloads", "/downloads", false))
         .await
@@ -111,7 +104,7 @@ async fn unticking_the_only_default_is_coerced_back() {
 #[tokio::test]
 async fn unticking_the_default_is_coerced_back_even_with_other_roots() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let first = database
         .create_storage_root(StorageRootId::new(), root("Downloads", "/downloads", false))
         .await
@@ -133,7 +126,7 @@ async fn unticking_the_default_is_coerced_back_even_with_other_roots() {
 #[tokio::test]
 async fn editing_a_non_default_root_leaves_the_default_alone() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .create_storage_root(StorageRootId::new(), root("Downloads", "/downloads", false))
         .await
@@ -155,7 +148,7 @@ async fn editing_a_non_default_root_leaves_the_default_alone() {
 #[tokio::test]
 async fn deleting_the_default_promotes_the_alphabetically_first_survivor() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let bravo = database
         .create_storage_root(StorageRootId::new(), root("Bravo", "/bravo", false))
         .await
@@ -181,7 +174,7 @@ async fn deleting_the_default_promotes_the_alphabetically_first_survivor() {
 #[tokio::test]
 async fn deleting_a_non_default_root_does_not_move_the_default() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     database
         .create_storage_root(StorageRootId::new(), root("Bravo", "/bravo", false))
         .await
@@ -202,7 +195,7 @@ async fn deleting_a_non_default_root_does_not_move_the_default() {
 #[tokio::test]
 async fn deleting_the_last_root_leaves_an_empty_table() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let only = database
         .create_storage_root(StorageRootId::new(), root("Downloads", "/downloads", false))
         .await
@@ -222,7 +215,7 @@ async fn deleting_the_last_root_leaves_an_empty_table() {
 #[tokio::test]
 async fn default_storage_root_returns_the_marked_root() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     assert!(
         database
             .default_storage_root()

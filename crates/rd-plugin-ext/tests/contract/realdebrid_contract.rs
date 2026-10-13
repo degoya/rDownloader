@@ -739,49 +739,6 @@ async fn the_redirect_entrance_refuses_with_a_stable_code() {
     assert!(server.requests().is_empty());
 }
 
-/// Nothing that could be a credential is committed to the repository.
-#[test]
-fn fixtures_carry_no_credential_material() {
-    for (name, body) in [
-        ("device_code.json", DEVICE_CODE),
-        ("credentials.json", CREDENTIALS),
-        ("credentials_pending.json", CREDENTIALS_PENDING),
-        ("success.json", SUCCESS),
-        ("pending.json", PENDING),
-        ("quota.json", QUOTA),
-        ("expiry.json", EXPIRY),
-        ("refused.json", REFUSED),
-        ("client_rejected.json", CLIENT_REJECTED),
-        ("refresh_refused.json", REFRESH_REFUSED),
-    ] {
-        let value: serde_json::Value = serde_json::from_str(body).expect("fixture is JSON");
-        for field in [
-            "access_token",
-            "refresh_token",
-            "id_token",
-            "code",
-            "device_code",
-            "client_id",
-            "client_secret",
-        ] {
-            let Some(found) = value.get(field).and_then(serde_json::Value::as_str) else {
-                continue;
-            };
-            assert!(
-                [
-                    PLACEHOLDER_ACCESS_TOKEN,
-                    PLACEHOLDER_REFRESH_TOKEN,
-                    PLACEHOLDER_DEVICE_CODE,
-                    PLACEHOLDER_CLIENT_ID,
-                    PLACEHOLDER_CLIENT_SECRET,
-                ]
-                .contains(&found),
-                "{name} carries a `{field}` that is not a placeholder"
-            );
-        }
-    }
-}
-
 /// The plugin asks for nothing beyond the provider it signs in, and offers only the entrance
 /// that provider has.
 #[test]

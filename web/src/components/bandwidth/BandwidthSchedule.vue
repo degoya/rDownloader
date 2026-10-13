@@ -150,9 +150,7 @@ async function save(): Promise<void> {
               {{ t('bandwidth.schedule.wraps') }}
             </p>
           </WeekWindowRow>
-          <p v-if="!windows.length" class="border border-muted p-5 text-center text-sm text-muted">
-            {{ profiles.length ? t('bandwidth.schedule.empty') : t('bandwidth.schedule.needs_profile') }}
-          </p>
+          <UEmpty v-if="!windows.length" :description="profiles.length ? t('bandwidth.schedule.empty') : t('bandwidth.schedule.needs_profile')" />
         </div>
       </template>
     </FormListLayout>

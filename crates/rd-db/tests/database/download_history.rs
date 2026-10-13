@@ -10,9 +10,7 @@ use rd_core::{
 use rd_db::{Database, HistoryQuery, NewDownload, NewPackage, PackageChange};
 
 async fn open(directory: &Path) -> Database {
-    let database = Database::open(directory.join("rdownloader.sqlite3"))
-        .await
-        .expect("database");
+    let database = rd_testkit::temp_database(directory).await;
     database
         .install_file_vault(directory.join("secrets"))
         .await

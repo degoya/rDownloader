@@ -30,37 +30,39 @@ use utoipa::ToSchema;
 const ENGLISH_CATALOGUE: &str = include_str!("../../../web/src/locales/en/logs.json");
 
 /// What `versions.json` holds.
-pub const ENTRY_VERSIONS: &str = "diagnostics.bundle.entry.versions.description";
+pub(crate) const ENTRY_VERSIONS: &str = "diagnostics.bundle.entry.versions.description";
 /// What `configuration.json` holds.
-pub const ENTRY_CONFIGURATION: &str = "diagnostics.bundle.entry.configuration.description";
+pub(crate) const ENTRY_CONFIGURATION: &str = "diagnostics.bundle.entry.configuration.description";
 /// What `system-checks.json` holds.
-pub const ENTRY_SYSTEM_CHECKS: &str = "diagnostics.bundle.entry.system_checks.description";
+pub(crate) const ENTRY_SYSTEM_CHECKS: &str = "diagnostics.bundle.entry.system_checks.description";
 /// What `doctor.txt` holds.
-pub const ENTRY_DOCTOR: &str = "diagnostics.bundle.entry.doctor.description";
+pub(crate) const ENTRY_DOCTOR: &str = "diagnostics.bundle.entry.doctor.description";
 /// What `recent-errors.json` holds.
-pub const ENTRY_RECENT_ERRORS: &str = "diagnostics.bundle.entry.recent_errors.description";
+pub(crate) const ENTRY_RECENT_ERRORS: &str = "diagnostics.bundle.entry.recent_errors.description";
 
 /// Credential-named fields of the configuration are replaced.
-pub const REDACTION_CONFIGURATION_CREDENTIALS: &str =
+pub(crate) const REDACTION_CONFIGURATION_CREDENTIALS: &str =
     "diagnostics.bundle.redaction.configuration_credentials";
 /// PEM material of the configuration is replaced.
-pub const REDACTION_CONFIGURATION_PEM: &str = "diagnostics.bundle.redaction.configuration_pem";
+pub(crate) const REDACTION_CONFIGURATION_PEM: &str =
+    "diagnostics.bundle.redaction.configuration_pem";
 /// Text values of the configuration pass the URL and header redaction.
-pub const REDACTION_CONFIGURATION_TEXT: &str = "diagnostics.bundle.redaction.configuration_text";
+pub(crate) const REDACTION_CONFIGURATION_TEXT: &str =
+    "diagnostics.bundle.redaction.configuration_text";
 /// Which field names were actually replaced; carries the `fields` parameter.
 pub const REDACTION_CONFIGURATION_REPLACED: &str =
     "diagnostics.bundle.redaction.configuration_replaced";
 /// Paths pass the text redaction.
-pub const REDACTION_PATHS: &str = "diagnostics.bundle.redaction.paths";
+pub(crate) const REDACTION_PATHS: &str = "diagnostics.bundle.redaction.paths";
 /// Log records were redacted when they were captured.
-pub const REDACTION_LOG_RECORDS: &str = "diagnostics.bundle.redaction.log_records";
+pub(crate) const REDACTION_LOG_RECORDS: &str = "diagnostics.bundle.redaction.log_records";
 
 /// Download file contents and names never go in.
-pub const EXCLUSION_FILE_CONTENTS: &str = "diagnostics.bundle.exclusion.file_contents";
+pub(crate) const EXCLUSION_FILE_CONTENTS: &str = "diagnostics.bundle.exclusion.file_contents";
 /// Full URLs never go in.
-pub const EXCLUSION_URLS: &str = "diagnostics.bundle.exclusion.urls";
+pub(crate) const EXCLUSION_URLS: &str = "diagnostics.bundle.exclusion.urls";
 /// Secrets never go in.
-pub const EXCLUSION_SECRETS: &str = "diagnostics.bundle.exclusion.secrets";
+pub(crate) const EXCLUSION_SECRETS: &str = "diagnostics.bundle.exclusion.secrets";
 
 /// The parameter name [`REDACTION_CONFIGURATION_REPLACED`] interpolates.
 pub const FIELDS_PARAMETER: &str = "fields";

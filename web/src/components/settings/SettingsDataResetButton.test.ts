@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import system from '@/locales/en/system.json'
@@ -7,18 +8,15 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsDataResetButton from './SettingsDataResetButton.vue'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'This clears data for good and must be confirmed.')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'This clears data for good and must be confirmed.') }))
 
 /** The clear asks first; the tests drive the answer and read the question. */
 type ConfirmOptions = { title: string, description: string, confirmIcon?: string, destructive?: boolean }
-const confirmed = vi.fn(async (_options: ConfirmOptions) => true)
-vi.mock('@/composables/useConfirm', () => ({ useConfirm: () => confirmed }))
+const confirmed = vi.hoisted(() => vi.fn(async (_options: ConfirmOptions) => true))
+vi.mock('@/composables/useConfirm', () => confirmMock(confirmed))
 
-const added = vi.fn()
-vi.mock('@nuxt/ui/composables', () => ({ useToast: () => ({ add: added }) }))
+const added = vi.hoisted(() => vi.fn())
+vi.mock('@nuxt/ui/composables', () => toastMock({ add: added }))
 
 type Target = 'logs' | 'audit' | 'stats' | 'notifications' | 'notifications_pending' | 'storage_operations' | 'content_index' | 'history'
 

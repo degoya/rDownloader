@@ -32,7 +32,7 @@ export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/scripts/lib"
 cp "$ROOT/scripts/prune-target.sh" "$TREE/scripts/"
-cp "$ROOT/scripts/lib/"{lock,lanes,verified,workspace-version,inert-paths}.sh "$TREE/scripts/lib/"
+cp "$ROOT/scripts/lib/"{lock,lanes,verified,verified-ci,workspace-version,inert-paths}.sh "$TREE/scripts/lib/"
 git init -q -b development "$TREE"
 git -C "$TREE" commit -q --allow-empty -m base
 

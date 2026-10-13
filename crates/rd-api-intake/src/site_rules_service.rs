@@ -56,7 +56,7 @@ impl Switches {
 
     /// Whether a group's switch is on.
     #[must_use]
-    pub fn group_on(&self, group: &str) -> bool {
+    pub(crate) fn group_on(&self, group: &str) -> bool {
         !self.groups_off.contains(group)
     }
 }
@@ -152,7 +152,7 @@ pub async fn device_id(database: &Database) -> Option<String> {
 /// Writes every example the app brings whose id no stored rule carries, switched off and with
 /// the origin `example`, and answers how many it wrote (RD-1230-03). An example somebody kept,
 /// switched on or changed is left as it is.
-pub async fn add_missing_examples(database: &Database) -> anyhow::Result<usize> {
+pub(crate) async fn add_missing_examples(database: &Database) -> anyhow::Result<usize> {
     let stored: BTreeSet<String> = database
         .list_site_rules()
         .await?

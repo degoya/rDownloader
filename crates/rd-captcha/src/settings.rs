@@ -66,7 +66,7 @@ impl Default for CaptchaSettings {
 impl CaptchaSettings {
     /// Whether a solver service is configured well enough to be attempted.
     #[must_use]
-    pub fn has_solver(&self) -> bool {
+    pub(crate) fn has_solver(&self) -> bool {
         self.solver != SolverKind::None && self.api_key_ref.is_some()
     }
 

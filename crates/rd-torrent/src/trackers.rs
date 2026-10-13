@@ -115,7 +115,7 @@ async fn scrape_http(announce: &str, info_hash: &[u8]) -> Result<TrackerScrape> 
         .collect();
     let separator = if base.contains('?') { '&' } else { '?' };
     let request = format!("{base}{separator}info_hash={encoded}");
-    let client = reqwest::Client::builder()
+    let client = rd_http::client_builder(rd_http::ClientPurpose::Service)
         .timeout(SCRAPE_TIMEOUT)
         // A redirect would send the request to a host that was never validated, which is
         // exactly the check `reject_internal_target` just performed.

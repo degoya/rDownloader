@@ -98,7 +98,7 @@ pub(super) static TOKEN_TOUCHED: std::sync::LazyLock<
 /// The scopes a SABnzbd or qBittorrent client needs (audit 1.9.1, API-04; owner, 2026-10-04):
 /// it adds work, controls the work it added and reads the queue back -- and touches no setting,
 /// no stored credential and no administration.
-pub const COMPAT_SCOPES: &[rd_core::Scope] = &[
+pub(crate) const COMPAT_SCOPES: &[rd_core::Scope] = &[
     rd_core::Scope::Intake,
     rd_core::Scope::Queue,
     rd_core::Scope::Read,

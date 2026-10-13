@@ -10,6 +10,9 @@
 # truth after the last merge.
 # shellcheck source=inert-paths.sh
 source "$(dirname "${BASH_SOURCE[0]}")/inert-paths.sh"
+# The recorded greens rd_integrate_ci_platforms reads: rd_worktree_tree, rd_full_covering.
+# shellcheck source=verified.sh
+source "$(dirname "${BASH_SOURCE[0]}")/verified.sh"
 
 # The merge drivers .gitattributes names (RD-1100-13), registered in the repository's config, which
 # every worktree shares, so the merges resolve the files whose conflicts have one right answer
@@ -123,4 +126,21 @@ rd_integrate_check() {
     fi
     echo "   Hand each back to the branch that owns it, then run the same integrate.sh again." >&2
     return 1
+}
+
+# The platforms the public CI still has to run for checkout $1 beside the Windows run the
+# integration starts at once (RD-1280-14; owner, 2026-10-13: "Linux nur auf GitHub beim
+# Release-Kandidaten"): `windows` when a recorded local green of the Rust half covers its working
+# tree — the run's own --full, or one it differs from only in what that half does not read
+# (rd_full_covering) — and `linux,windows` otherwise: a red or skipped --full leaves no green that
+# covers Linux. GitHub's Linux platform is the `rust` and `crash-matrix` jobs on ubuntu-24.04,
+# what that half runs here; the release candidate runs Linux on GitHub, finding no green of it.
+rd_integrate_ci_platforms() {
+    local tree
+    tree="$(rd_worktree_tree "$1")"
+    if [[ -n "$tree" && -n "$(rd_full_covering "$1" rust "$tree")" ]]; then
+        echo windows
+    else
+        echo linux,windows
+    fi
 }

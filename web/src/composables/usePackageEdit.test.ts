@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
+import { toastMock } from '@/test/mocks'
 
 // The composable pulls in the modal (and with it Nuxt UI's runtime); the diff helper under
 // test needs none of that.
-vi.mock('@nuxt/ui/composables', () => ({ useOverlay: () => ({ create: () => ({}) }) }))
+vi.mock('@nuxt/ui/composables', () => toastMock({ overlay: {} }))
 vi.mock('@/components/PackageEditModal.vue', () => ({ default: {} }))
 
 import { packageEditChange, type PackageEditResult } from './usePackageEdit'

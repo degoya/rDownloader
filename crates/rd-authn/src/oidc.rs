@@ -47,7 +47,7 @@ pub const FLOW_TTL: Duration = Duration::from_secs(600);
 
 /// How rarely a token naming an unknown key may make the service fetch the key set again. A
 /// forged token costs the provider at most one request per interval, however many arrive.
-pub const JWKS_REFETCH_INTERVAL: Duration = Duration::from_secs(300);
+pub(crate) const JWKS_REFETCH_INTERVAL: Duration = Duration::from_secs(300);
 
 /// How long a discovery document and a key set are used before they are fetched again.
 pub const METADATA_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
@@ -60,14 +60,14 @@ pub const RESPONSE_LIMIT_BYTES: usize = 256 * 1024;
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The cookie that binds a flow to the browser that started it.
-pub const BINDING_COOKIE: &str = "rd_oidc";
+pub(crate) const BINDING_COOKIE: &str = "rd_oidc";
 
 /// Where the provider sends the browser back, below the mount point.
 pub const CALLBACK_PATH: &str = "/api/v1/auth/oidc/callback";
 
 /// The path the binding cookie is scoped to, below the mount point: it travels to the start, the
 /// link and the callback and to nothing else.
-pub const COOKIE_PATH: &str = "/api/v1/auth/oidc/";
+pub(crate) const COOKIE_PATH: &str = "/api/v1/auth/oidc/";
 
 /// Whether an address may be an issuer or an endpoint of one: `https`, or `http` to this
 /// machine (a provider started beside the service for a test, as for a provider sign-in link).

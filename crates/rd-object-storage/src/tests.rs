@@ -29,6 +29,7 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 use crate::{ObjectStorageService, connect::Store};
+use rd_testkit::{lock, payload};
 
 /// The multipart half of a store, kept in memory, which finishes into the same [`InMemory`].
 #[derive(Debug, Default)]
@@ -46,12 +47,6 @@ impl std::fmt::Display for Parts {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str("Parts")
     }
-}
-
-fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
-    mutex
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 #[async_trait]
@@ -142,9 +137,7 @@ struct Harness {
 impl Harness {
     async fn start() -> Self {
         let directory = tempfile::tempdir().expect("tempdir");
-        let database = Database::open(directory.path().join("objects.sqlite3"))
-            .await
-            .expect("database");
+        let database = rd_testkit::temp_database(directory.path()).await;
         Self::with_database(directory, database).await
     }
 
@@ -170,9 +163,7 @@ impl Harness {
             provider,
             ..
         } = self;
-        let database = Database::open(directory.path().join("objects.sqlite3"))
-            .await
-            .expect("database");
+        let database = rd_testkit::temp_database(directory.path()).await;
         let mut harness = Self::with_database(directory, database).await;
         harness.memory = memory.clone();
         harness.parts = parts.clone();
@@ -342,10 +333,6 @@ impl Harness {
             .await
             .expect("validators");
     }
-}
-
-fn payload(length: usize) -> Vec<u8> {
-    (0..length).map(|index| (index % 251) as u8).collect()
 }
 
 async fn etag_of(harness: &Harness, key: &str) -> Option<String> {

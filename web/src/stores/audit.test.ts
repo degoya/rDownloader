@@ -1,53 +1,15 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
+import { auditPage } from '@/test/fixtures/audit'
 
 import { useAuditStore } from './audit'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'The service did not answer')
-}))
+vi.mock('@/api/client', () => apiClientMock())
 
-const PAGE = {
-  records: [
-    {
-      id: 2,
-      recorded_at: '2026-09-21T10:00:01.000Z',
-      action: 'login_failed',
-      outcome: 'failure',
-      actor_kind: 'anonymous',
-      actor_id: null,
-      actor_label: null,
-      client_address: '203.0.113.9',
-      target_kind: null,
-      target_id: null,
-      target_name: null,
-      trace_id: 'aaaabbbbccccddddeeeeffff00001111',
-      details: { stage: 'password' }
-    },
-    {
-      id: 1,
-      recorded_at: '2026-09-21T10:00:00.000Z',
-      action: 'token_created',
-      outcome: 'success',
-      actor_kind: 'session',
-      actor_id: 'session-1',
-      actor_label: null,
-      client_address: null,
-      target_kind: 'token',
-      target_id: 'tok-1',
-      target_name: 'scraper',
-      trace_id: null,
-      details: { scopes: 'api:read' }
-    }
-  ],
-  full_page: false,
-  total: 2,
-  retention: { records: 100000, days: 365 },
-  actions: ['login_failed', 'token_created']
-}
+const PAGE = auditPage()
 
 describe('audit store', () => {
   beforeEach(() => {

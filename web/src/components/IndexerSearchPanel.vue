@@ -173,7 +173,7 @@ defineExpose({ focusField })
           <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('linkgrabber.search.close')" :title="t('linkgrabber.search.close')" @click="close" />
         </div>
       </div>
-      <p v-if="!hits.length && !failures.length" class="mt-3 text-sm text-muted">{{ t('linkgrabber.search.empty') }}</p>
+      <UEmpty v-if="!hits.length && !failures.length" class="mt-3" :description="t('linkgrabber.search.empty')" />
       <UTable
         v-else-if="hits.length"
         class="mt-2 max-h-[60vh]"

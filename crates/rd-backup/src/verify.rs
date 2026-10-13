@@ -40,13 +40,6 @@ pub struct Verified {
     pub content_checked: bool,
 }
 
-fn failure(code: &'static str, detail: impl Into<String>) -> BackupError {
-    BackupError {
-        code,
-        detail: detail.into(),
-    }
-}
-
 /// Fetches `expected` from `destination` into `scratch` (a folder, created when missing) and
 /// checks it.
 ///
@@ -61,7 +54,7 @@ pub async fn verify_at(
 ) -> Result<Verified, BackupError> {
     crate::private_folder(scratch)
         .await
-        .map_err(|error| failure("backup.verify_failed", error.to_string()))?;
+        .map_err(|error| BackupError::new("backup.verify_failed", error.to_string()))?;
     let copy = scratch.join(format!("verify-{}", uuid::Uuid::now_v7()));
     let result = check(destination, expected, key, &copy).await;
     if let Err(error) = tokio::fs::remove_file(&copy).await
@@ -82,21 +75,21 @@ async fn check(
         .fetch(&expected.name, copy)
         .await
         .map_err(|error| match error {
-            DestinationError::NotFound(name) => failure(
+            DestinationError::NotFound(name) => BackupError::new(
                 VERIFY_MISSING,
                 format!("{name} is no longer at {}", destination.describe()),
             ),
-            other => failure(other.code(), other.to_string()),
+            other => BackupError::new(other.code(), other.to_string()),
         })?;
     let key = BackupKey::from_stored(key.key_bytes(), &key.salt())
-        .map_err(|error| failure("backup.verify_failed", format!("{error:#}")))?;
+        .map_err(|error| BackupError::new("backup.verify_failed", format!("{error:#}")))?;
     let path = copy.to_path_buf();
     let expected = expected.clone();
     tokio::task::spawn_blocking(move || {
         let (size, sha256) = digest_file(&path)
-            .map_err(|error| failure("backup.verify_failed", error.to_string()))?;
+            .map_err(|error| BackupError::new("backup.verify_failed", error.to_string()))?;
         if size != expected.size_bytes || sha256 != expected.sha256 {
-            return Err(failure(
+            return Err(BackupError::new(
                 VERIFY_DIGEST_MISMATCH,
                 format!(
                     "{} holds {size} bytes with SHA-256 {sha256}; {} bytes with {} were written",
@@ -105,18 +98,18 @@ async fn check(
             ));
         }
         let header = crate::stream::read_header(&path)
-            .map_err(|error| failure(VERIFY_DAMAGED, error.to_string()))?;
+            .map_err(|error| BackupError::new(VERIFY_DAMAGED, error.to_string()))?;
         if header.salt != key.salt() {
             return Ok(Verified {
                 content_checked: false,
             });
         }
         archive::verify_archive(&path, &key)
-            .map_err(|error| failure(VERIFY_DAMAGED, format!("{error:#}")))?;
+            .map_err(|error| BackupError::new(VERIFY_DAMAGED, format!("{error:#}")))?;
         Ok(Verified {
             content_checked: true,
         })
     })
     .await
-    .map_err(|error| failure("backup.verify_failed", error.to_string()))?
+    .map_err(|error| BackupError::new("backup.verify_failed", error.to_string()))?
 }

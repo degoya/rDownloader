@@ -19,7 +19,7 @@ async fn age(
 ) {
     let pool = sqlx::SqlitePool::connect(&format!(
         "sqlite://{}",
-        directory.join("sessions.sqlite3").display()
+        directory.join(rd_testkit::DATABASE_FILE).display()
     ))
     .await
     .expect("pool");
@@ -44,12 +44,6 @@ async fn is_live(database: &rd_db::Database, digest: &str, limits: SessionLimits
         .is_some()
 }
 
-async fn database(directory: &std::path::Path) -> rd_db::Database {
-    rd_db::Database::open(directory.join("sessions.sqlite3"))
-        .await
-        .expect("database")
-}
-
 async fn open(database: &rd_db::Database, digest: &str, agent: Option<&str>) -> rd_core::Session {
     database
         .create_session(
@@ -66,7 +60,7 @@ async fn open(database: &rd_db::Database, digest: &str, agent: Option<&str>) -> 
 #[tokio::test]
 async fn a_session_is_found_by_its_digest_and_never_by_its_bearer() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
 
     let created = open(&database, "digest-a", Some("Firefox")).await;
     let found = database
@@ -90,7 +84,7 @@ async fn a_session_is_found_by_its_digest_and_never_by_its_bearer() {
 #[tokio::test]
 async fn revoking_a_session_takes_effect_at_once() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
 
     let session = open(&database, "digest-a", None).await;
     assert!(database.revoke_session(session.id).await.expect("revoke"));
@@ -111,7 +105,7 @@ async fn revoking_a_session_takes_effect_at_once() {
 #[tokio::test]
 async fn signing_out_everywhere_else_keeps_the_caller_signed_in() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
 
     open(&database, "mine", Some("This laptop")).await;
     open(&database, "other-1", Some("A phone")).await;
@@ -148,7 +142,7 @@ async fn signing_out_everywhere_else_keeps_the_caller_signed_in() {
 #[tokio::test]
 async fn the_inventory_lists_live_sessions_by_most_recent_use() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
 
     open(&database, "older", Some("A")).await;
     open(&database, "newer", Some("B")).await;
@@ -170,7 +164,7 @@ async fn the_inventory_lists_live_sessions_by_most_recent_use() {
 #[tokio::test]
 async fn touching_a_revoked_session_reports_that_it_is_gone() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
 
     let session = open(&database, "digest-a", None).await;
     database.revoke_session(session.id).await.expect("revoke");
@@ -187,7 +181,7 @@ async fn touching_a_revoked_session_reports_that_it_is_gone() {
 #[tokio::test]
 async fn an_expired_session_does_not_authenticate_and_is_not_listed() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
 
     database
         .create_session(
@@ -222,11 +216,11 @@ async fn an_expired_session_does_not_authenticate_and_is_not_listed() {
 async fn sessions_survive_a_restart() {
     let directory = tempfile::tempdir().expect("tempdir");
     {
-        let database = database(directory.path()).await;
+        let database = rd_testkit::temp_database(directory.path()).await;
         open(&database, "digest-a", Some("Firefox")).await;
     }
     // Reopening the same file is how a restart is tested elsewhere in this repository.
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let found = database
         .session_for_digest("digest-a", limits())
         .await
@@ -242,7 +236,7 @@ async fn sessions_survive_a_restart() {
 #[tokio::test]
 async fn only_long_expired_sessions_are_purged() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
 
     database
         .create_session(SessionId::new(), "recent".to_owned(), None, None, -1)
@@ -264,7 +258,7 @@ async fn only_long_expired_sessions_are_purged() {
 #[tokio::test]
 async fn a_session_unused_for_longer_than_the_idle_limit_ends() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let limits = SessionLimits {
         idle_hours: 2,
         max_hours: 720,
@@ -297,7 +291,7 @@ async fn a_session_unused_for_longer_than_the_idle_limit_ends() {
 #[tokio::test]
 async fn a_shorter_maximum_ends_sessions_that_are_already_past_it() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
 
     // Created under a twelve-hour lifetime by `open`; signed in five hours ago, used just now.
     open(&database, "session", None).await;
@@ -331,7 +325,7 @@ async fn a_shorter_maximum_ends_sessions_that_are_already_past_it() {
 #[tokio::test]
 async fn a_session_that_idled_out_long_ago_is_purged() {
     let directory = tempfile::tempdir().expect("tempdir");
-    let database = database(directory.path()).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
 
     // Expiring ninety days from now by its stored date, but last used forty days ago.
     database

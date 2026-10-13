@@ -1,19 +1,17 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 
 import { useAutomationsStore } from './automations'
 
-vi.mock('@/api/client', () => ({
-  api: { GET: vi.fn(), POST: vi.fn(), PUT: vi.fn(), DELETE: vi.fn() },
-  responseError: vi.fn(() => 'The automation catalogue is unavailable')
-}))
+vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The automation catalogue is unavailable') }))
 
 /** The shared event stream, reduced to the one handler this store registers. */
 let automationEvent: ((event: MessageEvent<string>) => void) | null = null
 const released = vi.fn()
-vi.mock('@/composables/useEventStream', () => ({
+vi.mock('@/composables/useEventStream', () => eventStreamMock({
   subscribeEvents: (handlers: Record<string, (event: MessageEvent<string>) => void>) => {
     automationEvent = handlers['automation.changed'] ?? null
     return () => { automationEvent = null; released() }

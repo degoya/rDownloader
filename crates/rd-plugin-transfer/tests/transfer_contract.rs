@@ -12,13 +12,8 @@ use std::{sync::Arc, time::Duration};
 use rd_plugin_host::{
     PluginManifest, TransferBackend, TransferJob, TransferOutcome, TransferState, TransferTarget,
 };
+use rd_testkit::payload;
 use tokio_util::sync::CancellationToken;
-
-/// Deterministic payload: every byte says where it belongs, so a resume that splices at the
-/// wrong offset produces a mismatch instead of a plausible-looking file.
-fn payload(len: usize) -> Vec<u8> {
-    (0..len).map(|index| (index % 251) as u8).collect()
-}
 
 fn backend(manifest_toml: &str, component: &[u8]) -> TransferBackend {
     let manifest: PluginManifest = toml::from_str(manifest_toml).expect("manifest");

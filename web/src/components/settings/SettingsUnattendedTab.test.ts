@@ -1,5 +1,6 @@
 import { waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { apiClientMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import bandwidth from '@/locales/en/bandwidth.json'
@@ -9,7 +10,7 @@ import { mountComponent } from '@/test/mount'
 
 import SettingsUnattendedTab from './SettingsUnattendedTab.vue'
 
-vi.mock('@/api/client', () => ({ api: { GET: vi.fn() } }))
+vi.mock('@/api/client', () => apiClientMock())
 
 
 /**

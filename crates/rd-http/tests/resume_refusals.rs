@@ -7,10 +7,7 @@
 //! naming another total is a different file, and without a validator only a confirmed equal
 //! length may be continued.
 
-use std::{
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use axum::{
     Router,
@@ -82,12 +79,13 @@ async fn resume(answer_with: fn() -> Response, validator: Option<&str>) -> Resum
         answer: answer_with,
         if_range: Mutex::new(Vec::new()),
     });
-    let address = serve(
+    let server = rd_testkit::serve(
         Router::new()
             .route("/file", get(answer))
             .with_state(Arc::clone(&origin)),
     )
     .await;
+    let address = server.addr();
     let directory = tempfile::tempdir().expect("temporary directory");
     let part_path = directory.path().join("resume.part");
     tokio::fs::write(&part_path, &PAYLOAD[..COMMITTED])
@@ -119,17 +117,6 @@ async fn resume(answer_with: fn() -> Response, validator: Option<&str>) -> Resum
         part,
         if_range,
     }
-}
-
-async fn serve(router: Router) -> SocketAddr {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
-    let address = listener.local_addr().expect("address");
-    tokio::spawn(async move {
-        let _ = axum::serve(listener, router).await;
-    });
-    address
 }
 
 /// The confirmed head is intact and not one byte was written behind it.

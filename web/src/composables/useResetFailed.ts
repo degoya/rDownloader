@@ -15,7 +15,7 @@ export const STUCK_KINDS: readonly StuckKind[] = ['failed', 'blocked', 'both']
  * The states behind each kind. A cancelled file is not among them: it was stopped on purpose,
  * and a one-click reset should not start what somebody cancelled.
  */
-export const STUCK_STATES: Readonly<Record<StuckKind, readonly DownloadState[]>> = {
+const STUCK_STATES: Readonly<Record<StuckKind, readonly DownloadState[]>> = {
   failed: ['failed'],
   blocked: ['blocked'],
   both: ['failed', 'blocked']

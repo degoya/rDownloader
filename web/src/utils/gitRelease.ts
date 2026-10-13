@@ -6,9 +6,6 @@ import type { GitReleaseOptions } from '@/api/types'
  * test agree on them.
  */
 
-/** `MAX_ASSET_PATTERNS` in `crates/rd-core/src/git_release.rs`. */
-const MAX_ASSET_PATTERNS = 32
-
 /** No forge chosen: the server reads it from `github.com` or `gitlab.com`. */
 export const FORGE_FROM_ADDRESS = 'auto'
 

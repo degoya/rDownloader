@@ -22,12 +22,6 @@ const CONTENT_KEY: &str = "torrent:da39a3ee5e6b4b0d3255bfef95601890afd80709";
 const PLUGIN_ID: &str = "019d0000-0000-7000-8000-00000000011e";
 const MAGNET: &str = "magnet:?xt=urn:btih:da39a3ee5e6b4b0d3255bfef95601890afd80709";
 
-async fn database(directory: &TempDir) -> Database {
-    Database::open(directory.path().join("remote-jobs.sqlite"))
-        .await
-        .expect("database")
-}
-
 async fn account(database: &Database) -> AccountId {
     database
         .create_account(NewAccount {
@@ -64,7 +58,7 @@ fn claim(account_id: AccountId, content_key: &str) -> ClaimRemoteJob {
 #[tokio::test]
 async fn a_claim_is_written_before_the_provider_is_asked_for_anything() {
     let directory = TempDir::new().expect("temp dir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
 
     let job = database
@@ -86,7 +80,7 @@ async fn a_claim_is_written_before_the_provider_is_asked_for_anything() {
 #[tokio::test]
 async fn one_account_cannot_hold_two_jobs_for_one_content_key() {
     let directory = TempDir::new().expect("temp dir");
-    let database = database(&directory).await;
+    let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
 
     let first = database
@@ -135,7 +129,7 @@ async fn one_account_cannot_hold_two_jobs_for_one_content_key() {
 #[tokio::test]
 async fn a_restart_between_the_claim_and_the_answer_leaves_a_row_that_adopts() {
     let directory = TempDir::new().expect("temp dir");
-    let path = directory.path().join("remote-jobs.sqlite");
+    let path = directory.path().join(rd_testkit::DATABASE_FILE);
     let claimed = {
         let database = Database::open(path.clone()).await.expect("database");
         let account_id = account(&database).await;
@@ -212,7 +206,7 @@ async fn a_restart_between_the_claim_and_the_answer_leaves_a_row_that_adopts() {
 #[tokio::test]
 async fn the_plugins_bookkeeping_and_the_next_poll_both_survive_a_restart() {
     let directory = TempDir::new().expect("temp dir");
-    let path = directory.path().join("remote-jobs.sqlite");
+    let path = directory.path().join(rd_testkit::DATABASE_FILE);
     let due_at = Utc::now() - Duration::seconds(5);
     let id = {
         let database = Database::open(path.clone()).await.expect("database");

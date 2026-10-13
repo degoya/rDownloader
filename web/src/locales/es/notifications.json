@@ -128,5 +128,38 @@
   "desktop": {
     "quiet_summary_title": "Durante las horas silenciosas: {count} notificaciones",
     "quiet_summary_more": "y {count} más"
+  },
+  "template": {
+    "title_label": "Título propio",
+    "body_label": "Texto propio",
+    "description": "Opcional; si lo dejas vacío, se envía el texto predeterminado. Escribe un marcador como {example} y una llave duplicada: {pair}.",
+    "placeholders_label": "Marcadores",
+    "placeholders_hint": "Un clic lo añade al último campo que usaste. Lo que un evento no rellena queda vacío.",
+    "summary_only": "Los eventos elegidos llegan agrupados en un resumen y conservan su texto.",
+    "preview_label": "Vista previa con datos de ejemplo",
+    "built_in": "Texto predeterminado",
+    "unknown": "«{name}» no es un marcador.",
+    "syntax": "Una llave no está cerrada o no está abierta. Para escribir una llave, duplícala: {pair}.",
+    "insert": "Añadir {placeholder}: {description}",
+    "badge": "Texto propio"
+  },
+  "placeholder": {
+    "event": "Código del evento, p. ej. package_completed",
+    "severity": "info, warning o error",
+    "time": "Hora, HH:MM en la zona horaria del servicio",
+    "date": "Fecha, AAAA-MM-DD en la zona horaria del servicio",
+    "title": "Título predeterminado",
+    "message": "Texto predeterminado del mensaje",
+    "package": "Nombre del paquete",
+    "file": "Nombre del archivo",
+    "category": "Nombre de la categoría",
+    "state": "Estado del paquete, p. ej. completed",
+    "size": "Tamaño, p. ej. 1.4 GiB",
+    "path": "Carpeta en el disco",
+    "error": "Qué salió mal",
+    "storage_target": "Almacenamiento o destino de la copia",
+    "version": "Versión",
+    "plugin": "Nombre del plugin",
+    "account": "Etiqueta y proveedor de la cuenta, nunca el usuario"
   }
 }
