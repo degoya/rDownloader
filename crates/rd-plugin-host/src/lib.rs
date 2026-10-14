@@ -47,7 +47,7 @@ pub use conformance::{ConformanceCheck, ConformanceReport, check_package};
 pub use diagnostics::{ExecutionLog, ExecutionOutcome, Invocation};
 pub use engine::configure_compile_cache;
 pub use install::{PluginInstaller, StartedVersions};
-pub use installed::{IncompatiblePlugin, RefusedInstall};
+pub use installed::{IncompatiblePlugin, RefusedInstall, UnloadableVersions, VersionSweep};
 pub use locales::{
     MAX_LOCALE_BYTES, MAX_LOCALE_FILES, PluginLocale, PluginLocaleAccount, REQUIRED_LANGUAGES,
     locale_member_language, parse_locale, valid_language, validate_locales,

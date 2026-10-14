@@ -62,6 +62,12 @@
         },
         "recent_errors": {
           "description": "die neuesten Warnungen und Fehler aus dem Protokollspeicher"
+        },
+        "notifications": {
+          "description": "Benachrichtigungsziele und -regeln ohne Endpunkte und Wortlaut, Zustellungen der letzten 7 Tage je Ereignis und Zustand und die neuesten 50 Zustellungen"
+        },
+        "queue": {
+          "description": "Pakete je Zustand und Nachbearbeitungsstufe, die neuesten 50 Zustandswechsel von Paketen, Downloads je Zustand und Fehlercode"
         }
       },
       "redaction": {
@@ -70,12 +76,16 @@
         "configuration_text": "Textwerte durchlaufen die URL- und Header-Bereinigung",
         "configuration_replaced": "ersetzt: {fields}",
         "paths": "Pfade durchlaufen die Textbereinigung",
-        "log_records": "Nachrichten und Felder wurden beim Aufzeichnen bereinigt; aus der Protokolldatei wird nichts nachgelesen"
+        "log_records": "Nachrichten und Felder wurden beim Aufzeichnen bereinigt; aus der Protokolldatei wird nichts nachgelesen",
+        "notifications": "Endpunkte, Topics, Titel, Texte und Paketordner werden nicht gelesen; eine Vorlage zeigt nur, ob sie gesetzt ist",
+        "queue": "Paket- und Dateinamen, Ordner und Adressen werden nicht gelesen; Pakete erscheinen mit ID und Kategorie-ID"
       },
       "exclusion": {
         "file_contents": "Dateiinhalte und Dateinamen von Downloads",
         "urls": "vollständige URLs: Abfragewerte mit Zugangsdaten oder Signatur werden ersetzt",
-        "secrets": "Geheimnisse: Passwörter, Token, API-Schlüssel, Cookies, Zertifikate und Tresor-Verweise"
+        "secrets": "Geheimnisse: Passwörter, Token, API-Schlüssel, Cookies, Zertifikate und Tresor-Verweise",
+        "notifications": "Titel und Texte von Benachrichtigungen, Endpunkte und Topics der Ziele",
+        "package_names": "Paketnamen und Paketordner"
       }
     }
   },

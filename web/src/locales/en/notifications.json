@@ -138,13 +138,13 @@
     "description": "Optional; left empty, the built-in wording is sent. Write a placeholder as {example} and a brace doubled: {pair}.",
     "placeholders_label": "Placeholders",
     "placeholders_hint": "A click puts one at the cursor of the field you used last, replacing what you selected there. One an event does not fill stays empty.",
-    "summary_only": "The chosen events arrive bundled as one summary and keep their own wording.",
     "preview_label": "Preview with sample data",
     "built_in": "Built-in wording",
     "unknown": "“{name}” is not a placeholder.",
     "syntax": "A brace is not closed or not opened. Write a brace itself doubled: {pair}.",
     "insert": "Add {placeholder}: {description}",
-    "badge": "Own wording"
+    "badge": "Own wording",
+    "burst_hint": "Started downloads and added links arrive in bursts: one notification per burst, filled when the burst closes. {file}, {package} and {category} are filled only for a single download; the preview shows a burst of three."
   },
   "placeholder": {
     "event": "The event's code, such as package_completed",
@@ -168,6 +168,9 @@
     "budget_left": "Traffic of the active budget left",
     "budget_limit": "The active budget's limit",
     "budget_period": "The active budget's period, daily or monthly",
-    "reason": "Why the queue paused: manual, automation, schedule, stop_mark or game_mode"
+    "reason": "Why the queue paused: manual, automation, schedule, stop_mark or game_mode",
+    "count": "How many times the event happened in the burst: imports or starts",
+    "items": "Links or downloads in the burst altogether",
+    "names": "The burst's first names: the files started, the rest as “and N more”, or the links' sources"
   }
 }

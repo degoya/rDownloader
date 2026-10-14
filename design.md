@@ -2266,11 +2266,14 @@ pattern for any field a person fills with `{placeholder}` holes.
   named group, each titled with what it holds. A click puts it at the caret of the field last in
   focus, replacing a selection there (RD-1290-03): the field remembers its caret when it loses
   focus, gets the focus back with the caret behind the placeholder, and a field never focused takes
-  it at its end; an insertion that would pass the field's `maxlength` is left out. When every
-  chosen event keeps its own text (a burst summary), one muted line says so instead.
+  it at its end; an insertion that would pass the field's `maxlength` is left out. When a chosen
+  event arrives in bursts (download started, links added), one more muted line says that a burst
+  is one notification filled when it closes, and that `{file}`, `{package}` and `{category}` are
+  filled only for a single download (RD-1291-01).
 - **A preview under the fields**, in a bordered box (`aria-live="polite"`), with the sample
   values: a placeholder the chosen events do not fill is empty there as it will be in the
-  message, and a part left empty shows the built-in wording.
+  message, and a part left empty shows the built-in wording. A rule for bursts alone previews the
+  service's sample burst of three, so its file stays empty there as it will.
 - **Wrong before the save.** A name that is no placeholder or a brace out of place is the field's
   error at once, in the words the service's refusal uses; the save is checked again.
 

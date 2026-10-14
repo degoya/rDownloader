@@ -39,6 +39,10 @@ pub(crate) const ENTRY_SYSTEM_CHECKS: &str = "diagnostics.bundle.entry.system_ch
 pub(crate) const ENTRY_DOCTOR: &str = "diagnostics.bundle.entry.doctor.description";
 /// What `recent-errors.json` holds.
 pub(crate) const ENTRY_RECENT_ERRORS: &str = "diagnostics.bundle.entry.recent_errors.description";
+/// What `notifications.json` holds (RD-1291-04).
+pub(crate) const ENTRY_NOTIFICATIONS: &str = "diagnostics.bundle.entry.notifications.description";
+/// What `queue.json` holds (RD-1291-04).
+pub(crate) const ENTRY_QUEUE: &str = "diagnostics.bundle.entry.queue.description";
 
 /// Credential-named fields of the configuration are replaced.
 pub(crate) const REDACTION_CONFIGURATION_CREDENTIALS: &str =
@@ -56,6 +60,10 @@ pub const REDACTION_CONFIGURATION_REPLACED: &str =
 pub(crate) const REDACTION_PATHS: &str = "diagnostics.bundle.redaction.paths";
 /// Log records were redacted when they were captured.
 pub(crate) const REDACTION_LOG_RECORDS: &str = "diagnostics.bundle.redaction.log_records";
+/// Endpoints and wording of notifications are never read; templates only as set or not.
+pub(crate) const REDACTION_NOTIFICATIONS: &str = "diagnostics.bundle.redaction.notifications";
+/// Package and file names, folders and addresses are never read.
+pub(crate) const REDACTION_QUEUE: &str = "diagnostics.bundle.redaction.queue";
 
 /// Download file contents and names never go in.
 pub(crate) const EXCLUSION_FILE_CONTENTS: &str = "diagnostics.bundle.exclusion.file_contents";
@@ -63,6 +71,10 @@ pub(crate) const EXCLUSION_FILE_CONTENTS: &str = "diagnostics.bundle.exclusion.f
 pub(crate) const EXCLUSION_URLS: &str = "diagnostics.bundle.exclusion.urls";
 /// Secrets never go in.
 pub(crate) const EXCLUSION_SECRETS: &str = "diagnostics.bundle.exclusion.secrets";
+/// Notification titles, texts, endpoints and topics never go in (RD-1291-04).
+pub(crate) const EXCLUSION_NOTIFICATIONS: &str = "diagnostics.bundle.exclusion.notifications";
+/// Package names and folders never go in (RD-1291-04).
+pub(crate) const EXCLUSION_PACKAGE_NAMES: &str = "diagnostics.bundle.exclusion.package_names";
 
 /// The parameter name [`REDACTION_CONFIGURATION_REPLACED`] interpolates.
 pub const FIELDS_PARAMETER: &str = "fields";
@@ -75,15 +87,21 @@ pub const ALL_CODES: &[&str] = &[
     ENTRY_SYSTEM_CHECKS,
     ENTRY_DOCTOR,
     ENTRY_RECENT_ERRORS,
+    ENTRY_NOTIFICATIONS,
+    ENTRY_QUEUE,
     REDACTION_CONFIGURATION_CREDENTIALS,
     REDACTION_CONFIGURATION_PEM,
     REDACTION_CONFIGURATION_TEXT,
     REDACTION_CONFIGURATION_REPLACED,
     REDACTION_PATHS,
     REDACTION_LOG_RECORDS,
+    REDACTION_NOTIFICATIONS,
+    REDACTION_QUEUE,
     EXCLUSION_FILE_CONTENTS,
     EXCLUSION_URLS,
     EXCLUSION_SECRETS,
+    EXCLUSION_NOTIFICATIONS,
+    EXCLUSION_PACKAGE_NAMES,
 ];
 
 /// One sentence a person reads, in both forms its two readers need.

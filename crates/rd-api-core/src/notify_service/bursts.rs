@@ -1,7 +1,8 @@
 //! The events whose bursts are one notification each (RD-1240-17): links arriving in the
 //! LinkGrabber and downloads starting. Read off the bus here, folded by
 //! `rd_notify::Coalescer`, and queued when a burst closes - a hundred links pasted one after
-//! another reach a target as one message, not a hundred.
+//! another reach a target as one message, not a hundred. A rule's own wording is filled then,
+//! once per burst and rule (RD-1291-01).
 
 use super::*;
 
@@ -60,6 +61,8 @@ impl NotificationService {
                         .get("source")
                         .and_then(serde_json::Value::as_str)
                         .map(|source| source_label(source).to_owned()),
+                    occurred_at: event.occurred_at,
+                    package_id: None,
                 }
             }
             _ => {
@@ -84,6 +87,8 @@ impl NotificationService {
                     event_id: event.id.to_string(),
                     items: 1,
                     name: Some(file.file_name),
+                    occurred_at: event.occurred_at,
+                    package_id: Some(file.package_id),
                 }
             }
         };
@@ -95,7 +100,9 @@ impl NotificationService {
         Ok(())
     }
 
-    /// Queues the bursts that closed - all of them when the service stops.
+    /// Queues the bursts that closed - all of them when the service stops. The wording comes
+    /// from the burst alone and its first bus event's time, so a burst queued again after a
+    /// restart says what it said before, and the idempotency key keeps it to one delivery.
     pub(super) async fn flush_bursts(&self, all: bool) {
         let closed = {
             let mut bursts = self.inner.bursts.lock().await;
@@ -110,14 +117,22 @@ impl NotificationService {
         };
         for burst in closed {
             let (title, body) = burst_text(&burst);
+            let values = match self.burst_values(&burst).await {
+                Ok(values) => values,
+                Err(error) => {
+                    // The built-in wording still goes out rather than nothing.
+                    tracing::warn!(%error, "notification burst placeholders could not be read");
+                    None
+                }
+            };
             if let Err(error) = self
-                .queue_event(
+                .queue_worded(
                     burst.event,
                     burst.category_id,
                     &burst.first_event_id,
-                    &title,
-                    &body,
+                    (&title, &body),
                     None,
+                    values.as_ref(),
                 )
                 .await
             {
@@ -129,7 +144,7 @@ impl NotificationService {
 
 /// The title and the body of a closed burst.
 pub(super) fn burst_text(burst: &rd_notify::Burst) -> (String, String) {
-    let named = burst.names.join(", ");
+    let named = burst.names_text();
     match burst.event {
         NotificationEvent::LinksAdded => {
             let links = counted(burst.items, "link", "links");
@@ -153,15 +168,7 @@ pub(super) fn burst_text(burst: &rd_notify::Burst) -> (String, String) {
                 [only] if burst.items == 1 => format!("Download started: {only}"),
                 _ => format!("{} started", counted(burst.items, "download", "downloads")),
             };
-            let rest = burst
-                .items
-                .saturating_sub(u64::try_from(burst.names.len()).unwrap_or(u64::MAX));
-            let body = if rest == 0 {
-                format!("Started: {named}.")
-            } else {
-                format!("Started: {named} and {rest} more.")
-            };
-            (title, body)
+            (title, format!("Started: {named}."))
         }
     }
 }

@@ -9,6 +9,8 @@
 //!   store within the retention a person configured, deleting in bounded steps so a queue
 //!   mutation never waits behind a sweep.
 //! * [`bundle`] — the inventory a person approves and the deterministic archive built from it.
+//! * [`activity`] — its `notifications.json` and `queue.json`: rules, deliveries and package
+//!   states by id, state and count, never by name (RD-1291-04).
 //! * [`notes`] — the codes that carry every line a person reads about the bundle, and the
 //!   English rendering the archive keeps for a reader outside the application.
 //! * [`log_filter`] — the filter in front of all of it: the level from the settings, an area on
@@ -24,6 +26,7 @@
 
 #![warn(unreachable_pub)]
 
+pub mod activity;
 pub mod bundle;
 pub mod capture;
 pub mod checks;

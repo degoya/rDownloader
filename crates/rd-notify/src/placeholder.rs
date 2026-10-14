@@ -52,13 +52,20 @@ pub enum Placeholder {
     /// Why the queue paused (RD-1290-04): `manual`, `automation`, `schedule`, `stop_mark` or
     /// `game_mode`.
     Reason,
+    /// How many times the event happened in a burst (RD-1291-01): imports, or starts.
+    Count,
+    /// What a burst carried altogether: links, or downloads.
+    Items,
+    /// A burst's first names, comma-separated as its built-in text lists them: the files
+    /// started, the rest counted as `and N more`, or where the links came from.
+    Names,
 }
 
 use Placeholder as P;
 
 impl Placeholder {
     /// Every placeholder, in the order the editor and the handbook list them.
-    pub const ALL: [Self; 22] = [
+    pub const ALL: [Self; 25] = [
         P::Event,
         P::Severity,
         P::Time,
@@ -81,6 +88,9 @@ impl Placeholder {
         P::Plugin,
         P::Account,
         P::Reason,
+        P::Count,
+        P::Items,
+        P::Names,
     ];
 
     /// What every event that takes a template fills; the budget's four stay empty without an
@@ -124,6 +134,9 @@ impl Placeholder {
             P::Plugin => "plugin",
             P::Account => "account",
             P::Reason => "reason",
+            P::Count => "count",
+            P::Items => "items",
+            P::Names => "names",
         }
     }
 
@@ -163,6 +176,11 @@ impl Placeholder {
             P::Reason => {
                 "Why the queue paused: manual, automation, schedule, stop_mark or game_mode"
             }
+            P::Count => "How many times the event happened in the burst: imports or starts",
+            P::Items => "Links or downloads in the burst altogether",
+            P::Names => {
+                "The burst's first names: the files started, the rest as and N more, or the links' sources"
+            }
         }
     }
 
@@ -193,20 +211,24 @@ impl Placeholder {
             P::Plugin => "Example Hoster",
             P::Account => "Main (example.com)",
             P::Reason => "schedule",
+            P::Count => "3",
+            P::Items => "12",
+            P::Names => "clipboard, browser extension",
         }
     }
 }
 
 impl NotificationEvent {
-    /// Whether a rule's own wording applies. A burst of starts or of added links arrives as one
-    /// summary and keeps its text, and an automation's message goes through no rule.
+    /// Whether a rule's own wording applies: to every event a rule can name, a burst of starts
+    /// or of added links worded once when it closes (RD-1291-01); an automation's message goes
+    /// through no rule.
     #[must_use]
     pub fn takes_template(self) -> bool {
-        !self.coalesces() && self != Self::Automation
+        self != Self::Automation
     }
 
-    /// The placeholders this event fills, the common ones first; none for an event that keeps
-    /// its own text ([`Self::takes_template`]).
+    /// The placeholders this event fills, the common ones first; none for an automation's
+    /// message ([`Self::takes_template`]).
     #[must_use]
     pub fn placeholders(self) -> Vec<Placeholder> {
         if !self.takes_template() {
@@ -237,6 +259,17 @@ impl NotificationEvent {
             Self::StreamRecorded => &[P::File, P::Package, P::Category, P::Size],
             Self::SubscriptionMatched => &[P::Category],
             Self::QueuePaused => &[P::Reason],
+            // A burst of one start fills its file, package and category as a single event
+            // would; a burst of several leaves them empty.
+            Self::DownloadStarted => &[
+                P::Count,
+                P::Items,
+                P::Names,
+                P::File,
+                P::Package,
+                P::Category,
+            ],
+            Self::LinksAdded => &[P::Count, P::Items, P::Names],
             Self::BudgetExhausted
             | Self::CaptchaWaiting
             | Self::PowerPending
@@ -244,9 +277,42 @@ impl NotificationEvent {
             | Self::UsenetQuotaReached
             | Self::QueueResumed
             | Self::QueueFinished
-            | Self::DownloadStarted
-            | Self::LinksAdded
             | Self::Automation => &[],
+        }
+    }
+
+    /// The sample values the editor's preview takes for this event in place of the table's
+    /// (RD-1291-01): a burst of three, as its built-in text words it. Empty for every event a
+    /// burst does not carry.
+    #[must_use]
+    pub fn examples(self) -> &'static [(Placeholder, &'static str)] {
+        match self {
+            Self::DownloadStarted => &[
+                (P::Event, "download_started"),
+                (P::Title, "3 downloads started"),
+                (
+                    P::Message,
+                    "Started: IMG_2048.jpg, IMG_2049.jpg, IMG_2050.jpg.",
+                ),
+                (P::Count, "3"),
+                (P::Items, "3"),
+                (P::Names, "IMG_2048.jpg, IMG_2049.jpg, IMG_2050.jpg"),
+                (P::File, ""),
+                (P::Package, ""),
+                (P::Category, ""),
+            ],
+            Self::LinksAdded => &[
+                (P::Event, "links_added"),
+                (P::Title, "12 links added in 3 imports"),
+                (
+                    P::Message,
+                    "12 links arrived in the LinkGrabber from: clipboard, browser extension.",
+                ),
+                (P::Count, "3"),
+                (P::Items, "12"),
+                (P::Names, "clipboard, browser extension"),
+            ],
+            _ => &[],
         }
     }
 
@@ -278,9 +344,7 @@ pub fn placeholder_table_markdown() -> String {
     out.push_str(&format!("\nEvery event fills {}.\n\n", common.join(", ")));
     out.push_str("| Event | Also fills |\n| --- | --- |\n");
     for event in NotificationEvent::all() {
-        let also = if !event.takes_template() {
-            "(own wording does not apply: a burst arrives as one summary)".to_owned()
-        } else if event.specific_placeholders().is_empty() {
+        let also = if event.specific_placeholders().is_empty() {
             "(nothing more)".to_owned()
         } else {
             let names: Vec<String> = event
@@ -293,5 +357,10 @@ pub fn placeholder_table_markdown() -> String {
         };
         out.push_str(&format!("| `{}` | {also} |\n", event.code()));
     }
+    out.push_str(
+        "\n`download_started` and `links_added` arrive in bursts, one notification each, worded \
+         when the burst closes. A burst of one start also fills `{file}`, `{package}` and \
+         `{category}`; a burst of several leaves them empty.\n",
+    );
     out
 }

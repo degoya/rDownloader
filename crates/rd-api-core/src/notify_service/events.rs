@@ -85,30 +85,10 @@ impl NotificationService {
             .filter(|folder| !folder.trim().is_empty()))
     }
 
-    /// Queues one delivery of an event for every rule that wants it. `package_path` is the
-    /// finished package's folder, kept with each delivery so a retry names it too.
-    pub(super) async fn queue_event(
-        &self,
-        kind: NotificationEvent,
-        category_id: Option<rd_core::CategoryId>,
-        event_id: &str,
-        title: &str,
-        body: &str,
-        package_path: Option<String>,
-    ) -> anyhow::Result<()> {
-        self.queue_worded(
-            kind,
-            category_id,
-            event_id,
-            (title, body),
-            package_path,
-            None,
-        )
-        .await
-    }
-
-    /// [`Self::queue_event`], each rule with a template sending its own wording filled with
-    /// `values` (RD-1280-02); without values, every rule sends the built-in one.
+    /// Queues one delivery of an event for every rule that wants it, each rule with a template
+    /// sending its own wording filled with `values` (RD-1280-02); without values, every rule
+    /// sends the built-in one. `package_path` is the finished package's folder, kept with each
+    /// delivery so a retry names it too.
     pub(super) async fn queue_worded(
         &self,
         kind: NotificationEvent,

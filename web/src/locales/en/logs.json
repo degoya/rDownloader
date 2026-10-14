@@ -62,6 +62,12 @@
         },
         "recent_errors": {
           "description": "the newest warnings and errors from the log store"
+        },
+        "notifications": {
+          "description": "notification targets and rules without endpoints or wording, deliveries of the last 7 days per event and state, and the newest 50 deliveries"
+        },
+        "queue": {
+          "description": "packages per state and post-processing stage, the newest 50 package state changes, downloads per state and error code"
         }
       },
       "redaction": {
@@ -70,12 +76,16 @@
         "configuration_text": "text values pass through the URL and header redaction",
         "configuration_replaced": "replaced: {fields}",
         "paths": "paths pass through the text redaction",
-        "log_records": "messages and fields were redacted when captured; nothing is re-read from the log file"
+        "log_records": "messages and fields were redacted when captured; nothing is re-read from the log file",
+        "notifications": "endpoints, topics, titles, texts and package folders are not read; a template shows only whether it is set",
+        "queue": "package and file names, folders and addresses are not read; packages appear by id and category id"
       },
       "exclusion": {
         "file_contents": "file contents and file names of downloads",
         "urls": "full URLs: query values that carry a credential or a signature are replaced",
-        "secrets": "secrets: passwords, tokens, API keys, cookies, certificates and vault references"
+        "secrets": "secrets: passwords, tokens, API keys, cookies, certificates and vault references",
+        "notifications": "notification titles and texts, target endpoints and topics",
+        "package_names": "package names and package folders"
       }
     }
   },

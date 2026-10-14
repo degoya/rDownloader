@@ -4,13 +4,13 @@ import { useI18n } from 'vue-i18n'
 
 import { fetchNotificationPlaceholders, type NotificationPlaceholderTable } from '@/api/notificationPlaceholders'
 import type { NotificationEvent } from '@/api/types'
-import { fillTemplate, placeholdersFor, type FillResult } from '@/components/notifications/notificationTemplate'
+import { fillTemplate, placeholdersFor, samplesFor, type FillResult } from '@/components/notifications/notificationTemplate'
 
 /**
  * A rule's own title and text (RD-1280-02): two fields, the placeholders the chosen events fill
  * — a click puts one at the caret of the field last in focus (RD-1290-03) — and a preview with
- * sample data. The service's table is the source of both the list and the samples; the save is
- * checked there again.
+ * sample data — a sample burst for the events that arrive in bursts (RD-1291-01). The service's
+ * table is the source of both the list and the samples; the save is checked there again.
  */
 const props = defineProps<{ events: NotificationEvent[] }>()
 const title = defineModel<string | null | undefined>('title')
@@ -48,14 +48,10 @@ const bodyText = computed({
   set: (value: string) => { body.value = value === '' ? null : value }
 })
 
-const offered = computed(() => table.value ? placeholdersFor(table.value, props.events) : { names: [], summaryOnly: false })
+const offered = computed(() => table.value ? placeholdersFor(table.value, props.events) : { names: [], bursts: false })
 const known = computed(() => new Set(table.value?.placeholders.map(entry => entry.name) ?? []))
 /** Sample values for the placeholders the chosen events fill; every other one stays empty, as it will. */
-const samples = computed(() => Object.fromEntries(
-  (table.value?.placeholders ?? [])
-    .filter(entry => offered.value.names.includes(entry.name))
-    .map(entry => [entry.name, entry.example])
-))
+const samples = computed(() => table.value ? samplesFor(table.value, props.events, offered.value.names) : {})
 
 function filled(template: string): FillResult | null {
   if (!table.value || !template.trim()) return null
@@ -152,24 +148,24 @@ function described(name: string): string {
     </UFormField>
     <div v-if="table">
       <p class="text-xs font-medium text-highlighted">{{ t('notifications.template.placeholders_label') }}</p>
-      <p v-if="offered.summaryOnly" class="mt-1 text-xs leading-5 text-muted">{{ t('notifications.template.summary_only') }}</p>
-      <template v-else>
-        <p class="mt-1 text-xs leading-5 text-muted">{{ t('notifications.template.placeholders_hint') }}</p>
-        <div class="mt-2 flex flex-wrap gap-1" role="group" :aria-label="t('notifications.template.placeholders_label')">
-          <UButton
-            v-for="name in offered.names"
-            :key="name"
-            size="xs"
-            color="neutral"
-            variant="outline"
-            class="font-mono"
-            :label="`{${name}}`"
-            :title="described(name)"
-            :aria-label="t('notifications.template.insert', { placeholder: `{${name}}`, description: described(name) })"
-            @click="insert(name)"
-          />
-        </div>
-      </template>
+      <p class="mt-1 text-xs leading-5 text-muted">{{ t('notifications.template.placeholders_hint') }}</p>
+      <p v-if="offered.bursts" class="mt-1 text-xs leading-5 text-muted" data-testid="template-burst-hint">
+        {{ t('notifications.template.burst_hint', { file: '{file}', package: '{package}', category: '{category}' }) }}
+      </p>
+      <div class="mt-2 flex flex-wrap gap-1" role="group" :aria-label="t('notifications.template.placeholders_label')">
+        <UButton
+          v-for="name in offered.names"
+          :key="name"
+          size="xs"
+          color="neutral"
+          variant="outline"
+          class="font-mono"
+          :label="`{${name}}`"
+          :title="described(name)"
+          :aria-label="t('notifications.template.insert', { placeholder: `{${name}}`, description: described(name) })"
+          @click="insert(name)"
+        />
+      </div>
       <div class="mt-3 border border-muted p-3" aria-live="polite">
         <p class="text-2xs font-medium uppercase text-muted">{{ t('notifications.template.preview_label') }}</p>
         <p class="mt-1 text-sm font-medium text-highlighted" data-testid="template-preview-title">{{ previewTitle }}</p>

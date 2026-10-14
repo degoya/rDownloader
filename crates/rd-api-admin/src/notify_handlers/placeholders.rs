@@ -30,10 +30,17 @@ pub struct NotificationPlaceholder {
 #[derive(Serialize, ToSchema)]
 pub struct NotificationEventPlaceholders {
     pub event: NotificationEvent,
-    /// False for the events whose bursts arrive as one summary: they keep their own text.
+    /// Whether a rule's own wording applies; true for every event a rule can name.
     pub takes_template: bool,
     /// Empty when `takes_template` is false.
     pub placeholders: Vec<Placeholder>,
+    /// True for `download_started` and `links_added` (RD-1291-01): a burst of them is one
+    /// notification, worded when it closes; `file`, `package` and `category` are filled only for
+    /// a burst of one.
+    pub in_bursts: bool,
+    /// Sample values the preview takes for this event in place of the table's: a burst of three
+    /// for the events that arrive in bursts, empty for every other event.
+    pub examples: Vec<NotificationPlaceholder>,
 }
 
 #[utoipa::path(get, path = "/api/v1/notifications/placeholders", tag = "notifications", responses((status = 200, body = NotificationPlaceholders)))]
@@ -58,6 +65,15 @@ pub async fn list_notification_placeholders() -> Json<NotificationPlaceholders> 
                 event,
                 takes_template: event.takes_template(),
                 placeholders: event.placeholders(),
+                in_bursts: event.coalesces(),
+                examples: event
+                    .examples()
+                    .iter()
+                    .map(|(name, example)| NotificationPlaceholder {
+                        name: *name,
+                        example: (*example).to_owned(),
+                    })
+                    .collect(),
             })
             .collect(),
     })

@@ -62,6 +62,12 @@
         },
         "recent_errors": {
           "description": "las advertencias y los errores más recientes del almacén de registros"
+        },
+        "notifications": {
+          "description": "destinos y reglas de notificación sin puntos de conexión ni textos, entregas de los últimos 7 días por evento y estado, y las 50 entregas más recientes"
+        },
+        "queue": {
+          "description": "paquetes por estado y fase de posprocesamiento, los 50 cambios de estado de paquetes más recientes, descargas por estado y código de error"
         }
       },
       "redaction": {
@@ -70,12 +76,16 @@
         "configuration_text": "los valores de texto pasan por la depuración de URL y cabeceras",
         "configuration_replaced": "sustituidos: {fields}",
         "paths": "las rutas pasan por la depuración de texto",
-        "log_records": "los mensajes y los campos se depuraron al capturarlos; no se vuelve a leer nada del archivo de registro"
+        "log_records": "los mensajes y los campos se depuraron al capturarlos; no se vuelve a leer nada del archivo de registro",
+        "notifications": "no se leen puntos de conexión, temas, títulos, textos ni carpetas de paquetes; de una plantilla solo consta si está definida",
+        "queue": "no se leen nombres de paquetes ni de archivos, carpetas ni direcciones; los paquetes aparecen por id y id de categoría"
       },
       "exclusion": {
         "file_contents": "el contenido y los nombres de archivo de las descargas",
         "urls": "URL completas: los valores de consulta que llevan una credencial o una firma se sustituyen",
-        "secrets": "secretos: contraseñas, tokens, claves de API, cookies, certificados y referencias al almacén"
+        "secrets": "secretos: contraseñas, tokens, claves de API, cookies, certificados y referencias al almacén",
+        "notifications": "títulos y textos de notificaciones, puntos de conexión y temas de los destinos",
+        "package_names": "nombres y carpetas de paquetes"
       }
     }
   },

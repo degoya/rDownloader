@@ -6,7 +6,8 @@
 //! at. A row gone in the meantime leaves its placeholders empty, never the delivery unqueued. An
 //! error is redacted like every failure the service shows, so no address with a key in it
 //! reaches a chat. The traffic budget is the one of the moment the delivery is queued, read from
-//! the bandwidth state (RD-1290-02), and a retry sends what the first attempt did.
+//! the bandwidth state (RD-1290-02), and a retry sends what the first attempt did. A burst of
+//! starts or of added links is filled when it closes, from the burst itself (RD-1291-01).
 
 use rd_notify::{Placeholder as P, Values};
 
@@ -20,17 +21,7 @@ impl NotificationService {
         category_id: Option<rd_core::CategoryId>,
         event: &rd_core::EventEnvelope,
     ) -> anyhow::Result<Option<Values>> {
-        if !kind.takes_template() {
-            return Ok(None);
-        }
-        let worded = self
-            .inner
-            .database
-            .list_notification_rules()
-            .await?
-            .iter()
-            .any(|rule| rule.has_template() && rule.matches(kind, category_id));
-        if !worded {
+        if !self.worded(kind, category_id).await? {
             return Ok(None);
         }
         // Time and date in the service's own zone, the one its schedules are read in.
@@ -39,6 +30,48 @@ impl NotificationService {
         set_budget(&mut values, self.inner.bandwidth.budget_reading().await);
         self.fill_values(kind, &event.payload, &mut values).await?;
         Ok(Some(values))
+    }
+
+    /// The placeholder values of a closed burst, `None` when no matching rule has a template:
+    /// what the burst counted and named, and for a burst of one start its package and category,
+    /// as a single event fills them. Several starts leave those two empty.
+    pub(super) async fn burst_values(
+        &self,
+        burst: &rd_notify::Burst,
+    ) -> anyhow::Result<Option<Values>> {
+        if !self.worded(burst.event, burst.category_id).await? {
+            return Ok(None);
+        }
+        let mut values = burst.values(&chrono::Local);
+        set_budget(&mut values, self.inner.bandwidth.budget_reading().await);
+        if burst.single()
+            && let Some(id) = burst.package_id
+            && let Some(package) = self.inner.database.get_package(id).await?
+        {
+            values.set(P::Package, package.name);
+            if let Some(category) = package.category_id {
+                values.set(P::Category, self.category_name(category).await?);
+            }
+        }
+        Ok(Some(values))
+    }
+
+    /// Whether a rule that wants the event words its notifications itself.
+    async fn worded(
+        &self,
+        kind: NotificationEvent,
+        category_id: Option<rd_core::CategoryId>,
+    ) -> anyhow::Result<bool> {
+        if !kind.takes_template() {
+            return Ok(false);
+        }
+        Ok(self
+            .inner
+            .database
+            .list_notification_rules()
+            .await?
+            .iter()
+            .any(|rule| rule.has_template() && rule.matches(kind, category_id)))
     }
 
     async fn fill_values(

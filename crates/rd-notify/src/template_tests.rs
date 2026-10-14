@@ -78,6 +78,19 @@ fn every_event_fills_its_own_placeholders() {
         (E::QueuePaused, &[P::Reason]),
         (E::QueueResumed, &[]),
         (E::QueueFinished, &[]),
+        // RD-1291-01: a burst is worded when it closes.
+        (
+            E::DownloadStarted,
+            &[
+                P::Count,
+                P::Items,
+                P::Names,
+                P::File,
+                P::Package,
+                P::Category,
+            ],
+        ),
+        (E::LinksAdded, &[P::Count, P::Items, P::Names]),
     ];
     for (event, specific) in expected {
         let mut wanted = Placeholder::COMMON.to_vec();
@@ -85,11 +98,9 @@ fn every_event_fills_its_own_placeholders() {
         assert_eq!(event.placeholders(), wanted, "{event:?}");
         assert!(event.takes_template(), "{event:?}");
     }
-    // A burst arrives as one summary and keeps its text; an automation goes through no rule.
-    for event in [E::DownloadStarted, E::LinksAdded, E::Automation] {
-        assert!(!event.takes_template(), "{event:?}");
-        assert!(event.placeholders().is_empty(), "{event:?}");
-    }
+    // An automation's message goes through no rule.
+    assert!(!E::Automation.takes_template());
+    assert!(E::Automation.placeholders().is_empty());
     let named: Vec<_> = expected.iter().map(|(event, _)| *event).collect();
     for event in NotificationEvent::all() {
         assert!(

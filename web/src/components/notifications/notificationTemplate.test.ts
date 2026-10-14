@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { NotificationPlaceholderTable } from '@/api/notificationPlaceholders'
 import type { NotificationEvent } from '@/api/types'
-import { fillTemplate, placeholdersFor } from './notificationTemplate'
+import { fillTemplate, placeholdersFor, samplesFor } from './notificationTemplate'
 
 const KNOWN = new Set(['package', 'time', 'error', 'size', 'title', 'message'])
 
@@ -36,11 +36,25 @@ describe('fillTemplate', () => {
 })
 
 const TABLE: NotificationPlaceholderTable = {
-  placeholders: ['event', 'time', 'title', 'package', 'size', 'path', 'error', 'version'].map(name => ({ name, example: name })),
+  placeholders: ['event', 'time', 'title', 'package', 'size', 'path', 'error', 'version', 'count', 'names', 'file']
+    .map(name => ({ name, example: name })),
   events: [
-    { event: 'package_completed', takes_template: true, placeholders: ['event', 'time', 'title', 'package', 'size', 'path'] },
-    { event: 'update_failed', takes_template: true, placeholders: ['event', 'time', 'title', 'version', 'error'] },
-    { event: 'download_started', takes_template: false, placeholders: [] }
+    { event: 'package_completed', takes_template: true, placeholders: ['event', 'time', 'title', 'package', 'size', 'path'], in_bursts: false, examples: [] },
+    { event: 'update_failed', takes_template: true, placeholders: ['event', 'time', 'title', 'version', 'error'], in_bursts: false, examples: [] },
+    {
+      event: 'download_started',
+      takes_template: true,
+      placeholders: ['event', 'time', 'title', 'count', 'names', 'file', 'package'],
+      in_bursts: true,
+      examples: [
+        { name: 'event', example: 'download_started' },
+        { name: 'title', example: '3 downloads started' },
+        { name: 'count', example: '3' },
+        { name: 'names', example: 'a.mkv, b.mkv, c.mkv' },
+        { name: 'file', example: '' },
+        { name: 'package', example: '' }
+      ]
+    }
   ]
 }
 
@@ -48,18 +62,42 @@ describe('placeholdersFor', () => {
   it('offers what any chosen event fills, in the table\'s order', () => {
     expect(placeholdersFor(TABLE, ['update_failed', 'package_completed'])).toEqual({
       names: ['event', 'time', 'title', 'package', 'size', 'path', 'error', 'version'],
-      summaryOnly: false
+      bursts: false
     })
     expect(placeholdersFor(TABLE, ['update_failed']).names).toEqual(['event', 'time', 'title', 'error', 'version'])
   })
 
   it('reads no choice as every event that takes a template', () => {
     expect(placeholdersFor(TABLE, []).names).toContain('package')
-    expect(placeholdersFor(TABLE, []).summaryOnly).toBe(false)
+    expect(placeholdersFor(TABLE, []).names).not.toContain('count')
+    expect(placeholdersFor(TABLE, []).bursts).toBe(false)
   })
 
-  it('says when every chosen event keeps its summary', () => {
-    expect(placeholdersFor(TABLE, ['download_started'])).toEqual({ names: [], summaryOnly: true })
+  it('offers a burst its own placeholders and says that it arrives in bursts (RD-1291-01)', () => {
+    expect(placeholdersFor(TABLE, ['download_started'])).toEqual({
+      names: ['event', 'time', 'title', 'package', 'count', 'names', 'file'],
+      bursts: true
+    })
+    expect(placeholdersFor(TABLE, ['download_started', 'update_failed']).bursts).toBe(true)
+  })
+})
+
+describe('samplesFor (RD-1291-01)', () => {
+  it('previews a rule for bursts alone with the sample burst, a file left empty', () => {
+    const names = placeholdersFor(TABLE, ['download_started']).names
+    const samples = samplesFor(TABLE, ['download_started'], names)
+    expect(samples).toMatchObject({ event: 'download_started', title: '3 downloads started', count: '3', file: '', package: '', time: 'time' })
+    const known = new Set(TABLE.placeholders.map(entry => entry.name))
+    expect(fillTemplate('{count} started: {names}[{file}]', samples, known))
+      .toEqual({ ok: true, text: '3 started: a.mkv, b.mkv, c.mkv[]' })
+  })
+
+  it('keeps the table\'s samples when other events are chosen too, and offers only what they fill', () => {
+    const names = placeholdersFor(TABLE, ['package_completed', 'download_started']).names
+    const samples = samplesFor(TABLE, ['package_completed', 'download_started'], names)
+    expect(samples.title).toBe('title')
+    expect(samples.package).toBe('package')
+    expect(samplesFor(TABLE, ['update_failed'], ['event', 'version'])).toEqual({ event: 'event', version: 'version' })
   })
 })
 
@@ -77,8 +115,8 @@ describe('the traffic budget (RD-1290-02)', () => {
       { name: 'package', example: 'Holiday photos' }
     ],
     events: [
-      { event: 'package_completed', takes_template: true, placeholders: [...COMMON, 'package'] },
-      { event: 'budget_exhausted', takes_template: true, placeholders: COMMON }
+      { event: 'package_completed', takes_template: true, placeholders: [...COMMON, 'package'], in_bursts: false, examples: [] },
+      { event: 'budget_exhausted', takes_template: true, placeholders: COMMON, in_bursts: false, examples: [] }
     ]
   }
 
@@ -100,8 +138,14 @@ describe('the queue\'s moments (RD-1290-04)', () => {
   const table: NotificationPlaceholderTable = {
     placeholders: ['event', 'package', 'reason'].map(name => ({ name, example: name })),
     events: [
-      { event: 'package_completed', takes_template: true, placeholders: ['event', 'package'] },
-      { event: 'queue_paused' as string as NotificationEvent, takes_template: true, placeholders: ['event', 'reason'] }
+      { event: 'package_completed', takes_template: true, placeholders: ['event', 'package'], in_bursts: false, examples: [] },
+      {
+        event: 'queue_paused' as string as NotificationEvent,
+        takes_template: true,
+        placeholders: ['event', 'reason'],
+        in_bursts: false,
+        examples: []
+      }
     ]
   }
 

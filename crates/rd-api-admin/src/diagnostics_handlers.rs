@@ -17,7 +17,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use rd_core::{LogLevel, LogRetentionSettings};
 use rd_db::LogQuery;
-use rd_diagnostics::{BundleInput, bundle};
+use rd_diagnostics::{BundleInput, activity, bundle};
 
 use crate::{
     AppState,
@@ -171,6 +171,18 @@ async fn collect_input(state: &AppState) -> Result<BundleInput, ApiError> {
         })
         .await?;
     let log_records_total = state.database.count_log_records().await?;
+    // Read without a title, a text, an endpoint, a folder or a name (RD-1291-04).
+    let notifications = state
+        .database
+        .notification_diagnostics(
+            Utc::now() - chrono::Duration::days(activity::DELIVERY_WINDOW_DAYS),
+            activity::RECENT_DELIVERIES_LIMIT as u32,
+        )
+        .await?;
+    let queue = state
+        .database
+        .queue_diagnostics(activity::RECENT_TRANSITIONS_LIMIT as u32)
+        .await?;
     Ok(BundleInput {
         application_version: env!("CARGO_PKG_VERSION").to_owned(),
         os: std::env::consts::OS.to_owned(),
@@ -182,9 +194,19 @@ async fn collect_input(state: &AppState) -> Result<BundleInput, ApiError> {
         log_records_total,
         // What the log was recorded at, and an area on debug (RD-1260-12).
         logging: rd_diagnostics::log_filter::controller().state(),
+        notifications,
+        queue,
     })
 }
 
+/// What a diagnostic bundle would contain, for the person to approve.
+///
+/// The entries: `versions`, `configuration`, `system-checks`, `doctor`, `recent-errors`,
+/// `notifications` (targets and rules without endpoints or wording, deliveries of the last
+/// seven days per event and state, the newest 50 deliveries) and `queue` (packages per state
+/// and post-processing stage, the newest 50 package transitions, downloads per state and error
+/// code, all without names). Each with its item count and redactions, plus what no bundle ever
+/// contains and the digest the approval quotes back.
 #[utoipa::path(
     get,
     path = "/api/v1/diagnostics/bundle/preview",

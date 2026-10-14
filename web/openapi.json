@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.29.0"
+    "version": "1.29.1"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -7725,6 +7725,8 @@
         "tags": [
           "diagnostics"
         ],
+        "summary": "What a diagnostic bundle would contain, for the person to approve.",
+        "description": "The entries: `versions`, `configuration`, `system-checks`, `doctor`, `recent-errors`,\n`notifications` (targets and rules without endpoints or wording, deliveries of the last\nseven days per event and state, the newest 50 deliveries) and `queue` (packages per state\nand post-processing stage, the newest 50 package transitions, downloads per state and error\ncode, all without names). Each with its item count and redactions, plus what no bundle ever\ncontains and the digest the approval quotes back.",
         "operationId": "preview_diagnostic_bundle",
         "responses": {
           "200": {
@@ -33514,11 +33516,24 @@
         "required": [
           "event",
           "takes_template",
-          "placeholders"
+          "placeholders",
+          "in_bursts",
+          "examples"
         ],
         "properties": {
           "event": {
             "$ref": "#/components/schemas/NotificationEvent"
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotificationPlaceholder"
+            },
+            "description": "Sample values the preview takes for this event in place of the table's: a burst of three\nfor the events that arrive in bursts, empty for every other event."
+          },
+          "in_bursts": {
+            "type": "boolean",
+            "description": "True for `download_started` and `links_added` (RD-1291-01): a burst of them is one\nnotification, worded when it closes; `file`, `package` and `category` are filled only for\na burst of one."
           },
           "placeholders": {
             "type": "array",
@@ -33529,7 +33544,7 @@
           },
           "takes_template": {
             "type": "boolean",
-            "description": "False for the events whose bursts arrive as one summary: they keep their own text."
+            "description": "Whether a rule's own wording applies; true for every event a rule can name."
           }
         }
       },
@@ -35396,7 +35411,10 @@
           "version",
           "plugin",
           "account",
-          "reason"
+          "reason",
+          "count",
+          "items",
+          "names"
         ]
       },
       "PluginAddedPermissionsResponse": {

@@ -5,6 +5,70 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.29.1] - 2026-10-14
+
+### Added
+
+- **The diagnostic bundle shows notification rules, deliveries and package states** (RD-1291-04).
+  Two new entries: `notifications.json` (targets by kind, enabled and plugin id; rules by events,
+  category id, minimum severity and whether a title/text template is set; deliveries of the last 7
+  days per event × state; the newest 50 deliveries with event, state, attempts, response status and
+  times) and `queue.json` (packages per state and post-processing stage, the newest 50 package
+  transitions from the `package_state` events with category id, downloads per state, failure class
+  and error code). Read-only `rd-db` reads (`diagnostics_store.rs`, `Database::notification_diagnostics`,
+  `queue_diagnostics`) select no title, text, endpoint, folder, name or address; every string passes
+  the text redaction; the manifest names both with their redactions and two new exclusions. Four
+  languages for the new notes; REST and MCP descriptions of the preview name the entries. Tests:
+  `rd-db` window, limits and canaries, `rd-diagnostics` `activity`, `rd-api` `diagnostics_contents`.
+
+### Changed
+
+- **Bursts of starts and added links take a rule's own wording** (RD-1291-01). `download_started`
+  and `links_added` no longer keep their summary: a rule's template is filled once per burst and
+  rule when the burst closes (`notify_service/bursts.rs`, `rd_notify::Burst::values`), with
+  `{count}`, `{items}` and `{names}` beside the common placeholders, and for a burst of one start
+  `{file}`, `{package}` and `{category}`. The values come from the burst and its first bus event's
+  time, so a replay after a restart says the same; the idempotency key keeps it to one delivery.
+  The placeholder route adds `in_bursts` and a sample burst per event (`examples`), the editor
+  previews it and explains the burst placeholders instead of "keep their wording";
+  `placeholders.md` and the MCP descriptions follow. Tests: `rd-notify` coalesce and table,
+  `notify_service` bursts (the 1.29.0 repro), `notification_burst_templates` (category filter, one
+  and many starts, with and without template, restart replay), `notification_templates`, Vitest.
+
+### Fixed
+
+- **The traffic budget counts when a profile has been active at every sample** (RD-1291-02). With
+  no stored odometer (`bandwidth.total_baseline`), a sample under an active profile moved nothing,
+  wrote nothing, and the next reload started the unstored counter again at the current total: the
+  budget never counted, never ran out, `budget_exhausted` never went out and the brake never held.
+  The first sample now stores the odometer, also with a profile active, and counting starts there;
+  a profile counting for the first time still starts at the current total (no back-charge). The
+  counter/odometer write order is unchanged. `SchedulerHandle::supervise_bandwidth` is public for
+  tests. Tests: `rd-scheduler` `bandwidth_budget_tests` (counts from the first sample and runs out
+  with one `bandwidth.changed` `exhausted: true`; no back-charge), `rd-api` `notification_templates`
+  (the budget running out reaches a rule in its own words).
+
+- **Old plugin versions no longer flood the log at every start** (RD-1291-03). A tester's
+  diagnostic bundle held 200 warnings from one start, all about three versions built against an
+  older contract, repeated by every listing and load. The start now runs one sweep after the
+  bundled sync (`PluginInstaller::sweep_unloadable_versions`, `installed/sweep.rs`): a version
+  whose manifest revision or `api_version` is older than this build's is removed while a version
+  of the same plugin verifies, unless it is the chosen active or staged one, with one info line
+  for the count; every version kept although it does not verify -- withdrawn, changed on disk, a
+  newer contract, or a plugin with no loadable version at all -- gets one summarised warning per
+  plugin. Later passes log those directories at debug level (`installed/reported.rs`), and the
+  unverified listing's manifest warnings are debug. Tests: `installed/sweep_tests.rs`, four cases
+  over fixture directories.
+
+### Security
+
+- **`rustls` 0.23.46** (RUSTSEC-2026-0346, -0347, -0348, -0349). The four advisories published on
+  2026-10-14 — TLS secrets in the `Debug` output of client session values, buffered data sent to the
+  outer server after an ECH rejection, a Brotli certificate decompression that could allocate up to
+  1 GiB before authentication, and an unauthenticated ServerHello that could downgrade later
+  connections to classical key exchange — are fixed in 0.23.46; `cargo deny` refused 0.23.45.
+  Lock file only (`cargo update -p rustls --precise 0.23.46`).
+
 ## [1.29.0] - 2026-10-14
 
 ### Added

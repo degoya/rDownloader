@@ -3,7 +3,7 @@
  * — put at the caret of the field last in focus (RD-1290-03) — and a preview with the service's
  * sample data.
  */
-import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
+import { fireEvent, screen, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, reactive, ref } from 'vue'
 
@@ -21,12 +21,32 @@ const TABLE: NotificationPlaceholderTable = {
     { name: 'message', example: 'Holiday photos (completed)' },
     { name: 'package', example: 'Holiday photos' },
     { name: 'size', example: '1.4 GiB' },
-    { name: 'account', example: 'Main (example.com)' }
+    { name: 'account', example: 'Main (example.com)' },
+    { name: 'file', example: 'IMG_2048.jpg' },
+    { name: 'count', example: '3' }
   ],
   events: [
-    { event: 'package_completed', takes_template: true, placeholders: ['event', 'time', 'title', 'message', 'package', 'size'] },
-    { event: 'account_invalid', takes_template: true, placeholders: ['event', 'time', 'title', 'message', 'account'] },
-    { event: 'download_started', takes_template: false, placeholders: [] }
+    {
+      event: 'package_completed',
+      takes_template: true,
+      placeholders: ['event', 'time', 'title', 'message', 'package', 'size'],
+      in_bursts: false,
+      examples: []
+    },
+    { event: 'account_invalid', takes_template: true, placeholders: ['event', 'time', 'title', 'message', 'account'], in_bursts: false, examples: [] },
+    {
+      event: 'download_started',
+      takes_template: true,
+      placeholders: ['event', 'time', 'title', 'message', 'package', 'file', 'count'],
+      in_bursts: true,
+      examples: [
+        { name: 'title', example: '3 downloads started' },
+        { name: 'message', example: 'Started: a.mkv, b.mkv, c.mkv.' },
+        { name: 'package', example: '' },
+        { name: 'file', example: '' },
+        { name: 'count', example: '3' }
+      ]
+    }
   ]
 }
 
@@ -185,9 +205,20 @@ describe('NotificationTemplateFields', () => {
     expect(screen.getByRole('alert').textContent).toBe('“{pakage}” is not a placeholder.')
   })
 
-  it('says that a burst of starts keeps its summary', async () => {
-    mount(['download_started'])
-    await waitFor(() => expect(screen.getByText(notifications.template.summary_only)).toBeTruthy())
-    expect(screen.queryByRole('group', { name: notifications.template.placeholders_label })).toBeNull()
+  it('offers a burst of starts its placeholders and previews a sample burst (RD-1291-01)', async () => {
+    mount(['download_started'], 'MYTITLE {count}x [{file}]')
+    const group = await placeholderGroup()
+    const names = within(group).getAllByRole('button').map(button => button.textContent)
+    expect(names).toEqual(['{event}', '{time}', '{title}', '{message}', '{package}', '{file}', '{count}'])
+    // The hint's placeholders are passed in braces, so it reads as the catalogue writes it.
+    expect(screen.getByTestId('template-burst-hint').textContent?.trim()).toBe(notifications.template.burst_hint)
+    expect(screen.getByTestId('template-preview-title').textContent).toBe('MYTITLE 3x []')
+    expect(screen.getByTestId('template-preview-body').textContent).toBe('Started: a.mkv, b.mkv, c.mkv.')
+  })
+
+  it('says nothing about bursts for a rule without them', async () => {
+    mount(['package_completed'])
+    await placeholderGroup()
+    expect(screen.queryByTestId('template-burst-hint')).toBeNull()
   })
 })

@@ -6,12 +6,16 @@ use crate::{PluginInstaller, PluginManifest, VerifiedPackage, VersionRole};
 
 mod disk;
 mod refused;
+mod reported;
+mod sweep;
 
 use disk::{
     install_stagings, list_incompatible_sync, list_installed_sync, load_one, load_verified_sync,
     locale_bundle_sync, read_package_parts, verified_contents_sync,
 };
 pub use refused::RefusedInstall;
+pub(crate) use reported::ReportedRefusals;
+pub use sweep::{UnloadableVersions, VersionSweep};
 
 /// An installed package this build refuses, kept listable so it can be recognised and removed.
 #[derive(Clone, Debug)]
@@ -195,8 +199,9 @@ impl PluginInstaller {
             .map(|set| set.clone())
             .unwrap_or_default();
         let choices = self.version_choices();
+        let reported = self.reported.clone();
         tokio::task::spawn_blocking(move || {
-            load_verified_sync(&root, &verifier, &disabled, &choices)
+            load_verified_sync(&root, &verifier, &disabled, &choices, &reported)
         })
         .await?
     }
@@ -211,12 +216,14 @@ impl PluginInstaller {
         let root = self.root.clone();
         let verifier = self.verifier.clone();
         let choices = self.version_choices();
+        let reported = self.reported.clone();
         tokio::task::spawn_blocking(move || {
             let packages = load_verified_sync(
                 &root,
                 &verifier,
                 &std::collections::HashSet::new(),
                 &choices,
+                &reported,
             )?;
             Ok(packages
                 .iter()
@@ -305,8 +312,11 @@ impl PluginInstaller {
         let root = self.root.clone();
         let verifier = self.verifier.clone();
         let choices = self.version_choices();
-        tokio::task::spawn_blocking(move || verified_contents_sync(&root, &verifier, &choices))
-            .await?
+        let reported = self.reported.clone();
+        tokio::task::spawn_blocking(move || {
+            verified_contents_sync(&root, &verifier, &choices, &reported)
+        })
+        .await?
     }
 
     /// Merged vue-i18n message tree for `language`, across the default version of each plugin.
@@ -317,8 +327,9 @@ impl PluginInstaller {
         let root = self.root.clone();
         let verifier = self.verifier.clone();
         let choices = self.version_choices();
+        let reported = self.reported.clone();
         tokio::task::spawn_blocking(move || {
-            locale_bundle_sync(&root, &verifier, &choices, &language)
+            locale_bundle_sync(&root, &verifier, &choices, &reported, &language)
         })
         .await?
     }

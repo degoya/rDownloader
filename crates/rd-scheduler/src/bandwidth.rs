@@ -379,8 +379,13 @@ impl SchedulerHandle {
             self.database.broadcast(event);
         }
         // A tick that moved nothing writes nothing; the period key alone is not worth a
-        // database round trip every fifteen seconds.
+        // database round trip every fifteen seconds. Except the first sample's odometer: without
+        // it every reload restarted the unstored counter at the current total, and a profile
+        // active at every sample never counted a byte (RD-1291-02).
         if !advanced {
+            if baseline.is_none() {
+                self.store_budget_baseline(total).await?;
+            }
             return Ok(());
         }
         // The budget first, the baseline second. These are two writes and either can fail on
@@ -458,8 +463,9 @@ impl SchedulerHandle {
         self.config.bandwidth.limits().scoped(scope)
     }
 
-    /// One supervision cycle: reload, re-evaluate the schedule, count the traffic.
-    pub(crate) async fn supervise_bandwidth(&self) -> Result<()> {
+    /// One supervision cycle: reload, re-evaluate the schedule, count the traffic. The
+    /// supervisor runs it every fifteen seconds; public so a test need not wait for that tick.
+    pub async fn supervise_bandwidth(&self) -> Result<()> {
         self.reload_bandwidth().await?;
         self.record_bandwidth_budget().await
     }
@@ -481,6 +487,9 @@ fn baseline_of(value: &serde_json::Value) -> Option<u64> {
     baseline
 }
 
+#[cfg(test)]
+#[path = "bandwidth_budget_tests.rs"]
+mod budget_tests;
 #[cfg(test)]
 #[path = "bandwidth_tests.rs"]
 mod tests;

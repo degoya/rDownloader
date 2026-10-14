@@ -16,6 +16,14 @@ user notices says only: Maintenance release: internal changes only, no change in
 
 <!-- draft: the notes of the version in the making -->
 
+## 1.29.1
+
+- Downloads started and links added can now use your own notification text, with placeholders for how many arrived and their names.
+- The traffic budget now counts from the first moment a bandwidth profile is active, so it runs out and notifies you as it should.
+- Old plugin versions that can no longer load are cleaned up at start instead of filling the log with warnings every time.
+- The diagnostic bundle now shows your notification rules, recent deliveries and package states, without names, texts or addresses.
+- Security fix: the TLS library is updated to close four reported weaknesses.
+
 ## 1.29.0
 
 - An automation that sets a category now moves the package's files into that category's folder, once any unpacking has finished.

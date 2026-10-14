@@ -23,6 +23,7 @@ mod collector_store;
 mod commands;
 mod config_store;
 mod database_size;
+mod diagnostics_store;
 mod download_sources_store;
 mod download_window_store;
 mod error;
@@ -37,6 +38,7 @@ mod facade_collector;
 mod facade_collector_mirrors;
 mod facade_credentials;
 mod facade_destinations;
+mod facade_diagnostics;
 mod facade_download_batches;
 mod facade_downloads;
 mod facade_full_backup;
@@ -170,6 +172,10 @@ pub use config_store::{
     CategoryPostprocess, NewCategory, NewCategoryRule, NewHotFolder, NewStorageRoot,
 };
 pub use database_size::DatabaseStorage;
+pub use diagnostics_store::{
+    DeliveryCount, DiagnosticDelivery, DiagnosticRule, DiagnosticTarget, DownloadCount,
+    NotificationDiagnostics, PackageTransition, QueueDiagnostics, ValueCount,
+};
 pub use download_sources_store::ChunkMark;
 pub use error::{StoreError, StoreErrorKind, store_kind};
 pub use event_bus::{EVENT_BUFFER_BYTES, EVENT_BUFFER_EVENTS, EventBus, Follower, Replay};

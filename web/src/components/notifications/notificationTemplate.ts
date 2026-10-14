@@ -45,24 +45,53 @@ export function fillTemplate(
   return { ok: true, text: out }
 }
 
-/** The placeholders the chosen events fill, in the table's order, and whether none of them takes a template. */
+/** The placeholders the chosen events fill, in the table's order, and whether one of them arrives in bursts. */
 export interface OfferedPlaceholders {
   names: string[]
-  /** True when every chosen event arrives as one summary per burst and keeps its own text. */
-  summaryOnly: boolean
+  /**
+   * True when a chosen event arrives in bursts (RD-1291-01): worded once per burst, its `{file}`,
+   * `{package}` and `{category}` filled only for a burst of one.
+   */
+  bursts: boolean
 }
 
 /**
- * What a rule naming `events` can fill. No event chosen means every event but the opt-in ones:
- * those that keep their summary, and the queue's moments (RD-1290-04).
+ * The events a rule naming `events` reacts to. No event chosen means every event but the opt-in
+ * ones: the bursts of starts and of added links, and the queue's moments (RD-1290-04).
  */
-export function placeholdersFor(table: NotificationPlaceholderTable, events: readonly NotificationEvent[]): OfferedPlaceholders {
-  const chosen = events.length
+function chosenEvents(table: NotificationPlaceholderTable, events: readonly NotificationEvent[]) {
+  return events.length
     ? table.events.filter(entry => events.includes(entry.event))
     : table.events.filter(entry => entry.takes_template && !OPT_IN_EVENTS.includes(entry.event))
+}
+
+/** What a rule naming `events` can fill. */
+export function placeholdersFor(table: NotificationPlaceholderTable, events: readonly NotificationEvent[]): OfferedPlaceholders {
+  const chosen = chosenEvents(table, events)
   const filled = new Set(chosen.flatMap(entry => entry.placeholders))
   return {
     names: table.placeholders.map(entry => entry.name).filter(name => filled.has(name)),
-    summaryOnly: chosen.length > 0 && chosen.every(entry => !entry.takes_template)
+    bursts: chosen.some(entry => entry.in_bursts)
   }
+}
+
+/**
+ * The preview's sample values for the placeholders `names`: the table's, or — when every chosen
+ * event arrives in bursts — the first one's sample burst, as the service words it (RD-1291-01).
+ * Every other placeholder stays empty, as it will.
+ */
+export function samplesFor(
+  table: NotificationPlaceholderTable,
+  events: readonly NotificationEvent[],
+  names: readonly string[]
+): Record<string, string> {
+  const samples: Record<string, string> = Object.fromEntries(table.placeholders
+    .filter(entry => names.includes(entry.name))
+    .map(entry => [entry.name, entry.example]))
+  const chosen = chosenEvents(table, events)
+  const burst = chosen.length > 0 && chosen.every(entry => entry.in_bursts) ? chosen[0] : undefined
+  for (const example of burst?.examples ?? []) {
+    if (names.includes(example.name)) samples[example.name] = example.example
+  }
+  return samples
 }

@@ -2666,6 +2666,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * What a diagnostic bundle would contain, for the person to approve.
+         * @description The entries: `versions`, `configuration`, `system-checks`, `doctor`, `recent-errors`,
+         *     `notifications` (targets and rules without endpoints or wording, deliveries of the last
+         *     seven days per event and state, the newest 50 deliveries) and `queue` (packages per state
+         *     and post-processing stage, the newest 50 package transitions, downloads per state and error
+         *     code, all without names). Each with its item count and redactions, plus what no bundle ever
+         *     contains and the digest the approval quotes back.
+         */
         get: operations["preview_diagnostic_bundle"];
         put?: never;
         post?: never;
@@ -12775,9 +12784,20 @@ export interface components {
         /** @description What one event fills. */
         NotificationEventPlaceholders: {
             event: components["schemas"]["NotificationEvent"];
+            /**
+             * @description Sample values the preview takes for this event in place of the table's: a burst of three
+             *     for the events that arrive in bursts, empty for every other event.
+             */
+            examples: components["schemas"]["NotificationPlaceholder"][];
+            /**
+             * @description True for `download_started` and `links_added` (RD-1291-01): a burst of them is one
+             *     notification, worded when it closes; `file`, `package` and `category` are filled only for
+             *     a burst of one.
+             */
+            in_bursts: boolean;
             /** @description Empty when `takes_template` is false. */
             placeholders: components["schemas"]["Placeholder"][];
-            /** @description False for the events whose bursts arrive as one summary: they keep their own text. */
+            /** @description Whether a rule's own wording applies; true for every event a rule can name. */
             takes_template: boolean;
         };
         /** @description One placeholder, written `{name}` in a template. */
@@ -13480,7 +13500,7 @@ export interface components {
          * @description One value a template may name in braces, `{package}`.
          * @enum {string}
          */
-        Placeholder: "event" | "severity" | "time" | "date" | "title" | "message" | "budget_used" | "budget_left" | "budget_limit" | "budget_period" | "package" | "file" | "category" | "state" | "size" | "path" | "error" | "storage_target" | "version" | "plugin" | "account" | "reason";
+        Placeholder: "event" | "severity" | "time" | "date" | "title" | "message" | "budget_used" | "budget_left" | "budget_limit" | "budget_period" | "package" | "file" | "category" | "state" | "size" | "path" | "error" | "storage_target" | "version" | "plugin" | "account" | "reason" | "count" | "items" | "names";
         /** @description What a package asks for beyond the newest installed version of the same plugin (RD-160-09). */
         PluginAddedPermissionsResponse: {
             /** @description The installed version the package is compared with. */

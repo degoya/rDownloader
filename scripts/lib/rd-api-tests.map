@@ -100,7 +100,7 @@
 ^crates/rd-api(-[a-z]+)?/src/system_cleanup(_database)?(\.rs$|/)                              system_cleanup mcp scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/(history_handlers|history_export|history_readd_handlers|routes/history)(\.rs$|/)   history compat_sabnzbd
 ^crates/rd-api(-[a-z]+)?/src/queue_search(\.rs$|/)                                          queue_search
-^crates/rd-api(-[a-z]+)?/src/(diagnostics_[a-z_]+|routes/diagnostics)(\.rs$|/)                diagnostics data_reset log_level
+^crates/rd-api(-[a-z]+)?/src/(diagnostics_[a-z_]+|routes/diagnostics)(\.rs$|/)                diagnostics diagnostics_contents data_reset log_level
 # The log level and a debug window (RD-1260-12).
 ^crates/rd-api(-[a-z]+)?/src/log_level_handlers(\.rs$|/)                                      log_level diagnostics mcp scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)(\.rs$|/)                        api_tokens audit auto_remove bulk_filter bulk_pause category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets download_list address_rule usenet_connections
@@ -109,7 +109,7 @@
 ^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)(\.rs$|/)                 media_cookie_profile media_manifest indexer_search torznab_search
 ^crates/rd-api(-[a-z]+)?/src/(metrics|metrics_format|stats_handlers|stats_retention_service|routes/stats)(\.rs$|/)   metrics data_reset
 ^crates/rd-api(-[a-z]+)?/src/(mfa_handlers|password_handlers|step_up)(\.rs$|/)                mfa passkeys auth step_up password_reset restore_step_up
-^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable notification_activity notification_package_path notification_counts automations web_push notification_templates queue_moments
+^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable notification_activity notification_package_path notification_counts automations web_push notification_templates notification_burst_templates queue_moments
 # Web Push for the installed app (RD-1240-13).
 ^crates/rd-api(-[a-z]+)?/src/(web_push|web_push_tests|web_push_handlers)(\.rs$|/)             web_push
 # Signing in through an identity provider (RD-190-15).
@@ -180,7 +180,7 @@
 # Added to whatever the rows above select; they still decide the rest of each path.
 ^crates/rd-api(-[a-z]+)?/src/(config_handlers|config_fields|remote_handlers|object_storage_(handlers|fields)|notify_(handlers|service)|backup_[a-z_]+|settings_backup[a-z_]*|diagnostics_[a-z_]+|captcha_handlers|api_tokens|auth_profile_handlers|usenet_handlers|login_handlers|password_handlers|password_reset_handlers|event_stream|oidc_handlers|oidc_settings_handlers|oidc_client)(\.rs$|/)   + canaries
 ^crates/(rd-secrets|rd-diagnostics|rd-backup|rd-notify|rd-object-storage|rd-ftp)/src/        + canaries
-^crates/rd-notify/src/(model|placeholder|template)                                       + notification_templates
+^crates/rd-notify/src/(model|placeholder|template|coalesce)                              + notification_templates notification_burst_templates
 ^crates/(rd-secrets|rd-usenet)/src/                                                       + unreadable_secrets usenet_connections
 
 # --- rd-core, by domain module ----------------------------------------------------------------

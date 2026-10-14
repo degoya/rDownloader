@@ -62,6 +62,12 @@
         },
         "recent_errors": {
           "description": "les avertissements et les erreurs les plus récents du magasin de journaux"
+        },
+        "notifications": {
+          "description": "cibles et règles de notification sans points de terminaison ni textes, envois des 7 derniers jours par événement et état, et les 50 envois les plus récents"
+        },
+        "queue": {
+          "description": "paquets par état et étape de post-traitement, les 50 derniers changements d'état de paquets, téléchargements par état et code d'erreur"
         }
       },
       "redaction": {
@@ -70,12 +76,16 @@
         "configuration_text": "les valeurs textuelles passent par la purge des URL et des en-têtes",
         "configuration_replaced": "remplacés : {fields}",
         "paths": "les chemins passent par la purge du texte",
-        "log_records": "les messages et les champs ont été purgés à la capture ; rien n'est relu depuis le fichier journal"
+        "log_records": "les messages et les champs ont été purgés à la capture ; rien n'est relu depuis le fichier journal",
+        "notifications": "les points de terminaison, sujets, titres, textes et dossiers de paquets ne sont pas lus ; d'un modèle, seule sa présence est indiquée",
+        "queue": "les noms de paquets et de fichiers, dossiers et adresses ne sont pas lus ; les paquets apparaissent par id et id de catégorie"
       },
       "exclusion": {
         "file_contents": "le contenu et les noms de fichier des téléchargements",
         "urls": "URL complètes : les valeurs de requête portant un identifiant ou une signature sont remplacées",
-        "secrets": "secrets : mots de passe, jetons, clés d'API, cookies, certificats et références au coffre"
+        "secrets": "secrets : mots de passe, jetons, clés d'API, cookies, certificats et références au coffre",
+        "notifications": "titres et textes des notifications, points de terminaison et sujets des cibles",
+        "package_names": "noms et dossiers des paquets"
       }
     }
   },

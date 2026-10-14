@@ -138,13 +138,13 @@
     "description": "Opcional; si lo dejas vacío, se envía el texto predeterminado. Escribe un marcador como {example} y una llave duplicada: {pair}.",
     "placeholders_label": "Marcadores",
     "placeholders_hint": "Un clic lo inserta en el cursor del último campo que usaste y reemplaza lo que seleccionaste allí. Lo que un evento no rellena queda vacío.",
-    "summary_only": "Los eventos elegidos llegan agrupados en un resumen y conservan su texto.",
     "preview_label": "Vista previa con datos de ejemplo",
     "built_in": "Texto predeterminado",
     "unknown": "«{name}» no es un marcador.",
     "syntax": "Una llave no está cerrada o no está abierta. Para escribir una llave, duplícala: {pair}.",
     "insert": "Añadir {placeholder}: {description}",
-    "badge": "Texto propio"
+    "badge": "Texto propio",
+    "burst_hint": "Las descargas iniciadas y los enlaces añadidos llegan agrupados: una notificación por grupo, rellenada cuando el grupo se cierra. {file}, {package} y {category} solo se rellenan para una única descarga; la vista previa muestra un grupo de tres."
   },
   "placeholder": {
     "event": "Código del evento, p. ej. package_completed",
@@ -168,6 +168,9 @@
     "budget_left": "Tráfico restante del presupuesto activo",
     "budget_limit": "Límite del presupuesto activo",
     "budget_period": "Periodo del presupuesto activo, daily o monthly",
-    "reason": "Por qué se pausó la cola: manual, automation, schedule, stop_mark o game_mode"
+    "reason": "Por qué se pausó la cola: manual, automation, schedule, stop_mark o game_mode",
+    "count": "Cuántas veces ocurrió el evento en el grupo: importaciones o inicios",
+    "items": "Enlaces o descargas del grupo en total",
+    "names": "Los primeros nombres del grupo: los archivos iniciados, el resto como «and N more», o los orígenes de los enlaces"
   }
 }

@@ -30,6 +30,8 @@ pub struct PluginInstaller {
     /// The packages shipped next to the executable, as the start-up sync verified them
     /// (RD-160-05). What the wizard and the plugin manager offer as "available".
     pub(crate) bundled: std::sync::Arc<std::sync::RwLock<Vec<BundledPackage>>>,
+    /// The refused versions this start already warned about (RD-1291-03), shared the same way.
+    pub(crate) reported: crate::installed::ReportedRefusals,
 }
 
 /// Installed versions by plugin id.
@@ -45,6 +47,7 @@ impl PluginInstaller {
             choices: std::sync::Arc::default(),
             started: std::sync::Arc::default(),
             bundled: std::sync::Arc::default(),
+            reported: crate::installed::ReportedRefusals::default(),
         }
     }
 

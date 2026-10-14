@@ -22,6 +22,9 @@
 | `{plugin}` | The plugin's name | Example Hoster |
 | `{account}` | The account's label and provider, never its user name | Main (example.com) |
 | `{reason}` | Why the queue paused: manual, automation, schedule, stop_mark or game_mode | schedule |
+| `{count}` | How many times the event happened in the burst: imports or starts | 3 |
+| `{items}` | Links or downloads in the burst altogether | 12 |
+| `{names}` | The burst's first names: the files started, the rest as and N more, or the links' sources | clipboard, browser extension |
 
 Every event fills `{event}`, `{severity}`, `{time}`, `{date}`, `{title}`, `{message}`, `{budget_used}`, `{budget_left}`, `{budget_limit}`, `{budget_period}`.
 
@@ -46,10 +49,12 @@ Every event fills `{event}`, `{severity}`, `{time}`, `{date}`, `{title}`, `{mess
 | `usenet_job_hopeless` | `{package}`, `{category}` |
 | `usenet_quota_reached` | (nothing more) |
 | `stop_mark_reached` | `{package}`, `{file}`, `{category}` |
-| `download_started` | (own wording does not apply: a burst arrives as one summary) |
-| `links_added` | (own wording does not apply: a burst arrives as one summary) |
+| `download_started` | `{count}`, `{items}`, `{names}`, `{file}`, `{package}`, `{category}` |
+| `links_added` | `{count}`, `{items}`, `{names}` |
 | `stream_recorded` | `{file}`, `{package}`, `{category}`, `{size}` |
 | `subscription_matched` | `{category}` |
 | `queue_paused` | `{reason}` |
 | `queue_resumed` | (nothing more) |
 | `queue_finished` | (nothing more) |
+
+`download_started` and `links_added` arrive in bursts, one notification each, worded when the burst closes. A burst of one start also fills `{file}`, `{package}` and `{category}`; a burst of several leaves them empty.

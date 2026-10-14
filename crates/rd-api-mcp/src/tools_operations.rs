@@ -84,7 +84,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Preview what a diagnostic bundle would contain: each entry, how many items it holds, what was redacted from it, and what no bundle ever contains. Only a preview: approving and writing the bundle is the person's, in the web UI."
+        description = "Preview what a diagnostic bundle would contain: each entry (versions, configuration, system-checks, doctor, recent-errors, notifications: targets, rules and recent deliveries without endpoints or wording, queue: packages and downloads by state, stage and error code without names), how many items it holds, what was redacted from it, and what no bundle ever contains. Only a preview: approving and writing the bundle is the person's, in the web UI."
     )]
     pub async fn preview_diagnostic_bundle(&self) -> McpToolResult {
         respond(

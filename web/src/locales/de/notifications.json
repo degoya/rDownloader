@@ -138,13 +138,13 @@
     "description": "Optional – leer schickt den eingebauten Wortlaut. Einen Platzhalter schreibst du als {example}, eine geschweifte Klammer doppelt: {pair}.",
     "placeholders_label": "Platzhalter",
     "placeholders_hint": "Ein Klick setzt ihn an der Schreibmarke des zuletzt benutzten Feldes ein und ersetzt, was du dort markiert hast. Was ein Ereignis nicht füllt, bleibt leer.",
-    "summary_only": "Die gewählten Ereignisse kommen gebündelt als eine Zusammenfassung und behalten ihren Wortlaut.",
     "preview_label": "Vorschau mit Beispieldaten",
     "built_in": "Eingebauter Wortlaut",
     "unknown": "„{name}“ ist kein Platzhalter.",
     "syntax": "Eine geschweifte Klammer ist nicht geschlossen oder nicht geöffnet. Eine Klammer selbst schreibst du doppelt: {pair}.",
     "insert": "{placeholder} einfügen: {description}",
-    "badge": "Eigener Wortlaut"
+    "badge": "Eigener Wortlaut",
+    "burst_hint": "Gestartete Downloads und hinzugefügte Links kommen gebündelt: eine Benachrichtigung je Bündel, gefüllt, wenn das Bündel schließt. {file}, {package} und {category} sind nur bei einem einzelnen Download gefüllt; die Vorschau zeigt ein Bündel aus drei."
   },
   "placeholder": {
     "event": "Code des Ereignisses, z. B. package_completed",
@@ -168,6 +168,9 @@
     "budget_left": "Verbleibender Traffic des aktiven Budgets",
     "budget_limit": "Grenze des aktiven Budgets",
     "budget_period": "Zeitraum des aktiven Budgets, daily oder monthly",
-    "reason": "Warum die Warteschlange pausiert: manual, automation, schedule, stop_mark oder game_mode"
+    "reason": "Warum die Warteschlange pausiert: manual, automation, schedule, stop_mark oder game_mode",
+    "count": "Wie oft das Ereignis im Bündel vorkam: Importe oder Starts",
+    "items": "Links bzw. Downloads im Bündel insgesamt",
+    "names": "Die ersten Namen im Bündel: gestartete Dateien, der Rest als „and N more“, oder die Quellen der Links"
   }
 }

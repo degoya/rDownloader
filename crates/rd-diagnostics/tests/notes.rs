@@ -30,6 +30,8 @@ fn input() -> BundleInput {
         recent_errors: Vec::new(),
         log_records_total: 0,
         logging: Default::default(),
+        notifications: Default::default(),
+        queue: Default::default(),
     }
 }
 
@@ -209,7 +211,7 @@ fn the_replaced_note_appears_only_when_something_was_replaced_and_carries_the_na
 fn the_digest_is_the_identity_of_the_entries_and_not_their_language() {
     assert_eq!(
         bundle::inventory(&input()).expect("inventory").digest,
-        "812cc807b899471f859be2ff2eca5bf329fb8b0e04d1dda15598f5394db81593"
+        "fffa43744e5c879e511cfecc4b61d0e52e5ab01dd9b946d255c7c008c2ddfdae"
     );
 }
 

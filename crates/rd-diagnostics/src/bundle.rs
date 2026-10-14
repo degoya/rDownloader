@@ -12,6 +12,8 @@
 //!
 //! What never goes in, whatever the input holds: file contents, full URLs, secrets. The
 //! configuration is scrubbed here, not by the caller, so the rule has one home and one test.
+//! Notification wording and package names never reach the input at all: `rd-db` does not
+//! select them for the bundle (RD-1291-04, [`crate::activity`]).
 //!
 //! Everything a person reads about an entry is a [`Note`] rather than a sentence written here:
 //! a stable code the interface translates, plus the English rendering `manifest.json` keeps for
@@ -56,6 +58,10 @@ pub struct BundleInput {
     /// The level the service logs at, a running debug window and `RUST_LOG` (RD-1260-12):
     /// what a reader needs to know to tell a quiet log from a quiet service.
     pub logging: crate::log_filter::FilterState,
+    /// Notification targets, rules and deliveries without endpoints or wording (RD-1291-04).
+    pub notifications: rd_db::NotificationDiagnostics,
+    /// Packages and downloads by state, stage and failure, without names (RD-1291-04).
+    pub queue: rd_db::QueueDiagnostics,
 }
 
 /// One file the bundle may contain, as the preview shows it.
@@ -125,6 +131,8 @@ const EXCLUDED: &[&str] = &[
     notes::EXCLUSION_FILE_CONTENTS,
     notes::EXCLUSION_URLS,
     notes::EXCLUSION_SECRETS,
+    notes::EXCLUSION_NOTIFICATIONS,
+    notes::EXCLUSION_PACKAGE_NAMES,
 ];
 
 const CONFIGURATION_REDACTIONS: &[&str] = &[
@@ -157,7 +165,7 @@ struct RecentErrors<'a> {
     records: &'a [LogRecord],
 }
 
-fn json<T: Serialize>(value: &T) -> Result<Vec<u8>> {
+pub(crate) fn json<T: Serialize>(value: &T) -> Result<Vec<u8>> {
     let mut bytes = serde_json::to_vec_pretty(value).context("render bundle entry")?;
     bytes.push(b'\n');
     Ok(bytes)
@@ -193,7 +201,7 @@ fn render_entries(input: &BundleInput) -> Result<Vec<(InventoryEntry, Vec<u8>)>>
                 .collect(),
         ));
     }
-    Ok(vec![
+    let mut entries = vec![
         (
             InventoryEntry {
                 id: "versions".to_owned(),
@@ -256,7 +264,10 @@ fn render_entries(input: &BundleInput) -> Result<Vec<(InventoryEntry, Vec<u8>)>>
                 records: recent,
             })?,
         ),
-    ])
+    ];
+    // What became of the notifications and the packages (RD-1291-04).
+    entries.extend(crate::activity::entries(input)?);
+    Ok(entries)
 }
 
 /// The approval's fingerprint: what each entry *is*, never what it says.

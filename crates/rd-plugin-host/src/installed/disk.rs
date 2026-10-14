@@ -9,7 +9,7 @@ use std::{collections::BTreeMap, io::Read, path::Path};
 
 use anyhow::{Result, bail};
 
-use super::{IncompatiblePlugin, VerifiedContents};
+use super::{IncompatiblePlugin, ReportedRefusals, VerifiedContents};
 use crate::{
     MAX_COMPONENT_BYTES, MAX_LOCALE_BYTES, MAX_MANIFEST_BYTES, MAX_SIGNATURE_BYTES, ManifestHeader,
     ManifestRejection, PluginManifest, PluginVerifier, VerifiedPackage, VersionChoices,
@@ -39,6 +39,7 @@ pub(super) fn locale_bundle_sync(
     root: &Path,
     verifier: &PluginVerifier,
     choices: &VersionChoices,
+    reported: &ReportedRefusals,
     language: &str,
 ) -> Result<serde_json::Value> {
     if !valid_language(language) {
@@ -46,7 +47,8 @@ pub(super) fn locale_bundle_sync(
     }
     let mut codes = serde_json::Map::new();
     let mut providers = serde_json::Map::new();
-    for package in default_versions(verified_contents_sync(root, verifier, choices)?).into_values()
+    for package in
+        default_versions(verified_contents_sync(root, verifier, choices, reported)?).into_values()
     {
         let manifest = &package.manifest;
         let slug = manifest.message_slug().to_owned();
@@ -123,13 +125,15 @@ pub(super) fn list_installed_sync(root: &Path) -> Result<Vec<PluginManifest>> {
         };
         let manifest: PluginManifest = match toml::from_slice(&bytes) {
             Ok(manifest) => manifest,
+            // Debug only: this listing runs on every request, and the start's sweep has already
+            // reported every version that does not verify, once per plugin (RD-1291-03).
             Err(error) => {
-                tracing::warn!(path = %path.display(), error = %error, "skipping unreadable plugin manifest");
+                tracing::debug!(path = %path.display(), error = %error, "skipping unreadable plugin manifest");
                 continue;
             }
         };
         if let Err(error) = validate_manifest(&manifest) {
-            tracing::warn!(path = %path.display(), error = %error, "skipping invalid plugin manifest");
+            tracing::debug!(path = %path.display(), error = %error, "skipping invalid plugin manifest");
             continue;
         }
         manifests.push(manifest);
@@ -206,6 +210,7 @@ pub(super) fn load_verified_sync(
     verifier: &PluginVerifier,
     disabled: &std::collections::HashSet<String>,
     choices: &VersionChoices,
+    reported: &ReportedRefusals,
 ) -> Result<Vec<(VerifiedPackage, VersionRole)>> {
     let _batch = crate::unsigned_notice::UnsignedBatch::open();
     let mut packages = Vec::new();
@@ -215,10 +220,10 @@ pub(super) fn load_verified_sync(
                 tracing::debug!(plugin = %package.manifest.name, "skipping plugin switched off by the user");
             }
             Ok(package) => packages.push(package),
-            Err(error) => tracing::warn!(
-                path = %version.display(),
-                error = %error,
-                "skipping installed plugin that no longer verifies"
+            Err(error) => reported.skip(
+                &version,
+                &error,
+                "skipping installed plugin that no longer verifies",
             ),
         }
     }
@@ -275,16 +280,17 @@ pub(super) fn verified_contents_sync(
     root: &Path,
     verifier: &PluginVerifier,
     choices: &VersionChoices,
+    reported: &ReportedRefusals,
 ) -> Result<Vec<VerifiedContents>> {
     let _batch = crate::unsigned_notice::UnsignedBatch::open();
     let mut packages = Vec::new();
     for version in version_directories(root)? {
         match load_one_contents(&version, verifier) {
             Ok(package) => packages.push(package),
-            Err(error) => tracing::warn!(
-                path = %version.display(),
-                error = %error,
-                "skipping installed plugin whose manifest no longer verifies"
+            Err(error) => reported.skip(
+                &version,
+                &error,
+                "skipping installed plugin whose manifest no longer verifies",
             ),
         }
     }
@@ -329,7 +335,10 @@ pub(super) fn load_one(version: &Path, verifier: &PluginVerifier) -> Result<Veri
         .map_err(Into::into)
 }
 
-fn load_one_contents(version: &Path, verifier: &PluginVerifier) -> Result<VerifiedContents> {
+pub(super) fn load_one_contents(
+    version: &Path,
+    verifier: &PluginVerifier,
+) -> Result<VerifiedContents> {
     let (manifest, component, signature, locales) = read_package_parts(version)?;
     let package = verifier.verify_contents(manifest, component, signature, locales)?;
     Ok(VerifiedContents {

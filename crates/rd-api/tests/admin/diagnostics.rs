@@ -30,7 +30,7 @@ const CANARIES: &[&str] = &[
 
 /// The process-wide data directory, set once for this test binary: bundles are written under
 /// it, and `rd_core::set_data_directory` is a `OnceLock` the first caller owns.
-fn data_directory() -> &'static std::path::Path {
+pub(crate) fn data_directory() -> &'static std::path::Path {
     static DATA: OnceLock<tempfile::TempDir> = OnceLock::new();
     let directory = DATA.get_or_init(|| tempfile::tempdir().expect("data directory"));
     rd_core::set_data_directory(directory.path());
@@ -166,7 +166,9 @@ async fn the_preview_inventory_is_deterministic() {
             "configuration",
             "system-checks",
             "doctor",
-            "recent-errors"
+            "recent-errors",
+            "notifications",
+            "queue"
         ]
     );
     assert!(
@@ -257,7 +259,7 @@ async fn a_bundle_is_only_written_after_its_preview_was_approved() {
     assert_eq!(created["manifest"]["inventory_digest"], preview["digest"]);
     assert_eq!(
         created["manifest"]["entries"].as_array().map(Vec::len),
-        Some(5)
+        Some(7)
     );
 
     let response = router
@@ -298,6 +300,8 @@ async fn a_bundle_is_only_written_after_its_preview_was_approved() {
             "configuration.json",
             "doctor.txt",
             "manifest.json",
+            "notifications.json",
+            "queue.json",
             "recent-errors.json",
             "system-checks.json",
             "versions.json"

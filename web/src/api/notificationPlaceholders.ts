@@ -14,11 +14,18 @@ export interface NotificationPlaceholder {
   example: string
 }
 
-/** What one event fills; an event whose bursts arrive as one summary keeps its own text. */
+/** What one event fills. */
 export interface NotificationEventPlaceholders {
   event: NotificationEvent
   takes_template: boolean
   placeholders: string[]
+  /**
+   * True for the events whose bursts are one notification each, worded when the burst closes
+   * (RD-1291-01); `file`, `package` and `category` are filled only for a burst of one.
+   */
+  in_bursts: boolean
+  /** Sample values the preview takes for this event in place of the table's: a burst of three. */
+  examples: NotificationPlaceholder[]
 }
 
 export interface NotificationPlaceholderTable {

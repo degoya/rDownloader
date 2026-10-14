@@ -69,6 +69,8 @@ fn input() -> BundleInput {
             }),
             rust_log: None,
         },
+        notifications: Default::default(),
+        queue: Default::default(),
     }
 }
 
@@ -97,7 +99,9 @@ fn the_same_state_gives_the_same_inventory_and_digest() {
             "configuration",
             "system-checks",
             "doctor",
-            "recent-errors"
+            "recent-errors",
+            "notifications",
+            "queue"
         ]
     );
     assert_eq!(first.digest.len(), 64);
@@ -126,7 +130,7 @@ fn the_same_state_and_clock_give_byte_identical_archives() {
     let second = bundle::build(&input(), &ids, now).expect("bundle");
     assert_eq!(first.bytes, second.bytes);
     assert_eq!(first.manifest, second.manifest);
-    assert_eq!(first.manifest.entries.len(), 5);
+    assert_eq!(first.manifest.entries.len(), 7);
     assert!(first.manifest.omitted.is_empty());
     assert_eq!(first.manifest.created_at, "2026-09-20T12:30:00Z");
     assert_eq!(
@@ -151,7 +155,13 @@ fn a_deselected_entry_is_left_out_and_named_in_the_manifest() {
     assert_eq!(names, ["doctor.txt", "manifest.json", "versions.json"]);
     assert_eq!(
         built.manifest.omitted,
-        ["configuration", "system-checks", "recent-errors"]
+        [
+            "configuration",
+            "system-checks",
+            "recent-errors",
+            "notifications",
+            "queue"
+        ]
     );
     let mut manifest = String::new();
     archive

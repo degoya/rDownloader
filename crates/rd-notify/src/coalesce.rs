@@ -5,13 +5,17 @@
 //! while its occurrences follow each other within the quiet period and closes after it, or at
 //! the longest span at the latest, so a steady trickle still reports now and then. Pure
 //! bookkeeping: the clock is the caller's, so the tests need no timer.
+//!
+//! A closed burst is worded once (RD-1291-01): its built-in text, or a rule's own template filled
+//! with [`Burst::values`], which read nothing but the burst, so the same burst always says the
+//! same.
 
 use std::collections::HashMap;
 
-use chrono::{DateTime, Duration, Utc};
-use rd_core::CategoryId;
+use chrono::{DateTime, Duration, TimeZone, Utc};
+use rd_core::{CategoryId, PackageId};
 
-use crate::NotificationEvent;
+use crate::{NotificationEvent, Placeholder, Values};
 
 /// Seconds without a further occurrence after which a burst is reported.
 pub const QUIET_SECONDS: i64 = 10;
@@ -33,6 +37,10 @@ pub struct Occurrence {
     pub items: u64,
     /// What to call it in the text: a file name, an intake source.
     pub name: Option<String>,
+    /// When the bus event happened.
+    pub occurred_at: DateTime<Utc>,
+    /// The started download's package; none for an intake.
+    pub package_id: Option<PackageId>,
 }
 
 /// Every occurrence of one event in one category between its opening and its report.
@@ -49,6 +57,10 @@ pub struct Burst {
     pub items: u64,
     /// The first [`NAMED`] distinct names, in the order they arrived.
     pub names: Vec<String>,
+    /// When the bus event that opened the burst happened: the moment its `{time}` names.
+    pub first_at: DateTime<Utc>,
+    /// The package of the occurrence that opened the burst, for a burst of one start.
+    pub package_id: Option<PackageId>,
     opened_at: DateTime<Utc>,
     last_at: DateTime<Utc>,
 }
@@ -93,6 +105,8 @@ impl Coalescer {
                 occurrences: 0,
                 items: 0,
                 names: Vec::new(),
+                first_at: occurrence.occurred_at,
+                package_id: occurrence.package_id,
                 opened_at: now,
                 last_at: now,
             });
@@ -137,13 +151,59 @@ impl Coalescer {
     }
 }
 
+impl Burst {
+    /// The names as the text lists them: comma-separated, and for starts the downloads beyond
+    /// them counted, `a.mkv, b.mkv, c.mkv and 47 more`. An intake's names are its sources, which
+    /// are not counted.
+    #[must_use]
+    pub fn names_text(&self) -> String {
+        let named = self.names.join(", ");
+        if self.event != NotificationEvent::DownloadStarted {
+            return named;
+        }
+        let listed = u64::try_from(self.names.len()).unwrap_or(u64::MAX);
+        match self.items.saturating_sub(listed) {
+            0 => named,
+            rest => format!("{named} and {rest} more"),
+        }
+    }
+
+    /// What a rule's own wording is filled with (RD-1291-01), the time and date those of the
+    /// first occurrence in `zone`: the common placeholders but the budget's, `{count}`, `{items}`
+    /// and `{names}`, and for a burst of one start its `{file}`. Its `{package}` and `{category}`
+    /// need the database and are the service's.
+    #[must_use]
+    pub fn values<Tz: TimeZone>(&self, zone: &Tz) -> Values
+    where
+        Tz::Offset: std::fmt::Display,
+    {
+        let mut values = Values::stamped(self.event, &self.first_at.with_timezone(zone))
+            .with(Placeholder::Count, self.occurrences.to_string())
+            .with(Placeholder::Items, self.items.to_string())
+            .with(Placeholder::Names, self.names_text());
+        if self.single() && self.event == NotificationEvent::DownloadStarted {
+            values.set(
+                Placeholder::File,
+                self.names.first().cloned().unwrap_or_default(),
+            );
+        }
+        values
+    }
+
+    /// Whether the burst holds one occurrence only, which fills what a single event would.
+    #[must_use]
+    pub fn single(&self) -> bool {
+        self.occurrences == 1
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, Utc};
+    use chrono::{Duration, TimeZone as _, Utc};
     use rd_core::CategoryId;
 
     use super::{Coalescer, NAMED, Occurrence};
-    use crate::NotificationEvent;
+    use crate::{NotificationEvent, Placeholder as P};
 
     fn links(id: &str, items: u64, name: &str) -> Occurrence {
         Occurrence {
@@ -152,6 +212,8 @@ mod tests {
             event_id: id.to_owned(),
             items,
             name: Some(name.to_owned()),
+            occurred_at: Utc::now(),
+            package_id: None,
         }
     }
 
@@ -220,6 +282,8 @@ mod tests {
             event_id: id.to_owned(),
             items: 1,
             name: Some(format!("{id}.mkv")),
+            occurred_at: start,
+            package_id: None,
         };
         coalescer.push(started("one", Some(films)), start);
         coalescer.push(started("two", None), start);
@@ -246,5 +310,63 @@ mod tests {
         assert_eq!(due[0].names.len(), NAMED);
         assert_eq!(due[0].names[0], "name-0");
         assert_eq!(due[0].occurrences, 11);
+    }
+
+    /// RD-1291-01: what a rule's own wording reads from a closed burst.
+    #[test]
+    fn a_burst_fills_its_placeholders_and_one_start_its_file() {
+        let at = Utc
+            .with_ymd_and_hms(2026, 10, 14, 12, 5, 0)
+            .single()
+            .expect("moment");
+        let started = |id: &str, name: &str| Occurrence {
+            event: NotificationEvent::DownloadStarted,
+            category_id: None,
+            event_id: id.to_owned(),
+            items: 1,
+            name: Some(name.to_owned()),
+            occurred_at: at,
+            package_id: None,
+        };
+        let mut coalescer = Coalescer::default();
+        coalescer.push(started("one", "a.mkv"), Utc::now());
+        let one = coalescer.drain().remove(0);
+        assert!(one.single());
+        let values = one.values(&Utc);
+        assert_eq!(values.get(P::Event), "download_started");
+        assert_eq!(values.get(P::Time), "12:05");
+        assert_eq!(values.get(P::Date), "2026-10-14");
+        assert_eq!(values.get(P::Count), "1");
+        assert_eq!(values.get(P::Items), "1");
+        assert_eq!(values.get(P::Names), "a.mkv");
+        assert_eq!(values.get(P::File), "a.mkv");
+
+        for index in 0..5 {
+            coalescer.push(
+                started(&format!("e{index}"), &format!("part{index}.rar")),
+                Utc::now(),
+            );
+        }
+        let many = coalescer.drain().remove(0);
+        let values = many.values(&Utc);
+        assert_eq!(values.get(P::Count), "5");
+        assert_eq!(values.get(P::Items), "5");
+        assert_eq!(
+            values.get(P::Names),
+            "part0.rar, part1.rar, part2.rar and 2 more"
+        );
+        assert_eq!(values.get(P::File), "", "several starts name no one file");
+        assert_eq!(values, many.values(&Utc), "the same burst says the same");
+
+        // An intake's names are its sources, and its links are no file.
+        for index in 0..4 {
+            let source = if index % 2 == 0 { "clipboard" } else { "API" };
+            coalescer.push(links(&format!("l{index}"), 3, source), Utc::now());
+        }
+        let imports = coalescer.drain().remove(0).values(&Utc);
+        assert_eq!(imports.get(P::Count), "4");
+        assert_eq!(imports.get(P::Items), "12");
+        assert_eq!(imports.get(P::Names), "clipboard, API");
+        assert_eq!(imports.get(P::File), "");
     }
 }

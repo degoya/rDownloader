@@ -138,13 +138,13 @@
     "description": "Facultatif ; vide, le texte intégré est envoyé. Écrivez une variable sous la forme {example} et une accolade doublée : {pair}.",
     "placeholders_label": "Variables",
     "placeholders_hint": "Un clic l’insère au curseur du dernier champ utilisé et remplace ce que vous y avez sélectionné. Ce qu’un événement ne remplit pas reste vide.",
-    "summary_only": "Les événements choisis arrivent regroupés en un résumé et gardent leur texte.",
     "preview_label": "Aperçu avec des données d’exemple",
     "built_in": "Texte intégré",
     "unknown": "« {name} » n’est pas une variable.",
     "syntax": "Une accolade n’est pas fermée ou pas ouverte. Pour écrire une accolade, doublez-la : {pair}.",
     "insert": "Ajouter {placeholder} : {description}",
-    "badge": "Texte personnalisé"
+    "badge": "Texte personnalisé",
+    "burst_hint": "Les téléchargements démarrés et les liens ajoutés arrivent regroupés : une notification par groupe, remplie à la fermeture du groupe. {file}, {package} et {category} ne sont remplis que pour un seul téléchargement ; l’aperçu montre un groupe de trois."
   },
   "placeholder": {
     "event": "Code de l’événement, p. ex. package_completed",
@@ -168,6 +168,9 @@
     "budget_left": "Trafic restant du budget actif",
     "budget_limit": "Limite du budget actif",
     "budget_period": "Période du budget actif, daily ou monthly",
-    "reason": "Pourquoi la file est en pause : manual, automation, schedule, stop_mark ou game_mode"
+    "reason": "Pourquoi la file est en pause : manual, automation, schedule, stop_mark ou game_mode",
+    "count": "Combien de fois l’événement s’est produit dans le groupe : imports ou démarrages",
+    "items": "Liens ou téléchargements du groupe au total",
+    "names": "Les premiers noms du groupe : les fichiers démarrés, le reste comme « and N more », ou les sources des liens"
   }
 }

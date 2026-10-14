@@ -44,6 +44,10 @@ pub(crate) async fn open_plugins(
         args.install_all_bundled_plugins,
     )
     .await;
+    // After the bundle, which brings the loadable version after a contract change, and before
+    // anything loads a plugin (RD-1291-03): the versions nothing can load any more go, and what
+    // stays without verifying is reported here once per plugin instead of on every pass.
+    plugins.sweep_unloadable_versions().await;
     // What is on disk now is what this start loads; a version installed from here on runs from
     // the next start, and the plugin manager says so (RD-160-09).
     if let Err(error) = plugins.record_started_versions().await {
