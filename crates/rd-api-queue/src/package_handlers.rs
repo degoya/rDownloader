@@ -377,18 +377,8 @@ async fn apply_package_change(
     };
     let updated = state.database.update_packages(ids.clone(), change).await?;
     if moves_data {
-        // The row now points at the new folder; carry the data over to match it. Files that are
-        // still transferring stay where they are and are picked up when they finish, so this
-        // never has to refuse a package that happens to be busy.
-        for id in &ids {
-            if let Err(error) = state.scheduler.relocate_package(*id).await {
-                tracing::warn!(
-                    package_id = %id,
-                    %error,
-                    "package data was not moved to the new category directory"
-                );
-            }
-        }
+        // The row now points at the new folder; carry the data over to match it.
+        crate::destination::carry_over(&state.scheduler, &ids).await;
     }
     Ok(updated)
 }

@@ -18,4 +18,10 @@ impl BandwidthService {
             .is_some_and(|profile| profile.pause_downloads);
         (pauses, state.schedule.timezone)
     }
+
+    /// Whether the profile in force pauses downloads: the schedule's pause, one reason the queue
+    /// counts as paused (RD-1290-04).
+    pub async fn pauses_downloads(&self) -> bool {
+        self.download_pause_policy().await.0
+    }
 }

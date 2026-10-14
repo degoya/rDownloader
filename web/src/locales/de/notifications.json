@@ -30,7 +30,10 @@
     "update_installed": "rDownloader-Update installiert",
     "update_failed": "rDownloader-Update fehlgeschlagen",
     "automation": "Nachricht einer Automation",
-    "service_restarting": "rDownloader startet neu"
+    "service_restarting": "rDownloader startet neu",
+    "queue_paused": "Warteschlange pausiert",
+    "queue_resumed": "Warteschlange fortgesetzt",
+    "queue_finished": "Warteschlange fertig"
   },
   "severity": {
     "info": "Info und höher",
@@ -108,7 +111,7 @@
     "severity_label": "Mindest-Severity",
     "severity_description": "Leisere Ereignisse werden gefiltert.",
     "events_label": "Ereignisse",
-    "events_description": "Nichts ausgewählt bedeutet alle Ereignisse außer gestarteten Downloads und hinzugefügten Links: Die bekommt eine Regel nur, wenn du sie auswählst, und viele davon kurz hintereinander kommen als eine Benachrichtigung.",
+    "events_description": "Nichts ausgewählt bedeutet alle Ereignisse außer gestarteten Downloads, hinzugefügten Links und dem Pausieren, Fortsetzen oder Fertigwerden der Warteschlange: Die bekommt eine Regel nur, wenn du sie auswählst, und viele Starts oder Links kurz hintereinander kommen als eine Benachrichtigung.",
     "all_events": "alle Ereignisse",
     "all_categories": "Alle Kategorien",
     "empty": "Noch keine Regel.",
@@ -134,7 +137,7 @@
     "body_label": "Eigener Text",
     "description": "Optional – leer schickt den eingebauten Wortlaut. Einen Platzhalter schreibst du als {example}, eine geschweifte Klammer doppelt: {pair}.",
     "placeholders_label": "Platzhalter",
-    "placeholders_hint": "Ein Klick fügt ihn in das zuletzt benutzte Feld ein. Was ein Ereignis nicht füllt, bleibt leer.",
+    "placeholders_hint": "Ein Klick setzt ihn an der Schreibmarke des zuletzt benutzten Feldes ein und ersetzt, was du dort markiert hast. Was ein Ereignis nicht füllt, bleibt leer.",
     "summary_only": "Die gewählten Ereignisse kommen gebündelt als eine Zusammenfassung und behalten ihren Wortlaut.",
     "preview_label": "Vorschau mit Beispieldaten",
     "built_in": "Eingebauter Wortlaut",
@@ -160,6 +163,11 @@
     "storage_target": "Speicherort oder Sicherungsziel",
     "version": "Version",
     "plugin": "Name des Plugins",
-    "account": "Bezeichnung und Anbieter des Kontos, nie der Benutzername"
+    "account": "Bezeichnung und Anbieter des Kontos, nie der Benutzername",
+    "budget_used": "Verbrauchter Traffic des aktiven Budgets, leer ohne Budget",
+    "budget_left": "Verbleibender Traffic des aktiven Budgets",
+    "budget_limit": "Grenze des aktiven Budgets",
+    "budget_period": "Zeitraum des aktiven Budgets, daily oder monthly",
+    "reason": "Warum die Warteschlange pausiert: manual, automation, schedule, stop_mark oder game_mode"
   }
 }

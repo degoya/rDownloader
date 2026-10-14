@@ -467,6 +467,8 @@ impl SchedulerHandle {
 
 #[path = "bandwidth_manual.rs"]
 mod manual;
+#[path = "bandwidth_reading.rs"]
+mod reading;
 #[path = "bandwidth_window.rs"]
 mod window;
 

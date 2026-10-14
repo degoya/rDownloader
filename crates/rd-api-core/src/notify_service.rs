@@ -36,6 +36,8 @@ struct Inner {
     database: rd_db::Database,
     secrets: rd_secrets::SecretStore,
     power: rd_power::PowerService,
+    /// The active profile's traffic budget, read for the budget placeholders (RD-1290-02).
+    bandwidth: rd_scheduler::BandwidthService,
     /// Where the notification-destination plugins are installed, and the host they reach the
     /// outside world through.
     plugins: rd_plugin_host::PluginInstaller,
@@ -65,6 +67,7 @@ impl NotificationService {
         database: rd_db::Database,
         secrets: rd_secrets::SecretStore,
         power: rd_power::PowerService,
+        bandwidth: rd_scheduler::BandwidthService,
         plugins: rd_plugin_host::PluginInstaller,
         plugin_host: Arc<dyn rd_plugin_api::ResolverHost>,
     ) -> Self {
@@ -73,6 +76,7 @@ impl NotificationService {
                 database,
                 secrets,
                 power,
+                bandwidth,
                 plugins,
                 plugin_host,
                 notifiers: tokio::sync::OnceCell::new(),

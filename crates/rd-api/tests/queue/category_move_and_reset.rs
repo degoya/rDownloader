@@ -101,32 +101,10 @@ async fn a_finished_package_can_still_be_moved_to_another_category() {
     let (root_id, root) = storage_root(&harness.router, directory.path()).await;
     let (first_id, first_path) = category(&harness.router, &root_id, &root, "movies").await;
     let (second_id, second_path) = category(&harness.router, &root_id, &root, "series").await;
-    let (download_id, package_id) = queued_download(&harness.router).await;
-
-    // Park it in the first category and put a finished payload where the download would be.
-    let (status, _) = common::post_json(
-        &harness.router,
-        "/api/v1/packages/bulk",
-        serde_json::json!({ "ids": [package_id], "category_id": first_id }),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK);
-    let package_directory = first_path.join("Example Package");
-    std::fs::create_dir_all(&package_directory).expect("package directory");
-    std::fs::write(package_directory.join("movie.mkv"), b"payload").expect("payload");
-    let id: rd_core::DownloadId = download_id.parse().expect("download id");
-    for state in [
-        rd_core::DownloadState::Resolving,
-        rd_core::DownloadState::Downloading,
-        rd_core::DownloadState::Verifying,
-        rd_core::DownloadState::Completed,
-    ] {
-        harness
-            .database
-            .transition_download(id, state)
-            .await
-            .expect("transition");
-    }
+    // Parked in the first category with a finished payload, its post-processing over: a move
+    // waits for that (RD-1290-01).
+    let (package_id, package_directory) =
+        finished_package_in(&harness, &first_id, &first_path).await;
 
     // Finished packages used to be refused with `package.completed_category_locked`.
     let (status, updated) = common::post_json(
@@ -197,6 +175,8 @@ async fn moving_a_category_carries_the_whole_package_folder_over() {
             .await
             .expect("transition");
     }
+    // A move during post-processing waits for its end (RD-1290-01); this one is about the folder.
+    await_package_settled(&harness.router, &package_id).await;
 
     let (status, updated) = common::post_json(
         &harness.router,

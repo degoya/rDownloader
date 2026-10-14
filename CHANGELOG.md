@@ -5,6 +5,54 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.29.0] - 2026-10-14
+
+### Added
+
+- **Traffic budget placeholders for notifications** (RD-1290-02). Every event that takes a rule's
+  own wording fills `{budget_used}`, `{budget_left}`, `{budget_limit}` (sizes as `{size}` writes
+  them) and `{budget_period}` (`daily` or `monthly`, the one with less left), read from the active
+  bandwidth profile when the delivery is queued (`BandwidthService::budget_reading`,
+  `rd_limits::BudgetState::reading`); empty without an active budget, no new persistence. The table
+  (`crates/rd-notify/placeholders.md`), the placeholder route, the rule editor's list and preview
+  and `list_notification_placeholders` name them. Tests: `rd-limits` reading, `notify_service`
+  placeholders with, without and with a used-up budget, `notification_templates` delivery.
+
+- **The queue paused, resumed and finished, as notification events and automation triggers**
+  (RD-1290-04). `queue_paused` (`{reason}`: `manual`, `automation`, `schedule`, `stop_mark`,
+  `game_mode`), `queue_resumed` and `queue_finished`, opt-in for rules; triggers of the same names,
+  which take no package action, a pause's cause in the condition field `source`. One observer on
+  the power supervisor's tick (`rd-api-core/src/queue_state.rs`) sums the queue pause (its record
+  now names who set it, `rd_scheduler::PauseReason`), the schedule's pausing profile and "pause
+  all", and broadcasts `queue.state` (`EventKind::QueueState`, scope `read`) once per transition;
+  a budget halt stays `budget_exhausted`. Rule and automation editors offer them in four languages;
+  MCP descriptions of `create_notification_rule`, `create_automation` and
+  `get_automation_vocabulary`. `rd-automation`'s validation moved to `validation.rs`, `rd-notify`'s
+  model tests to `model_tests.rs`. Tests: `queue_state_tests.rs`, scheduler `every_pause_names_who_set_it`,
+  the `queue_moments` suite, transitions, model and web.
+
+### Changed
+
+- **A placeholder goes where the cursor is** (RD-1290-03). The notification rule editor puts a
+  clicked placeholder at the caret of the title or text field last in focus, replacing a selection,
+  and returns the focus with the caret behind it; a field never focused takes it at its end, and
+  `maxlength` still holds. `NotificationTemplateFields.vue` remembers the caret on blur and reaches
+  the native field through Nuxt UI's exposed `inputRef`/`textareaRef`; the hint says so in four
+  languages.
+
+### Fixed
+
+- **An automation's *move to category* moves the data** (RD-1290-01). `set_category` wrote the
+  package row (category, destination, `previous_destination`) and never ran the move, so files
+  stayed in the old folder while the queue named the new category. Both category paths now share
+  `rd_api_core::destination::carry_over`. `relocate_package` holds a move back while the package
+  is post-processed or due to be (`rd_core::ready_for_postprocess`, moved from `rd-extract`), and
+  a scheduler task carries it over when the package becomes completed or failed; the same applies
+  to the downloads' category change, which could pull archives out from under the unpack.
+  `download_completed` no longer fires a second time for an archive volume's return from
+  `extracting`. Tests: `control_relocate_tests.rs`, the `rd-api-core` crash case on
+  `scheduler.before_package_move`, `automation_triggers::category_move`.
+
 ## [1.28.1] - 2026-10-13
 
 ### Fixed

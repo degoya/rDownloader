@@ -1,15 +1,17 @@
 /**
  * The rule editor's own wording (RD-1280-02): two fields, the placeholders the chosen events fill
- * and a preview with the service's sample data.
+ * — put at the caret of the field last in focus (RD-1290-03) — and a preview with the service's
+ * sample data.
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, reactive, ref } from 'vue'
 
 import type { NotificationPlaceholderTable } from '@/api/notificationPlaceholders'
 import type { NotificationEvent } from '@/api/types'
 import notifications from '@/locales/en/notifications.json'
 import { axeViolations } from '@/test/axe'
-import { mountComponent } from '@/test/mount'
+import { mountComponent, settle } from '@/test/mount'
 
 const TABLE: NotificationPlaceholderTable = {
   placeholders: [
@@ -39,12 +41,65 @@ const UFormField = {
   template: '<div><label>{{ label }}<slot /></label><p v-if="description">{{ description }}</p><p v-if="error" role="alert">{{ error }}</p></div>'
 }
 
+/**
+ * `UInput` and `UTextarea` with the part of their contract the editor relies on: the native field,
+ * exposed as `inputRef` and `textareaRef`; focus and blur reach it as attributes.
+ */
+function nativeField(tag: 'input' | 'textarea', exposed: 'inputRef' | 'textareaRef') {
+  return defineComponent({
+    inheritAttrs: false,
+    props: { modelValue: { type: String, default: '' } },
+    emits: ['update:modelValue'],
+    setup(props, { attrs, emit, expose }) {
+      const native = ref<HTMLInputElement | HTMLTextAreaElement | null>(null)
+      expose({ [exposed]: native })
+      return () => h(tag, {
+        ...attrs,
+        ref: native,
+        value: props.modelValue,
+        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value)
+      })
+    }
+  })
+}
+const UInput = nativeField('input', 'inputRef')
+const UTextarea = nativeField('textarea', 'textareaRef')
+
 function mount(events: NotificationEvent[], title: string | null = null, body: string | null = null) {
   return mountComponent(NotificationTemplateFields, {
     messages: { notifications },
     props: { events, title, body },
-    stubs: { UFormField }
+    stubs: { UFormField, UInput, UTextarea }
   })
+}
+
+/** The editor inside a parent that keeps what it writes, as the rule form does. */
+function mountEditing(title: string | null, body: string | null) {
+  const wording = reactive<{ title: string | null | undefined, body: string | null | undefined }>({ title, body })
+  const Host = defineComponent(() => () => h(NotificationTemplateFields, {
+    events: ['package_completed'],
+    title: wording.title,
+    body: wording.body,
+    'onUpdate:title': (value?: string | null) => { wording.title = value },
+    'onUpdate:body': (value?: string | null) => { wording.body = value }
+  }))
+  mountComponent(Host, { messages: { notifications }, stubs: { UFormField, UInput, UTextarea } })
+  return wording
+}
+
+const titleInput = () => screen.getByRole('textbox', { name: new RegExp(notifications.template.title_label) }) as HTMLInputElement
+const bodyInput = () => screen.getByRole('textbox', { name: new RegExp(notifications.template.body_label) }) as HTMLTextAreaElement
+
+/** Focuses a field, places its caret or selection and leaves it, as a click on a placeholder does. */
+function leaveAt(field: HTMLInputElement | HTMLTextAreaElement, start: number, end = start): void {
+  field.focus()
+  field.setSelectionRange(start, end)
+  field.blur()
+}
+
+async function clickPlaceholder(name: string): Promise<void> {
+  await fireEvent.click(within(await placeholderGroup()).getByRole('button', { name: new RegExp(`\\{${name}\\}`) }))
+  await settle()
 }
 
 const placeholderGroup = () => screen.findByRole('group', { name: notifications.template.placeholders_label })
@@ -63,12 +118,51 @@ describe('NotificationTemplateFields', () => {
     expect(names).toEqual(['{event}', '{time}', '{title}', '{message}', '{package}', '{size}'])
   })
 
-  it('adds a placeholder to the field last in focus', async () => {
+  it('adds a placeholder to the end of the field last in focus when no caret was kept', async () => {
     const { emitted } = mount(['package_completed'], 'Done: ')
     const group = await placeholderGroup()
-    await fireEvent.focus(screen.getByRole('textbox', { name: new RegExp(notifications.template.title_label) }))
+    await fireEvent.focus(titleInput())
     await fireEvent.click(within(group).getByRole('button', { name: /\{package\}/ }))
     expect(emitted()['update:title']).toEqual([['Done: {package}']])
+  })
+
+  it('adds a placeholder to the end of the text when no field was ever focused', async () => {
+    const wording = mountEditing(null, 'Size: ')
+    await clickPlaceholder('size')
+    expect(wording.body).toBe('Size: {size}')
+  })
+
+  it('puts a placeholder at the caret of the title, focused with the caret behind it', async () => {
+    const wording = mountEditing('Done: !', null)
+    await placeholderGroup()
+    leaveAt(titleInput(), 6)
+    await clickPlaceholder('package')
+    expect(wording.title).toBe('Done: {package}!')
+    expect(document.activeElement).toBe(titleInput())
+    expect([titleInput().selectionStart, titleInput().selectionEnd]).toEqual([15, 15])
+
+    await clickPlaceholder('size')
+    expect(wording.title).toBe('Done: {package}{size}!')
+  })
+
+  it('replaces a selection in the text with the placeholder', async () => {
+    const wording = mountEditing('Done', 'Size: XX here')
+    await placeholderGroup()
+    leaveAt(bodyInput(), 6, 8)
+    await clickPlaceholder('size')
+    expect(wording.body).toBe('Size: {size} here')
+    expect(document.activeElement).toBe(bodyInput())
+    expect([bodyInput().selectionStart, bodyInput().selectionEnd]).toEqual([12, 12])
+    expect(wording.title).toBe('Done')
+  })
+
+  it('leaves out a placeholder that would pass the field\'s maximum length', async () => {
+    const full = 'x'.repeat(195)
+    const { emitted } = mount(['package_completed'], full)
+    await placeholderGroup()
+    leaveAt(titleInput(), 195)
+    await clickPlaceholder('package')
+    expect(emitted()['update:title']).toBeUndefined()
   })
 
   it('previews the wording with sample data, an unfilled placeholder empty', async () => {

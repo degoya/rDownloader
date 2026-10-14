@@ -80,6 +80,47 @@ impl BudgetState {
         }
         None
     }
+
+    /// The budget a notification names (RD-1290-02): of the daily and the monthly one, the one
+    /// with less left, the daily one on a tie, as [`Self::exhausted`] reports it; `None` without
+    /// a limit. Read the counters rolled onto the current period ([`Self::record`] with no bytes),
+    /// or a past period's traffic counts against this one.
+    #[must_use]
+    pub fn reading(&self, limits: &BudgetLimits) -> Option<BudgetReading> {
+        let daily = limits.daily_bytes.map(|limit| BudgetReading {
+            period: BudgetKind::Daily,
+            used_bytes: self.daily.used_bytes,
+            limit_bytes: limit,
+        });
+        let monthly = limits.monthly_bytes.map(|limit| BudgetReading {
+            period: BudgetKind::Monthly,
+            used_bytes: self.monthly.used_bytes,
+            limit_bytes: limit,
+        });
+        match (daily, monthly) {
+            (Some(daily), Some(monthly)) if monthly.left_bytes() < daily.left_bytes() => {
+                Some(monthly)
+            }
+            (Some(daily), _) => Some(daily),
+            (None, monthly) => monthly,
+        }
+    }
+}
+
+/// How far one budget is used, at the moment it is read.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BudgetReading {
+    pub period: BudgetKind,
+    pub used_bytes: u64,
+    pub limit_bytes: u64,
+}
+
+impl BudgetReading {
+    /// What is left; nothing once the traffic reached the limit.
+    #[must_use]
+    pub const fn left_bytes(&self) -> u64 {
+        self.limit_bytes.saturating_sub(self.used_bytes)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -146,5 +187,33 @@ mod tests {
         assert_eq!(exceeded.period, BudgetKind::Daily);
         assert_eq!(exceeded.limit_bytes, 500);
         assert!(state.exhausted(&BudgetLimits::default()).is_none());
+    }
+
+    /// RD-1290-02: the budget a notification names is the one that runs out first.
+    #[test]
+    fn the_reading_names_the_budget_with_less_left() {
+        let mut state = BudgetState::default();
+        state.record("2026-10-14", "2026-10", 300);
+        assert!(state.reading(&BudgetLimits::default()).is_none());
+        let both = |daily, monthly| BudgetLimits {
+            daily_bytes: Some(daily),
+            monthly_bytes: Some(monthly),
+        };
+        let reading = state.reading(&both(1_000, 500)).expect("a budget");
+        assert_eq!(reading.period, BudgetKind::Monthly);
+        assert_eq!((reading.used_bytes, reading.left_bytes()), (300, 200));
+        let reading = state.reading(&both(500, 500)).expect("a budget");
+        assert_eq!(reading.period, BudgetKind::Daily, "a tie names the day");
+        let monthly_only = BudgetLimits {
+            daily_bytes: None,
+            monthly_bytes: Some(200),
+        };
+        let reading = state.reading(&monthly_only).expect("a budget");
+        assert_eq!(reading.period, BudgetKind::Monthly);
+        assert_eq!(
+            reading.left_bytes(),
+            0,
+            "used up is nothing left, never negative"
+        );
     }
 }

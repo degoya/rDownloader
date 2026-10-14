@@ -1,4 +1,5 @@
-//! Supervises the queue completion cycle and the network context (RD-050-13).
+//! Supervises the queue completion cycle and the network context (RD-050-13), and announces the
+//! queue pausing, resuming and running empty on the same tick (RD-1290-04, `queue_state`).
 //!
 //! Lives here rather than in the scheduler because it needs both sides: the queue tells it
 //! when work is done, and the extraction service owns the script sandbox the completion
@@ -23,6 +24,10 @@ struct Inner {
     quiet_hold: QuietHold,
     /// The countdown the last `power.changed` announced (RD-1260-04).
     countdown: std::sync::Mutex<CountdownNotice>,
+    /// Whether the queue was paused or busy at the last tick (RD-1290-04).
+    queue_state: std::sync::Mutex<crate::queue_state::QueueStateWatch>,
+    /// How many ticks have read the queue's state, [`PowerSupervisor::queue_state_reads`].
+    queue_state_reads: std::sync::atomic::AtomicU64,
     shutdown: CancellationToken,
 }
 
@@ -49,6 +54,8 @@ impl PowerSupervisor {
                 power,
                 quiet_hold,
                 countdown: std::sync::Mutex::default(),
+                queue_state: std::sync::Mutex::default(),
+                queue_state_reads: std::sync::atomic::AtomicU64::new(0),
                 shutdown: CancellationToken::new(),
             }),
         };
@@ -58,6 +65,15 @@ impl PowerSupervisor {
 
     pub fn shutdown(&self) {
         self.inner.shutdown.cancel();
+    }
+
+    /// How many ticks have read the queue's state (RD-1290-04). The first read only learns it, so
+    /// a test waits for one before it changes the queue, instead of guessing how long that takes.
+    #[must_use]
+    pub fn queue_state_reads(&self) -> u64 {
+        self.inner
+            .queue_state_reads
+            .load(std::sync::atomic::Ordering::Acquire)
     }
 
     async fn run(self) {
@@ -152,10 +168,38 @@ impl PowerSupervisor {
                 payload,
             ));
         }
+        self.announce_queue_state(&downloads, unpacking).await;
         if let Some(due) = due {
             self.execute(due.action).await;
         }
         Ok(())
+    }
+
+    /// The queue paused, resumed or ran empty since the last tick: one `queue.state` each
+    /// (RD-1290-04, `queue_state`).
+    async fn announce_queue_state(&self, downloads: &[rd_core::DownloadFile], unpacking: bool) {
+        let scheduler = &self.inner.scheduler;
+        let sample = crate::queue_state::Sample {
+            queue_pause: scheduler.queue_pause().await.map(|pause| pause.reason),
+            schedule_pauses: scheduler.bandwidth().pauses_downloads().await,
+            downloads,
+            postprocessing: unpacking,
+        };
+        let changes = self
+            .inner
+            .queue_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .observe(&sample);
+        self.inner
+            .queue_state_reads
+            .fetch_add(1, std::sync::atomic::Ordering::Release);
+        for payload in changes {
+            self.inner.database.broadcast(rd_core::EventEnvelope::new(
+                rd_core::EventKind::QueueState,
+                payload,
+            ));
+        }
     }
 
     /// Post-processing waits while quiet hours defer it; the hold is the same mechanism the

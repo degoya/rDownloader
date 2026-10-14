@@ -112,6 +112,7 @@ impl AppState {
             database.clone(),
             secrets.clone(),
             power.clone(),
+            scheduler.bandwidth(),
             plugins.clone(),
             scheduler.plugin_host(),
         );

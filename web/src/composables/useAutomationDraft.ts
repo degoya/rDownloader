@@ -22,6 +22,8 @@ export const MAX_INTERVAL_MINUTES = 1440
 
 /** Actions that work on the run's package; a time trigger names none (RD-1240-10). */
 const PACKAGE_ACTIONS = ['set_category', 'pause_package', 'resume_package', 'set_priority', 'extract_package']
+/** The whole queue's moments (RD-1290-04) name no package either; plain strings until the schema names them. */
+export const QUEUE_TRIGGERS: readonly string[] = ['queue_paused', 'queue_resumed', 'queue_finished']
 
 /**
  * An action while it is being edited. It differs from the wire type in two ways: the id an
@@ -105,6 +107,8 @@ export function useAutomationDraft(categories: Ref<Category[]>, targets: Ref<Not
   })
 
   const timed = computed(() => draft.trigger === 'schedule')
+  /** A trigger that names no package: a time, or a moment of the whole queue. */
+  const packageless = computed(() => timed.value || QUEUE_TRIGGERS.includes(draft.trigger))
 
   const triggerOptions = computed(() =>
     (store.vocabulary?.triggers ?? []).map(trigger => ({
@@ -112,10 +116,10 @@ export function useAutomationDraft(categories: Ref<Category[]>, targets: Ref<Not
       label: t(`automation.trigger.${trigger}`)
     }))
   )
-  /** A time trigger offers no package action: it has no package to act on. */
+  /** A trigger without a package offers no package action: it has no package to act on. */
   const actionKindOptions = computed(() =>
     (store.vocabulary?.action_kinds ?? [])
-      .filter(kind => !timed.value || !PACKAGE_ACTIONS.includes(kind))
+      .filter(kind => !packageless.value || !PACKAGE_ACTIONS.includes(kind))
       .map(kind => ({
         value: kind,
         label: t(`automation.action.${kind}`)
@@ -135,9 +139,9 @@ export function useAutomationDraft(categories: Ref<Category[]>, targets: Ref<Not
     return [...new Set([...saved, ...postprocess.scripts])].map(name => ({ label: name, value: name }))
   })
 
-  /** A time trigger holding a package action from before the trigger changed. */
+  /** A trigger without a package holding a package action from before the trigger changed. */
   const packageActionOnSchedule = computed(
-    () => timed.value && draft.actions.some(action => PACKAGE_ACTIONS.includes(action.kind))
+    () => packageless.value && draft.actions.some(action => PACKAGE_ACTIONS.includes(action.kind))
   )
 
   const canSave = computed(
@@ -145,7 +149,8 @@ export function useAutomationDraft(categories: Ref<Category[]>, targets: Ref<Not
       Boolean(draft.name.trim())
       && draft.actions.length > 0
       && draft.actions.every(actionComplete)
-      && (!timed.value || (scheduleComplete(draft.schedule) && !packageActionOnSchedule.value))
+      && (!timed.value || scheduleComplete(draft.schedule))
+      && !packageActionOnSchedule.value
   )
 
   /** The draft as the server takes it: the schedule only where the trigger reads it. */
@@ -162,7 +167,7 @@ export function useAutomationDraft(categories: Ref<Category[]>, targets: Ref<Not
 
   function addAction(): void {
     if (!canAddAction.value) return
-    draft.actions.push({ kind: timed.value ? 'start_queue' : 'pause_package' })
+    draft.actions.push({ kind: packageless.value ? 'start_queue' : 'pause_package' })
   }
 
   function changeActionKind(index: number, kind: string): void {

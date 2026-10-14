@@ -21,7 +21,9 @@ use utoipa::ToSchema;
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Field {
-    /// Where the link came in from: `manual`, `clipboard`, `api`, `hot_folder`, …
+    /// Where the link came in from: `manual`, `clipboard`, `api`, `hot_folder`, …; for
+    /// `queue_paused`, who paused the queue: `manual`, `automation`, `schedule`, `stop_mark` or
+    /// `game_mode` (RD-1290-04).
     Source,
     /// Host of the source URL.
     Domain,

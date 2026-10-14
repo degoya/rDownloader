@@ -95,7 +95,10 @@
     "storage_threshold": "Umbral de almacenamiento",
     "subscription_item": "Elemento de suscripción",
     "usenet_job_hopeless": "Descarga de Usenet sin remedio",
-    "schedule": "A una hora"
+    "schedule": "A una hora",
+    "queue_paused": "Cola en pausa",
+    "queue_resumed": "Cola reanudada",
+    "queue_finished": "Cola terminada"
   },
   "field": {
     "source": "Origen",
@@ -161,5 +164,7 @@
     "no_package": "Una programación no indica ningún paquete: las acciones de paquete no están disponibles aquí."
   },
   "storage_threshold_help": "Se ejecuta cuando una ubicación de almacenamiento baja de su reserva de espacio libre. Para ejecutarla cuando vuelva a haber espacio, añade la condición «Cambio de almacenamiento» igual a «released». Para una sola ubicación, elígela en «Destino de almacenamiento».",
-  "storage_target_fallback": "Directorio de descargas"
+  "storage_target_fallback": "Directorio de descargas",
+  "queue_paused_help": "Se ejecuta cuando toda la cola se pausa. Solo para una causa: condición «Origen» igual a manual (a mano), automation, schedule (programación), stop_mark (marca de parada) o game_mode (modo juego).",
+  "queue_no_package": "La cola entera no indica ningún paquete: las acciones de paquete no están disponibles aquí."
 }

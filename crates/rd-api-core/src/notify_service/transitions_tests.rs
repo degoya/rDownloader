@@ -5,8 +5,8 @@ use rd_notify::NotificationEvent;
 use serde_json::json;
 
 use super::{
-    captcha_notice, package_failed_body, package_outcome, power_notice, storage_blocked,
-    storage_notice,
+    captcha_notice, package_failed_body, package_outcome, power_notice, queue_moment, queue_notice,
+    storage_blocked, storage_notice,
 };
 
 fn package(previous: Option<&str>, state: &str) -> serde_json::Value {
@@ -157,4 +157,28 @@ fn out_of_space_names_its_storage_root() {
         storage_notice(&json!({ "blocked": 0, "change": "released", "name": "Downloads" }))
             .is_none()
     );
+}
+
+/// RD-1290-04: each `queue.state` is its moment, a pause says who set it.
+#[test]
+fn the_queue_s_moments_say_what_happened() {
+    let (event, title, body) =
+        queue_notice(&json!({ "state": "paused", "reason": "schedule" })).expect("a pause");
+    assert_eq!(event, NotificationEvent::QueuePaused);
+    assert_eq!(title, "Queue paused");
+    assert_eq!(body, "The bandwidth schedule pauses the queue.");
+    let (_, _, body) =
+        queue_notice(&json!({ "state": "paused", "reason": "manual" })).expect("a pause");
+    assert_eq!(body, "The queue was paused by hand.");
+    assert_eq!(
+        queue_moment(&json!({ "state": "resumed" })),
+        Some(NotificationEvent::QueueResumed)
+    );
+    let (event, title, _) = queue_notice(&json!({ "state": "finished" })).expect("ran empty");
+    assert_eq!(
+        (event, title.as_str()),
+        (NotificationEvent::QueueFinished, "Queue finished")
+    );
+    assert!(queue_notice(&json!({ "state": "busy" })).is_none());
+    assert!(queue_notice(&json!({})).is_none());
 }

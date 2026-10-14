@@ -195,7 +195,10 @@ impl Scope {
             | Kind::PowerChanged
             // Where the queue will pause, by id: the queue's own state, read at `Read` with
             // `get_queue_pause` (RD-1210-02).
-            | Kind::QueueStopMark => Self::Read,
+            | Kind::QueueStopMark
+            // Whether the queue is paused or ran empty, with the code of who paused it: the
+            // same state `get_queue_pause` reads (RD-1290-04).
+            | Kind::QueueState => Self::Read,
             // The LinkGrabber and what is waiting in it.
             Kind::CollectorChanged
             | Kind::CollectorIntake

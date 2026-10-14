@@ -67,3 +67,17 @@ describe('AutomationTriggerCard (RD-1240-10)', () => {
     expect(screen.getByText(en.schedule.expression)).toBeTruthy()
   })
 })
+
+describe('AutomationTriggerCard, the queue\'s moments (RD-1290-04)', () => {
+  it('says how to tell who paused the queue', () => {
+    mount('queue_paused', { kind: 'interval', minutes: 60 })
+    expect(screen.getByText(en.queue_paused_help)).toBeTruthy()
+    expect(screen.queryByText(en.schedule.heading)).toBeNull()
+  })
+
+  it('refuses a package action left over from the trigger before', () => {
+    mount('queue_finished', { kind: 'interval', minutes: 60 }, true)
+    expect(screen.getByText(en.queue_no_package)).toBeTruthy()
+    expect(screen.queryByText(en.queue_paused_help)).toBeNull()
+  })
+})

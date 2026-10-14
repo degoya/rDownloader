@@ -95,7 +95,10 @@
     "storage_threshold": "Storage threshold",
     "subscription_item": "Subscription item",
     "usenet_job_hopeless": "Usenet download beyond repair",
-    "schedule": "At a time"
+    "schedule": "At a time",
+    "queue_paused": "Queue paused",
+    "queue_resumed": "Queue resumed",
+    "queue_finished": "Queue finished"
   },
   "field": {
     "source": "Source",
@@ -161,5 +164,7 @@
     "no_package": "A schedule names no package: package actions are not available here."
   },
   "storage_threshold_help": "Runs when a storage root falls below its free-space reserve. To run when there is room again, add the condition “Storage change” equals “released”. To run for one storage root only, pick it under “Storage target”.",
-  "storage_target_fallback": "Download directory"
+  "storage_target_fallback": "Download directory",
+  "queue_paused_help": "Runs when the whole queue pauses. For one cause only, add the condition “Source” equals manual (by hand), automation, schedule, stop_mark or game_mode.",
+  "queue_no_package": "The whole queue names no package: package actions are not available here."
 }

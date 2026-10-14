@@ -2263,8 +2263,11 @@ pattern for any field a person fills with `{placeholder}` holes.
   with its own wording carries a subtle *Own wording* badge.
 - **The service's table, not a copy.** The placeholders come from the service with a sample value
   each; the editor offers only those the chosen events fill, as small outline mono buttons in a
-  named group, each titled with what it holds. A click appends it to the field last in focus.
-  When every chosen event keeps its own text (a burst summary), one muted line says so instead.
+  named group, each titled with what it holds. A click puts it at the caret of the field last in
+  focus, replacing a selection there (RD-1290-03): the field remembers its caret when it loses
+  focus, gets the focus back with the caret behind the placeholder, and a field never focused takes
+  it at its end; an insertion that would pass the field's `maxlength` is left out. When every
+  chosen event keeps its own text (a burst summary), one muted line says so instead.
 - **A preview under the fields**, in a bordered box (`aria-live="polite"`), with the sample
   values: a placeholder the chosen events do not fill is empty there as it will be in the
   message, and a part left empty shows the built-in wording.

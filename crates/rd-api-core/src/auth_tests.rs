@@ -94,6 +94,7 @@ fn a_read_only_subscriber_sees_queue_events_only() {
         EventKind::StorageCapacity,
         EventKind::TorrentStats,
         EventKind::QueueStopMark,
+        EventKind::QueueState,
     ] {
         assert!(
             read_only().may_observe(&kind),

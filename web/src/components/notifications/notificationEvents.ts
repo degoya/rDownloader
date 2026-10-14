@@ -22,5 +22,13 @@ export const NOTIFICATION_EVENTS: NotificationEvent[] = [
   'stop_mark_reached',
   // Activity (RD-1240-17): starts and added links reach only a rule that lists them, and a
   // burst of them arrives as one notification.
-  'download_started', 'links_added', 'stream_recorded', 'subscription_matched'
+  'download_started', 'links_added', 'stream_recorded', 'subscription_matched',
+  // The whole queue paused, resumed or ran empty (RD-1290-04): opt-in like the starts; cast
+  // until the schema names them.
+  ...(['queue_paused', 'queue_resumed', 'queue_finished'] as string[] as NotificationEvent[])
+]
+
+/** What a rule gets only when it lists it (`NotificationEvent::is_opt_in`). */
+export const OPT_IN_EVENTS: readonly string[] = [
+  'download_started', 'links_added', 'queue_paused', 'queue_resumed', 'queue_finished'
 ]

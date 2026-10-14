@@ -1,6 +1,7 @@
 //! A rule's own wording (RD-1280-02): the rule route keeps a title and a text template, refuses
 //! one naming no placeholder with a stable code, hands out the placeholder table, and a finished
-//! package reaches the webhook in the rule's words -- the JSON keeping its fields.
+//! package reaches the webhook in the rule's words -- the JSON keeping its fields -- with the
+//! active traffic budget's figures of the moment (RD-1290-02).
 
 use crate::common;
 use crate::notifications::{create_target, spawn_receiver};
@@ -124,8 +125,21 @@ async fn the_placeholder_table_names_what_each_event_fills() {
     assert_eq!(
         finished["placeholders"],
         json!([
-            "event", "severity", "time", "date", "title", "message", "package", "category",
-            "state", "size", "path"
+            "event",
+            "severity",
+            "time",
+            "date",
+            "title",
+            "message",
+            "budget_used",
+            "budget_left",
+            "budget_limit",
+            "budget_period",
+            "package",
+            "category",
+            "state",
+            "size",
+            "path"
         ])
     );
     let started = event("download_started");
@@ -217,6 +231,74 @@ async fn a_finished_package_reaches_the_webhook_in_the_rule_s_words() {
     assert_eq!(
         payload["body"],
         format!("Holiday (completed)\nSize: () Folder: {folder}"),
+        "{payload}"
+    );
+}
+
+/// RD-1290-02: the budget placeholders carry the active profile's figures when the delivery is
+/// queued.
+#[tokio::test]
+async fn a_finished_package_names_the_traffic_budget_left() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::parked_harness(directory.path()).await;
+    let router = harness.router.clone();
+    let (status, profile) = common::post_json(
+        &router,
+        "/api/v1/bandwidth/profiles",
+        json!({ "name": "Capped", "daily_budget_bytes": "1073741824" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{profile}");
+    let (status, schedule) = common::put_json(
+        &router,
+        "/api/v1/bandwidth/schedule",
+        json!({ "timezone": "Europe/Berlin", "default_profile_id": profile["id"], "windows": [] }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{schedule}");
+    let (_server, endpoint, calls) = spawn_receiver().await;
+    let target = create_target(
+        &router,
+        json!({ "name": "local", "kind": "webhook", "endpoint": endpoint }),
+    )
+    .await;
+    let (status, saved) = rule(
+        &router,
+        &target,
+        json!({ "body_template": "{budget_used} used, {budget_left} of {budget_limit} left ({budget_period})" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{saved}");
+
+    let (status, created) = common::post_json(
+        &router,
+        "/api/v1/downloads",
+        json!({ "url": "https://example.test/budget.bin", "package_name": "Budget" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let id: PackageId = created["package_id"]
+        .as_str()
+        .expect("package id")
+        .parse()
+        .expect("package id");
+    harness
+        .database
+        .set_package_state(id, PackageState::Completed, None, None, None)
+        .await
+        .expect("state");
+
+    let received = &calls;
+    common::eventually(
+        std::time::Duration::from_secs(20),
+        "the delivery did not arrive",
+        || async move { (!received.lock().expect("calls").is_empty()).then_some(()) },
+    )
+    .await;
+    let body = calls.lock().expect("calls")[0].2.clone();
+    let payload: serde_json::Value = serde_json::from_str(&body).expect("JSON");
+    assert_eq!(
+        payload["body"], "0 B used, 1.0 GiB of 1.0 GiB left (daily)",
         "{payload}"
     );
 }

@@ -56,6 +56,7 @@ pub mod password_reset;
 pub mod postprocess_handlers;
 pub mod power_service;
 pub mod qbittorrent_sessions;
+mod queue_state;
 pub mod reconnect_decision;
 pub mod reconnect_ip;
 pub mod reconnect_service;

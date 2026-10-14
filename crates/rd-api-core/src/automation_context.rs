@@ -30,6 +30,7 @@ pub(crate) fn may_trigger(event: &EventEnvelope) -> bool {
             | EventKind::StorageCapacity
             | EventKind::SubscriptionChanged
             | EventKind::UsenetChanged
+            | EventKind::QueueState
     )
 }
 
@@ -46,6 +47,7 @@ pub(crate) async fn classify(
         EventKind::StorageCapacity => Ok(storage(event)),
         EventKind::SubscriptionChanged => subscription(database, event).await,
         EventKind::UsenetChanged => usenet_job_hopeless(database, event).await,
+        EventKind::QueueState => Ok(queue_state(event)),
         _ => Ok(None),
     }
 }
@@ -83,7 +85,10 @@ async fn download(
     }
     match state {
         "downloading" => triggers.push(Trigger::DownloadStarted),
-        "completed" => triggers.push(Trigger::DownloadCompleted),
+        // An archive volume is unpacked as `completed -> extracting -> completed`: the way back
+        // is the end of its unpack, not a second download, and ran every action again in the
+        // middle of the package's post-processing (RD-1290-01).
+        "completed" if previous != "extracting" => triggers.push(Trigger::DownloadCompleted),
         "failed" => triggers.push(Trigger::DownloadFailed),
         _ => {}
     }
@@ -270,6 +275,25 @@ async fn usenet_job_hopeless(
         context,
         package_id,
     }))
+}
+
+/// The whole queue paused, resumed or ran empty (RD-1290-04), decided as the notification hub
+/// decides it (`notify_service::transitions::queue_moment`). Who paused is the field `source`.
+fn queue_state(event: &EventEnvelope) -> Option<EventMatch> {
+    let trigger = match crate::notify_service::transitions::queue_moment(&event.payload)? {
+        NotificationEvent::QueuePaused => Trigger::QueuePaused,
+        NotificationEvent::QueueResumed => Trigger::QueueResumed,
+        _ => Trigger::QueueFinished,
+    };
+    let mut context = EventContext::default();
+    if let Some(reason) = text(event, "reason") {
+        context.set(Field::Source, reason);
+    }
+    Some(EventMatch {
+        triggers: vec![trigger],
+        context,
+        package_id: None,
+    })
 }
 
 /// The context a dry run is evaluated against, built from a real package.

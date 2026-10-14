@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use rd_core::{DownloadFile, DownloadId, NzbImportId, PackageId};
+use rd_core::{DownloadFile, DownloadId, NzbImportId, PackageId, PackageState};
 use rd_files::{
     VerifiedMoveError, collision_free_path, move_directory, move_file, place_verified,
     release_source, verified_move_file,
@@ -19,6 +19,10 @@ impl SchedulerHandle {
     /// time, it lands in the new folder by itself when it finishes. The former directory is
     /// therefore swept only once nothing of the package is running any more — which is why this
     /// is called both on the category change and after every completed file.
+    ///
+    /// Nothing moves while the package's post-processing runs or is about to start: its
+    /// archives would be pulled out from under the unpack. The move stays recorded and
+    /// [`Self::relocate_after_postprocess`] carries it over once the pipeline ended (RD-1290-01).
     ///
     /// Nothing to do, and no error, when the package has no outstanding move recorded.
     pub async fn relocate_package(&self, package_id: PackageId) -> Result<()> {
@@ -49,6 +53,9 @@ impl SchedulerHandle {
         }
         let import_id = package.nzb_import_id;
         let files = self.database.downloads_for_package(package_id).await?;
+        if awaits_postprocess(&package, &files) {
+            return Ok(());
+        }
         let running = self
             .active
             .lock()
@@ -133,6 +140,87 @@ impl SchedulerHandle {
         tokio::fs::create_dir_all(&target_staging).await?;
         move_file(&source, &target_staging.join(&part_name)).await
     }
+
+    /// Carries on every package move that is still recorded as outstanding.
+    pub(crate) async fn relocate_outstanding(&self) {
+        match self.database.packages_with_outstanding_move().await {
+            Ok(packages) => {
+                for package_id in packages {
+                    if let Err(error) = self.relocate_package(package_id).await {
+                        tracing::warn!(
+                            %package_id,
+                            %error,
+                            "an outstanding category move was not completed"
+                        );
+                    }
+                }
+            }
+            Err(error) => tracing::warn!(%error, "outstanding category moves were not read"),
+        }
+    }
+
+    /// Runs the moves a package's post-processing held back, once its pipeline ended
+    /// (RD-1290-01): the end is the package becoming completed or failed, whichever writes it.
+    /// Cheap for every other package: [`Self::relocate_package`] finds nothing outstanding.
+    ///
+    /// `events` is subscribed by the caller, before the task runs, so no end falls between.
+    pub(crate) async fn relocate_after_postprocess(
+        self,
+        mut events: tokio::sync::broadcast::Receiver<rd_core::EventEnvelope>,
+    ) {
+        loop {
+            let event = tokio::select! {
+                () = self.shutdown.cancelled() => return,
+                event = events.recv() => event,
+            };
+            match event {
+                Ok(event) => {
+                    let Some(package_id) = postprocess_ended(&event) else {
+                        continue;
+                    };
+                    if let Err(error) = self.relocate_package(package_id).await {
+                        tracing::warn!(
+                            %package_id,
+                            %error,
+                            "the category move held back by post-processing was not completed"
+                        );
+                    }
+                }
+                // The missed events may have held the end of a pipeline, so every outstanding
+                // move is looked at instead; one still held back simply stays outstanding.
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                    self.relocate_outstanding().await;
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
+            }
+        }
+    }
+}
+
+/// Whether the package's post-processing runs, or is due because its files just settled: then
+/// its folder belongs to the pipeline, and a move would leave it a half-unpacked set.
+fn awaits_postprocess(package: &rd_core::DownloadPackage, files: &[DownloadFile]) -> bool {
+    match package.state {
+        PackageState::Postprocessing => true,
+        PackageState::Completed | PackageState::Failed => false,
+        PackageState::Queued | PackageState::Downloading => {
+            rd_core::ready_for_postprocess(package.kind, files)
+        }
+    }
+}
+
+/// The package a `package.state` event names when it announces an end: the package became
+/// completed or failed, and was not so before.
+fn postprocess_ended(event: &rd_core::EventEnvelope) -> Option<PackageId> {
+    if event.kind != rd_core::EventKind::PackageState {
+        return None;
+    }
+    let text = |key: &str| event.payload.get(key).and_then(serde_json::Value::as_str);
+    let state = text("state")?;
+    if !matches!(state, "completed" | "failed") || text("previous") == Some(state) {
+        return None;
+    }
+    text("package_id")?.parse().ok()
 }
 
 impl SchedulerHandle {
@@ -329,3 +417,7 @@ async fn sweep_former_directory(
     }
     crate::finish::remove_if_empty(from).await;
 }
+
+#[cfg(test)]
+#[path = "control_relocate_tests.rs"]
+mod tests;

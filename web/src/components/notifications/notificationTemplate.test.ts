@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { NotificationPlaceholderTable } from '@/api/notificationPlaceholders'
+import type { NotificationEvent } from '@/api/types'
 import { fillTemplate, placeholdersFor } from './notificationTemplate'
 
 const KNOWN = new Set(['package', 'time', 'error', 'size', 'title', 'message'])
@@ -59,5 +60,56 @@ describe('placeholdersFor', () => {
 
   it('says when every chosen event keeps its summary', () => {
     expect(placeholdersFor(TABLE, ['download_started'])).toEqual({ names: [], summaryOnly: true })
+  })
+})
+
+describe('the traffic budget (RD-1290-02)', () => {
+  const BUDGET = ['budget_used', 'budget_left', 'budget_limit', 'budget_period']
+  const COMMON = ['event', 'title', ...BUDGET]
+  const table: NotificationPlaceholderTable = {
+    placeholders: [
+      { name: 'event', example: 'package_completed' },
+      { name: 'title', example: 'Package finished: Holiday photos' },
+      { name: 'budget_used', example: '12.5 GiB' },
+      { name: 'budget_left', example: '37.5 GiB' },
+      { name: 'budget_limit', example: '50.0 GiB' },
+      { name: 'budget_period', example: 'monthly' },
+      { name: 'package', example: 'Holiday photos' }
+    ],
+    events: [
+      { event: 'package_completed', takes_template: true, placeholders: [...COMMON, 'package'] },
+      { event: 'budget_exhausted', takes_template: true, placeholders: COMMON }
+    ]
+  }
+
+  it('offers its placeholders with every event that takes a template', () => {
+    for (const event of ['package_completed', 'budget_exhausted'] as const) {
+      expect(placeholdersFor(table, [event]).names, event).toEqual(expect.arrayContaining(BUDGET))
+    }
+  })
+
+  it('previews them with the sample values', () => {
+    const values = Object.fromEntries(table.placeholders.map(entry => [entry.name, entry.example]))
+    const known = new Set(table.placeholders.map(entry => entry.name))
+    expect(fillTemplate('{package} done, {budget_left} of {budget_limit} left ({budget_period})', values, known))
+      .toEqual({ ok: true, text: 'Holiday photos done, 37.5 GiB of 50.0 GiB left (monthly)' })
+  })
+})
+
+describe('the queue\'s moments (RD-1290-04)', () => {
+  const table: NotificationPlaceholderTable = {
+    placeholders: ['event', 'package', 'reason'].map(name => ({ name, example: name })),
+    events: [
+      { event: 'package_completed', takes_template: true, placeholders: ['event', 'package'] },
+      { event: 'queue_paused' as string as NotificationEvent, takes_template: true, placeholders: ['event', 'reason'] }
+    ]
+  }
+
+  it('offers {reason} for a rule that names the pause', () => {
+    expect(placeholdersFor(table, ['queue_paused' as string as NotificationEvent]).names).toEqual(['event', 'reason'])
+  })
+
+  it('leaves the pause out of a rule that names no event: it is opt-in', () => {
+    expect(placeholdersFor(table, []).names).toEqual(['event', 'package'])
   })
 })

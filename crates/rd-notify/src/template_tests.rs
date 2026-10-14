@@ -39,7 +39,7 @@ fn fill(template: &str, values: &Values) -> String {
     render(TemplatePart::Body, template, values).expect("a valid template")
 }
 
-/// The table, pinned: which event fills which placeholder beyond the common six.
+/// The table, pinned: which event fills which placeholder beyond the common ones.
 #[test]
 fn every_event_fills_its_own_placeholders() {
     use NotificationEvent as E;
@@ -75,6 +75,9 @@ fn every_event_fills_its_own_placeholders() {
             &[P::File, P::Package, P::Category, P::Size],
         ),
         (E::SubscriptionMatched, &[P::Category]),
+        (E::QueuePaused, &[P::Reason]),
+        (E::QueueResumed, &[]),
+        (E::QueueFinished, &[]),
     ];
     for (event, specific) in expected {
         let mut wanted = Placeholder::COMMON.to_vec();
@@ -124,7 +127,10 @@ fn a_template_fills_every_placeholder_its_event_names() {
         assert_eq!(parts[3], "2026-10-13");
         assert_eq!(parts[4], "Built-in title");
         assert_eq!(parts[5], "Built-in text");
-        for (part, placeholder) in parts.iter().zip(event.placeholders()).skip(6) {
+        // No budget was read for these values (RD-1290-02): its four are empty.
+        assert_eq!(parts[6..10], ["", "", "", ""], "{event:?}");
+        let common = Placeholder::COMMON.len();
+        for (part, placeholder) in parts.iter().zip(event.placeholders()).skip(common) {
             assert_eq!(*part, placeholder.example(), "{event:?}");
         }
     }

@@ -181,6 +181,9 @@ impl SchedulerHandle {
                 recovering.recover_storage_work().await;
             });
         }
+        // A category move post-processing held back follows once the pipeline ends (RD-1290-01).
+        let events = handle.database.subscribe();
+        tokio::spawn(handle.clone().relocate_after_postprocess(events));
         tokio::spawn(handle.clone().supervise());
         Ok(handle)
     }

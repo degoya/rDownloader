@@ -199,6 +199,9 @@ async fn set_category(
             },
         )
         .await?;
+    // The same two phases as the queue's category change: the row names the new folder, then
+    // the data follows -- held back while the package is still post-processed (RD-1290-01).
+    crate::destination::carry_over(&context.scheduler, &[package_id]).await;
     Ok(())
 }
 
@@ -340,6 +343,9 @@ fn trigger_slug(trigger: rd_automation::Trigger) -> String {
         .to_owned()
 }
 
+#[cfg(all(test, feature = "failpoints"))]
+#[path = "automation_actions_crash_tests.rs"]
+mod crash_tests;
 #[cfg(test)]
 #[path = "automation_actions_tests.rs"]
 mod tests;

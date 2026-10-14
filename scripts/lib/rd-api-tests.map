@@ -63,14 +63,14 @@
 ^crates/rd-db/src/(config_store|usenet_store|bandwidth_store|notify_store)(\.rs$|/)          + unique_names notifications notification_package_path notification_templates
 ^crates/rd-db/src/web_push_store(\.rs$|_tests\.rs$)                                  + web_push
 ^crates/rd-db/src/(package_names|nzb_queue|config_store_postprocess)(\.rs$|/)                 + package_names
-^crates/rd-(db/src/(writer_jobs_state_batch|facade_download_batches)|scheduler/src/(control_batches|queue_pause))\.rs$ + bulk_pause queue_pause
+^crates/rd-(db/src/(writer_jobs_state_batch|facade_download_batches)|scheduler/src/(control_batches|queue_pause))\.rs$ + bulk_pause queue_pause queue_moments
 ^crates/rd-api(-[a-z]+)?/src/(collector_enqueue|download_handlers/create|torrent_intake|postprocess_handlers)(\.rs$|/)   + package_names
 ^crates/rd-api(-[a-z]+)?/src/auto_remove_service(\.rs$|/)                                     auto_remove
-^crates/rd-api(-[a-z]+)?/src/(automation_[a-z_]+|routes/automations)(\.rs$|/)                 automations automation_triggers area_backup automation_dry_run automation_schedule automation_version_reset
+^crates/rd-api(-[a-z]+)?/src/(automation_[a-z_]+|routes/automations)(\.rs$|/)                 automations automation_triggers area_backup automation_dry_run automation_schedule automation_version_reset queue_moments
 ^crates/rd-api(-[a-z]+)?/src/backup_[a-z_]+(\.rs$|/)                                   full_backup backup_destinations backup_remote mcp service_lifecycle archive_password_backup
 ^crates/rd-api(-[a-z]+)?/src/bandwidth_handlers(\.rs$|/)                                      bandwidth bandwidth_manual unique_names
 ^crates/rd-api(-[a-z]+)?/src/bandwidth_manual_handlers(\.rs$|/)                               bandwidth_manual
-^crates/rd-api(-[a-z]+)?/src/queue_pause_handlers(\.rs$|/)                                    queue_pause capture_queue stop_mark
+^crates/rd-api(-[a-z]+)?/src/queue_pause_handlers(\.rs$|/)                                    queue_pause capture_queue stop_mark queue_moments
 ^crates/rd-api(-[a-z]+)?/src/stop_mark_handlers(\.rs$|/)                                      stop_mark queue_pause mcp
 ^crates/rd-api(-[a-z]+)?/src/capture_queue(\.rs$|/)                                         capture_queue scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/capture_linkgrabber(_tests)?(\.rs$|/)                          capture_queue scope_matrix
@@ -109,7 +109,7 @@
 ^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)(\.rs$|/)                 media_cookie_profile media_manifest indexer_search torznab_search
 ^crates/rd-api(-[a-z]+)?/src/(metrics|metrics_format|stats_handlers|stats_retention_service|routes/stats)(\.rs$|/)   metrics data_reset
 ^crates/rd-api(-[a-z]+)?/src/(mfa_handlers|password_handlers|step_up)(\.rs$|/)                mfa passkeys auth step_up password_reset restore_step_up
-^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable notification_activity notification_package_path notification_counts automations web_push notification_templates
+^crates/rd-api(-[a-z]+)?/src/(notify_handlers|notify_service|routes/notify)(\.rs$|/)          notifications notifications_executable notification_activity notification_package_path notification_counts automations web_push notification_templates queue_moments
 # Web Push for the installed app (RD-1240-13).
 ^crates/rd-api(-[a-z]+)?/src/(web_push|web_push_tests|web_push_handlers)(\.rs$|/)             web_push
 # Signing in through an identity provider (RD-190-15).
@@ -126,7 +126,8 @@
 ^crates/rd-api(-[a-z]+)?/src/plugin_handlers(\.rs$|/)                                        + plugin_trust
 ^crates/rd-api(-[a-z]+)?/src/plugin_bundled(\.rs$|/)                                        plugin_bundled plugin_bundled_removal plugin_bundled_repository audit
 ^crates/rd-api(-[a-z]+)?/src/plugin_repository_[a-z_]+(\.rs$|/)                          plugin_repositories plugin_auto_updates plugin_bundled_repository audit
-^crates/rd-api(-[a-z]+)?/src/power_[a-z_]+\.rs$                                           power
+^crates/rd-api(-[a-z]+)?/src/power_[a-z_]+\.rs$                                           power queue_moments
+^crates/rd-api(-[a-z]+)?/src/queue_state(_tests)?\.rs$                                      queue_moments
 ^crates/rd-api(-[a-z]+)?/src/reconnect_[a-z_]+\.rs$                                       reconnect
 ^crates/rd-api(-[a-z]+)?/src/(replay_dto|replay_handlers)(\.rs$|/)                            replay_consent replay_restart
 ^crates/rd-api(-[a-z]+)?/src/(restore_[a-z_]+|routes/restore)(\.rs$|/)                    full_restore backup_remote protected_roots mcp archive_password_backup restore_step_up

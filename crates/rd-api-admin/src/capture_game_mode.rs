@@ -115,7 +115,11 @@ pub async fn hold_capture_game_mode(
             if !queue_in_force(&state).await.may_hold(request.renews) {
                 return Ok(Json(refused));
             }
-            state.scheduler.pause_queue_until(end).await?.until
+            state
+                .scheduler
+                .pause_queue_until_by(end, rd_scheduler::PauseReason::GameMode)
+                .await?
+                .until
         }
         GameModeAction::Profile => {
             let problem = GameModeProblem::ProfileMissing;

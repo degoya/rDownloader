@@ -12771,7 +12771,7 @@ export interface components {
          * @description What happened. Deliberately a closed set: a rule filters on it, so it has to be stable.
          * @enum {string}
          */
-        NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending" | "backup_failed" | "backup_verify_failed" | "update_available" | "plugin_update_available" | "plugin_update_failed" | "update_installed" | "update_failed" | "service_restarting" | "account_expiring" | "account_invalid" | "usenet_job_hopeless" | "usenet_quota_reached" | "stop_mark_reached" | "download_started" | "links_added" | "stream_recorded" | "subscription_matched" | "automation";
+        NotificationEvent: "package_completed" | "package_failed" | "storage_blocked" | "budget_exhausted" | "captcha_waiting" | "power_pending" | "backup_failed" | "backup_verify_failed" | "update_available" | "plugin_update_available" | "plugin_update_failed" | "update_installed" | "update_failed" | "service_restarting" | "account_expiring" | "account_invalid" | "usenet_job_hopeless" | "usenet_quota_reached" | "stop_mark_reached" | "download_started" | "links_added" | "stream_recorded" | "subscription_matched" | "queue_paused" | "queue_resumed" | "queue_finished" | "automation";
         /** @description What one event fills. */
         NotificationEventPlaceholders: {
             event: components["schemas"]["NotificationEvent"];
@@ -13480,7 +13480,7 @@ export interface components {
          * @description One value a template may name in braces, `{package}`.
          * @enum {string}
          */
-        Placeholder: "event" | "severity" | "time" | "date" | "title" | "message" | "package" | "file" | "category" | "state" | "size" | "path" | "error" | "storage_target" | "version" | "plugin" | "account";
+        Placeholder: "event" | "severity" | "time" | "date" | "title" | "message" | "budget_used" | "budget_left" | "budget_limit" | "budget_period" | "package" | "file" | "category" | "state" | "size" | "path" | "error" | "storage_target" | "version" | "plugin" | "account" | "reason";
         /** @description What a package asks for beyond the newest installed version of the same plugin (RD-160-09). */
         PluginAddedPermissionsResponse: {
             /** @description The installed version the package is compared with. */
@@ -18404,7 +18404,7 @@ export interface components {
          *     none of it is something to hang an action off.
          * @enum {string}
          */
-        Trigger: "intake_received" | "download_resolved" | "download_started" | "download_completed" | "download_failed" | "package_completed" | "package_failed" | "extraction_finished" | "script_finished" | "upload_finished" | "storage_threshold" | "subscription_item" | "usenet_job_hopeless" | "schedule";
+        Trigger: "intake_received" | "download_resolved" | "download_started" | "download_completed" | "download_failed" | "package_completed" | "package_failed" | "extraction_finished" | "script_finished" | "upload_finished" | "storage_threshold" | "subscription_item" | "usenet_job_hopeless" | "schedule" | "queue_paused" | "queue_resumed" | "queue_finished";
         /**
          * @description Confirms one SSH host key as trusted.
          *

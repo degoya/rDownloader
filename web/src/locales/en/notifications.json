@@ -30,7 +30,10 @@
     "update_installed": "rDownloader update installed",
     "update_failed": "rDownloader update failed",
     "automation": "Automation message",
-    "service_restarting": "rDownloader restarts"
+    "service_restarting": "rDownloader restarts",
+    "queue_paused": "Queue paused",
+    "queue_resumed": "Queue resumed",
+    "queue_finished": "Queue finished"
   },
   "severity": {
     "info": "Info and above",
@@ -108,7 +111,7 @@
     "severity_label": "Minimum severity",
     "severity_description": "Quieter events are filtered out.",
     "events_label": "Events",
-    "events_description": "Nothing selected means every event except download starts and added links: a rule gets those only when you select them, and a burst of them arrives as one notification.",
+    "events_description": "Nothing selected means every event except download starts, added links and the queue pausing, resuming or finishing: a rule gets those only when you select them, and a burst of starts or links arrives as one notification.",
     "all_events": "every event",
     "all_categories": "Every category",
     "empty": "No rule yet.",
@@ -134,7 +137,7 @@
     "body_label": "Own text",
     "description": "Optional; left empty, the built-in wording is sent. Write a placeholder as {example} and a brace doubled: {pair}.",
     "placeholders_label": "Placeholders",
-    "placeholders_hint": "A click adds one to the field you used last. One an event does not fill stays empty.",
+    "placeholders_hint": "A click puts one at the cursor of the field you used last, replacing what you selected there. One an event does not fill stays empty.",
     "summary_only": "The chosen events arrive bundled as one summary and keep their own wording.",
     "preview_label": "Preview with sample data",
     "built_in": "Built-in wording",
@@ -160,6 +163,11 @@
     "storage_target": "The storage root or backup destination",
     "version": "The version",
     "plugin": "The plugin's name",
-    "account": "The account's label and provider, never its user name"
+    "account": "The account's label and provider, never its user name",
+    "budget_used": "Traffic of the active budget used so far, empty without one",
+    "budget_left": "Traffic of the active budget left",
+    "budget_limit": "The active budget's limit",
+    "budget_period": "The active budget's period, daily or monthly",
+    "reason": "Why the queue paused: manual, automation, schedule, stop_mark or game_mode"
   }
 }

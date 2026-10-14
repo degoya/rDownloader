@@ -34,6 +34,7 @@ mod network;
 mod object_storage;
 mod package_names;
 mod postprocess;
+mod postprocess_ready;
 mod recording;
 mod redact;
 mod remote;
@@ -189,6 +190,7 @@ pub use postprocess::{
     PostprocessStage, PostprocessStatus, is_par2_index, is_par2_volume, par2_volume_belongs_to,
     par2_volume_blocks,
 };
+pub use postprocess_ready::{parts_missing, ready_for_postprocess};
 pub use rd_provider_registry::{WildcardApex, host_pattern_matches};
 pub use recording::{
     MAX_RECONNECTS, MAX_SEGMENTS, MAX_SPLIT_MINUTES, MIN_SPLIT_MEGABYTES, MIN_SPLIT_MINUTES,

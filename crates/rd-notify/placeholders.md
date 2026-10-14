@@ -6,6 +6,10 @@
 | `{date}` | The day it happened, YYYY-MM-DD in the service's time zone | 2026-10-13 |
 | `{title}` | The built-in title | Package finished: Holiday photos |
 | `{message}` | The built-in text | Holiday photos (completed) |
+| `{budget_used}` | Traffic of the active budget used so far, empty without one | 12.5 GiB |
+| `{budget_left}` | Traffic of the active budget left | 37.5 GiB |
+| `{budget_limit}` | The active budget's limit | 50.0 GiB |
+| `{budget_period}` | The active budget's period, daily or monthly | monthly |
 | `{package}` | The package's name | Holiday photos |
 | `{file}` | The file's name | IMG_2048.jpg |
 | `{category}` | The category's name | Pictures |
@@ -17,8 +21,9 @@
 | `{version}` | The version | 1.28.0 |
 | `{plugin}` | The plugin's name | Example Hoster |
 | `{account}` | The account's label and provider, never its user name | Main (example.com) |
+| `{reason}` | Why the queue paused: manual, automation, schedule, stop_mark or game_mode | schedule |
 
-Every event fills `{event}`, `{severity}`, `{time}`, `{date}`, `{title}`, `{message}`.
+Every event fills `{event}`, `{severity}`, `{time}`, `{date}`, `{title}`, `{message}`, `{budget_used}`, `{budget_left}`, `{budget_limit}`, `{budget_period}`.
 
 | Event | Also fills |
 | --- | --- |
@@ -45,3 +50,6 @@ Every event fills `{event}`, `{severity}`, `{time}`, `{date}`, `{title}`, `{mess
 | `links_added` | (own wording does not apply: a burst arrives as one summary) |
 | `stream_recorded` | `{file}`, `{package}`, `{category}`, `{size}` |
 | `subscription_matched` | `{category}` |
+| `queue_paused` | `{reason}` |
+| `queue_resumed` | (nothing more) |
+| `queue_finished` | (nothing more) |

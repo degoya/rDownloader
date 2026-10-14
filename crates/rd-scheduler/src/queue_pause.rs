@@ -13,6 +13,9 @@
 //! once, and an end that passed while the service was down resumes the files on the first
 //! tick. A stop between the record and the files leaves them queued, not paused; the restored
 //! hold keeps them back until the end all the same (`scheduler.after_queue_pause_recorded`).
+//!
+//! The record names who paused (RD-1290-04): the `queue_paused` notification and automation
+//! trigger say why, and a pause set again keeps the queue paused without a second moment.
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -35,6 +38,37 @@ pub struct QueuePause {
     pub until: Option<DateTime<Utc>>,
     /// The files this pause stopped; its end resumes those still paused, and no others.
     pub files: Vec<DownloadId>,
+    /// Who set it last (RD-1290-04).
+    #[serde(default)]
+    pub reason: PauseReason,
+}
+
+/// Who paused the whole queue (RD-1290-04), the `{reason}` of a `queue_paused` notification.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PauseReason {
+    /// A person: the web interface's or the tray's timed pause, `PUT /api/v1/queue/pause`.
+    #[default]
+    Manual,
+    /// The automation action `pause_queue` (RD-1240-30).
+    Automation,
+    /// The stop mark was reached (RD-1210-02).
+    StopMark,
+    /// The desktop agent's game mode (RD-1240-19).
+    GameMode,
+}
+
+impl PauseReason {
+    /// The code a notification and an automation condition read.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Manual => "manual",
+            Self::Automation => "automation",
+            Self::StopMark => "stop_mark",
+            Self::GameMode => "game_mode",
+        }
+    }
 }
 
 /// The states a pause acts on — the web interface's `PAUSABLE_STATES`, waiting and moving.
@@ -49,28 +83,43 @@ impl SchedulerHandle {
     /// A pause that is already in force is moved to the new end and keeps the files it holds,
     /// so pausing "for one more hour" never forgets what the first pause stopped.
     pub async fn pause_queue_until(&self, until: DateTime<Utc>) -> Result<QueuePause> {
-        self.pause_queue(Some(until), pausable).await
+        self.pause_queue_until_by(until, PauseReason::Manual).await
+    }
+
+    /// [`Self::pause_queue_until`] on somebody else's behalf, the game mode's (RD-1290-04).
+    pub async fn pause_queue_until_by(
+        &self,
+        until: DateTime<Utc>,
+        reason: PauseReason,
+    ) -> Result<QueuePause> {
+        self.pause_queue(Some(until), pausable, reason).await
     }
 
     /// Holds the queue until somebody resumes it, the pause a stop mark sets (RD-1210-02): the
     /// waiting files are paused, the moving ones finish. A pause already in force loses its end
     /// and keeps the files it holds.
     pub async fn pause_queue_until_resumed(&self) -> Result<QueuePause> {
-        self.pause_queue(None, |state| pausable(state) && !state.is_working())
-            .await
+        self.pause_queue(
+            None,
+            |state| pausable(state) && !state.is_working(),
+            PauseReason::StopMark,
+        )
+        .await
     }
 
     /// Pauses every waiting and moving file, as "pause all" does, until somebody resumes the
     /// queue — the automation action `pause_queue` (RD-1240-30); its `start_queue` ends it. A
     /// pause already in force loses its end and keeps the files it holds.
     pub async fn pause_queue_until_started(&self) -> Result<QueuePause> {
-        self.pause_queue(None, pausable).await
+        self.pause_queue(None, pausable, PauseReason::Automation)
+            .await
     }
 
     async fn pause_queue(
         &self,
         until: Option<DateTime<Utc>>,
         stops: fn(DownloadState) -> bool,
+        reason: PauseReason,
     ) -> Result<QueuePause> {
         let mut current = self.queue_pause.lock().await;
         let mut files = current
@@ -90,7 +139,11 @@ impl SchedulerHandle {
                 files.push(*id);
             }
         }
-        let pause = QueuePause { until, files };
+        let pause = QueuePause {
+            until,
+            files,
+            reason,
+        };
         self.store_queue_pause(Some(&pause)).await?;
         *current = Some(pause.clone());
         self.network_hold

@@ -95,7 +95,10 @@
     "storage_threshold": "Seuil de stockage",
     "subscription_item": "Élément d’abonnement",
     "usenet_job_hopeless": "Téléchargement Usenet irréparable",
-    "schedule": "À une heure"
+    "schedule": "À une heure",
+    "queue_paused": "File mise en pause",
+    "queue_resumed": "File reprise",
+    "queue_finished": "File terminée"
   },
   "field": {
     "source": "Source",
@@ -161,5 +164,7 @@
     "no_package": "Une planification ne désigne aucun paquet : les actions de paquet ne sont pas disponibles ici."
   },
   "storage_threshold_help": "S’exécute lorsqu’un emplacement de stockage passe sous sa réserve d’espace libre. Pour l’exécuter quand la place revient, ajoutez la condition « Changement de stockage » égal à « released ». Pour un seul emplacement, choisissez-le sous « Cible de stockage ».",
-  "storage_target_fallback": "Répertoire de téléchargement"
+  "storage_target_fallback": "Répertoire de téléchargement",
+  "queue_paused_help": "S’exécute quand toute la file est mise en pause. Pour une seule cause : condition « Source » égale à manual (à la main), automation, schedule (planning), stop_mark (marque d’arrêt) ou game_mode (mode jeu).",
+  "queue_no_package": "La file entière ne désigne aucun paquet : les actions de paquet ne sont pas disponibles ici."
 }

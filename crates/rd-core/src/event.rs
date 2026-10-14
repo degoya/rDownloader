@@ -99,6 +99,10 @@ pub enum EventKind {
     /// payload names the action and the file or package by id only. Broadcast only, never
     /// persisted: the mark itself is the stored state.
     QueueStopMark,
+    /// The whole queue paused, resumed or ran empty (`queue.state`, RD-1290-04): `state` is
+    /// `paused` (with `reason`), `resumed` or `finished`, once per transition. Broadcast only,
+    /// never persisted: a replay after a restart would report a moment that already passed.
+    QueueState,
     System,
 }
 

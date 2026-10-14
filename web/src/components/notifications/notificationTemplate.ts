@@ -1,5 +1,6 @@
 import type { NotificationPlaceholderTable } from '@/api/notificationPlaceholders'
 import type { NotificationEvent } from '@/api/types'
+import { OPT_IN_EVENTS } from '@/components/notifications/notificationEvents'
 
 /**
  * A rule's own wording filled in the browser, for the editor's preview (RD-1280-02). The same
@@ -52,13 +53,13 @@ export interface OfferedPlaceholders {
 }
 
 /**
- * What a rule naming `events` can fill. No event chosen means every event but the opt-in ones,
- * which are exactly those that keep their summary.
+ * What a rule naming `events` can fill. No event chosen means every event but the opt-in ones:
+ * those that keep their summary, and the queue's moments (RD-1290-04).
  */
 export function placeholdersFor(table: NotificationPlaceholderTable, events: readonly NotificationEvent[]): OfferedPlaceholders {
   const chosen = events.length
     ? table.events.filter(entry => events.includes(entry.event))
-    : table.events.filter(entry => entry.takes_template)
+    : table.events.filter(entry => entry.takes_template && !OPT_IN_EVENTS.includes(entry.event))
   const filled = new Set(chosen.flatMap(entry => entry.placeholders))
   return {
     names: table.placeholders.map(entry => entry.name).filter(name => filled.has(name)),

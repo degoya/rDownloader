@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.28.1"
+    "version": "1.29.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -33502,6 +33502,9 @@
           "links_added",
           "stream_recorded",
           "subscription_matched",
+          "queue_paused",
+          "queue_resumed",
+          "queue_finished",
           "automation"
         ]
       },
@@ -35378,6 +35381,10 @@
           "date",
           "title",
           "message",
+          "budget_used",
+          "budget_left",
+          "budget_limit",
+          "budget_period",
           "package",
           "file",
           "category",
@@ -35388,7 +35395,8 @@
           "storage_target",
           "version",
           "plugin",
-          "account"
+          "account",
+          "reason"
         ]
       },
       "PluginAddedPermissionsResponse": {
@@ -46089,7 +46097,10 @@
           "storage_threshold",
           "subscription_item",
           "usenet_job_hopeless",
-          "schedule"
+          "schedule",
+          "queue_paused",
+          "queue_resumed",
+          "queue_finished"
         ]
       },
       "TrustSshHostKeyRequest": {

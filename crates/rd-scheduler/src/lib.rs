@@ -78,7 +78,7 @@ pub use content_index::ContentIndexCheck;
 pub use control::NzbDropped;
 pub use enqueue::{FileSpec, PackageSpec, ReplaySpec, SecretFragmentSpec};
 pub use holds::HoldSource;
-pub use queue_pause::{QueuePause, pausable};
+pub use queue_pause::{PauseReason, QueuePause, pausable};
 pub use rates::estimate_seconds;
 pub use runner::{ExternalRunner, HTTP_REUSE, RunLimits, RunOutcome};
 pub use tool_network::{

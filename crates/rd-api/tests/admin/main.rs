@@ -43,6 +43,7 @@ mod plugin_superseded;
 mod plugin_trust;
 mod plugin_versions;
 mod protected_roots;
+mod queue_moments;
 mod restart;
 mod restore_step_up;
 mod routing_backup;

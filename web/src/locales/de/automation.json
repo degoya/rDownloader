@@ -95,7 +95,10 @@
     "storage_threshold": "Speicherschwelle",
     "subscription_item": "Abo-Eintrag",
     "usenet_job_hopeless": "Usenet-Download aussichtslos",
-    "schedule": "Zu einer Zeit"
+    "schedule": "Zu einer Zeit",
+    "queue_paused": "Warteschlange pausiert",
+    "queue_resumed": "Warteschlange fortgesetzt",
+    "queue_finished": "Warteschlange fertig"
   },
   "field": {
     "source": "Quelle",
@@ -161,5 +164,7 @@
     "no_package": "Ein Zeitplan nennt kein Paket: Paket-Aktionen sind hier nicht wählbar."
   },
   "storage_threshold_help": "Läuft, wenn ein Speicherort unter seine Mindestreserve fällt. Damit die Automation läuft, wenn wieder Platz frei ist, setze die Bedingung „Speicheränderung“ gleich „released“. Für nur einen Speicherort wähle ihn unter „Speicherziel“.",
-  "storage_target_fallback": "Downloadverzeichnis"
+  "storage_target_fallback": "Downloadverzeichnis",
+  "queue_paused_help": "Läuft, wenn die ganze Warteschlange pausiert. Nur für einen Grund: Bedingung „Quelle“ gleich manual (von Hand), automation, schedule (Zeitplan), stop_mark (Stoppmarke) oder game_mode (Spielmodus).",
+  "queue_no_package": "Die ganze Warteschlange nennt kein Paket: Paket-Aktionen sind hier nicht wählbar."
 }

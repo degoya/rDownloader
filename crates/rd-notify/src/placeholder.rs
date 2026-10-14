@@ -29,6 +29,15 @@ pub enum Placeholder {
     Title,
     /// The built-in text.
     Message,
+    /// The active profile's traffic budget, read when the delivery is queued (RD-1290-02): how
+    /// much of it is used, as `{size}` writes a size; empty without an active budget.
+    BudgetUsed,
+    /// What is left of it.
+    BudgetLeft,
+    /// Its limit.
+    BudgetLimit,
+    /// Its period, `daily` or `monthly`: of the two, the one with less left.
+    BudgetPeriod,
     Package,
     File,
     Category,
@@ -40,19 +49,26 @@ pub enum Placeholder {
     Version,
     Plugin,
     Account,
+    /// Why the queue paused (RD-1290-04): `manual`, `automation`, `schedule`, `stop_mark` or
+    /// `game_mode`.
+    Reason,
 }
 
 use Placeholder as P;
 
 impl Placeholder {
     /// Every placeholder, in the order the editor and the handbook list them.
-    pub const ALL: [Self; 17] = [
+    pub const ALL: [Self; 22] = [
         P::Event,
         P::Severity,
         P::Time,
         P::Date,
         P::Title,
         P::Message,
+        P::BudgetUsed,
+        P::BudgetLeft,
+        P::BudgetLimit,
+        P::BudgetPeriod,
         P::Package,
         P::File,
         P::Category,
@@ -64,16 +80,22 @@ impl Placeholder {
         P::Version,
         P::Plugin,
         P::Account,
+        P::Reason,
     ];
 
-    /// What every event that takes a template fills.
-    pub const COMMON: [Self; 6] = [
+    /// What every event that takes a template fills; the budget's four stay empty without an
+    /// active budget.
+    pub const COMMON: [Self; 10] = [
         P::Event,
         P::Severity,
         P::Time,
         P::Date,
         P::Title,
         P::Message,
+        P::BudgetUsed,
+        P::BudgetLeft,
+        P::BudgetLimit,
+        P::BudgetPeriod,
     ];
 
     /// The name between the braces.
@@ -86,6 +108,10 @@ impl Placeholder {
             P::Date => "date",
             P::Title => "title",
             P::Message => "message",
+            P::BudgetUsed => "budget_used",
+            P::BudgetLeft => "budget_left",
+            P::BudgetLimit => "budget_limit",
+            P::BudgetPeriod => "budget_period",
             P::Package => "package",
             P::File => "file",
             P::Category => "category",
@@ -97,6 +123,7 @@ impl Placeholder {
             P::Version => "version",
             P::Plugin => "plugin",
             P::Account => "account",
+            P::Reason => "reason",
         }
     }
 
@@ -118,6 +145,10 @@ impl Placeholder {
             P::Date => "The day it happened, YYYY-MM-DD in the service's time zone",
             P::Title => "The built-in title",
             P::Message => "The built-in text",
+            P::BudgetUsed => "Traffic of the active budget used so far, empty without one",
+            P::BudgetLeft => "Traffic of the active budget left",
+            P::BudgetLimit => "The active budget's limit",
+            P::BudgetPeriod => "The active budget's period, daily or monthly",
             P::Package => "The package's name",
             P::File => "The file's name",
             P::Category => "The category's name",
@@ -129,6 +160,9 @@ impl Placeholder {
             P::Version => "The version",
             P::Plugin => "The plugin's name",
             P::Account => "The account's label and provider, never its user name",
+            P::Reason => {
+                "Why the queue paused: manual, automation, schedule, stop_mark or game_mode"
+            }
         }
     }
 
@@ -143,6 +177,10 @@ impl Placeholder {
             P::Date => "2026-10-13",
             P::Title => "Package finished: Holiday photos",
             P::Message => "Holiday photos (completed)",
+            P::BudgetUsed => "12.5 GiB",
+            P::BudgetLeft => "37.5 GiB",
+            P::BudgetLimit => "50.0 GiB",
+            P::BudgetPeriod => "monthly",
             P::Package => "Holiday photos",
             P::File => "IMG_2048.jpg",
             P::Category => "Pictures",
@@ -154,6 +192,7 @@ impl Placeholder {
             P::Version => "1.28.0",
             P::Plugin => "Example Hoster",
             P::Account => "Main (example.com)",
+            P::Reason => "schedule",
         }
     }
 }
@@ -197,11 +236,14 @@ impl NotificationEvent {
             Self::StopMarkReached => &[P::Package, P::File, P::Category],
             Self::StreamRecorded => &[P::File, P::Package, P::Category, P::Size],
             Self::SubscriptionMatched => &[P::Category],
+            Self::QueuePaused => &[P::Reason],
             Self::BudgetExhausted
             | Self::CaptchaWaiting
             | Self::PowerPending
             | Self::ServiceRestarting
             | Self::UsenetQuotaReached
+            | Self::QueueResumed
+            | Self::QueueFinished
             | Self::DownloadStarted
             | Self::LinksAdded
             | Self::Automation => &[],

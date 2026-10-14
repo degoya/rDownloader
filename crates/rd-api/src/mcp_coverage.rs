@@ -272,7 +272,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
             any("/api/v1/notifications/targets"),
             any("/api/v1/notifications/targets/{id}"),
             any("/api/v1/notifications/rules"),
-            // RD-1280-02: the placeholders a rule's own title and text may name.
+            // RD-1280-02: the placeholders a rule's own title and text may name; RD-1290-02 adds
+            // the traffic budget's, named by list_notification_placeholders' description.
+            // RD-1290-04: the queue's moments are events create_notification_rule names.
             any("/api/v1/notifications/placeholders"),
         ],
     ),
@@ -992,6 +994,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
     // RD-1270-04: the vocabulary names the storage threshold's `change`; get_automation_vocabulary
     // and create_automation say what it means, the routes are the same. RD-1270-18: likewise its
     // `storage_target`, the key (root id or `fallback`) get_storage_capacity lists as `target`.
+    // RD-1290-04: the queue's three triggers come with the vocabulary; get_automation_vocabulary
+    // and create_automation describe them and `source` for a pause.
     covered(
         "Automation history, vocabulary and dry run",
         "Automation",

@@ -76,6 +76,14 @@ describe('NotificationRules', () => {
     expect(screen.getByText(notifications.rule.events_description)).toBeTruthy()
   })
 
+  it('offers the queue pausing, resuming and finishing (RD-1290-04)', () => {
+    mount()
+    const group = screen.getByRole('group', { name: notifications.rule.events_label })
+    for (const event of ['queue_paused', 'queue_resumed', 'queue_finished'] as const) {
+      expect(within(group).getByRole('checkbox', { name: notifications.event[event] })).toBeTruthy()
+    }
+  })
+
   it('copies a rule with its target, events, category and severity, and opens the copy', async () => {
     const copy = { ...RULE, id: 'r2', name: `Failures (${common.copy_suffix})` }
     post.mockResolvedValueOnce({ data: copy })

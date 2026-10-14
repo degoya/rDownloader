@@ -189,6 +189,8 @@ impl NotificationService {
                 None => self.usenet_job_hopeless(&event.payload).await,
             },
             rd_core::EventKind::QueueStopMark => self.stop_mark_reached(&event.payload).await,
+            rd_core::EventKind::QueueState => Ok(super::transitions::queue_notice(&event.payload)
+                .map(|(kind, title, body)| (kind, None, title, body))),
             rd_core::EventKind::DownloadState => self.stream_recorded(&event.payload).await,
             rd_core::EventKind::SubscriptionChanged => {
                 self.subscription_matched(&event.payload).await

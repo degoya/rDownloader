@@ -5,7 +5,8 @@
 //! (`NotificationEvent::placeholders`): what an event's payload names, and the rows it points
 //! at. A row gone in the meantime leaves its placeholders empty, never the delivery unqueued. An
 //! error is redacted like every failure the service shows, so no address with a key in it
-//! reaches a chat.
+//! reaches a chat. The traffic budget is the one of the moment the delivery is queued, read from
+//! the bandwidth state (RD-1290-02), and a retry sends what the first attempt did.
 
 use rd_notify::{Placeholder as P, Values};
 
@@ -35,6 +36,7 @@ impl NotificationService {
         // Time and date in the service's own zone, the one its schedules are read in.
         let at = event.occurred_at.with_timezone(&chrono::Local);
         let mut values = Values::stamped(kind, &at);
+        set_budget(&mut values, self.inner.bandwidth.budget_reading().await);
         self.fill_values(kind, &event.payload, &mut values).await?;
         Ok(Some(values))
     }
@@ -83,6 +85,9 @@ impl NotificationService {
             NotificationEvent::StorageBlocked => {
                 values.set(P::StorageTarget, text("name").unwrap_or_default());
                 values.set(P::Path, text("path").unwrap_or_default());
+            }
+            NotificationEvent::QueuePaused => {
+                values.set(P::Reason, text("reason").unwrap_or_default());
             }
             NotificationEvent::SubscriptionMatched => {
                 let subscription = match text("subscription_id")
@@ -159,3 +164,24 @@ impl NotificationService {
             .unwrap_or_default())
     }
 }
+
+/// The budget's four placeholders (RD-1290-02); without an active budget they stay empty.
+fn set_budget(values: &mut Values, reading: Option<rd_limits::BudgetReading>) {
+    let Some(reading) = reading else {
+        return;
+    };
+    values.set(P::BudgetUsed, rd_notify::size_text(reading.used_bytes));
+    values.set(P::BudgetLeft, rd_notify::size_text(reading.left_bytes()));
+    values.set(P::BudgetLimit, rd_notify::size_text(reading.limit_bytes));
+    values.set(
+        P::BudgetPeriod,
+        match reading.period {
+            rd_limits::BudgetKind::Daily => "daily",
+            rd_limits::BudgetKind::Monthly => "monthly",
+        },
+    );
+}
+
+#[cfg(test)]
+#[path = "placeholders_tests.rs"]
+mod tests;

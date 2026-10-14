@@ -105,6 +105,14 @@ pub(crate) enum NotificationEventParam {
     StreamRecorded,
     /// A subscription check accepted new items.
     SubscriptionMatched,
+    /// The whole queue paused (by hand, an automation, the bandwidth schedule, the stop mark or
+    /// game mode; the template placeholder {reason} says which); once per pause. Opt-in.
+    QueuePaused,
+    /// The queue's pause ended, whatever ended it. Opt-in.
+    QueueResumed,
+    /// The queue ran empty: nothing waiting, downloading or post-processed any more; once.
+    /// Opt-in.
+    QueueFinished,
 }
 
 impl From<NotificationEventParam> for rd_notify::NotificationEvent {
@@ -133,6 +141,9 @@ impl From<NotificationEventParam> for rd_notify::NotificationEvent {
             NotificationEventParam::LinksAdded => Self::LinksAdded,
             NotificationEventParam::StreamRecorded => Self::StreamRecorded,
             NotificationEventParam::SubscriptionMatched => Self::SubscriptionMatched,
+            NotificationEventParam::QueuePaused => Self::QueuePaused,
+            NotificationEventParam::QueueResumed => Self::QueueResumed,
+            NotificationEventParam::QueueFinished => Self::QueueFinished,
         }
     }
 }

@@ -100,6 +100,16 @@ pub enum NotificationEvent {
     StreamRecorded,
     /// A subscription poll accepted new items (RD-1240-17). Once per poll that found any.
     SubscriptionMatched,
+    /// The whole queue paused (RD-1290-04): by hand, by an automation, by the bandwidth schedule,
+    /// at the stop mark or for the game mode, named by `{reason}`. Once per pause, not again for
+    /// the same pause set again or another on top; a used-up budget is [`Self::BudgetExhausted`].
+    /// Opt-in.
+    QueuePaused,
+    /// The queue's pause ended, whatever ended it (RD-1290-04). Opt-in.
+    QueueResumed,
+    /// The queue ran empty: nothing waiting, moving or in post-processing any more (RD-1290-04).
+    /// Once, not again while it stays empty. Opt-in.
+    QueueFinished,
     /// What an automation's webhook or notify action sends (RD-1240-28). It goes to the one
     /// target the action names, never through a rule, so no rule and no push choice lists it
     /// ([`Self::all`] leaves it out); it had gone out labelled `package_completed`.
@@ -120,6 +130,9 @@ impl NotificationEvent {
             | Self::LinksAdded
             | Self::StreamRecorded
             | Self::SubscriptionMatched
+            | Self::QueuePaused
+            | Self::QueueResumed
+            | Self::QueueFinished
             | Self::Automation => Severity::Info,
             Self::PackageFailed
             | Self::BackupFailed
@@ -164,6 +177,9 @@ impl NotificationEvent {
             Self::LinksAdded,
             Self::StreamRecorded,
             Self::SubscriptionMatched,
+            Self::QueuePaused,
+            Self::QueueResumed,
+            Self::QueueFinished,
         ]
     }
 
@@ -171,10 +187,18 @@ impl NotificationEvent {
     ///
     /// A rule without an event list means every event, and it meant the outcomes when it was
     /// written: a message for every download that starts and every link that arrives would
-    /// turn such a rule into noise. These two reach only a rule that lists them.
+    /// turn such a rule into noise, and so would the queue pausing and resuming with every
+    /// schedule window (RD-1290-04). These reach only a rule that lists them.
     #[must_use]
     pub fn is_opt_in(self) -> bool {
-        matches!(self, Self::DownloadStarted | Self::LinksAdded)
+        matches!(
+            self,
+            Self::DownloadStarted
+                | Self::LinksAdded
+                | Self::QueuePaused
+                | Self::QueueResumed
+                | Self::QueueFinished
+        )
     }
 
     /// Whether a burst of this event is folded into one notification (RD-1240-17).
@@ -292,178 +316,5 @@ pub struct Delivery {
 }
 
 #[cfg(test)]
-mod tests {
-    use rd_core::{CategoryId, NotificationRuleId, NotificationTargetId};
-
-    use super::{NotificationEvent, NotificationRule, Severity};
-
-    fn rule() -> NotificationRule {
-        NotificationRule {
-            id: NotificationRuleId::new(),
-            name: "test".to_owned(),
-            enabled: true,
-            target_id: NotificationTargetId::new(),
-            events: Vec::new(),
-            category_id: None,
-            min_severity: Severity::Info,
-            title_template: None,
-            body_template: None,
-        }
-    }
-
-    #[test]
-    fn an_empty_event_list_matches_everything() {
-        let rule = rule();
-        assert!(rule.matches(NotificationEvent::PackageCompleted, None));
-        assert!(rule.matches(NotificationEvent::PackageFailed, None));
-    }
-
-    #[test]
-    fn a_minimum_severity_filters_the_quieter_events_out() {
-        let mut rule = rule();
-        rule.min_severity = Severity::Error;
-        assert!(!rule.matches(NotificationEvent::PackageCompleted, None));
-        assert!(rule.matches(NotificationEvent::PackageFailed, None));
-    }
-
-    #[test]
-    fn a_category_rule_ignores_events_of_other_categories_and_of_none() {
-        let mut rule = rule();
-        let wanted = CategoryId::new();
-        rule.category_id = Some(wanted);
-        assert!(rule.matches(NotificationEvent::PackageCompleted, Some(wanted)));
-        assert!(!rule.matches(NotificationEvent::PackageCompleted, Some(CategoryId::new())));
-        assert!(!rule.matches(NotificationEvent::PackageCompleted, None));
-    }
-
-    #[test]
-    fn the_operational_events_have_their_severity_and_their_wire_name() {
-        let cases = [
-            (
-                NotificationEvent::BackupFailed,
-                Severity::Error,
-                "backup_failed",
-            ),
-            (
-                NotificationEvent::BackupVerifyFailed,
-                Severity::Error,
-                "backup_verify_failed",
-            ),
-            (
-                NotificationEvent::PluginUpdateFailed,
-                Severity::Error,
-                "plugin_update_failed",
-            ),
-            (
-                NotificationEvent::UpdateAvailable,
-                Severity::Info,
-                "update_available",
-            ),
-            (
-                NotificationEvent::PluginUpdateAvailable,
-                Severity::Info,
-                "plugin_update_available",
-            ),
-            (
-                NotificationEvent::UpdateInstalled,
-                Severity::Info,
-                "update_installed",
-            ),
-            (
-                NotificationEvent::UpdateFailed,
-                Severity::Error,
-                "update_failed",
-            ),
-            (
-                NotificationEvent::ServiceRestarting,
-                Severity::Info,
-                "service_restarting",
-            ),
-            (
-                NotificationEvent::AccountExpiring,
-                Severity::Warning,
-                "account_expiring",
-            ),
-            (
-                NotificationEvent::AccountInvalid,
-                Severity::Error,
-                "account_invalid",
-            ),
-            (
-                NotificationEvent::UsenetJobHopeless,
-                Severity::Error,
-                "usenet_job_hopeless",
-            ),
-            (
-                NotificationEvent::UsenetQuotaReached,
-                Severity::Warning,
-                "usenet_quota_reached",
-            ),
-            (
-                NotificationEvent::StopMarkReached,
-                Severity::Info,
-                "stop_mark_reached",
-            ),
-            (
-                NotificationEvent::DownloadStarted,
-                Severity::Info,
-                "download_started",
-            ),
-            (NotificationEvent::LinksAdded, Severity::Info, "links_added"),
-            (
-                NotificationEvent::StreamRecorded,
-                Severity::Info,
-                "stream_recorded",
-            ),
-            (
-                NotificationEvent::SubscriptionMatched,
-                Severity::Info,
-                "subscription_matched",
-            ),
-        ];
-        for (event, severity, name) in cases {
-            assert_eq!(event.severity(), severity, "{name}");
-            assert_eq!(
-                serde_json::to_value(event).expect("serialize"),
-                serde_json::json!(name)
-            );
-            assert!(NotificationEvent::all().contains(&event), "{name}");
-        }
-    }
-
-    /// RD-1240-28: an automation's message has a label of its own, and no rule names it.
-    #[test]
-    fn an_automation_message_is_its_own_event_and_no_rule_s() {
-        let event = NotificationEvent::Automation;
-        assert_eq!(
-            serde_json::to_value(event).expect("serialize"),
-            serde_json::json!("automation")
-        );
-        assert_eq!(event.severity(), Severity::Info);
-        assert!(!NotificationEvent::all().contains(&event));
-    }
-
-    #[test]
-    fn the_opt_in_events_reach_only_a_rule_that_lists_them() {
-        let mut rule = rule();
-        assert!(!rule.matches(NotificationEvent::DownloadStarted, None));
-        assert!(!rule.matches(NotificationEvent::LinksAdded, None));
-        // The other new events are outcomes, which a rule for every event takes.
-        assert!(rule.matches(NotificationEvent::StreamRecorded, None));
-        assert!(rule.matches(NotificationEvent::SubscriptionMatched, None));
-        rule.events = vec![
-            NotificationEvent::DownloadStarted,
-            NotificationEvent::LinksAdded,
-        ];
-        assert!(rule.matches(NotificationEvent::DownloadStarted, None));
-        assert!(rule.matches(NotificationEvent::LinksAdded, None));
-        assert!(!rule.matches(NotificationEvent::StreamRecorded, None));
-    }
-
-    #[test]
-    fn a_disabled_rule_matches_nothing() {
-        let mut rule = rule();
-        rule.enabled = false;
-        assert!(!rule.matches(NotificationEvent::PackageFailed, None));
-    }
-}
+#[path = "model_tests.rs"]
+mod tests;

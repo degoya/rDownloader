@@ -12,9 +12,18 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.29.0
+## 1.30.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.29.0
+
+- An automation that sets a category now moves the package's files into that category's folder, once any unpacking has finished.
+- Changing a package's category in the downloads list while it is being unpacked now waits for the unpack instead of moving its archives away.
+- An automation started by a finished download now runs once per file, not a second time after unpacking.
+- Notification texts can show the traffic budget: new placeholders for the used, remaining and total volume and its period.
+- New events for a paused, resumed or finished queue: get a notification or start an automation when the queue pauses or runs empty.
+- In the notification template editor a clicked placeholder is inserted at the cursor and replaces selected text.
 
 ## 1.28.1
 

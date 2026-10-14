@@ -3,22 +3,23 @@
  * The trigger of the automation editor (`AutomationView.vue`), with the schedule a time trigger
  * runs on (RD-1240-10): an interval in minutes counted from midnight, or a cron line, both read in
  * the service's time zone. The storage threshold says which of its two moments it runs on
- * (RD-1270-04).
+ * (RD-1270-04), and a moment of the whole queue names no package (RD-1290-04).
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { AutomationSchedule } from '@/api/types'
-import { type AutomationTrigger, MAX_INTERVAL_MINUTES } from '@/composables/useAutomationDraft'
+import { type AutomationTrigger, MAX_INTERVAL_MINUTES, QUEUE_TRIGGERS } from '@/composables/useAutomationDraft'
 
 const props = defineProps<{
   triggerOptions: { value: AutomationTrigger, label: string }[]
-  /** A package action is left over from the trigger before; a time trigger cannot run it. */
+  /** A package action is left over from the trigger before; a time or queue trigger cannot run it. */
   packageActionOnSchedule: boolean
 }>()
 const trigger = defineModel<AutomationTrigger>('trigger', { required: true })
 const schedule = defineModel<AutomationSchedule>('schedule', { required: true })
 const { t } = useI18n()
+const queueMoment = computed(() => QUEUE_TRIGGERS.includes(trigger.value))
 
 const kindOptions = computed(() => [
   { value: 'interval', label: t('automation.schedule.interval') },
@@ -45,6 +46,9 @@ function changeKind(kind: string): void {
     </UFormField>
     <!-- A storage rule runs on the block unless its condition names the change (RD-1270-04). -->
     <p v-if="trigger === 'storage_threshold'" class="text-xs text-muted">{{ t('automation.storage_threshold_help') }}</p>
+    <!-- Who paused the queue is the condition field `source` (RD-1290-04). -->
+    <p v-if="queueMoment && (trigger as string) === 'queue_paused'" class="text-xs text-muted">{{ t('automation.queue_paused_help') }}</p>
+    <p v-if="queueMoment && props.packageActionOnSchedule" class="text-xs text-error">{{ t('automation.queue_no_package') }}</p>
     <template v-if="trigger === 'schedule'">
       <UFormField :label="t('automation.schedule.heading')" :description="t('automation.schedule.help')">
         <USelect

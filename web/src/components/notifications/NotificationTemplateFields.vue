@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { fetchNotificationPlaceholders, type NotificationPlaceholderTable } from '@/api/notificationPlaceholders'
@@ -8,8 +8,9 @@ import { fillTemplate, placeholdersFor, type FillResult } from '@/components/not
 
 /**
  * A rule's own title and text (RD-1280-02): two fields, the placeholders the chosen events fill
- * — a click adds one to the field last in focus — and a preview with sample data. The service's
- * table is the source of both the list and the samples; the save is checked there again.
+ * — a click puts one at the caret of the field last in focus (RD-1290-03) — and a preview with
+ * sample data. The service's table is the source of both the list and the samples; the save is
+ * checked there again.
  */
 const props = defineProps<{ events: NotificationEvent[] }>()
 const title = defineModel<string | null | undefined>('title')
@@ -20,8 +21,18 @@ const { t } = useI18n()
 const MAX_TITLE = 200
 const MAX_BODY = 2000
 
+type Field = 'title' | 'body'
+
 const table = ref<NotificationPlaceholderTable | null>(null)
-const lastField = ref<'title' | 'body'>('body')
+const lastField = ref<Field>('body')
+/** The native fields behind Nuxt UI's, which expose them as `inputRef` and `textareaRef`. */
+const titleField = ref<{ inputRef?: HTMLInputElement | null } | null>(null)
+const bodyField = ref<{ textareaRef?: HTMLTextAreaElement | null } | null>(null)
+/**
+ * Each field's caret or selection as it was when the field lost focus — a click on a placeholder
+ * takes the focus first. A field never focused has none, and a placeholder goes to its end.
+ */
+const carets: Partial<Record<Field, { start: number, end: number }>> = {}
 
 onMounted(async () => {
   const answer = await fetchNotificationPlaceholders()
@@ -71,10 +82,38 @@ function shown(result: FillResult | null, sample: string): string {
 const previewTitle = computed(() => shown(titleResult.value, samples.value.title ?? t('notifications.template.built_in')))
 const previewBody = computed(() => shown(bodyResult.value, samples.value.message ?? t('notifications.template.built_in')))
 
-function insert(name: string): void {
+function element(field: Field): HTMLInputElement | HTMLTextAreaElement | null | undefined {
+  return field === 'title' ? titleField.value?.inputRef : bodyField.value?.textareaRef
+}
+
+function remember(field: Field): void {
+  const native = element(field)
+  if (native?.selectionStart == null || native.selectionEnd == null) return
+  carets[field] = { start: native.selectionStart, end: native.selectionEnd }
+}
+
+/**
+ * Puts the placeholder at the remembered caret, over a selection, and the caret behind it; an
+ * insertion that would pass the field's `maxlength` is left out, as typing it would be.
+ */
+async function insert(name: string): Promise<void> {
+  const field = lastField.value
+  const native = element(field)
+  if (native && native === document.activeElement) remember(field)
   const placeholder = `{${name}}`
-  if (lastField.value === 'title') titleText.value = titleText.value + placeholder
-  else bodyText.value = bodyText.value + placeholder
+  const text = field === 'title' ? titleText.value : bodyText.value
+  const start = Math.min(carets[field]?.start ?? text.length, text.length)
+  const end = Math.min(Math.max(carets[field]?.end ?? text.length, start), text.length)
+  const next = text.slice(0, start) + placeholder + text.slice(end)
+  if (next.length > (field === 'title' ? MAX_TITLE : MAX_BODY)) return
+  if (field === 'title') titleText.value = next
+  else bodyText.value = next
+  const caret = start + placeholder.length
+  carets[field] = { start: caret, end: caret }
+  await nextTick()
+  const updated = element(field)
+  updated?.focus()
+  updated?.setSelectionRange(caret, caret)
 }
 
 function described(name: string): string {
@@ -89,10 +128,27 @@ function described(name: string): string {
       :description="t('notifications.template.description', { example: '{package}', pair: '{{ }}' })"
       :error="titleError"
     >
-      <UInput v-model="titleText" :maxlength="MAX_TITLE" class="w-full" icon="i-lucide-heading" @focus="lastField = 'title'" />
+      <UInput
+        ref="titleField"
+        v-model="titleText"
+        :maxlength="MAX_TITLE"
+        class="w-full"
+        icon="i-lucide-heading"
+        @focus="lastField = 'title'"
+        @blur="remember('title')"
+      />
     </UFormField>
     <UFormField :label="t('notifications.template.body_label')" :error="bodyError">
-      <UTextarea v-model="bodyText" :maxlength="MAX_BODY" :rows="3" autoresize class="w-full" @focus="lastField = 'body'" />
+      <UTextarea
+        ref="bodyField"
+        v-model="bodyText"
+        :maxlength="MAX_BODY"
+        :rows="3"
+        autoresize
+        class="w-full"
+        @focus="lastField = 'body'"
+        @blur="remember('body')"
+      />
     </UFormField>
     <div v-if="table">
       <p class="text-xs font-medium text-highlighted">{{ t('notifications.template.placeholders_label') }}</p>

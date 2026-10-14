@@ -161,6 +161,29 @@ fn destination_unresolved(error: anyhow::Error) -> ApiError {
     }
 }
 
+/// Phase two of a category change, after the row names each package's new folder: the data
+/// follows. Shared by the queue's endpoint and the automations' `set_category` (RD-1290-01),
+/// which wrote the row and never moved anything.
+///
+/// A failure is logged, not returned: the row keeps the move outstanding in
+/// `previous_destination`, and the next completed file, the end of post-processing or the next
+/// start carries it over. A package that is busy is never refused either; what still runs
+/// follows when it is done.
+pub async fn carry_over(
+    scheduler: &rd_scheduler::SchedulerHandle,
+    packages: &[rd_core::PackageId],
+) {
+    for id in packages {
+        if let Err(error) = scheduler.relocate_package(*id).await {
+            tracing::warn!(
+                package_id = %id,
+                %error,
+                "package data was not moved to the new category directory"
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::{Path, PathBuf};

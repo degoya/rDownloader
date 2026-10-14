@@ -1,5 +1,5 @@
-//! Which transitions of a package, a captcha, a power countdown and a storage root become a
-//! notification, decided on the event's payload alone (RD-1260-04).
+//! Which transitions of a package, a captcha, a power countdown, a storage root and the whole
+//! queue (RD-1290-04) become a notification, decided on the event's payload alone (RD-1260-04).
 //!
 //! Each of the four used to be decided on something else: a package on whatever its row said by
 //! the time the event was read, so a later stage or a reorder was one more "Package finished";
@@ -144,6 +144,43 @@ pub(super) fn storage_notice(payload: &serde_json::Value) -> Option<(String, Str
         format!("Storage root out of space: {name}"),
         format!("{name}{place} fell below its free-space threshold and takes no new work."),
     ))
+}
+
+/// The moment a `queue.state` event announces (RD-1290-04): the queue paused, resumed or ran
+/// empty. The power supervisor sends one per transition; the automations' queue triggers ask the
+/// same.
+pub(crate) fn queue_moment(payload: &serde_json::Value) -> Option<NotificationEvent> {
+    match text(payload, "state")? {
+        "paused" => Some(NotificationEvent::QueuePaused),
+        "resumed" => Some(NotificationEvent::QueueResumed),
+        "finished" => Some(NotificationEvent::QueueFinished),
+        _ => None,
+    }
+}
+
+/// The notification of a `queue.state` event: the moment, its title and its text.
+pub(super) fn queue_notice(
+    payload: &serde_json::Value,
+) -> Option<(NotificationEvent, String, String)> {
+    let moment = queue_moment(payload)?;
+    let (title, body) = match moment {
+        NotificationEvent::QueuePaused => (
+            "Queue paused",
+            match text(payload, "reason") {
+                Some("automation") => "An automation paused the queue.",
+                Some("schedule") => "The bandwidth schedule pauses the queue.",
+                Some("stop_mark") => "The queue paused at its stop mark.",
+                Some("game_mode") => "Game mode paused the queue.",
+                _ => "The queue was paused by hand.",
+            },
+        ),
+        NotificationEvent::QueueResumed => ("Queue resumed", "The queue runs again."),
+        _ => (
+            "Queue finished",
+            "Nothing is waiting, downloading or being post-processed any more.",
+        ),
+    };
+    Some((moment, title.to_owned(), body.to_owned()))
 }
 
 #[cfg(test)]

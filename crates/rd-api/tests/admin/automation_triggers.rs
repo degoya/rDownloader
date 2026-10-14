@@ -6,6 +6,8 @@
 
 use crate::common;
 
+// `set_category` moves the package, after its post-processing (RD-1290-01).
+mod category_move;
 // The package and storage triggers decided on the event's payload (RD-1270-03, RD-1270-04).
 mod transitions;
 

@@ -20,7 +20,8 @@ mod schedule;
 mod scope;
 
 pub use budget::{
-    BudgetExceeded, BudgetKind, BudgetLimits, BudgetPeriod, BudgetState, BudgetStates,
+    BudgetExceeded, BudgetKind, BudgetLimits, BudgetPeriod, BudgetReading, BudgetState,
+    BudgetStates,
 };
 pub use capabilities::{RunnerLimitSupport, limit_capabilities};
 pub use download_window::{DownloadHold, package_hold, window_open};

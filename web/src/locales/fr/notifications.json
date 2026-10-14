@@ -30,7 +30,10 @@
     "update_installed": "Mise à jour de rDownloader installée",
     "update_failed": "Échec de la mise à jour de rDownloader",
     "automation": "Message d'une automatisation",
-    "service_restarting": "rDownloader redémarre"
+    "service_restarting": "rDownloader redémarre",
+    "queue_paused": "File mise en pause",
+    "queue_resumed": "File reprise",
+    "queue_finished": "File terminée"
   },
   "severity": {
     "info": "Info et plus",
@@ -108,7 +111,7 @@
     "severity_label": "Gravité minimale",
     "severity_description": "Les événements moins graves sont filtrés.",
     "events_label": "Événements",
-    "events_description": "Aucune sélection signifie tous les événements sauf les téléchargements démarrés et les liens ajoutés : une règle ne les reçoit que si vous les sélectionnez, et une rafale arrive en une seule notification.",
+    "events_description": "Aucune sélection signifie tous les événements sauf les téléchargements démarrés, les liens ajoutés et la file mise en pause, reprise ou terminée : une règle ne les reçoit que si vous les sélectionnez, et une rafale de démarrages ou de liens arrive en une seule notification.",
     "all_events": "tous les événements",
     "all_categories": "Toutes les catégories",
     "empty": "Aucune règle pour l'instant.",
@@ -134,7 +137,7 @@
     "body_label": "Texte personnalisé",
     "description": "Facultatif ; vide, le texte intégré est envoyé. Écrivez une variable sous la forme {example} et une accolade doublée : {pair}.",
     "placeholders_label": "Variables",
-    "placeholders_hint": "Un clic l’ajoute au dernier champ utilisé. Ce qu’un événement ne remplit pas reste vide.",
+    "placeholders_hint": "Un clic l’insère au curseur du dernier champ utilisé et remplace ce que vous y avez sélectionné. Ce qu’un événement ne remplit pas reste vide.",
     "summary_only": "Les événements choisis arrivent regroupés en un résumé et gardent leur texte.",
     "preview_label": "Aperçu avec des données d’exemple",
     "built_in": "Texte intégré",
@@ -160,6 +163,11 @@
     "storage_target": "Stockage ou destination de la sauvegarde",
     "version": "Version",
     "plugin": "Nom du plugin",
-    "account": "Libellé et fournisseur du compte, jamais l’identifiant"
+    "account": "Libellé et fournisseur du compte, jamais l’identifiant",
+    "budget_used": "Trafic consommé du budget actif, vide sans budget",
+    "budget_left": "Trafic restant du budget actif",
+    "budget_limit": "Limite du budget actif",
+    "budget_period": "Période du budget actif, daily ou monthly",
+    "reason": "Pourquoi la file est en pause : manual, automation, schedule, stop_mark ou game_mode"
   }
 }

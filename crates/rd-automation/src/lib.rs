@@ -10,18 +10,20 @@ mod admission;
 mod condition;
 mod model;
 mod schedule;
+mod validation;
 
 pub use admission::admits;
 pub use condition::{ConditionError, ConditionNode, EventContext, Field, Operator, Predicate};
 pub use model::{
     Action, Automation, AutomationVersion, DefinitionError, LinkDestination, MAX_ACTION_LINKS,
     MAX_ACTIONS, MAX_CONDITION_DEPTH, MAX_LINK_LEN, MAX_NOTIFY_MESSAGE, Run, RunState, Trigger,
-    VersionReset, is_script_name, validate, validate_condition, validate_trigger,
+    VersionReset,
 };
 pub use rd_notify::{MAX_ATTEMPTS, backoff, next_attempt_at};
 pub use schedule::{
     GRACE_SECONDS, MAX_CRON_LEN, MAX_INTERVAL_MINUTES, Schedule, ScheduleError, Slot,
 };
+pub use validation::{is_script_name, validate, validate_condition, validate_trigger};
 
 /// Builds the idempotency key of a run.
 ///
@@ -322,6 +324,32 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    /// RD-1290-04: a moment of the whole queue names no package either.
+    #[test]
+    fn a_queue_moment_takes_no_package_action() {
+        use super::validate_trigger;
+        let now = chrono::Utc::now();
+        for trigger in [
+            Trigger::QueuePaused,
+            Trigger::QueueResumed,
+            Trigger::QueueFinished,
+        ] {
+            assert!(trigger.is_queue_moment());
+            assert_eq!(
+                validate_trigger(trigger, None, &[Action::PausePackage], now, &chrono::Utc)
+                    .map_err(|error| error.code()),
+                Err("automation.action_needs_package"),
+                "{trigger:?}"
+            );
+            assert!(
+                validate_trigger(trigger, None, &[Action::StartQueue], now, &chrono::Utc).is_ok(),
+                "{trigger:?}"
+            );
+            assert!(Trigger::all().contains(&trigger), "{trigger:?}");
+        }
+        assert!(!Trigger::PackageCompleted.is_queue_moment());
     }
 
     #[test]

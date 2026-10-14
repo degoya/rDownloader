@@ -352,6 +352,9 @@ written first and the disk follows, so the interesting instant is the one where 
 already names the new folder and nothing has moved yet. Its case therefore asserts the
 folder-level form of invariants 3 and 4 — the data is all reachable under the new folder, and
 the old one is gone — rather than the byte-level four, which have no meaning for a move.
+A second case, in `rd-api-core`, stops the automations' `set_category` at the same point
+(RD-1290-01): that action wrote the row and never moved anything, and now shares the queue's
+second phase, so the next pass carries the package over just the same.
 
 `scheduler.before_move_source_removed` is the second half of the same move, one file at a
 time (RD-150-02). Across devices a file is copied under a temporary name, both sides are

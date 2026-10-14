@@ -1,5 +1,6 @@
-//! The timed pause of the whole queue (RD-190-20): what it stops, what its end lets go, and
-//! what a restart makes of it — including the crash between its record and its files.
+//! The timed pause of the whole queue (RD-190-20): what it stops, what its end lets go, who set
+//! it (RD-1290-04), and what a restart makes of it — including the crash between its record and
+//! its files.
 //!
 //! The scheduler here admits no transfer at all (`max_active_files: 0`), so a file that is
 //! queued stays queued and every state below is the pause's doing, not a race with a worker.
@@ -8,7 +9,7 @@ use std::{path::Path, time::Duration};
 
 use chrono::Utc;
 use rd_core::{DownloadFile, DownloadId, DownloadState};
-use rd_scheduler::{FileSpec, PackageSpec, SchedulerConfig, SchedulerHandle};
+use rd_scheduler::{FileSpec, PackageSpec, PauseReason, SchedulerConfig, SchedulerHandle};
 
 async fn start(directory: &Path, database: &rd_db::Database) -> SchedulerHandle {
     let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
@@ -144,6 +145,44 @@ async fn pausing_again_moves_the_end_and_keeps_the_files() {
     assert!(pause.files.contains(&first.id), "{pause:?}");
     assert!(pause.files.contains(&added.id), "{pause:?}");
     assert_eq!(scheduler.queue_pause().await, Some(pause));
+}
+
+/// RD-1290-04: the record names who paused, the reason a `queue_paused` notification gives; a
+/// pause set again is the same pause under its last author.
+#[tokio::test]
+async fn every_pause_names_who_set_it() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let (scheduler, database) = installation(directory.path()).await;
+    file(&scheduler, directory.path(), false).await;
+    let later = Utc::now() + chrono::Duration::hours(1);
+
+    let manual = scheduler.pause_queue_until(later).await.expect("by hand");
+    assert_eq!(manual.reason, PauseReason::Manual);
+    let game = scheduler
+        .pause_queue_until_by(later, PauseReason::GameMode)
+        .await
+        .expect("game mode");
+    assert_eq!(game.reason, PauseReason::GameMode);
+    assert_eq!(game.files, manual.files, "the files stay with the pause");
+    let automation = scheduler
+        .pause_queue_until_started()
+        .await
+        .expect("automation");
+    assert_eq!(automation.reason, PauseReason::Automation);
+    let stop_mark = scheduler
+        .pause_queue_until_resumed()
+        .await
+        .expect("stop mark");
+    assert_eq!(stop_mark.reason, PauseReason::StopMark);
+    assert_eq!(PauseReason::StopMark.code(), "stop_mark");
+
+    // Kept with the record, so a restart still knows why the queue is paused.
+    let stored = database
+        .get_setting("queue.timed_pause")
+        .await
+        .expect("read the pause")
+        .expect("the stored pause");
+    assert_eq!(stored["reason"], "stop_mark");
 }
 
 #[tokio::test]

@@ -141,20 +141,7 @@ impl SchedulerHandle {
     /// verified protocol it started with, so whether the stop left the data at the old place or
     /// verified at both, the next pass ends with exactly one copy at the new one.
     pub(crate) async fn recover_storage_work(&self) {
-        match self.database.packages_with_outstanding_move().await {
-            Ok(packages) => {
-                for package_id in packages {
-                    if let Err(error) = self.relocate_package(package_id).await {
-                        tracing::warn!(
-                            %package_id,
-                            %error,
-                            "an interrupted category move was not completed"
-                        );
-                    }
-                }
-            }
-            Err(error) => tracing::warn!(%error, "outstanding category moves were not read"),
-        }
+        self.relocate_outstanding().await;
         match self.check_content_index().await {
             Ok(report) if report.missing > 0 || report.backfilled > 0 => {
                 tracing::info!(

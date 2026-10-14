@@ -30,7 +30,10 @@
     "update_installed": "Actualización de rDownloader instalada",
     "update_failed": "Actualización de rDownloader fallida",
     "automation": "Mensaje de una automatización",
-    "service_restarting": "rDownloader se reinicia"
+    "service_restarting": "rDownloader se reinicia",
+    "queue_paused": "Cola en pausa",
+    "queue_resumed": "Cola reanudada",
+    "queue_finished": "Cola terminada"
   },
   "severity": {
     "info": "Info y superior",
@@ -108,7 +111,7 @@
     "severity_label": "Gravedad mínima",
     "severity_description": "Los eventos menos graves se filtran.",
     "events_label": "Eventos",
-    "events_description": "Sin selección significa todos los eventos salvo las descargas iniciadas y los enlaces añadidos: una regla solo los recibe si están seleccionados, y una ráfaga de ellos llega como una sola notificación.",
+    "events_description": "Sin selección significa todos los eventos salvo las descargas iniciadas, los enlaces añadidos y la cola en pausa, reanudada o terminada: una regla solo los recibe si están seleccionados, y una ráfaga de descargas o enlaces llega como una sola notificación.",
     "all_events": "todos los eventos",
     "all_categories": "Todas las categorías",
     "empty": "Aún no hay reglas.",
@@ -134,7 +137,7 @@
     "body_label": "Texto propio",
     "description": "Opcional; si lo dejas vacío, se envía el texto predeterminado. Escribe un marcador como {example} y una llave duplicada: {pair}.",
     "placeholders_label": "Marcadores",
-    "placeholders_hint": "Un clic lo añade al último campo que usaste. Lo que un evento no rellena queda vacío.",
+    "placeholders_hint": "Un clic lo inserta en el cursor del último campo que usaste y reemplaza lo que seleccionaste allí. Lo que un evento no rellena queda vacío.",
     "summary_only": "Los eventos elegidos llegan agrupados en un resumen y conservan su texto.",
     "preview_label": "Vista previa con datos de ejemplo",
     "built_in": "Texto predeterminado",
@@ -160,6 +163,11 @@
     "storage_target": "Almacenamiento o destino de la copia",
     "version": "Versión",
     "plugin": "Nombre del plugin",
-    "account": "Etiqueta y proveedor de la cuenta, nunca el usuario"
+    "account": "Etiqueta y proveedor de la cuenta, nunca el usuario",
+    "budget_used": "Tráfico consumido del presupuesto activo, vacío sin presupuesto",
+    "budget_left": "Tráfico restante del presupuesto activo",
+    "budget_limit": "Límite del presupuesto activo",
+    "budget_period": "Periodo del presupuesto activo, daily o monthly",
+    "reason": "Por qué se pausó la cola: manual, automation, schedule, stop_mark o game_mode"
   }
 }
