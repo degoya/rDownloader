@@ -14,15 +14,20 @@ interface LinkFilterActionContext {
  * it is, and showing a link one of them hid. Both change rows on the server, so both refresh.
  */
 export function useLinkFilterActions({ error, refresh }: LinkFilterActionContext) {
-  /** Decides every link anew by the rules; answers what changed, or `null` with `error` set. */
-  async function applyLinkFilters(): Promise<LinkFilterApplyResponse | null> {
-    const response = await api.POST('/api/v1/link-filters/apply')
+  /**
+   * Decides every link anew by the rules; answers what changed, or `null` with `error` set. A
+   * `dryRun` only counts what would change (RD-1310-01), so nothing needs refreshing.
+   */
+  async function applyLinkFilters(dryRun = false): Promise<LinkFilterApplyResponse | null> {
+    const response = dryRun
+      ? await api.POST('/api/v1/link-filters/apply', { params: { query: { dry_run: true } } })
+      : await api.POST('/api/v1/link-filters/apply')
     if (!response.data) {
       error.value = responseError(response)
       return null
     }
     error.value = null
-    await refresh()
+    if (!dryRun) await refresh()
     return response.data
   }
 

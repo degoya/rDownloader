@@ -1277,7 +1277,7 @@
     "list_title": "LinkFilter-Regeln",
     "form_new": "Neue Regel",
     "form_edit": "Regel bearbeiten",
-    "description": "Entscheidet beim Eingang eines Links: ausblenden, behalten oder in ein Paket bzw. eine Kategorie legen. Die erste passende aktive Regel der Liste gilt; ausgeblendete Links bleiben erhalten.",
+    "description": "Entscheidet beim Eingang eines Links und nach seiner Online-Prüfung: ausblenden, behalten, in ein Paket bzw. eine Kategorie legen oder löschen. Die erste passende aktive Regel der Liste gilt; ausgeblendete Links bleiben erhalten.",
     "create": "Regel anlegen",
     "created": "Regel angelegt",
     "updated": "Regel gespeichert",
@@ -1293,12 +1293,14 @@
     "actions": {
       "hide": "Ausblenden",
       "accept": "Annehmen",
-      "route": "Einsortieren"
+      "route": "Einsortieren",
+      "delete": "Löschen"
     },
     "action_descriptions": {
       "hide": "Der Link bleibt im LinkGrabber, wird aber nur mit „Ausgeblendete zeigen“ angezeigt und beim Übernehmen seines Pakets nicht mitgenommen.",
       "accept": "Der Link bleibt, wie er ist, und keine spätere Regel wird gefragt – eine Ausnahme über einer breiteren Regel.",
-      "route": "Der Link kommt in das Paket mit diesem Namen und/oder sein Paket bekommt diese Kategorie."
+      "route": "Der Link kommt in das Paket mit diesem Namen und/oder sein Paket bekommt diese Kategorie.",
+      "delete": "Der Link wird aus dem LinkGrabber gelöscht, ein dadurch leeres Paket mit ihm – bei der Aufnahme und nach der Online-Prüfung ohne Rückfrage."
     },
     "package_label": "Paket",
     "package_description": "Name des Pakets; leer lässt das Paket, wie die Gruppierung es bildet.",
@@ -1326,7 +1328,10 @@
     "hoster_description": "Hostname ohne Schema; Subdomains passen mit.",
     "source_label": "Quelle",
     "move_up": "Nach oben",
-    "move_down": "Nach unten"
+    "move_down": "Nach unten",
+    "without_resolver_label": "Ohne Resolver",
+    "without_resolver_description": "Nur Links, die die Online-Prüfung als Seite ohne installierten Resolver eingestuft hat. Gilt erst nach der Prüfung; ein direkter Datei-Link und die Seite eines bekannten Hosters zählen nicht.",
+    "without_resolver_token": "ohne Resolver"
   },
   "aria2": {
     "eyebrow": "aria2-Schnittstelle",

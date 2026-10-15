@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.31.0] - 2026-10-15
+
+### Added
+
+- **LinkFilter condition "without resolver" and action "delete"** (RD-1310-01). A rule can ask
+  for the online check's verdict `collector.check_no_resolver` (`without_resolver`, migration
+  `0147`; never before the check, never `check_not_a_file`), and `delete` removes a link and a
+  package it empties. The rules decide a link once more when its check is recorded
+  (`rd-db` `link_filter_check.rs`, same transaction, hide or delete only); a delete rule deletes at
+  intake, after the check and on apply, its vault references removed, logged at debug and counted
+  in `LinkFilterOutcome::deleted`. `POST /api/v1/link-filters/apply?dry_run=true` counts without
+  writing; both apply buttons ask with that count before deleting (`useApplyLinkFilters`). MCP
+  descriptions, `dry_run` on `apply_link_filters`, the area bundle carries the field. Tests:
+  `rd-db` `tests/link_filters_after_check.rs`, `rd-collector` `link_filters_tests.rs`,
+  `rd-api` `admin/area_backup.rs`, `SettingsLinkFilters.test.ts`, `linkFilterRule.test.ts`.
+
 ## [1.30.0] - 2026-10-15
 
 ### Changed

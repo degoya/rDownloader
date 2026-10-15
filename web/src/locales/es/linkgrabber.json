@@ -643,7 +643,10 @@
     "hidden_hint": "Una regla de LinkFilter ocultó este enlace. Se conserva y, al encolar su paquete, solo se incluye si está seleccionado.",
     "show_hidden": "Mostrar ocultos ({count})",
     "apply": "Aplicar LinkFilter",
-    "apply_hint": "Vuelve a decidir todos los enlaces del LinkGrabber según las reglas actuales. No se elimina nada y las descargas no se tocan.",
-    "applied": "LinkFilter aplicado: {hidden} ocultos, {shown} mostrados de nuevo, {routed} clasificados"
+    "apply_hint": "Vuelve a decidir todos los enlaces del LinkGrabber según las reglas actuales. Los enlaces ocultos se conservan; solo una regla de eliminación elimina, y antes se pregunta con el número. Las descargas no se tocan.",
+    "applied": "LinkFilter aplicado: {hidden} ocultos, {shown} mostrados de nuevo, {routed} clasificados, {deleted} eliminados",
+    "delete_title": "¿Eliminar enlaces?",
+    "delete_description": "{count} enlace se eliminará del LinkGrabber por una regla de eliminación. | {count} enlaces se eliminarán del LinkGrabber por una regla de eliminación.",
+    "delete_confirm": "Aplicar y eliminar"
   }
 }

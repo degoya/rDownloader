@@ -22,6 +22,8 @@ pub struct BundleAreaLinkFilter {
     pub hoster: Option<String>,
     #[serde(default)]
     pub source: Option<rd_core::IngressSource>,
+    #[serde(default)]
+    pub without_resolver: bool,
     pub action: rd_core::LinkFilterAction,
     #[serde(default)]
     pub package_name: Option<String>,
@@ -55,6 +57,7 @@ pub async fn export_link_filters(
             extensions: rule.extensions,
             hoster: rule.hoster,
             source: rule.source,
+            without_resolver: rule.without_resolver,
             action: rule.action,
             package_name: rule.package_name,
         })
@@ -111,6 +114,7 @@ pub async fn import_link_filters(
             extensions: entry.extensions,
             hoster: entry.hoster,
             source: entry.source,
+            without_resolver: entry.without_resolver,
             action: entry.action,
             package_name: entry.package_name,
             category_id,

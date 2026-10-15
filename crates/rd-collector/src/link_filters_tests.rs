@@ -17,6 +17,7 @@ fn rule(position: i64, action: LinkFilterAction) -> LinkFilterRule {
         extensions: Vec::new(),
         hoster: None,
         source: None,
+        without_resolver: false,
         action,
         package_name: None,
         category_id: None,
@@ -42,6 +43,7 @@ fn decide<'a>(
         url: &url,
         file_name,
         size,
+        unresolvable_without_resolver: false,
     })
 }
 
@@ -153,6 +155,7 @@ fn a_source_condition_holds_only_for_links_that_came_that_way() {
         url: &url,
         file_name: Some("x"),
         size: None,
+        unresolvable_without_resolver: false,
     });
     assert!(decided.is_some());
 }
@@ -161,4 +164,40 @@ fn a_source_condition_holds_only_for_links_that_came_that_way() {
 fn a_rule_without_conditions_holds_for_every_link() {
     let rules = [rule(1, LinkFilterAction::Hide)];
     assert!(decide(&rules, "https://a.example/1", None, None).is_some());
+}
+
+/// The context of a clipboard link after its online check (RD-1310-01).
+fn checked<'a>(url: &'a Url, unresolvable_without_resolver: bool) -> LinkFilterContext<'a> {
+    LinkFilterContext {
+        source: IngressSource::Clipboard,
+        url,
+        file_name: None,
+        size: None,
+        unresolvable_without_resolver,
+    }
+}
+
+#[test]
+fn without_resolver_holds_only_for_the_check_verdict_and_combines_with_the_source() {
+    let rules = [LinkFilterRule {
+        without_resolver: true,
+        source: Some(IngressSource::Clipboard),
+        ..rule(1, LinkFilterAction::Delete)
+    }];
+    let filters = LinkFilters::new(&rules);
+    let github: Url = "https://github.com/owner/repo".parse().expect("url");
+    // Before the check, or after one that found a file or a known hoster's page: no match.
+    assert!(filters.decide(&checked(&github, false)).is_none());
+    assert_eq!(
+        filters
+            .decide(&checked(&github, true))
+            .map(|rule| rule.action),
+        Some(LinkFilterAction::Delete)
+    );
+    // The same verdict on a link from another source is not the rule's.
+    let pasted = LinkFilterContext {
+        source: IngressSource::Manual,
+        ..checked(&github, true)
+    };
+    assert!(filters.decide(&pasted).is_none());
 }

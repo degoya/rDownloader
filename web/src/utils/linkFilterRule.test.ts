@@ -17,6 +17,7 @@ function rule(overrides: Partial<LinkFilterRule> = {}): LinkFilterRule {
     extensions: [],
     hoster: null,
     source: null,
+    without_resolver: false,
     package_name: null,
     category_id: null,
     ...overrides
@@ -45,6 +46,7 @@ describe('linkFilterRule', () => {
       extensions: ['mkv', 'part1.rar'],
       hoster: 'files.example',
       source: null,
+      without_resolver: false,
       package_name: null,
       category_id: null
     })
@@ -68,6 +70,18 @@ describe('linkFilterRule', () => {
     })
   })
 
+  it('carries the without-resolver condition and a delete rule keeps no package (RD-1310-01)', () => {
+    const stored = rule({ action: 'delete', name_pattern: null, source: 'clipboard', without_resolver: true })
+    const form = formFromRule(stored)
+    expect(form.withoutResolver).toBe(true)
+    expect(requestFromForm({ ...form, packageName: 'x', categoryId: 'c1' })).toMatchObject({
+      action: 'delete',
+      without_resolver: true,
+      package_name: null,
+      category_id: null
+    })
+  })
+
   it('moves one rule a step and refuses to move past either end', () => {
     expect(movedIds(['a', 'b', 'c'], 2, -1)).toEqual(['a', 'c', 'b'])
     expect(movedIds(['a', 'b', 'c'], 0, 1)).toEqual(['b', 'a', 'c'])
@@ -76,9 +90,11 @@ describe('linkFilterRule', () => {
   })
 
   it('lists the conditions a rule checks', () => {
-    const label = { source: (source: string) => `<${source}>`, size: (bytes: number) => `${bytes}B` }
+    const label = { source: (source: string) => `<${source}>`, size: (bytes: number) => `${bytes}B`, withoutResolver: 'no resolver' }
     expect(conditionTokens(rule({ source: 'clipboard', hoster: 'files.example', extensions: ['nfo', 'txt'], size_max: 10 }), label))
       .toEqual(['<clipboard>', 'files.example', '.nfo .txt', '*.nfo', '≤ 10B'])
+    expect(conditionTokens(rule({ source: 'clipboard', without_resolver: true, name_pattern: null }), label))
+      .toEqual(['<clipboard>', 'no resolver'])
     expect(conditionTokens(rule({ name_pattern: 'sample', name_syntax: 'regex', size_min: 1, size_max: 2 }), label))
       .toEqual(['/sample/', '1B–2B'])
     expect(conditionTokens(rule({ name_pattern: null }), label)).toEqual([])

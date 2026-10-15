@@ -643,7 +643,10 @@
     "hidden_hint": "Eine LinkFilter-Regel hat diesen Link ausgeblendet. Er bleibt erhalten und wird mit seinem Paket nur übernommen, wenn du ihn auswählst.",
     "show_hidden": "Ausgeblendete zeigen ({count})",
     "apply": "LinkFilter anwenden",
-    "apply_hint": "Entscheidet alle Links im LinkGrabber neu nach den aktuellen Regeln. Nichts wird gelöscht, die Downloads bleiben unberührt.",
-    "applied": "LinkFilter angewendet: {hidden} ausgeblendet, {shown} wieder angezeigt, {routed} einsortiert"
+    "apply_hint": "Entscheidet alle Links im LinkGrabber neu nach den aktuellen Regeln. Ausgeblendete Links bleiben erhalten; nur eine Löschregel löscht, und vorher wird mit der Zahl nachgefragt. Die Downloads bleiben unberührt.",
+    "applied": "LinkFilter angewendet: {hidden} ausgeblendet, {shown} wieder angezeigt, {routed} einsortiert, {deleted} gelöscht",
+    "delete_title": "Links löschen?",
+    "delete_description": "{count} Link wird von einer Löschregel aus dem LinkGrabber gelöscht. | {count} Links werden von einer Löschregel aus dem LinkGrabber gelöscht.",
+    "delete_confirm": "Anwenden und löschen"
   }
 }

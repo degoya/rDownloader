@@ -16,6 +16,8 @@ pub(crate) enum LinkFilterActionParam {
     Accept,
     /// Put into `package_name` and/or given `category_id`.
     Route,
+    /// Removed from the LinkGrabber, with a package it leaves empty; no question is asked.
+    Delete,
 }
 
 impl From<LinkFilterActionParam> for rd_core::LinkFilterAction {
@@ -24,6 +26,7 @@ impl From<LinkFilterActionParam> for rd_core::LinkFilterAction {
             LinkFilterActionParam::Hide => Self::Hide,
             LinkFilterActionParam::Accept => Self::Accept,
             LinkFilterActionParam::Route => Self::Route,
+            LinkFilterActionParam::Delete => Self::Delete,
         }
     }
 }
@@ -66,6 +69,10 @@ pub(crate) struct CreateLinkFilterParams {
     pub hoster: Option<String>,
     /// Only links that arrived this way.
     pub source: Option<IngressSourceParam>,
+    /// Only links the online check found unresolvable because no installed resolver claims
+    /// their host (message code collector.check_no_resolver). It holds after the check only,
+    /// never for an unchecked link, and not for a known hoster's page (collector.check_not_a_file).
+    pub without_resolver: Option<bool>,
     /// For `route`: the package the link goes into.
     pub package_name: Option<String>,
     /// For `route`: the category the link's package gets.
@@ -86,6 +93,7 @@ pub(crate) struct UpdateLinkFilterParams {
     pub extensions: Option<Vec<String>>,
     pub hoster: Option<String>,
     pub source: Option<IngressSourceParam>,
+    pub without_resolver: Option<bool>,
     pub package_name: Option<String>,
     pub category_id: Option<String>,
     /// Conditions to drop: name_pattern, size_min, size_max, hoster, source, package_name,
@@ -103,4 +111,10 @@ pub(crate) struct ReorderLinkFiltersParams {
 pub(crate) struct UnhideCandidatesParams {
     /// LinkGrabber link ids from list_candidates.
     pub candidate_ids: Vec<String>,
+}
+
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct ApplyLinkFiltersParams {
+    /// Count what applying would change, deleted links included, and change nothing.
+    pub dry_run: Option<bool>,
 }

@@ -643,7 +643,10 @@
     "hidden_hint": "A LinkFilter rule hid this link. It is kept, and queueing its package takes it only when it is selected.",
     "show_hidden": "Show hidden ({count})",
     "apply": "Apply LinkFilter",
-    "apply_hint": "Decides every link in the LinkGrabber again by the rules as they are now. Nothing is deleted, and the downloads are not touched.",
-    "applied": "LinkFilter applied: {hidden} hidden, {shown} shown again, {routed} sorted in"
+    "apply_hint": "Decides every link in the LinkGrabber again by the rules as they are now. Hidden links are kept; only a delete rule deletes, and you are asked with the count first. The downloads are not touched.",
+    "applied": "LinkFilter applied: {hidden} hidden, {shown} shown again, {routed} sorted in, {deleted} deleted",
+    "delete_title": "Delete links?",
+    "delete_description": "{count} link will be deleted from the LinkGrabber by a delete rule. | {count} links will be deleted from the LinkGrabber by a delete rule.",
+    "delete_confirm": "Apply and delete"
   }
 }

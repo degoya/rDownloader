@@ -132,12 +132,14 @@ impl Writer {
                     by_extension,
                 )
                 .await
-                .map(|(batch, packages, candidates, passwords, events)| {
-                    for event in events {
-                        let _ = self.events.send(event);
-                    }
-                    (batch, packages, candidates, passwords)
-                });
+                .map(
+                    |(batch, packages, candidates, passwords, events, orphaned)| {
+                        for event in events {
+                            let _ = self.events.send(event);
+                        }
+                        (batch, packages, candidates, passwords, orphaned)
+                    },
+                );
                 send(reply, result);
             }
             CollectorCommand::DeleteCollectorPackage { id, reply } => {
@@ -206,10 +208,18 @@ impl Writer {
                         .await;
                 publish_config(reply, result, &self.events);
             }
-            CollectorCommand::ApplyLinkFilters { reply } => {
+            CollectorCommand::ApplyLinkFilters { dry_run, reply } => {
                 let result =
-                    crate::link_filter_apply::apply_link_filters(&mut self.connection).await;
-                publish_config(reply, result, &self.events);
+                    crate::link_filter_apply::apply_link_filters(&mut self.connection, dry_run)
+                        .await;
+                // A dry run wrote nothing, so it announces nothing.
+                if let Ok((_, _, Some(event))) = &result {
+                    let _ = self.events.send(event.clone());
+                }
+                send(
+                    reply,
+                    result.map(|(outcome, orphaned, _)| (outcome, orphaned)),
+                );
             }
             CollectorCommand::ShowFilteredCandidates { ids, reply } => {
                 let result =
@@ -247,7 +257,7 @@ impl Writer {
                     cached_by,
                 )
                 .await;
-                publish_unit_event(reply, outcome, &self.events);
+                publish_config(reply, outcome, &self.events);
             }
             CollectorCommand::MarkCandidateUnsupported {
                 id,

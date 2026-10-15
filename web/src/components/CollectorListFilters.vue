@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { useToast } from '@nuxt/ui/composables'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useApplyLinkFilters } from '@/composables/useApplyLinkFilters'
 import type { useGrabberFacets } from '@/composables/useGrabberFacets'
-import { useCollectorStore } from '@/stores/collector'
 import { SORT_OPTIONS, type CollectorSort } from '@/utils/collectorSort'
 
 /**
@@ -17,7 +16,8 @@ import { SORT_OPTIONS, type CollectorSort } from '@/utils/collectorSort'
  * stays in the row while anything filters.
  *
  * The LinkFilter (RD-1240-09) sits here too: *Show hidden* draws the links its rules hid, and
- * *Apply rules* decides the list's links again by the rules as they are now.
+ * *Apply rules* decides the list's links again by the rules as they are now, asking first when a
+ * delete rule would delete (RD-1310-01).
  */
 const props = defineProps<{
   facets: ReturnType<typeof useGrabberFacets>
@@ -31,18 +31,8 @@ const {
   hosterFilter, qualityFilter, languageFilter, stateFilter, facetBusy, facetFilterActive,
   hosterItems, qualityItems, languageItems, stateItems, clearFilters, showFiltered, filteredCount
 } = props.facets
-const collector = useCollectorStore()
-const toast = useToast()
-const applying = ref(false)
-
-/** Applies the LinkFilter rules to the list and says what changed. */
-async function applyRules(): Promise<void> {
-  applying.value = true
-  const outcome = await collector.applyLinkFilters()
-  applying.value = false
-  if (!outcome) return
-  toast.add({ title: t('linkgrabber.link_filter.applied', { hidden: outcome.hidden, shown: outcome.shown, routed: outcome.routed }), color: 'success', icon: 'i-lucide-filter' })
-}
+/** Applies the LinkFilter rules to the list, asks before a delete rule deletes, says what changed. */
+const { applying, apply: applyRules } = useApplyLinkFilters()
 
 const sortItems = computed(() => SORT_OPTIONS.map(option => ({ label: t(option.labelKey), value: option.value })))
 /** What is set behind the button: each facet off its "any", and a sort other than the manual order. */

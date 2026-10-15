@@ -2,7 +2,9 @@
 //! after the rules changed or the online check learned names and sizes.
 //!
 //! Only LinkGrabber rows are touched — a link already handed to the queue is not a row here any
-//! more, and nothing in the downloads changes. A hidden link is never deleted.
+//! more, and nothing in the downloads changes. A hidden link is never deleted; only a deleting
+//! rule deletes (RD-1310-01), and a dry run counts what it would do first, for the question the
+//! interface asks before.
 
 use std::collections::BTreeMap;
 
@@ -25,6 +27,8 @@ pub struct LinkFilterOutcome {
     pub shown: u64,
     /// Links a `route` rule moved into another package or gave another category.
     pub routed: u64,
+    /// Links a `delete` rule removed from the LinkGrabber (RD-1310-01).
+    pub deleted: u64,
 }
 
 #[derive(FromRow)]
@@ -33,6 +37,8 @@ struct CandidateFacts {
     url: String,
     file_name: Option<String>,
     size: Option<i64>,
+    state: String,
+    error_code: Option<String>,
     package_id: String,
     hidden_by_filter: Option<String>,
     source: String,
@@ -51,18 +57,22 @@ struct Route {
 }
 
 /// Decides every open LinkGrabber link anew: the hiding rule hides it, an `accept`, a `route` or
-/// no rule shows it, and a `route` files it.
+/// no rule shows it, a `route` files it and a `delete` removes it.
+///
+/// Answers the outcome, the vault references of the removed rows and the event; a `dry_run`
+/// rolls everything back and answers neither references nor an event.
 pub(crate) async fn apply_link_filters(
     connection: &mut SqliteConnection,
-) -> Result<(LinkFilterOutcome, EventEnvelope)> {
+    dry_run: bool,
+) -> Result<(LinkFilterOutcome, Vec<String>, Option<EventEnvelope>)> {
     let rules = crate::link_filter_store::link_filter_rules(connection).await?;
     let filters = rd_collector::LinkFilters::new(&rules);
     let mut tx = connection.begin().await?;
     // `resolving` is the enqueue's lock and `enqueued` a record of a hand-over; neither is a
     // link the list still offers.
     let candidates: Vec<CandidateFacts> = sqlx::query_as(
-        "SELECT c.id, c.url, c.file_name, c.size, c.package_id, c.hidden_by_filter, b.source, \
-         c.batch_id, p.name AS package_name \
+        "SELECT c.id, c.url, c.file_name, c.size, c.state, c.error_code, c.package_id, \
+         c.hidden_by_filter, b.source, c.batch_id, p.name AS package_name \
          FROM link_candidates c \
          JOIN collector_batches b ON b.id = c.batch_id \
          JOIN collector_packages p ON p.id = c.package_id \
@@ -73,6 +83,7 @@ pub(crate) async fn apply_link_filters(
     .await?;
     let mut outcome = LinkFilterOutcome::default();
     let mut routes = Vec::new();
+    let mut deleted = Vec::new();
     for facts in candidates {
         let url = Url::parse(&facts.url)?;
         let decided = filters.decide(&rd_collector::LinkFilterContext {
@@ -80,7 +91,23 @@ pub(crate) async fn apply_link_filters(
             url: &url,
             file_name: facts.file_name.as_deref(),
             size: facts.size.and_then(|size| u64::try_from(size).ok()),
+            unresolvable_without_resolver: crate::link_filter_check::unresolvable_without_resolver(
+                &facts.state,
+                facts.error_code.as_deref(),
+            ),
         });
+        if let Some(rule) = decided.filter(|rule| rule.action == LinkFilterAction::Delete) {
+            if !dry_run {
+                tracing::debug!(
+                    candidate_id = %facts.id,
+                    rule_id = %rule.id,
+                    host = url.host_str().unwrap_or_default(),
+                    "a LinkFilter rule deleted a link on apply"
+                );
+            }
+            deleted.push(facts.id);
+            continue;
+        }
         let hidden_by = decided
             .filter(|rule| rule.action == LinkFilterAction::Hide)
             .map(|rule| rule.id.to_string());
@@ -117,6 +144,12 @@ pub(crate) async fn apply_link_filters(
         });
     }
     outcome.routed = file_routes(&mut tx, routes).await?;
+    outcome.deleted = u64::try_from(deleted.len())?;
+    let orphaned = crate::link_filter_check::delete_rows(&mut tx, &deleted).await?;
+    if dry_run {
+        tx.rollback().await?;
+        return Ok((outcome, Vec::new(), None));
+    }
     let event = EventEnvelope::new(
         EventKind::CollectorChanged,
         serde_json::json!({
@@ -124,11 +157,12 @@ pub(crate) async fn apply_link_filters(
             "hidden": outcome.hidden,
             "shown": outcome.shown,
             "routed": outcome.routed,
+            "deleted": outcome.deleted,
         }),
     );
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    Ok((outcome, event))
+    Ok((outcome, orphaned, Some(event)))
 }
 
 /// Moves each routed link into the package of its rule's name in its own batch — the one there,

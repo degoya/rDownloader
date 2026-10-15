@@ -19,6 +19,7 @@ mod grabber_order;
 mod held_verdicts;
 mod hopeless_sets;
 mod link_filters;
+mod link_filters_after_check;
 mod list_pages;
 mod mirrors;
 mod network;

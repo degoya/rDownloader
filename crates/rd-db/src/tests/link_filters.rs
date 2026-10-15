@@ -5,7 +5,7 @@ use rd_core::{IngressSource, LinkFilterAction, LinkFilterNameSyntax, LinkFilterR
 use super::{routing_category, routing_root};
 use crate::{Database, NewCollectorBatch, NewLinkFilterRule};
 
-fn hide(name: &str, pattern: &str) -> NewLinkFilterRule {
+pub(super) fn hide(name: &str, pattern: &str) -> NewLinkFilterRule {
     NewLinkFilterRule {
         name: name.to_owned(),
         enabled: true,
@@ -16,13 +16,14 @@ fn hide(name: &str, pattern: &str) -> NewLinkFilterRule {
         extensions: Vec::new(),
         hoster: None,
         source: None,
+        without_resolver: false,
         action: LinkFilterAction::Hide,
         package_name: None,
         category_id: None,
     }
 }
 
-async fn create(database: &Database, rule: NewLinkFilterRule) -> LinkFilterRule {
+pub(super) async fn create(database: &Database, rule: NewLinkFilterRule) -> LinkFilterRule {
     database
         .create_link_filter_rule(rule)
         .await

@@ -1,12 +1,12 @@
 //! MCP tools for the LinkFilter rules (RD-1240-09): list, write, order, apply to the
-//! LinkGrabber, and show the links they hid.
+//! LinkGrabber (with a dry run, RD-1310-01), and show the links they hid.
 //!
 //! Every tool builds the REST body and hands it to the REST handler, so validation and the
 //! stable error codes are the ones the web UI gets.
 
 use axum::{
     Json,
-    extract::{Path as AxumPath, State},
+    extract::{Path as AxumPath, Query, State},
 };
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
@@ -15,21 +15,22 @@ use super::{
     error::{McpToolResult, parse_id, parse_ids, respond},
     params_config::{IdParams, clearing, merged},
     params_link_filters::{
-        CreateLinkFilterParams, ReorderLinkFiltersParams, UnhideCandidatesParams,
-        UpdateLinkFilterParams,
+        ApplyLinkFiltersParams, CreateLinkFilterParams, ReorderLinkFiltersParams,
+        UnhideCandidatesParams, UpdateLinkFilterParams,
     },
 };
 use crate::{
     ApiError,
     link_filter_handlers::{
-        CandidateUnhideRequest, LinkFilterReorderRequest, LinkFilterRuleRequest,
+        CandidateUnhideRequest, LinkFilterApplyQuery, LinkFilterReorderRequest,
+        LinkFilterRuleRequest,
     },
 };
 
 #[tool_router(router = link_filters_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "List the LinkFilter rules in evaluation order. When a link arrives in the LinkGrabber, the first enabled rule whose conditions all hold decides: hide it (kept, shown only with the list's \"Show hidden\" switch, and left behind when its package is queued), accept it (kept, no later rule asked) or route it into a package and/or category."
+        description = "List the LinkFilter rules in evaluation order. When a link arrives in the LinkGrabber, and again for that link when its online check ends, the first enabled rule whose conditions all hold decides: hide it (kept, shown only with the list's \"Show hidden\" switch, and left behind when its package is queued), accept it (kept, no later rule asked), route it into a package and/or category, or delete it (removed with a package it leaves empty)."
     )]
     pub async fn list_link_filters(&self) -> McpToolResult {
         respond(
@@ -40,7 +41,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a LinkFilter rule at the end of the order. Conditions are combined and an empty one holds for every link: name_pattern (glob by default, or regex) on the file name, size_min/size_max in bytes (an unknown size never matches), extensions, hoster (subdomains included) and source. action is hide, accept or route; route needs package_name or category_id. It decides for links arriving from now on; apply_link_filters decides the LinkGrabber's links again."
+        description = "Create a LinkFilter rule at the end of the order. Conditions are combined and an empty one holds for every link: name_pattern (glob by default, or regex) on the file name, size_min/size_max in bytes (an unknown size never matches), extensions, hoster (subdomains included), source, and without_resolver (only links the online check found without an installed resolver, collector.check_no_resolver; never before the check). action is hide, accept, route or delete; route needs package_name or category_id; delete removes the link and an emptied package without asking. It decides for links arriving from now on, and once more for a link when its check ends; apply_link_filters decides the LinkGrabber's links again."
     )]
     pub async fn create_link_filter(
         &self,
@@ -57,6 +58,7 @@ impl RdMcpServer {
                 extensions: params.extensions.unwrap_or_default(),
                 hoster: params.hoster,
                 source: params.source.map(Into::into),
+                without_resolver: params.without_resolver.unwrap_or(false),
                 action: params.action.into(),
                 package_name: params.package_name,
                 category_id: params.category_id.as_deref().map(parse_id).transpose()?,
@@ -74,7 +76,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change one LinkFilter rule. Only the fields you pass are changed; conditions to drop go in `clear`. Its place in the order stays (reorder_link_filters moves it)."
+        description = "Change one LinkFilter rule. Only the fields you pass are changed; conditions to drop go in `clear`, and without_resolver is switched with true or false. Its place in the order stays (reorder_link_filters moves it). Setting action to delete makes the rule remove the links it matches from then on."
     )]
     pub async fn update_link_filter(
         &self,
@@ -125,6 +127,7 @@ impl RdMcpServer {
                     params.source.map(Into::into),
                     current.source,
                 ),
+                without_resolver: params.without_resolver.unwrap_or(current.without_resolver),
                 action: params.action.map_or(current.action, Into::into),
                 package_name: merged(
                     &cleared,
@@ -189,13 +192,21 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Decide every link in the LinkGrabber again by the LinkFilter rules as they are now: hide what a hide rule matches, show what no hide rule matches any more, and file what a route rule matches. Links already queued are not touched and hidden links are never deleted. Answers how many links were hidden, shown and routed."
+        description = "Decide every link in the LinkGrabber again by the LinkFilter rules as they are now: hide what a hide rule matches, show what no hide rule matches any more, file what a route rule matches and delete what a delete rule matches. Links already queued are not touched; hidden links are kept. With dry_run nothing changes and the counts say what would: use it to tell the person how many links a delete rule removes before applying. Answers how many links were hidden, shown, routed and deleted."
     )]
-    pub async fn apply_link_filters(&self) -> McpToolResult {
+    pub async fn apply_link_filters(
+        &self,
+        Parameters(params): Parameters<ApplyLinkFiltersParams>,
+    ) -> McpToolResult {
         respond(
-            crate::link_filter_handlers::apply_link_filters(State(self.state.clone()))
-                .await
-                .map(|outcome| outcome.0),
+            crate::link_filter_handlers::apply_link_filters(
+                State(self.state.clone()),
+                Query(LinkFilterApplyQuery {
+                    dry_run: params.dry_run.unwrap_or(false),
+                }),
+            )
+            .await
+            .map(|outcome| outcome.0),
         )
     }
 

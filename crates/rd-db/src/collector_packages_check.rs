@@ -12,6 +12,7 @@ use crate::{
     collector_store::{CandidateRow, GET_CANDIDATE, insert_event},
     enum_string,
     error::StoreError,
+    link_filter_check::CheckFiltered,
 };
 
 /// Moves checkable candidates into `checking` and returns them with their *pre-claim*
@@ -60,6 +61,10 @@ pub(crate) async fn claim_for_check(
 /// `cached_by` names the provider whose cache answered (RD-130-11). It is written only
 /// together with a `cached_at`: a check that did not end in `cached` clears both, so the
 /// two columns always describe the same answer.
+///
+/// A recorded check asks the LinkFilter rules once more for this link (RD-1310-01): a hiding
+/// rule hides it, a deleting one deletes it, in the same transaction; the event then says the
+/// link is gone, as a delete by hand does.
 pub(crate) async fn record_check(
     connection: &mut SqliteConnection,
     id: CandidateId,
@@ -67,7 +72,7 @@ pub(crate) async fn record_check(
     error: Option<rd_core::CandidateMessage>,
     was_duplicate: bool,
     cached_by: Option<String>,
-) -> Result<EventEnvelope> {
+) -> Result<(CheckFiltered, EventEnvelope)> {
     let media_json = result
         .as_ref()
         .and_then(|result| result.media.as_ref())
@@ -123,7 +128,7 @@ pub(crate) async fn record_check(
     };
     let params_json = message.as_ref().map(params_json).transpose()?.flatten();
     let mut tx = connection.begin().await?;
-    sqlx::query(
+    let recorded = sqlx::query(
         // A name the check learned — from a content disposition or the hoster itself — is
         // declared by the source, unlike the one intake took from the address.
         "UPDATE link_candidates SET state = ?, file_name = COALESCE(?, file_name), \
@@ -146,10 +151,20 @@ pub(crate) async fn record_check(
     .bind(id.to_string())
     .execute(&mut *tx)
     .await?;
-    let event = collector_event(serde_json::json!({ "candidate_id": id, "state": state }));
+    let filtered = if recorded.rows_affected() == 1 {
+        crate::link_filter_check::decide_after_check(&mut tx, id).await?
+    } else {
+        CheckFiltered::default()
+    };
+    let event = collector_event(match filtered.deleted_by {
+        Some(rule) => {
+            serde_json::json!({ "candidate_id": id, "removed": true, "link_filter": rule })
+        }
+        None => serde_json::json!({ "candidate_id": id, "state": state }),
+    });
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    Ok(event)
+    Ok((filtered, event))
 }
 
 /// Records that no check source exists for a candidate (a hoster link without an account

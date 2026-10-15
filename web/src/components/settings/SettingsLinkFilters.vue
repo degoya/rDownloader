@@ -5,12 +5,12 @@
  * keeps it or files it into a package or category. The first enabled rule in the list that
  * matches decides, so the order is set here with the arrows.
  *
- * A rule decides for links arriving from now on; *Apply to the LinkGrabber* decides the links
- * already listed again. A hidden link is kept, never deleted — the LinkGrabber shows it behind
- * its *Show hidden* switch. Export and import are the area bundle the other form-and-list pages
+ * A rule decides for links arriving from now on, and once more for a link when its online check
+ * ends (RD-1310-01); *Apply to the LinkGrabber* decides the links already listed again, asking
+ * with the count before a delete rule deletes. A hidden link is kept — the LinkGrabber shows it
+ * behind its *Show hidden* switch. Export and import are the area bundle the other form-and-list pages
  * carry (`AreaBackupButtons`).
  */
-import { useToast } from '@nuxt/ui/composables'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -23,6 +23,7 @@ import FormFeedback from '@/components/FormFeedback.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import LinkFilterRuleFields from '@/components/settings/LinkFilterRuleFields.vue'
+import { useApplyLinkFilters } from '@/composables/useApplyLinkFilters'
 import { useCopyName } from '@/composables/useCopyName'
 import { useEditableList } from '@/composables/useEditableList'
 import { useFetchState } from '@/composables/useFetchState'
@@ -37,7 +38,6 @@ import { conditionTokens, copyRequest, emptyLinkFilterForm, formFromRule, movedI
 const MAX_NAME = 100
 
 const { t } = useI18n()
-const toast = useToast()
 const copyName = useCopyName()
 const collector = useCollectorStore()
 const { categories, fetchCategories } = useCategories()
@@ -48,7 +48,8 @@ const message = ref<string | null>(null)
 const formElement = ref<HTMLFormElement | null>(null)
 const focusForm = useFormFocus(formElement)
 const busyId = ref<string | null>(null)
-const applying = ref(false)
+const linkFilters = useApplyLinkFilters()
+const applying = linkFilters.applying
 
 async function refresh(): Promise<string | null> {
   const response = await api.GET('/api/v1/link-filters')
@@ -143,11 +144,8 @@ async function remove(rule: LinkFilterRule): Promise<void> {
 }
 
 async function apply(): Promise<void> {
-  applying.value = true
-  const outcome = await collector.applyLinkFilters()
-  applying.value = false
-  if (!outcome) return void (error.value = collector.error)
-  toast.add({ title: t('linkgrabber.link_filter.applied', { hidden: outcome.hidden, shown: outcome.shown, routed: outcome.routed }), color: 'success', icon: 'i-lucide-filter' })
+  const outcome = await linkFilters.apply()
+  if (!outcome) error.value = collector.error
 }
 
 function categoryName(id: string | null | undefined): string | null {
@@ -163,7 +161,8 @@ function outcomeText(rule: LinkFilterRule): string {
 function conditions(rule: LinkFilterRule): string {
   const parts = conditionTokens(rule, {
     source: source => t(`routing.rule.sources.${source}`),
-    size: bytes => formatBytes(String(bytes))
+    size: bytes => formatBytes(String(bytes)),
+    withoutResolver: t('settings.link_filters.without_resolver_token')
   })
   return parts.length ? parts.join(' · ') : t('settings.link_filters.matches_everything')
 }

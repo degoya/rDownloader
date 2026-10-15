@@ -102,13 +102,16 @@ pub use capture_game_mode::{
     RENEW_BEFORE_MINUTES as GAME_MODE_RENEW_BEFORE_MINUTES, process_key as game_mode_process_key,
 };
 pub use collector::{
+    CODE_CHECK_NO_RESOLVER, LinkFilterAction, LinkFilterNameSyntax, LinkFilterRule,
+    LinkFilterRuleId,
+};
+pub use collector::{
     CandidateMessage, CandidateMirror, Category, CategoryRule, CategoryRuleNameTarget,
     CollectorBatch, CollectorPackage, EnrichmentField, GrabberEntryKind, GrabberEntryRef,
     HotFolderConfig, HotFolderExecutor, ImportMode, IngressSource, LinkCandidate,
     LinkCandidateState, LinkCheckResult, MirrorFacet, MirrorHint, MirrorPreference, MirrorSource,
     StorageRootConfig, candidate_url, split_candidate_url,
 };
-pub use collector::{LinkFilterAction, LinkFilterNameSyntax, LinkFilterRule, LinkFilterRuleId};
 pub use cookie_file::{
     CookieFileError, CookieRow, MAX_COOKIE_FILE, earliest_expiry as cookie_earliest_expiry,
     parse as parse_cookie_file, to_netscape_file,

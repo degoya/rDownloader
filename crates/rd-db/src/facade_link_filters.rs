@@ -62,15 +62,60 @@ impl Database {
 
     /// Decides every open LinkGrabber link anew by the rules; nothing in the downloads changes.
     pub async fn apply_link_filters(&self) -> Result<LinkFilterOutcome> {
-        let outcome = writer::request(&self.writer, |reply| CollectorCommand::ApplyLinkFilters {
-            reply,
-        })
-        .await?;
-        // A route may have emptied a package, and its password goes with it (RD-190-04).
-        if outcome.routed > 0 {
+        let (outcome, orphaned) =
+            writer::request(&self.writer, |reply| CollectorCommand::ApplyLinkFilters {
+                dry_run: false,
+                reply,
+            })
+            .await?;
+        self.forget_secrets(orphaned).await;
+        // A route or a delete may have emptied a package, and its password goes with it
+        // (RD-190-04).
+        if outcome.routed > 0 || outcome.deleted > 0 {
             self.sweep_archive_passwords().await;
         }
         Ok(outcome)
+    }
+
+    /// What [`Self::apply_link_filters`] would change now, written nowhere (RD-1310-01): the
+    /// count the interface asks with before a deleting rule deletes.
+    pub async fn preview_link_filters(&self) -> Result<LinkFilterOutcome> {
+        let (outcome, _) =
+            writer::request(&self.writer, |reply| CollectorCommand::ApplyLinkFilters {
+                dry_run: true,
+                reply,
+            })
+            .await?;
+        Ok(outcome)
+    }
+
+    /// Stores the outcome of a link's online check; the LinkFilter rules then decide that link
+    /// once more with what the check found (RD-1310-01), and a link a rule deletes leaves no
+    /// secret and no password of an emptied package behind.
+    pub async fn record_candidate_check(
+        &self,
+        id: rd_core::CandidateId,
+        result: Option<rd_core::LinkCheckResult>,
+        error: Option<rd_core::CandidateMessage>,
+        was_duplicate: bool,
+        cached_by: Option<String>,
+    ) -> Result<()> {
+        let filtered = writer::request(&self.writer, |reply| {
+            CollectorCommand::RecordCandidateCheck {
+                id,
+                result,
+                error,
+                was_duplicate,
+                cached_by,
+                reply,
+            }
+        })
+        .await?;
+        if filtered.deleted_by.is_some() {
+            self.forget_secrets(filtered.orphaned).await;
+            self.sweep_archive_passwords().await;
+        }
+        Ok(())
     }
 
     /// Shows links a rule hid, until the rules are applied again; answers how many were hidden.

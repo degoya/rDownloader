@@ -131,8 +131,10 @@ Everything the LinkGrabber screen does is here too: list_candidates names each l
 the candidate tools rename, move, reorder, enqueue, pick media variants, plan torrents and \
 directory listings, and pin mirrors; list_nzb_imports and the nzb_import tools review and \
 queue an NZB. The LinkFilter rules (list_link_filters and the link_filter tools) decide what \
-arriving links are hidden, kept or filed into a package or category; apply_link_filters \
-decides the LinkGrabber's links again and unhide_candidates shows a hidden one. \
+arriving links are hidden, kept, filed into a package or category, or deleted, and decide a \
+link again when its online check ends (without_resolver: no installed resolver for its host); \
+apply_link_filters decides the LinkGrabber's links again (dry_run counts first, ask before a \
+delete rule deletes) and unhide_candidates shows a hidden one. \
 search_indexers searches the Newznab and Torznab indexers defined in the web UI \
 (list_indexers), by term or as a TV or film search with its ids, and grab_indexer_results puts \
 chosen hits into the LinkGrabber, an NZB as an NZB import and a torrent as a package. \

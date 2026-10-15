@@ -70,6 +70,7 @@ mod indexer_store;
 pub mod intake_notice;
 mod json_column;
 mod link_filter_apply;
+mod link_filter_check;
 mod link_filter_store;
 mod log_store;
 mod managed_tools_store;

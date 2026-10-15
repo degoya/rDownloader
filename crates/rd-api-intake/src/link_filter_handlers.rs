@@ -6,14 +6,14 @@
 
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
 };
 use rd_core::LinkFilterRuleId;
 use rd_db::StoreErrorKind;
 
 pub use crate::link_filter_input::{
-    CandidateUnhideRequest, CandidateUnhideResponse, LinkFilterApplyResponse,
+    CandidateUnhideRequest, CandidateUnhideResponse, LinkFilterApplyQuery, LinkFilterApplyResponse,
     LinkFilterReorderRequest, LinkFilterRuleRequest, validated_link_filter_rule,
 };
 use crate::{ApiError, AppState, dto::MessageResponse};
@@ -94,12 +94,20 @@ pub async fn reorder_link_filter_rules(
 
 /// Decides every link in the LinkGrabber anew by the rules as they are now.
 ///
-/// Hidden links are kept, never deleted, and a link already in the downloads is not touched.
-#[utoipa::path(post, path = "/api/v1/link-filters/apply", tag = "collector", responses((status = 200, body = LinkFilterApplyResponse)))]
+/// Hidden links are kept; only a `delete` rule deletes (RD-1310-01), and `dry_run` answers the
+/// counts without changing anything, for the question asked before. A link already in the
+/// downloads is not touched.
+#[utoipa::path(post, path = "/api/v1/link-filters/apply", tag = "collector", params(LinkFilterApplyQuery), responses((status = 200, body = LinkFilterApplyResponse)))]
 pub async fn apply_link_filters(
     State(state): State<AppState>,
+    Query(query): Query<LinkFilterApplyQuery>,
 ) -> Result<Json<LinkFilterApplyResponse>, ApiError> {
-    Ok(Json(state.database.apply_link_filters().await?.into()))
+    let outcome = if query.dry_run {
+        state.database.preview_link_filters().await?
+    } else {
+        state.database.apply_link_filters().await?
+    };
+    Ok(Json(outcome.into()))
 }
 
 /// Shows links a LinkFilter rule hid, until the rules are applied again.

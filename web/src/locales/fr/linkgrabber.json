@@ -643,7 +643,10 @@
     "hidden_hint": "Une règle LinkFilter a masqué ce lien. Il est conservé et la mise en file de son paquet ne le prend que s'il est sélectionné.",
     "show_hidden": "Afficher les masqués ({count})",
     "apply": "Appliquer LinkFilter",
-    "apply_hint": "Décide de nouveau tous les liens du LinkGrabber selon les règles actuelles. Rien n'est supprimé et les téléchargements ne sont pas touchés.",
-    "applied": "LinkFilter appliqué : {hidden} masqués, {shown} de nouveau affichés, {routed} classés"
+    "apply_hint": "Décide de nouveau tous les liens du LinkGrabber selon les règles actuelles. Les liens masqués sont conservés ; seule une règle de suppression supprime, et le nombre est demandé avant. Les téléchargements ne sont pas touchés.",
+    "applied": "LinkFilter appliqué : {hidden} masqués, {shown} de nouveau affichés, {routed} classés, {deleted} supprimés",
+    "delete_title": "Supprimer des liens ?",
+    "delete_description": "{count} lien sera supprimé du LinkGrabber par une règle de suppression. | {count} liens seront supprimés du LinkGrabber par une règle de suppression.",
+    "delete_confirm": "Appliquer et supprimer"
   }
 }

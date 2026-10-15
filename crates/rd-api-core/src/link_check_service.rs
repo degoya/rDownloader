@@ -285,7 +285,7 @@ fn unresolvable_message(known_hoster: bool) -> rd_core::CandidateMessage {
         )
     } else {
         rd_core::CandidateMessage::coded(
-            "collector.check_no_resolver",
+            rd_core::CODE_CHECK_NO_RESOLVER,
             "No resolver is installed for this host, so this address cannot be turned into a \
              file here",
         )

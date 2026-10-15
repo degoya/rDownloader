@@ -3,7 +3,8 @@
  * The fields of one LinkFilter rule (RD-1240-09), for the form of `SettingsLinkFilters`.
  *
  * Every condition is optional and an empty one holds for every link; the package and the
- * category belong to a `route` rule only, so they appear with it.
+ * category belong to a `route` rule only, so they appear with it. *Without resolver* holds only
+ * after the online check (RD-1310-01).
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -90,5 +91,8 @@ const sizeMax = computed({
   </UFormField>
   <UFormField :label="t('settings.link_filters.source_label')">
     <USelect v-model="sourceSelection" :items="sourceItems" value-key="value" class="w-full" />
+  </UFormField>
+  <UFormField orientation="horizontal" :label="t('settings.link_filters.without_resolver_label')" :description="t('settings.link_filters.without_resolver_description')">
+    <USwitch v-model="form.withoutResolver" :aria-label="t('settings.link_filters.without_resolver_label')" data-testid="link-filter-without-resolver" />
   </UFormField>
 </template>

@@ -1277,7 +1277,7 @@
     "list_title": "LinkFilter rules",
     "form_new": "New rule",
     "form_edit": "Edit rule",
-    "description": "Decides when a link arrives: hide it, keep it, or put it into a package or category. The first enabled rule in the list that matches decides; hidden links are kept.",
+    "description": "Decides when a link arrives and after its online check: hide it, keep it, put it into a package or category, or delete it. The first enabled rule in the list that matches decides; hidden links are kept.",
     "create": "Create rule",
     "created": "Rule created",
     "updated": "Rule saved",
@@ -1293,12 +1293,14 @@
     "actions": {
       "hide": "Hide",
       "accept": "Accept",
-      "route": "Sort into"
+      "route": "Sort into",
+      "delete": "Delete"
     },
     "action_descriptions": {
       "hide": "The link stays in the LinkGrabber but is shown only with “Show hidden”, and queueing its package leaves it behind.",
       "accept": "The link stays as it is and no later rule is asked — an exception above a broader rule.",
-      "route": "The link goes into the package of this name and/or its package gets this category."
+      "route": "The link goes into the package of this name and/or its package gets this category.",
+      "delete": "The link is deleted from the LinkGrabber, and a package it leaves empty with it — at intake and after the online check without asking."
     },
     "package_label": "Package",
     "package_description": "Package name; empty keeps the package the grouping makes.",
@@ -1326,7 +1328,10 @@
     "hoster_description": "Host name without scheme; subdomains match too.",
     "source_label": "Source",
     "move_up": "Move up",
-    "move_down": "Move down"
+    "move_down": "Move down",
+    "without_resolver_label": "Without resolver",
+    "without_resolver_description": "Only links the online check found to be a page with no resolver installed. Holds only after the check; a direct file link and a known hoster's page do not count.",
+    "without_resolver_token": "without resolver"
   },
   "aria2": {
     "eyebrow": "aria2 interface",

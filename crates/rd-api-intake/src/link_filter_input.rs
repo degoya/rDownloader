@@ -44,6 +44,10 @@ pub struct LinkFilterRuleRequest {
     pub hoster: Option<String>,
     #[serde(default)]
     pub source: Option<IngressSource>,
+    /// Only links the online check found unresolvable because no installed resolver claims
+    /// their host (`collector.check_no_resolver`); an unchecked link never matches.
+    #[serde(default)]
+    pub without_resolver: bool,
     pub action: LinkFilterAction,
     /// For `route`: the package the link goes into.
     #[serde(default)]
@@ -72,6 +76,8 @@ pub struct LinkFilterApplyResponse {
     pub shown: u64,
     /// Links a `route` rule moved into its package or gave its category.
     pub routed: u64,
+    /// Links a `delete` rule removed from the LinkGrabber.
+    pub deleted: u64,
 }
 
 impl From<rd_db::LinkFilterOutcome> for LinkFilterApplyResponse {
@@ -80,8 +86,18 @@ impl From<rd_db::LinkFilterOutcome> for LinkFilterApplyResponse {
             hidden: outcome.hidden,
             shown: outcome.shown,
             routed: outcome.routed,
+            deleted: outcome.deleted,
         }
     }
+}
+
+/// Query of the apply route.
+#[derive(Clone, Copy, Debug, Default, Deserialize, utoipa::IntoParams)]
+pub struct LinkFilterApplyQuery {
+    /// Count what applying would change and write nothing: the number a deleting rule would
+    /// delete, asked before it does.
+    #[serde(default)]
+    pub dry_run: bool,
 }
 
 /// Hidden links to show again.
@@ -146,8 +162,10 @@ pub async fn validated_link_filter_rule(
             }
             (package_name, request.category_id)
         }
-        // Only a route files a link anywhere; the other two keep nothing they would not use.
-        LinkFilterAction::Hide | LinkFilterAction::Accept => (None, None),
+        // Only a route files a link anywhere; the others keep nothing they would not use.
+        LinkFilterAction::Hide | LinkFilterAction::Accept | LinkFilterAction::Delete => {
+            (None, None)
+        }
     };
     if let Some(category_id) = category_id
         && !state
@@ -172,6 +190,7 @@ pub async fn validated_link_filter_rule(
         extensions,
         hoster,
         source: request.source,
+        without_resolver: request.without_resolver,
         action: request.action,
         package_name,
         category_id,

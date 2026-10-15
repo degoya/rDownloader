@@ -25,6 +25,9 @@ pub(crate) const ADDRESS_TAKEN: &str = "SELECT EXISTS(SELECT 1 FROM link_candida
 
 /// Intake of one submission: links are grouped into packages, duplicates
 /// are flagged, and – when `auto_check` – every fresh link starts in `checking`.
+///
+/// A link a deleting LinkFilter rule matches is not written (RD-1310-01); the vault references
+/// it came with are answered last, for the caller to remove.
 pub(crate) async fn add_batch(
     connection: &mut SqliteConnection,
     mut intake: NewCollectorBatch,
@@ -36,6 +39,7 @@ pub(crate) async fn add_batch(
     Vec<LinkCandidate>,
     BatchPasswords,
     Vec<EventEnvelope>,
+    Vec<String>,
 )> {
     // Every intake path ends here -- pasted text, a DLC, an NZB import, a hotfolder, a
     // subscription poll, a handed-over torrent -- so this is the one place where the rule that
@@ -90,13 +94,14 @@ pub(crate) async fn add_batch(
     // relative to the others, so there is nothing to decide until the package is complete.
     crate::collector_mirrors::assign(&mut transaction, &packages).await?;
     let candidates = reread_candidates(&mut transaction, candidates).await?;
+    let orphaned = FilterDecision::deleted_refs(&links.filtered, &intake, &secret_fragment_refs);
     let events = intake_events(&batch, candidates.len(), packages.len(), by_extension);
     for event in &events {
         insert_event(&mut transaction, event).await?;
     }
     transaction.commit().await?;
     let created = created_packages(connection, packages).await?;
-    Ok((batch, created, candidates, passwords, events))
+    Ok((batch, created, candidates, passwords, events, orphaned))
 }
 
 async fn insert_batch_row(
@@ -185,6 +190,7 @@ impl LinkFacts {
             .urls
             .iter()
             .enumerate()
+            .filter(|(index, _)| self.filtered[*index].deleted_by.is_none())
             .map(|(index, _)| rd_collector::GroupInput {
                 index,
                 file_name: self.file_names[index].as_deref(),
@@ -449,6 +455,10 @@ fn intake_events(
         EventKind::CollectorChanged,
         serde_json::json!({ "batch_id": batch.id, "candidate_count": candidate_count }),
     );
+    // A batch a deleting rule emptied entirely brought nothing to announce (RD-1310-01).
+    if candidate_count == 0 {
+        return vec![event];
+    }
     // A second, narrower event for one import arriving. `collector.changed` also fires for
     // every later edit of a candidate, so it cannot tell an intake apart from an edit — which
     // is exactly what a desktop notification has to distinguish.

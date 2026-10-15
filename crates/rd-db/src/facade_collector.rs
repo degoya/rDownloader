@@ -3,7 +3,7 @@
 use anyhow::Result;
 use rd_core::{
     BatchId, CandidateId, CollectorBatch, CollectorPackage, CollectorPackageId, GrabberEntryRef,
-    LinkCandidate, LinkCandidateState, LinkCheckResult,
+    LinkCandidate, LinkCandidateState,
 };
 
 use crate::{
@@ -33,7 +33,7 @@ impl Database {
         intake: NewCollectorBatch,
     ) -> Result<(CollectorBatch, Vec<CollectorPackage>, Vec<LinkCandidate>)> {
         let secret_fragment_refs = self.vault_fragments(&intake.urls).await;
-        let (batch, mut packages, candidates, passwords) =
+        let (batch, mut packages, candidates, passwords, orphaned) =
             writer::request(&self.writer, |reply| CollectorCommand::AddCollectorBatch {
                 intake,
                 secret_fragment_refs,
@@ -41,6 +41,8 @@ impl Database {
                 reply,
             })
             .await?;
+        // The links a deleting LinkFilter rule kept out leave no secret behind (RD-1310-01).
+        self.forget_secrets(orphaned).await;
         self.fill_queue_names(&mut packages).await;
         if passwords.is_empty() {
             return Ok((batch, packages, candidates));
@@ -255,27 +257,6 @@ impl Database {
     ) -> Result<Vec<LinkCandidate>> {
         writer::request(&self.writer, |reply| {
             CollectorCommand::ClaimCandidatesForCheck { ids, reply }
-        })
-        .await
-    }
-
-    pub async fn record_candidate_check(
-        &self,
-        id: CandidateId,
-        result: Option<LinkCheckResult>,
-        error: Option<rd_core::CandidateMessage>,
-        was_duplicate: bool,
-        cached_by: Option<String>,
-    ) -> Result<()> {
-        writer::request(&self.writer, |reply| {
-            CollectorCommand::RecordCandidateCheck {
-                id,
-                result,
-                error,
-                was_duplicate,
-                cached_by,
-                reply,
-            }
         })
         .await
     }

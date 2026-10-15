@@ -5,8 +5,8 @@ type LinkFilterAction = LinkFilterRule['action']
 export type LinkFilterNameSyntax = NonNullable<LinkFilterRule['name_syntax']>
 type IngressSource = NonNullable<LinkFilterRule['source']>
 
-/** The three things a rule can do with a link it matches (RD-1240-09). */
-export const LINK_FILTER_ACTIONS: readonly LinkFilterAction[] = ['hide', 'accept', 'route']
+/** What a rule can do with a link it matches (RD-1240-09; `delete` RD-1310-01). */
+export const LINK_FILTER_ACTIONS: readonly LinkFilterAction[] = ['hide', 'accept', 'route', 'delete']
 
 /**
  * The LinkFilter form: sizes in MiB, the pattern and the hoster as typed, empty strings for
@@ -23,6 +23,8 @@ export interface LinkFilterForm {
   extensions: string[]
   hoster: string
   source: IngressSource | null
+  /** Only links the online check found without a resolver (RD-1310-01). */
+  withoutResolver: boolean
   packageName: string
   categoryId: string | null
 }
@@ -39,6 +41,7 @@ export function emptyLinkFilterForm(): LinkFilterForm {
     extensions: [],
     hoster: '',
     source: null,
+    withoutResolver: false,
     packageName: '',
     categoryId: null
   }
@@ -66,6 +69,7 @@ export function formFromRule(rule: LinkFilterRule): LinkFilterForm {
     extensions: [...(rule.extensions ?? [])],
     hoster: rule.hoster ?? '',
     source: rule.source ?? null,
+    withoutResolver: rule.without_resolver ?? false,
     packageName: rule.package_name ?? '',
     categoryId: rule.category_id ?? null
   }
@@ -89,6 +93,7 @@ export function requestFromForm(form: LinkFilterForm): LinkFilterRuleRequest {
     extensions: form.extensions.map(value => value.trim().replace(/^\.+/, '').toLowerCase()).filter(Boolean),
     hoster: form.hoster.trim().toLowerCase() || null,
     source: form.source,
+    without_resolver: form.withoutResolver,
     package_name: route ? form.packageName.trim() || null : null,
     category_id: route ? form.categoryId : null
   }
@@ -117,9 +122,11 @@ export function movedIds(ids: readonly string[], index: number, delta: -1 | 1): 
 export function conditionTokens(rule: LinkFilterRule, label: {
   source: (source: IngressSource) => string
   size: (bytes: number) => string
+  withoutResolver: string
 }): string[] {
   const parts: string[] = []
   if (rule.source) parts.push(label.source(rule.source))
+  if (rule.without_resolver) parts.push(label.withoutResolver)
   if (rule.hoster) parts.push(rule.hoster)
   if (rule.extensions?.length) parts.push(rule.extensions.map(extension => `.${extension}`).join(' '))
   if (rule.name_pattern) parts.push(rule.name_syntax === 'regex' ? `/${rule.name_pattern}/` : rule.name_pattern)

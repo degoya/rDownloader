@@ -23,6 +23,8 @@ pub struct NewLinkFilterRule {
     pub extensions: Vec<String>,
     pub hoster: Option<String>,
     pub source: Option<rd_core::IngressSource>,
+    /// Only links the online check found without a resolver (RD-1310-01).
+    pub without_resolver: bool,
     pub action: rd_core::LinkFilterAction,
     pub package_name: Option<String>,
     pub category_id: Option<rd_core::CategoryId>,
@@ -31,8 +33,8 @@ pub struct NewLinkFilterRule {
 /// The rules in evaluation order. A category that no longer exists reads as none: the column has
 /// no foreign key, because a settings import replaces the categories wholesale.
 const RULE_SELECT: &str = "SELECT r.id, r.name, r.position, r.enabled, r.name_pattern, \
-     r.name_syntax, r.size_min, r.size_max, r.extensions_json, r.hoster, r.source, r.action, \
-     r.package_name, \
+     r.name_syntax, r.size_min, r.size_max, r.extensions_json, r.hoster, r.source, \
+     r.without_resolver, r.action, r.package_name, \
      CASE WHEN EXISTS (SELECT 1 FROM categories c WHERE c.id = r.category_id) \
           THEN r.category_id END AS category_id \
      FROM link_filter_rules r ORDER BY r.position, r.name";
@@ -72,8 +74,9 @@ pub(crate) async fn create_link_filter_rule(
     let columns = StoredColumns::of(&input)?;
     sqlx::query(
         "INSERT INTO link_filter_rules (id, name, position, enabled, name_pattern, name_syntax, \
-         size_min, size_max, extensions_json, hoster, source, action, package_name, category_id, \
-         created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+         size_min, size_max, extensions_json, hoster, source, without_resolver, action, \
+         package_name, category_id, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(id.to_string())
     .bind(&input.name)
@@ -86,6 +89,7 @@ pub(crate) async fn create_link_filter_rule(
     .bind(&columns.extensions)
     .bind(&input.hoster)
     .bind(&columns.source)
+    .bind(input.without_resolver)
     .bind(&columns.action)
     .bind(&input.package_name)
     .bind(input.category_id.map(|value| value.to_string()))
@@ -116,8 +120,9 @@ pub(crate) async fn update_link_filter_rule(
     };
     sqlx::query(
         "UPDATE link_filter_rules SET name = ?, enabled = ?, name_pattern = ?, name_syntax = ?, \
-         size_min = ?, size_max = ?, extensions_json = ?, hoster = ?, source = ?, action = ?, \
-         package_name = ?, category_id = ?, updated_at = ? WHERE id = ?",
+         size_min = ?, size_max = ?, extensions_json = ?, hoster = ?, source = ?, \
+         without_resolver = ?, action = ?, package_name = ?, category_id = ?, updated_at = ? \
+         WHERE id = ?",
     )
     .bind(&input.name)
     .bind(input.enabled)
@@ -128,6 +133,7 @@ pub(crate) async fn update_link_filter_rule(
     .bind(&columns.extensions)
     .bind(&input.hoster)
     .bind(&columns.source)
+    .bind(input.without_resolver)
     .bind(&columns.action)
     .bind(&input.package_name)
     .bind(input.category_id.map(|value| value.to_string()))
@@ -210,6 +216,7 @@ fn rule(id: LinkFilterRuleId, position: i64, input: NewLinkFilterRule) -> LinkFi
         extensions: input.extensions,
         hoster: input.hoster,
         source: input.source,
+        without_resolver: input.without_resolver,
         action: input.action,
         package_name: input.package_name,
         category_id: input.category_id,
@@ -252,6 +259,7 @@ struct RuleRow {
     extensions_json: String,
     hoster: Option<String>,
     source: Option<String>,
+    without_resolver: bool,
     action: String,
     package_name: Option<String>,
     category_id: Option<String>,
@@ -273,6 +281,7 @@ impl TryFrom<RuleRow> for LinkFilterRule {
             extensions: serde_json::from_str(&row.extensions_json)?,
             hoster: row.hoster,
             source: row.source.map(|value| parse_enum(&value)).transpose()?,
+            without_resolver: row.without_resolver,
             action: parse_enum(&row.action)?,
             package_name: row.package_name,
             category_id: row.category_id.as_deref().map(parse_id).transpose()?,

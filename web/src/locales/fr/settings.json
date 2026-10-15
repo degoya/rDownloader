@@ -1277,7 +1277,7 @@
     "list_title": "Règles LinkFilter",
     "form_new": "Nouvelle règle",
     "form_edit": "Modifier la règle",
-    "description": "Décide à l'arrivée d'un lien : le masquer, le garder ou le placer dans un paquet ou une catégorie. La première règle active de la liste qui correspond décide ; les liens masqués sont conservés.",
+    "description": "Décide à l'arrivée d'un lien et après sa vérification en ligne : le masquer, le garder, le placer dans un paquet ou une catégorie, ou le supprimer. La première règle active de la liste qui correspond décide ; les liens masqués sont conservés.",
     "create": "Créer la règle",
     "created": "Règle créée",
     "updated": "Règle enregistrée",
@@ -1293,12 +1293,14 @@
     "actions": {
       "hide": "Masquer",
       "accept": "Accepter",
-      "route": "Classer"
+      "route": "Classer",
+      "delete": "Supprimer"
     },
     "action_descriptions": {
       "hide": "Le lien reste dans le LinkGrabber mais n'est affiché qu'avec « Afficher les masqués », et la mise en file de son paquet le laisse de côté.",
       "accept": "Le lien reste tel quel et aucune règle suivante n'est consultée : une exception au-dessus d'une règle plus large.",
-      "route": "Le lien va dans le paquet portant ce nom et/ou son paquet reçoit cette catégorie."
+      "route": "Le lien va dans le paquet portant ce nom et/ou son paquet reçoit cette catégorie.",
+      "delete": "Le lien est supprimé du LinkGrabber, ainsi qu'un paquet qu'il laisse vide ; à l'arrivée et après la vérification en ligne, sans demander."
     },
     "package_label": "Paquet",
     "package_description": "Nom du paquet ; vide garde le paquet formé par le regroupement.",
@@ -1326,7 +1328,10 @@
     "hoster_description": "Nom d'hôte sans schéma ; les sous-domaines correspondent aussi.",
     "source_label": "Source",
     "move_up": "Monter",
-    "move_down": "Descendre"
+    "move_down": "Descendre",
+    "without_resolver_label": "Sans résolveur",
+    "without_resolver_description": "Seulement les liens que la vérification en ligne a identifiés comme une page sans résolveur installé. Ne s'applique qu'après la vérification ; un lien direct vers un fichier et la page d'un hébergeur connu ne comptent pas.",
+    "without_resolver_token": "sans résolveur"
   },
   "aria2": {
     "eyebrow": "Interface aria2",

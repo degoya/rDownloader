@@ -3570,7 +3570,9 @@ export interface paths {
         put?: never;
         /**
          * Decides every link in the LinkGrabber anew by the rules as they are now.
-         * @description Hidden links are kept, never deleted, and a link already in the downloads is not touched.
+         * @description Hidden links are kept; only a `delete` rule deletes (RD-1310-01), and `dry_run` answers the
+         *     counts without changing anything, for the question asked before. A link already in the
+         *     downloads is not touched.
          */
         post: operations["apply_link_filters"];
         delete?: never;
@@ -8139,6 +8141,7 @@ export interface components {
             /** Format: int64 */
             size_min?: number | null;
             source?: components["schemas"]["IngressSource"] | null;
+            without_resolver?: boolean;
         };
         BundleAreaStreamChannel: {
             category_name?: string | null;
@@ -11724,9 +11727,14 @@ export interface components {
          * @description What a rule does with a link it matches.
          * @enum {string}
          */
-        LinkFilterAction: "hide" | "accept" | "route";
+        LinkFilterAction: "hide" | "accept" | "route" | "delete";
         /** @description What applying the rules to the LinkGrabber changed. */
         LinkFilterApplyResponse: {
+            /**
+             * Format: int64
+             * @description Links a `delete` rule removed from the LinkGrabber.
+             */
+            deleted: number;
             /**
              * Format: int64
              * @description Links a rule hides now that were shown.
@@ -11787,6 +11795,12 @@ export interface components {
              */
             size_min?: number | null;
             source?: components["schemas"]["IngressSource"] | null;
+            /**
+             * @description Only links the online check found unresolvable with [`CODE_CHECK_NO_RESOLVER`]: no
+             *     installed resolver claims the host and the address answered with a page (RD-1310-01).
+             *     An unchecked link never matches, as an unknown size never matches a size bound.
+             */
+            without_resolver?: boolean;
         };
         /** Format: uuid */
         LinkFilterRuleId: string;
@@ -11810,6 +11824,11 @@ export interface components {
             /** Format: int64 */
             size_min?: number | null;
             source?: components["schemas"]["IngressSource"] | null;
+            /**
+             * @description Only links the online check found unresolvable because no installed resolver claims
+             *     their host (`collector.check_no_resolver`); an unchecked link never matches.
+             */
+            without_resolver?: boolean;
         };
         /**
          * @description Availability reported by an online check.
@@ -27391,7 +27410,13 @@ export interface operations {
     };
     apply_link_filters: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Count what applying would change and write nothing: the number a deleting rule would
+                 *     delete, asked before it does.
+                 */
+                dry_run?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;

@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.30.0"
+    "version": "1.31.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -10515,8 +10515,19 @@
           "collector"
         ],
         "summary": "Decides every link in the LinkGrabber anew by the rules as they are now.",
-        "description": "Hidden links are kept, never deleted, and a link already in the downloads is not touched.",
+        "description": "Hidden links are kept; only a `delete` rule deletes (RD-1310-01), and `dry_run` answers the\ncounts without changing anything, for the question asked before. A link already in the\ndownloads is not touched.",
         "operationId": "apply_link_filters",
+        "parameters": [
+          {
+            "name": "dry_run",
+            "in": "query",
+            "description": "Count what applying would change and write nothing: the number a deleting rule would\ndelete, asked before it does.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -22132,6 +22143,9 @@
                 "type": "null"
               }
             ]
+          },
+          "without_resolver": {
+            "type": "boolean"
           }
         }
       },
@@ -31081,7 +31095,8 @@
         "enum": [
           "hide",
           "accept",
-          "route"
+          "route",
+          "delete"
         ]
       },
       "LinkFilterApplyResponse": {
@@ -31090,9 +31105,16 @@
         "required": [
           "hidden",
           "shown",
-          "routed"
+          "routed",
+          "deleted"
         ],
         "properties": {
+          "deleted": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Links a `delete` rule removed from the LinkGrabber.",
+            "minimum": 0
+          },
           "hidden": {
             "type": "integer",
             "format": "int64",
@@ -31234,6 +31256,10 @@
                 "type": "null"
               }
             ]
+          },
+          "without_resolver": {
+            "type": "boolean",
+            "description": "Only links the online check found unresolvable with [`CODE_CHECK_NO_RESOLVER`]: no\ninstalled resolver claims the host and the address answered with a page (RD-1310-01).\nAn unchecked link never matches, as an unknown size never matches a size bound."
           }
         }
       },
@@ -31325,6 +31351,10 @@
                 "type": "null"
               }
             ]
+          },
+          "without_resolver": {
+            "type": "boolean",
+            "description": "Only links the online check found unresolvable because no installed resolver claims\ntheir host (`collector.check_no_resolver`); an unchecked link never matches."
           }
         }
       },

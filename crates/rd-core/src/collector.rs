@@ -19,7 +19,10 @@ pub use categories::{
     Category, CategoryRule, CategoryRuleNameTarget, HotFolderConfig, HotFolderExecutor, ImportMode,
     StorageRootConfig,
 };
-pub use link_filter::{LinkFilterAction, LinkFilterNameSyntax, LinkFilterRule, LinkFilterRuleId};
+pub use link_filter::{
+    CODE_CHECK_NO_RESOLVER, LinkFilterAction, LinkFilterNameSyntax, LinkFilterRule,
+    LinkFilterRuleId,
+};
 pub use mirror::{CandidateMirror, MirrorFacet, MirrorHint, MirrorPreference, MirrorSource};
 
 /// Origin of a batch submitted to the LinkGrabber.

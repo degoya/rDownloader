@@ -1277,7 +1277,7 @@
     "list_title": "Reglas de LinkFilter",
     "form_new": "Nueva regla",
     "form_edit": "Editar regla",
-    "description": "Decide al llegar un enlace: ocultarlo, conservarlo o ponerlo en un paquete o categoría. Decide la primera regla activa de la lista que coincida; los enlaces ocultos se conservan.",
+    "description": "Decide al llegar un enlace y tras su comprobación en línea: ocultarlo, conservarlo, ponerlo en un paquete o categoría, o eliminarlo. Decide la primera regla activa de la lista que coincida; los enlaces ocultos se conservan.",
     "create": "Crear regla",
     "created": "Regla creada",
     "updated": "Regla guardada",
@@ -1293,12 +1293,14 @@
     "actions": {
       "hide": "Ocultar",
       "accept": "Aceptar",
-      "route": "Clasificar"
+      "route": "Clasificar",
+      "delete": "Eliminar"
     },
     "action_descriptions": {
       "hide": "El enlace se queda en el LinkGrabber, pero solo se muestra con «Mostrar ocultos» y no se incluye al encolar su paquete.",
       "accept": "El enlace queda como está y no se consulta ninguna regla posterior: una excepción por encima de una regla más amplia.",
-      "route": "El enlace va al paquete con este nombre y/o su paquete recibe esta categoría."
+      "route": "El enlace va al paquete con este nombre y/o su paquete recibe esta categoría.",
+      "delete": "El enlace se elimina del LinkGrabber, y con él un paquete que quede vacío; al llegar y tras la comprobación en línea, sin preguntar."
     },
     "package_label": "Paquete",
     "package_description": "Nombre del paquete; vacío mantiene el paquete que forma la agrupación.",
@@ -1326,7 +1328,10 @@
     "hoster_description": "Nombre de host sin esquema; los subdominios también coinciden.",
     "source_label": "Origen",
     "move_up": "Subir",
-    "move_down": "Bajar"
+    "move_down": "Bajar",
+    "without_resolver_label": "Sin resolver",
+    "without_resolver_description": "Solo enlaces que la comprobación en línea identificó como una página sin resolver instalado. Solo vale tras la comprobación; un enlace directo a un archivo y la página de un hoster conocido no cuentan.",
+    "without_resolver_token": "sin resolver"
   },
   "aria2": {
     "eyebrow": "Interfaz aria2",

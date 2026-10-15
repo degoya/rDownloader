@@ -103,6 +103,8 @@
 ^crates/rd-api(-[a-z]+)?/src/(diagnostics_[a-z_]+|routes/diagnostics)(\.rs$|/)                diagnostics diagnostics_contents data_reset log_level
 # The log level and a debug window (RD-1260-12).
 ^crates/rd-api(-[a-z]+)?/src/log_level_handlers(\.rs$|/)                                      log_level diagnostics mcp scope_matrix
+# The LinkFilter rules (RD-1240-09, RD-1310-01).
+^crates/rd-api(-[a-z]+)?/src/link_filter_[a-z_]+(\.rs$|/)                                     area_backup mcp
 ^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)(\.rs$|/)                        api_tokens audit auto_remove bulk_filter bulk_pause category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets download_list address_rule usenet_connections
 ^crates/rd-api(-[a-z]+)?/src/download_sources(\.rs$|/)                                        source_sets scope_matrix mcp
 ^crates/rd-api(-[a-z]+)?/src/hotfolder_service(\.rs$|/)                                       hotfolder_poll
@@ -196,6 +198,7 @@
 ^crates/rd-core/src/bandwidth(\.rs$|/)                                                        bandwidth mcp
 ^crates/rd-core/src/capture(\.rs$|/)                                                          capture_intake capture_boundary captcha event_resume browser_session auth_profiles capture_queue scope_matrix
 ^crates/rd-core/src/collector(\.rs$|/)                                                        capture_intake containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens mcp
+^crates/rd-core/src/collector_link_filter(\.rs$|/)                                            area_backup mcp
 ^crates/rd-core/src/source_set(\.rs$|/)                                                       source_sets mirrors mcp
 ^crates/rd-core/src/diagnostics(\.rs$|/)                                                      diagnostics data_reset mcp
 ^crates/rd-core/src/hotfolder(\.rs$|/)                                                        hotfolder_poll

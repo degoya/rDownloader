@@ -2,6 +2,16 @@
 
 use super::Reply;
 
+/// What an intake answers: the batch, its packages and links, the archive passwords to vault,
+/// and the vault references of links a deleting LinkFilter rule kept out (RD-1310-01).
+pub(crate) type AddedBatch = (
+    rd_core::CollectorBatch,
+    Vec<rd_core::CollectorPackage>,
+    Vec<rd_core::LinkCandidate>,
+    crate::collector_store::BatchPasswords,
+    Vec<String>,
+);
+
 /// The commands `Writer::handle_collector` applies.
 pub(crate) enum CollectorCommand {
     /// Appends probed playlist entries to an existing LinkGrabber package.
@@ -54,12 +64,7 @@ pub(crate) enum CollectorCommand {
         /// Whether the browser extension announces this intake itself (RD-1270-05), read by
         /// `Database::add_collector_batch` from the request's task.
         by_extension: bool,
-        reply: Reply<(
-            rd_core::CollectorBatch,
-            Vec<rd_core::CollectorPackage>,
-            Vec<rd_core::LinkCandidate>,
-            crate::collector_store::BatchPasswords,
-        )>,
+        reply: Reply<AddedBatch>,
     },
     UpdateCollectorPackages {
         ids: Vec<rd_core::CollectorPackageId>,
@@ -123,7 +128,8 @@ pub(crate) enum CollectorCommand {
         was_duplicate: bool,
         /// The provider whose cache answered; kept only with a `cached` result (RD-130-11).
         cached_by: Option<String>,
-        reply: Reply<()>,
+        /// What the LinkFilter rules did with the link afterwards (RD-1310-01).
+        reply: Reply<crate::link_filter_check::CheckFiltered>,
     },
     MarkCandidateUnsupported {
         id: rd_core::CandidateId,
@@ -157,7 +163,10 @@ pub(crate) enum CollectorCommand {
     },
     /// Decides every open link anew by the LinkFilter rules (RD-1240-09).
     ApplyLinkFilters {
-        reply: Reply<crate::LinkFilterOutcome>,
+        /// Counts what would change and writes nothing (RD-1310-01).
+        dry_run: bool,
+        /// The outcome, and the vault references of the rows a deleting rule removed.
+        reply: Reply<(crate::LinkFilterOutcome, Vec<String>)>,
     },
     /// Shows links a LinkFilter rule hid; answers how many were hidden.
     ShowFilteredCandidates {

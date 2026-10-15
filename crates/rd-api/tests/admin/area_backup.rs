@@ -1,4 +1,4 @@
-//! Round trips for the per-area bundles: subscriptions, streams, automations.
+//! Round trips for the per-area bundles: subscriptions, streams, automations, LinkFilter rules.
 //!
 //! The property that matters is that a file written on one instance means the same thing on
 //! another, where none of the ids exist. So every test here exports, wipes nothing, and imports
@@ -323,4 +323,49 @@ async fn a_foreign_or_newer_bundle_is_refused() {
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{problem}");
     assert_eq!(problem["code"], "backup.version_unsupported");
+}
+
+/// RD-1310-01: a LinkFilter rule on the check verdict, deleting, arrives as it left.
+#[tokio::test]
+async fn link_filters_travel_with_the_without_resolver_condition_and_the_delete_action() {
+    let source_dir = tempfile::tempdir().expect("tempdir");
+    let source = test_router(source_dir.path()).await;
+    let (status, created) = post_json(
+        &source,
+        "/api/v1/link-filters",
+        json!({
+            "name": "Pages without resolver", "action": "delete",
+            "source": "clipboard", "without_resolver": true
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    assert_eq!(created["without_resolver"], true);
+
+    let bundle = export(&source, "link-filters").await;
+    let entry = &bundle["link_filters"].as_array().expect("array")[0];
+    assert_eq!(entry["without_resolver"], true);
+    assert_eq!(entry["action"], "delete");
+
+    let target_dir = tempfile::tempdir().expect("tempdir");
+    let target = test_router(target_dir.path()).await;
+    let (status, summary) = import(&target, "link-filters", bundle).await;
+    assert_eq!(status, StatusCode::OK, "{summary}");
+    assert_eq!(summary["created"], 1);
+    let (_, listed) = get_json(&target, "/api/v1/link-filters").await;
+    let restored = &listed.as_array().expect("array")[0];
+    assert_eq!(restored["name"], "Pages without resolver");
+    assert_eq!(restored["without_resolver"], true);
+    assert_eq!(restored["action"], "delete");
+    assert_eq!(restored["source"], "clipboard");
+
+    // Nothing is listed to delete, and a dry run says so.
+    let (status, preview) = post_json(
+        &target,
+        "/api/v1/link-filters/apply?dry_run=true",
+        json!({}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{preview}");
+    assert_eq!(preview["deleted"], 0);
 }

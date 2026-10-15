@@ -1,5 +1,5 @@
-//! LinkFilter rules (RD-1240-09): which link the LinkGrabber hides, keeps or files away, decided
-//! by the first enabled rule in order whose conditions all hold.
+//! LinkFilter rules (RD-1240-09): which link the LinkGrabber hides, keeps, files away or deletes
+//! (RD-1310-01), decided by the first enabled rule in order whose conditions all hold.
 //!
 //! Pure, like the category rules beside it: the rules and the facts of one link go in, the rule
 //! that decides comes out. `rd-db` applies the answer at intake and when a person re-applies the
@@ -16,6 +16,9 @@ pub struct LinkFilterContext<'a> {
     pub file_name: Option<&'a str>,
     /// Size in bytes, once a source or the online check told it.
     pub size: Option<u64>,
+    /// The online check found the link unresolvable because no installed resolver claims its
+    /// host (`collector.check_no_resolver`, RD-1310-01); `false` before the check.
+    pub unresolvable_without_resolver: bool,
 }
 
 /// The enabled rules in evaluation order, each name pattern compiled once for a whole batch.
@@ -97,6 +100,7 @@ fn matches_rule(
     context: &LinkFilterContext<'_>,
 ) -> bool {
     rule.source.is_none_or(|source| source == context.source)
+        && (!rule.without_resolver || context.unresolvable_without_resolver)
         && rule.hoster.as_deref().is_none_or(|hoster| {
             context
                 .url
