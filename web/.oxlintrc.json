@@ -3,18 +3,5 @@
   // `pnpm run typecheck:full` with `--deny-warnings`, so `check.sh` and CI fail on a finding.
   // A rule is switched off here only with its reason; a single justified exception is an
   // `oxlint-disable-next-line <rule> -- <reason>` at the line.
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "overrides": [
-    {
-      // The findings the first run left in test files, listed in RD-1280-11: the 1.28 wave
-      // rewrites those files' setup (RD-1280-09). Remove this block once they are fixed.
-      "files": ["**/*.test.ts"],
-      "rules": {
-        "no-unsafe-optional-chaining": "off",
-        "no-unused-vars": "off",
-        "no-unused-expressions": "off",
-        "unicorn/no-useless-fallback-in-spread": "off"
-      }
-    }
-  ]
+  "$schema": "./node_modules/oxlint/configuration_schema.json"
 }

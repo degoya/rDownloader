@@ -19,8 +19,9 @@ fresh() {
     rm -rf "$SCRATCH/tree"
     mkdir -p "$SCRATCH/tree"
     (cd "$ROOT" && git ls-files --cached --others --exclude-standard rust-toolchain.toml \
-        scripts/lib/tool-versions.sh scripts/lib/plugin-stamp.sh .github sdk/ci docker/Dockerfile \
-        AGENTS.md docs/development.md docs/architecture.md docs/reproducible-builds.md sdk/README.md) \
+        scripts/lib/tool-versions.sh scripts/lib/plugin-stamp.sh web/package.json .github sdk/ci \
+        docker/Dockerfile AGENTS.md docs/development.md docs/architecture.md \
+        docs/reproducible-builds.md sdk/README.md) \
         | while IFS= read -r file; do
             [[ -f "$ROOT/$file" ]] || continue
             mkdir -p "$SCRATCH/tree/$(dirname "$file")"
@@ -36,7 +37,7 @@ expect_output "it lists nextest" "nextest"
 fresh
 check
 expect_status "this tree's pins agree" 0
-expect_output "naming how many copies" "copies of 7 tool pins agree"
+expect_output "naming how many copies" "copies of 8 tool pins agree"
 
 fresh
 sed -i 's/tool: nextest@[0-9.]*/tool: nextest@0.0.1/' "$SCRATCH/tree/.github/actions/rust-tests-cache/action.yml"
@@ -57,6 +58,15 @@ sed -i 's/^RD_SQLX_CLI_VERSION=.*/RD_SQLX_CLI_VERSION="9.9.9"/' "$SCRATCH/tree/s
 check
 expect_status "a moved source in scripts/lib/tool-versions.sh fails" 1
 expect_output "naming the workflow that still has the old one" ".github/workflows/ci.yml"
+
+fresh
+sed -i 's/"node": ">=[0-9.]*"/"node": ">=26.1.0"/' "$SCRATCH/tree/web/package.json"
+check
+expect_status "a Node floor moved without its copies fails" 1
+expect_output "naming the documentation's list" "docs/development.md"
+expect_output "the composite action" ".github/actions/setup-web/action.yml"
+expect_output "and the Dockerfile" "docker/Dockerfile"
+expect_output "with the floor's major" "node-major 24, the source says 26"
 
 fresh
 sed -i 's/^| actionlint | [0-9.]*/| actionlint | 0.1.0/' "$SCRATCH/tree/docs/development.md"

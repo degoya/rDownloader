@@ -34,6 +34,8 @@ mkdir -p "$FAKE" "$SCRATCH/bin"
 
 # gh: every call is logged; `run list` prints $FAKE/runs, and fails while it does not exist.
 # A $FAKE/runs.next replaces $FAKE/runs after one look, so a run can finish while it is watched.
+# With RD_PUBLIC_CI_CLOCK set every `run list` moves that clock one second on: a deadline passes
+# after a counted number of looks, not after the machine's wall clock (RD-1300-02).
 # Lines as the --jq of scripts/lib/public-ci.sh prints them: `<id> <status> <conclusion|-> <url>
 # <name>`. `run view <id> --json jobs` prints the jobs in $FAKE/jobs-<id>, in the same shape
 # without the id, and a $FAKE/jobs-<id>.next replaces it after one look; `run view <id>` otherwise answers with the first line of $FAKE/view-<id> and
@@ -46,6 +48,8 @@ case "$1 $2" in
     "auth status") exit 0 ;;
     "workflow run") exit 0 ;;
     "run list")
+        [[ -z "${RD_PUBLIC_CI_CLOCK:-}" ]] \
+            || echo $(( $(cat "$RD_PUBLIC_CI_CLOCK") + 1 )) > "$RD_PUBLIC_CI_CLOCK"
         [[ -f "$FAKE/runs" ]] || exit 1
         cat "$FAKE/runs"
         [[ ! -f "$FAKE/runs.next" ]] || mv "$FAKE/runs.next" "$FAKE/runs"
@@ -316,8 +320,12 @@ rm -f "$FAKE/runs"
 RD_PUBLIC_CI_TIMEOUT=0 public_ci integration/1.4-w4 --platforms windows
 expect_status "no run at all fails at the start deadline" 1
 expect_output "saying so" "no CI run appeared within 0s"
-RD_PUBLIC_CI_TIMEOUT=1 RD_PUBLIC_CI_POLL=1 public_ci integration/1.4-w4 --platforms windows
+# Two seconds on the stand-in clock, which each look moves by one: under load a wall-clock second
+# held one look (RD-1300-02).
+echo 0 > "$FAKE/clock"
+RD_PUBLIC_CI_CLOCK="$FAKE/clock" RD_PUBLIC_CI_TIMEOUT=2 public_ci integration/1.4-w4 --platforms windows
 expect_status "nor within a deadline that is waited for" 1
-expect_true "after more than one look" '[[ $(grep -c "^run list" "$FAKE/gh.calls") -ge 2 ]]'
+expect "after more than one look, and none past the deadline" "2" "$(grep -c "^run list" "$FAKE/gh.calls")"
+expect_output "saying so" "no CI run appeared within 2s"
 
 finish_tests public-ci

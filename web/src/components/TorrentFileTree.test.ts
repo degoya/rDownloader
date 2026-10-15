@@ -31,7 +31,7 @@ function plan(overrides: Partial<ResolvedTorrentPlan['files'][number]>[] = []): 
     { index: 0, path: ['movie.mkv'], length: '4096', included: true, priority: 'normal', excluded_by_pattern: null, explicit: false },
     { index: 1, path: ['extras', 'behind.nfo'], length: '32', included: true, priority: 'normal', excluded_by_pattern: null, explicit: false },
     { index: 2, path: ['extras', 'poster.jpg'], length: '64', included: true, priority: 'normal', excluded_by_pattern: null, explicit: false }
-  ].map((file, index) => ({ ...file, ...(overrides[index] ?? {}) }))
+  ].map((file, index) => ({ ...file, ...overrides[index] }))
   return {
     files,
     selected_bytes: '4192',

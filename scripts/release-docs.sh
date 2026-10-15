@@ -29,7 +29,17 @@
 # unless it has one; a beta adds none. Idempotent, one line of output either way. Meant for the
 # release chain's step before commit-guard, so the release commit carries it.
 #
-# The rules in full: scripts/lib/release-docs.py. Tested by scripts/tests/release-docs.sh.
+#   scripts/release-docs.sh --check X.Y.Z
+#
+# Whether the documents of the release X.Y.Z are ready (RD-1300-04): CHANGELOG.md has its
+# `## [X.Y.Z] - YYYY-MM-DD` section, RELEASE-NOTES.md a finished one (`release-notes.sh --check
+# --version`), docs/roadmap.md names X.Y.Z. Writes nothing; each finding names what fixes it, exit 1
+# while any is left. One source for both callers: release-start.sh before anything detaches, and
+# the chain's docs-gate (scripts/lib/release-steps-publish.sh), which on 1.29.0 found a roadmap
+# without the version only after about 40 minutes.
+#
+# The rules in full: scripts/lib/release-docs.py. Tested by scripts/tests/release-docs.sh and
+# scripts/tests/release-start-preconditions.sh.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -41,6 +51,7 @@ usage() {
     echo "usage: scripts/release-docs.sh X.Y.Z [--date YYYY-MM-DD]" >&2
     echo "       scripts/release-docs.sh --plugins X.Y.Z" >&2
     echo "       scripts/release-docs.sh --next-draft X.Y.Z" >&2
+    echo "       scripts/release-docs.sh --check X.Y.Z" >&2
     exit 2
 }
 
@@ -52,6 +63,30 @@ version_arg() {
 
 previous_tag() { (cd "$ROOT" && rd_release_tag_at_most "$1" --below); }
 
+# The documents --check holds the release to; findings on stderr, what holds on stdout.
+check_ready() {
+    local version="$1" failed=0
+    cd "$ROOT"
+    if grep -qE "^## \[${version//./\\.}\] - [0-9]{4}-[0-9]{2}-[0-9]{2}\$" CHANGELOG.md 2> /dev/null; then
+        echo "CHANGELOG.md: $(awk -v v="## [$version]" '
+            /^## \[/ { inside = (index($0, v) == 1) } inside && NF' CHANGELOG.md | wc -l) lines for $version"
+    else
+        echo "CHANGELOG.md has no '## [$version] - YYYY-MM-DD' section: run scripts/release-docs.sh $version, review the diff and commit it" >&2
+        failed=1
+    fi
+    if ! scripts/release-notes.sh --check --version "$version"; then
+        echo "RELEASE-NOTES.md: finish the section of $version (scripts/release-docs.sh $version drops its draft comment) and commit it" >&2
+        failed=1
+    fi
+    if grep -qF "$version" docs/roadmap.md 2> /dev/null; then
+        echo "docs/roadmap.md names $version"
+    else
+        echo "docs/roadmap.md never names $version: write it into the milestone's status line and commit it" >&2
+        failed=1
+    fi
+    return "$failed"
+}
+
 case "${1:-}" in
     --plugins)
         [[ $# -eq 2 ]] || usage
@@ -62,6 +97,11 @@ case "${1:-}" in
         [[ $# -eq 2 ]] || usage
         version="$(version_arg "$2")"
         exec python3 -B "$PY" next-draft "$ROOT" "$version"
+        ;;
+    --check)
+        [[ $# -eq 2 ]] || usage
+        version="$(version_arg "$2")"
+        check_ready "$version"
         ;;
     -*|"") usage ;;
     *)

@@ -75,7 +75,7 @@ version="$(git show "$commit:Cargo.toml" | rd_workspace_version)"
 version="${version%%[-+]*}"
 [[ -n "$version" ]] || { echo "no workspace version in $branch:Cargo.toml" >&2; exit 1; }
 
-echo "==> $branch (${commit:0:12}, tree ${tree:0:12}) on GitHub"
+rd_public_ci_log_opening "$branch" "$commit" "$tree"
 checked=("${images[@]}")
 workflows=()
 if [[ "$release_workflows" -eq 1 ]]; then
@@ -86,7 +86,7 @@ fi
 rd_public_ci_plan "$ROOT" "$tree" "${images[@]}"
 missing=(${RD_PUBLIC_CI_MISSING[@]+"${RD_PUBLIC_CI_MISSING[@]}"} ${workflows[@]+"${workflows[@]}"})
 if [[ ${#missing[@]} -eq 0 ]]; then
-    echo "==> $branch (${commit:0:12}) is green on GitHub (${checked[*]}) already; nothing was run"
+    rd_public_ci_log_green "$branch" "$commit" "${checked[*]}" " already; nothing was run"
     exit 0
 fi
 platforms_json=""
@@ -109,4 +109,4 @@ if ! rd_public_ci_wait "$public_branch" "$sha" workflow_dispatch; then
 fi
 rd_record_ci "$ROOT" "$tree" "${missing[@]}"
 rd_public_ci_delete "$public_branch"
-echo "==> $branch (${commit:0:12}) is green on GitHub (${checked[*]}); recorded for ${missing[*]}"
+rd_public_ci_log_green "$branch" "$commit" "${checked[*]}" "; recorded for ${missing[*]}"

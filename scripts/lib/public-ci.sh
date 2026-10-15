@@ -14,6 +14,8 @@
 #   RD_PUBLIC_CI_TIMEOUT  seconds to wait for a run to appear at all (900)
 #   RD_PUBLIC_CI_CEILING  seconds after which a run that is still going is given up (21600)
 #   RD_PUBLIC_CI_POLL     seconds between two looks (60); each look asks for the runs and their jobs
+#   RD_PUBLIC_CI_CLOCK    tests only: a file whose number is the clock both limits are read on, in
+#                         place of bash's SECONDS; the tests' stand-in gh moves it (RD-1300-02)
 #
 # No fixed deadline for a run that is going (RD-150-10): the 1.4.2 chain stopped after 5400 s
 # with every job green and `docker` still running. Every job in ci.yml carries its own
@@ -58,6 +60,16 @@ RD_PUBLIC_CI_ALL="linux,windows,macos"
 # restart of axis B, the end-to-end runs on the three systems.
 # shellcheck disable=SC2034
 RD_PUBLIC_CI_RELEASE_WORKFLOWS=(e2e.yml recovery.yml self-update.yml installers.yml)
+
+# The line scripts/public-ci.sh opens its log with, the one it ends a green run with, and the
+# patterns scripts/watch-run.sh tells a public-ci.log and its green by (RD-1300-03): one source, so
+# a reworded line cannot turn a green log red. A log holds two runs when integrate.sh adds Linux.
+rd_public_ci_log_opening() { echo "==> $1 (${2:0:12}, tree ${3:0:12}) on GitHub"; }
+rd_public_ci_log_green() { echo "==> $1 (${2:0:12}) is green on GitHub ($3)$4"; }
+# shellcheck disable=SC2034
+RD_PUBLIC_CI_LOG_OPENING='^==> [^ ]+ \([0-9a-f]+, tree [0-9a-f]+\) on GitHub$'
+# shellcheck disable=SC2034
+RD_PUBLIC_CI_LOG_GREEN='^==> [^ ]+ \([0-9a-f]+\) is green on GitHub \('
 
 rd_public_ci_gh_ready() {
     command -v gh > /dev/null || { echo "gh is required to watch the public CI" >&2; return 1; }
@@ -188,6 +200,13 @@ rd_public_ci_runs_text() {
 # One run as the line above, from gh's JSON — for `run list` per element, for `run view` whole.
 RD_PUBLIC_CI_RUN_JQ='"\(.databaseId) \(.status) \(if (.conclusion // "") == "" then "-" else .conclusion end) \(.url) \(.name)"'
 
+# The clock the start deadline and the ceiling are read on: bash's SECONDS, or the number in the
+# file RD_PUBLIC_CI_CLOCK, so a test decides when a limit passes instead of the machine's load
+# (RD-1300-02: one look within a second under load).
+rd_public_ci_now() {
+    if [[ -n "${RD_PUBLIC_CI_CLOCK:-}" ]]; then cat "$RD_PUBLIC_CI_CLOCK"; else echo "$SECONDS"; fi
+}
+
 # Notes run line $1 in the caller's RD_PUBLIC_CI_RUNS (id → line) and prints it when it changed.
 rd_public_ci_note() {
     local id status conclusion url name
@@ -211,7 +230,7 @@ rd_public_ci_note() {
 # second look lists again, so a run of another workflow that appeared meanwhile is waited for too,
 # and asks every known run again by its id.
 rd_public_ci_wait() {
-    local branch="$1" sha="$2" event="${3:-}" listed line deadline ceiling id rest runs
+    local branch="$1" sha="$2" event="${3:-}" listed line deadline ceiling id rest runs now
     local waiting_said=0 confirming=0 seen=0 found unread
     local -a filter=()
     # Read by rd_public_ci_note and rd_public_ci_jobs, which bash's dynamic scope lets see them.
@@ -220,8 +239,9 @@ rd_public_ci_wait() {
     local RD_PUBLIC_CI_RED=""
     [[ -z "$event" ]] || filter=(--event "$event")
     echo "waiting for the CI of $PUBLIC_REPO on $branch at ${sha:0:12} (for as long as it runs)"
-    deadline=$(( SECONDS + PUBLIC_CI_TIMEOUT ))
-    ceiling=$(( SECONDS + PUBLIC_CI_CEILING ))
+    now="$(rd_public_ci_now)"
+    deadline=$(( now + PUBLIC_CI_TIMEOUT ))
+    ceiling=$(( now + PUBLIC_CI_CEILING ))
     while :; do
         local -A fresh=()
         found=0
@@ -264,11 +284,12 @@ rd_public_ci_wait() {
         else
             confirming=0
         fi
-        if [[ "$seen" -eq 0 ]] && (( SECONDS >= deadline )); then
+        now="$(rd_public_ci_now)"
+        if [[ "$seen" -eq 0 ]] && (( now >= deadline )); then
             echo "no CI run appeared within ${PUBLIC_CI_TIMEOUT}s; $branch is kept" >&2
             return 1
         fi
-        if (( SECONDS >= ceiling )); then
+        if (( now >= ceiling )); then
             echo "the public CI did not finish within ${PUBLIC_CI_CEILING}s; $branch is kept" >&2
             [[ -z "$runs" ]] || rd_public_ci_runs_text <<< "$runs" >&2
             return 1

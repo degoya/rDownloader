@@ -174,7 +174,7 @@ describe('what it shows', () => {
     await fireEvent.click(screen.getByRole('button'))
 
     await waitFor(() => expect(added).toHaveBeenCalled())
-    expect((added.mock.calls[0]?.[0] as { title: string }).title).toBe('41 index entries removed')
+    expect((added.mock.calls[0]![0] as { title: string }).title).toBe('41 index entries removed')
   })
 
   it('reports the number of records removed', async () => {
@@ -183,7 +183,7 @@ describe('what it shows', () => {
     await fireEvent.click(screen.getByRole('button'))
 
     await waitFor(() => expect(added).toHaveBeenCalled())
-    expect((added.mock.calls[0]?.[0] as { title: string }).title).toContain('41')
+    expect((added.mock.calls[0]![0] as { title: string }).title).toContain('41')
   })
 
   it('shows the refusal instead of claiming success', async () => {

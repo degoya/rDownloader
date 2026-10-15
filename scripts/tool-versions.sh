@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
 # The development tools' pins, one source each (RD-1280-12): Rust in rust-toolchain.toml,
-# wasm-tools in scripts/lib/plugin-stamp.sh, nextest, sqlx-cli, cargo-xwin, shellcheck and
-# actionlint in scripts/lib/tool-versions.sh. Scripts read those; a workflow step and a document
-# cannot, so `--check` holds every copy to its source, as `scripts/set-version.sh --check` does
-# for the application's version. Before it, the same version stood in up to four places with
-# nothing comparing them.
+# wasm-tools in scripts/lib/plugin-stamp.sh, Node's floor in web/package.json (RD-1300-05),
+# nextest, sqlx-cli, cargo-xwin, shellcheck and actionlint in scripts/lib/tool-versions.sh.
+# Scripts read those; a workflow step and a document cannot, so `--check` holds every copy to its
+# source, as `scripts/set-version.sh --check` does for the application's version. Before it, the
+# same version stood in up to four places with nothing comparing them.
 #
 # A copy is a line one of the rules below matches. A rule that matches nothing fails as well:
 # the copy moved, and the rule has to follow it. Documents are read where present (the public
@@ -40,13 +40,16 @@ source "$tree/scripts/lib/tool-versions.sh"
 declare -A pin=(
     [rust]="$(rd_rust_version "$tree")"
     [wasm-tools]="$(rd_wasm_tools_pin "$tree")"
+    [node]="$(rd_node_floor "$tree")"
     [nextest]="$RD_NEXTEST_VERSION"
     [sqlx-cli]="$RD_SQLX_CLI_VERSION"
     [cargo-xwin]="$RD_CARGO_XWIN_VERSION"
     [shellcheck]="$RD_SHELLCHECK_VERSION"
     [actionlint]="$RD_ACTIONLINT_VERSION"
 )
-order=(rust wasm-tools nextest sqlx-cli cargo-xwin shellcheck actionlint)
+# The Node CI and the Dockerfile install: the floor's major, whose latest release they take.
+pin[node-major]="${pin[node]%%.*}"
+order=(rust wasm-tools node nextest sqlx-cli cargo-xwin shellcheck actionlint)
 
 if [[ "$check" -eq 0 ]]; then
     for tool in "${order[@]}"; do printf '%-11s %s\n' "$tool" "${pin[$tool]}"; done
@@ -99,6 +102,9 @@ copies_of wasm-tools required "tool: wasm-tools@$V" "${WORKFLOWS[@]}" sdk/ci/*.y
 copies_of wasm-tools required "components-[0-9.]+-wt$V-" "${WORKFLOWS[@]}"
 copies_of wasm-tools docs "^\\| wasm-tools \\| $V" docs/development.md
 copies_of wasm-tools any "wasm-tools(\`| --version)? $V" "${DOCS[@]}"
+copies_of node docs "^\\| Node . pnpm \\| $V or later . " docs/development.md
+copies_of node-major required "node-version: ([0-9]+)$" "${WORKFLOWS[@]}"
+copies_of node-major required "^FROM node:([0-9]+)-" docker/Dockerfile
 copies_of nextest required "tool: nextest@$V" "${WORKFLOWS[@]}"
 copies_of nextest docs "^\\| cargo-nextest \\| $V" docs/development.md
 copies_of nextest any "cargo install cargo-nextest --version $V" "${DOCS[@]}"
@@ -112,7 +118,7 @@ copies_of shellcheck any "shellcheck-py==$V" "${DOCS[@]}"
 copies_of actionlint docs "^\\| actionlint \\| $V" docs/development.md
 
 if [[ "$wrong" -gt 0 ]]; then
-    echo "!! ${wrong} tool pin(s) disagree with their source (scripts/lib/tool-versions.sh, rust-toolchain.toml, scripts/lib/plugin-stamp.sh)" >&2
+    echo "!! ${wrong} tool pin(s) disagree with their source (scripts/lib/tool-versions.sh, rust-toolchain.toml, scripts/lib/plugin-stamp.sh, web/package.json)" >&2
     exit 1
 fi
 echo "    ${copies} copies of ${#order[@]} tool pins agree with their sources"

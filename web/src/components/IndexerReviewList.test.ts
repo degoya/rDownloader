@@ -314,7 +314,7 @@ describe('IndexerReviewList', () => {
     await waitFor(() => expect(confirmed).toHaveBeenCalled())
     expect(confirmed.mock.calls[0]?.[0].description).toBe('75 hits will be queued.')
     const bulk = vi.mocked(api.PUT).mock.calls.filter(call => call[0] === '/api/v1/subscriptions/{id}/items/pending')
-    expect((bulk[0]?.[1] as unknown as { body: { until: string } }).body.until).toBe('2026-10-11T08:00:00Z')
+    expect((bulk[0]![1] as unknown as { body: { until: string } }).body.until).toBe('2026-10-11T08:00:00Z')
   })
 
   it('loads later open hits through server-side pagination', async () => {

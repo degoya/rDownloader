@@ -464,7 +464,7 @@ describe('RoutingCategories sort templates', () => {
     await fireEvent.click(screen.getByRole('button', { name: common.actions.save }))
 
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
-    expect((patch.mock.calls[0]?.[1] as { body: { sorting: unknown } }).body.sorting).toBeNull()
+    expect((patch.mock.calls[0]![1] as { body: { sorting: unknown } }).body.sorting).toBeNull()
   })
 
   it('sends nothing extra for a category that never sorted', async () => {

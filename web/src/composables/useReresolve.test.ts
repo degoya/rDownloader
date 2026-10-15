@@ -35,7 +35,7 @@ describe('re-resolving downloads', () => {
     await useReresolve().reresolve({ packageIds: ['p1'] })
     expect(api.POST).toHaveBeenCalledWith('/api/v1/downloads/reresolve', { body: { ids: [], package_ids: ['p1'], check_now: true } })
     expect(add.mock.calls[0]?.[0]).toMatchObject({ color: 'success' })
-    expect((add.mock.calls[0]?.[0] as { title: string }).title).toContain('"count":2')
+    expect((add.mock.calls[0]![0] as { title: string }).title).toContain('"count":2')
   })
 
   it('names the refusals and reports a failed request', async () => {

@@ -290,7 +290,7 @@ describe('SettingsRemoteJobsCard', () => {
     await waitFor(() => expect(posts.length).toBe(1))
     expect(posts[0]?.path).toBe('/api/v1/accounts/{id}/remote-jobs')
     expect(posts[0]?.init).toMatchObject({ params: { path: { id: 'a1' } }, body: { container: btoa('d4:infoe'), file_name: 'bbb.torrent' } })
-    expect((posts[0]?.init as { body: object }).body).not.toHaveProperty('magnet')
+    expect((posts[0]!.init as { body: object }).body).not.toHaveProperty('magnet')
   })
 
   /** RD-150-11: the submit row sits in a real `<form>`, so Enter in the magnet field sends it. */

@@ -2,15 +2,17 @@
 #
 # The development tools' versions, one source each (RD-1280-12). Rust is rust-toolchain.toml's
 # `channel`, wasm-tools is WASM_TOOLS_VERSION in lib/plugin-stamp.sh (it decides the components'
-# bytes); the rest are pinned here. Scripts source this file; a workflow cannot, so every copy in
-# .github/ and sdk/ci/ is held to these values by `scripts/tool-versions.sh --check`, which
-# `check.sh --preflight` and CI's `supply-chain` job run. docs/development.md ("Tool versions") is
-# the one prose list, and the check holds it too.
+# bytes), Node's floor is `engines.node` in web/package.json (pnpm reads it); the rest are pinned
+# here. Scripts source this file; a workflow cannot, so every copy in .github/ and sdk/ci/ is held
+# to these values by `scripts/tool-versions.sh --check`, which `check.sh --preflight` and CI's
+# `supply-chain` job run. docs/development.md ("Tool versions") is the one prose list, and the
+# check holds it too.
 #
 #   source "$ROOT/scripts/lib/tool-versions.sh"
 #   echo "$RD_NEXTEST_VERSION"
 #   rd_rust_version "$ROOT"          # 1.99.0
 #   rd_wasm_tools_pin "$ROOT"        # 1.261.0
+#   rd_node_floor "$ROOT"            # 24.15.0
 
 # shellcheck disable=SC2034  # read by the scripts that source this file
 RD_NEXTEST_VERSION="0.9.146"
@@ -36,4 +38,10 @@ rd_rust_version() {
 # The wasm-tools checkout $1 pins: WASM_TOOLS_VERSION in scripts/lib/plugin-stamp.sh.
 rd_wasm_tools_pin() {
     sed -n 's/^WASM_TOOLS_VERSION="\(.*\)"$/\1/p' "$1/scripts/lib/plugin-stamp.sh" | head -n 1
+}
+
+# The lowest Node checkout $1 supports: `engines.node` (`>=X.Y.Z`) in web/package.json. It is
+# jsdom's, the web tests' environment, which declares `^24.15.0` for Node 24 (RD-1300-05).
+rd_node_floor() {
+    sed -n 's/^ *"node": ">=\([0-9.]*\)",\{0,1\}$/\1/p' "$1/web/package.json" | head -n 1
 }

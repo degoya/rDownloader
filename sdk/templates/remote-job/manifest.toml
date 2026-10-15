@@ -39,7 +39,7 @@ author = "Your name"
 license = "MIT"
 # The release this SDK came with, whose contract `wit/` is (scripts/set-version.sh writes it in
 # rDownloader's tree); an older core refuses this manifest rather than half-loading it.
-min_app_version = "1.29.1"
+min_app_version = "1.30.0"
 
 [limits]
 memory_bytes = 33554432

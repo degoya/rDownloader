@@ -1,0 +1,23 @@
+# The tests that read the version (RD-1300-06): `env!("CARGO_PKG_VERSION")` or
+# `RD_RELEASE_VERSION` in test code. The release chain's test step runs them after the version
+# bump even when it reuses the --full green of the tree before it (scripts/lib/version-tests.sh),
+# because that green never saw the new version: 1.28.0 shipped with
+# `the_baselines_are_the_last_two_releases` red on main.
+#
+# Not kept by hand: crates/rdownloader/tests/repo_lints/version_tests.rs names every test file that
+# reads the version and is missing here, and every file here that no longer does.
+#
+# One file per line: its path, its cargo package, its test target (`lib`, `bin:<name>` or
+# `test:<name>`) and the nextest filterset of its tests, the rest of the line. Each line is one
+# nextest run, which must run at least one test.
+crates/rd-api/tests/admin/restart.rs                        rd-api      test:admin               test(/^restart::/)
+crates/rd-api/tests/admin/service_lifecycle.rs              rd-api      test:admin               test(/^service_lifecycle::/)
+crates/rd-api/tests/admin/updates.rs                        rd-api      test:admin               test(/^updates::/)
+crates/rd-api/tests/queue/capture_agent_settings.rs         rd-api      test:queue               test(/^capture_agent_settings::/)
+crates/rd-capture/src/client_tests.rs                       rd-capture  bin:rdownloader-capture  test(/^client::tests::/)
+crates/rd-capture/src/status.rs                             rd-capture  bin:rdownloader-capture  test(/^status::tests::/)
+crates/rd-capture/src/tray_menu.rs                          rd-capture  bin:rdownloader-capture  test(/^tray_menu::tests::/)
+crates/rd-capture/src/tray_state_server_tests.rs            rd-capture  bin:rdownloader-capture  test(/^tray_state::server_tests::/)
+crates/rd-db/tests/database/migration_forward/baselines.rs  rd-db       test:database            test(/^migration_forward::baselines::/)
+crates/rd-tools/src/manifest_tests.rs                       rd-tools    lib                      test(/^manifest::tests::/)
+crates/rd-update/src/settings.rs                            rd-update   lib                      test(/^settings::tests::/)

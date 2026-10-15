@@ -2,7 +2,6 @@ import { screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
 
 import type { ReplayPreview } from '@/api/types'
-import common from '@/locales/en/common.json'
 import en from '@/locales/en/linkgrabber.json'
 import { mountComponent } from '@/test/mount'
 

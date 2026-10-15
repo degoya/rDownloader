@@ -6,7 +6,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClientMock } from '@/test/mocks'
-import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
 import logsDe from '@/locales/de/logs.json'
 import common from '@/locales/en/common.json'

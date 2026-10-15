@@ -77,7 +77,7 @@ describe('RoutingCategorySorting', () => {
 
     await fireEvent.update(screen.getByTestId('sorting-movie'), '{movie} ({year})')
     await waitFor(() => expect(post).toHaveBeenCalledTimes(1), { timeout: 2000 })
-    expect((post.mock.calls[0]?.[1] as { body: { sorting: unknown } }).body.sorting)
+    expect((post.mock.calls[0]![1] as { body: { sorting: unknown } }).body.sorting)
       .toEqual({ series: null, dated: null, movie: '{movie} ({year})' })
   })
 })

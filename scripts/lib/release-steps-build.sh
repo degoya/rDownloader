@@ -111,8 +111,19 @@ step_version_bump() {
 # which is committed only later — and the bump changed nothing but version lines, that green is
 # this step's evidence (rd_prebump_reuse). Anything more than the version strings, and the full
 # run happens as before.
+#
+# That green never ran a test reading the version with the new one (1.28.0 shipped with one red
+# on main), so the version-dependent tests run first, with RD_RELEASE_VERSION (RD-1300-06,
+# scripts/lib/version-tests.sh); a red one makes the step red as a full run would, and nothing is
+# carried to the bumped tree.
 step_test() {
-    rd_prebump_reuse rust "full Rust run" && return 0
+    if [[ -n "$(rd_prebump_green "$ROOT" rust)" ]]; then
+        echo "a --full Rust green covers the tree before the bump: the version-dependent tests run with $VERSION"
+        # shellcheck source=lib/version-tests.sh
+        source "$ROOT/scripts/lib/version-tests.sh"
+        rd_version_tests "$VERSION" || return 1
+        rd_prebump_reuse rust "full Rust run" && return 0
+    fi
     JOBS="$JOBS" RD_RELEASE_VERSION="$VERSION" scripts/check.sh --rust --full
 }
 

@@ -195,7 +195,7 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
     // The next page is the person's next request, from where this one ended.
     await fireEvent.click(screen.getByTestId('indexer-search-next'))
     await waitFor(() => expect(post).toHaveBeenCalledTimes(2))
-    expect((post.mock.calls[1]?.[1] as { body: { offset: number } }).body.offset).toBe(100)
+    expect((post.mock.calls[1]![1] as { body: { offset: number } }).body.offset).toBe(100)
   })
 
   it('keeps the row\'s own button in the panel however long a name is', async () => {

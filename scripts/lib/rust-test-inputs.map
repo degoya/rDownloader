@@ -42,6 +42,8 @@
 ^scripts/i18n-key\.sh$                      rdownloader
 ^scripts/migration-pin\.sh$                 rd-db
 ^scripts/check-capture-linux-tree\.sh$      rd-capture
+# The release's version-dependent tests, held complete by repo_lints/version_tests.rs (RD-1300-06).
+^scripts/lib/version-tests\.list$           rdownloader
 # Governs the whole build anyway (rd_scope_build_governing); no_components_profile reads it.
 ^\.config/nextest\.toml$                    rdownloader
 

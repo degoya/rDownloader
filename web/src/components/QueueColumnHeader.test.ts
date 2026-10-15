@@ -38,8 +38,6 @@ const Harness = defineComponent({
   }
 })
 
-interface MenuItem { type?: string, label?: string, checked?: boolean, onUpdateChecked?: (checked: boolean) => void }
-
 /**
  * The menu rendered open: its checkbox items as real checkboxes that report as Nuxt UI's do, named
  * rather than labelled so a label's text stays unique on the page, and its plain items as buttons.

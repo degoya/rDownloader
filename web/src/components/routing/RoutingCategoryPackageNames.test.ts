@@ -82,7 +82,7 @@ describe('RoutingCategoryPackageNames', () => {
     })
 
     await waitFor(() => expect(post).toHaveBeenCalled())
-    expect((post.mock.calls[0]?.[1] as { body: { regex: unknown } }).body.regex).toEqual([])
+    expect((post.mock.calls[0]![1] as { body: { regex: unknown } }).body.regex).toEqual([])
     expect(screen.getByTestId('package-name-regex')).toBeTruthy()
   })
 })

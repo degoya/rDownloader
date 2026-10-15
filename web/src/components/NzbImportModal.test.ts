@@ -49,7 +49,7 @@ describe('NzbImportModal file field', () => {
     expect(screen.getAllByText('Release {{secret}}.nzb')).toHaveLength(1)
 
     await fireEvent.submit(document.querySelector('#nzb-import-form') as HTMLFormElement)
-    const [result] = view.emitted('close')?.[0] as [{ entries: { file: File, name: string }[] }]
+    const [result] = view.emitted('close')![0] as [{ entries: { file: File, name: string }[] }]
     expect(result.entries.map(entry => entry.name)).toEqual(['Release{{secret}}', 'show'])
     expect(screen.getByText(en.choose_file)).toBeTruthy()
   })
@@ -68,7 +68,7 @@ describe('NzbImportModal file field', () => {
     await fireEvent.click(screen.getByTestId('import-enqueue'))
 
     await fireEvent.submit(document.querySelector('#nzb-import-form') as HTMLFormElement)
-    const [result] = view.emitted('close')?.[0] as [{ passphrase?: string, enqueue?: boolean }]
+    const [result] = view.emitted('close')![0] as [{ passphrase?: string, enqueue?: boolean }]
     expect(result.passphrase).toBe('correct horse')
     expect(result.enqueue).toBe(true)
   })

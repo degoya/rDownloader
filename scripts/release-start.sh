@@ -18,6 +18,10 @@
 # Nothing here takes the build lock itself: check.sh and release-pipeline.sh each take it, and a
 # wrapper around them in `flock` would deadlock (AGENTS.md).
 #
+# Before anything detaches it refuses, compiling nothing, a tree the chain would stop on later:
+# baselines behind the version, the release documents (scripts/release-docs.sh --check), a dirty
+# tree. Every finding is named with what fixes it (RD-1300-04).
+#
 # Usage:
 #   scripts/release-start.sh 1.4.0            # start; prints where the log and the PID are
 #   scripts/release-start.sh 1.4.0 --push     # ... and hand --push to the pipeline
@@ -42,7 +46,7 @@ for argument in "$@"; do
     case "$argument" in
         --chain) chain=1 ;;
         --push) push=(--push) ;;
-        -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,34p' "$0"; exit 0 ;;
         -*) echo "unknown argument: $argument" >&2; exit 2 ;;
         *) version="$argument" ;;
     esac
@@ -52,12 +56,29 @@ if ! rd_release_version "$version"; then
     exit 2
 fi
 [[ "$chain" -eq 1 ]] || "$ROOT/scripts/release-branches.sh" status "$version" --quiet >&2 || true  # RD-1270-16: wiki/site work left on release-X.Y
-# The migration-forward suite's newest baseline is the release (RD-1280-23). Its guard reads the
-# version, which the chain's test step never sees when it reuses the green before the bump: 1.28.0
-# shipped with the guard red on main. Refused here, in seconds, before the web build and --full.
-if [[ "$chain" -eq 0 ]] && ! "$ROOT/scripts/migration-baselines.sh" --check "$version" >&2; then
-    echo "run scripts/migration-baselines.sh $version and commit it, then start the release again" >&2
-    exit 1
+# What the chain needs committed, refused here in seconds and compiling nothing, before the web
+# build and --full (RD-1300-04); every finding is named, each with what fixes it:
+# - the migration-forward suite's newest baseline is the release (RD-1280-23): 1.28.0 shipped with
+#   its guard red on main, because the test step reused the green before the bump;
+# - the release documents, by release-docs.sh --check, the docs-gate's own source: on 1.29.0 the
+#   gate stopped the chain after about 40 minutes because docs/roadmap.md did not name the version;
+# - a clean tree, which the pipeline's preflight wants as well.
+if [[ "$chain" -eq 0 ]]; then
+    refused=0
+    if ! "$ROOT/scripts/migration-baselines.sh" --check "$version" >&2; then
+        echo "run scripts/migration-baselines.sh $version and commit it" >&2
+        refused=1
+    fi
+    "$ROOT/scripts/release-docs.sh" --check "$version" >&2 || refused=1
+    if [[ -n "$(git -C "$ROOT" status --porcelain)" ]]; then
+        echo "the working tree is not clean; commit what belongs to the release (git status):" >&2
+        git -C "$ROOT" status --short >&2
+        refused=1
+    fi
+    if [[ "$refused" -ne 0 ]]; then
+        echo "release $version not started; fix the above, then run scripts/release-start.sh $version again" >&2
+        exit 1
+    fi
 fi
 
 run_dir="${RD_RELEASE_RUN_DIR:-/tmp/claude-$(id -u)/release-$version}"

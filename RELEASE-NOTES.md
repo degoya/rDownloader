@@ -12,9 +12,13 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.30.0
+## 1.31.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.30.0
+
+- Security fix: the plugin runtime is updated to close twelve reported weaknesses.
 
 ## 1.29.1
 

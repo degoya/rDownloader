@@ -160,7 +160,7 @@ describe('SubscriptionsView', () => {
     await fireEvent.update(screen.getByTestId('subscription-url'), 'https://indexer.test/api')
     await fireEvent.submit(form)
     await waitFor(() => expect(post).toHaveBeenCalled())
-    const body = (post.mock.calls[0]?.[1] as { body: { view: string, autoplay: boolean } }).body
+    const body = (post.mock.calls[0]![1] as { body: { view: string, autoplay: boolean } }).body
     expect(body.view).toBe('cards')
     expect(body.autoplay).toBe(true)
   })
@@ -190,7 +190,7 @@ describe('SubscriptionsView', () => {
     await fireEvent.update(screen.getByTestId('subscription-url'), 'https://indexer.test/api')
     await fireEvent.submit(form)
     await waitFor(() => expect(post).toHaveBeenCalled())
-    const body = (post.mock.calls.at(-1)?.[1] as { body: { card_ratio: string } }).body
+    const body = (post.mock.calls.at(-1)![1] as { body: { card_ratio: string } }).body
     expect(body.card_ratio).toBe('1:1')
   })
 
@@ -215,7 +215,7 @@ describe('SubscriptionsView', () => {
     await fireEvent.update(screen.getByTestId('subscription-name'), 'Daily links')
     await fireEvent.submit(form)
     await waitFor(() => expect(post).toHaveBeenCalled())
-    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    const body = (post.mock.calls.at(-1)![1] as { body: Record<string, unknown> }).body
     expect(body).toMatchObject({ kind: 'script', url: 'weekly.py', schedule: '0 6 * * *', script_arguments: [] })
   })
 
@@ -240,7 +240,7 @@ describe('SubscriptionsView', () => {
     await fireEvent.update(screen.getByTestId('subscription-name'), 'Daily links')
     await fireEvent.submit(form)
     await waitFor(() => expect(post).toHaveBeenCalled())
-    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    const body = (post.mock.calls.at(-1)![1] as { body: Record<string, unknown> }).body
     expect(body.script_arguments).toEqual(['--since', 'two words', 'a&b;c', ''])
   })
 
@@ -297,7 +297,7 @@ describe('SubscriptionsView', () => {
 
     await fireEvent.submit(line.closest('form') as HTMLFormElement)
     await waitFor(() => expect(put).toHaveBeenCalled())
-    const body = (put.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    const body = (put.mock.calls.at(-1)![1] as { body: Record<string, unknown> }).body
     expect(body).toMatchObject({ url: 'gone.sh', script_arguments: ['--since', 'two words', "it's"] })
   })
 
@@ -343,7 +343,7 @@ describe('SubscriptionsView', () => {
     await fireEvent.update(screen.getByTestId('subscription-url'), 'https://news.test/feed.xml')
     await fireEvent.submit(form)
     await waitFor(() => expect(post).toHaveBeenCalled())
-    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    const body = (post.mock.calls.at(-1)![1] as { body: Record<string, unknown> }).body
     expect(body).toMatchObject({ kind: 'feed', schedule: null, script_arguments: [], url: 'https://news.test/feed.xml' })
   })
 })
@@ -382,7 +382,7 @@ describe('SubscriptionsView, an indexer subscription’s search', () => {
     await fireEvent.submit(form)
 
     await waitFor(() => expect(post).toHaveBeenCalled())
-    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    const body = (post.mock.calls.at(-1)![1] as { body: Record<string, unknown> }).body
     expect(body.indexer_search).toEqual({ query: 'some show !cam', max_age_days: 14, hide_passworded: false, pretime: 1 })
     expect(body.filters).toMatchObject({ title_contains: ['1080p'] })
     expect(body.indexer_id).toBeNull()
@@ -409,7 +409,7 @@ describe('SubscriptionsView, an indexer subscription’s search', () => {
     await fireEvent.submit(form)
 
     await waitFor(() => expect(post).toHaveBeenCalled())
-    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    const body = (post.mock.calls.at(-1)![1] as { body: Record<string, unknown> }).body
     expect(body).toMatchObject({ kind: 'indexer', indexer_id: 'idx-1', url: '', api_key: null })
   })
 
@@ -423,7 +423,7 @@ describe('SubscriptionsView, an indexer subscription’s search', () => {
     await fireEvent.submit(form)
 
     await waitFor(() => expect(post).toHaveBeenCalled())
-    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    const body = (post.mock.calls.at(-1)![1] as { body: Record<string, unknown> }).body
     expect(body).toMatchObject({ kind: 'feed', indexer_search: {}, indexer_id: null })
   })
 })
@@ -461,7 +461,7 @@ describe('SubscriptionsView, a git-release subscription', () => {
     await fireEvent.submit(form)
 
     await waitFor(() => expect(post).toHaveBeenCalled())
-    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    const body = (post.mock.calls.at(-1)![1] as { body: Record<string, unknown> }).body
     expect(body).toMatchObject({ kind: 'git_release', url: 'https://github.com/example/tool', api_key: 'github_pat_x' })
     expect(body.git_release).toEqual({
       forge: null,
@@ -506,7 +506,7 @@ describe('SubscriptionsView, a git-release subscription', () => {
     await fireEvent.submit(form)
 
     await waitFor(() => expect(post).toHaveBeenCalled())
-    const body = (post.mock.calls.at(-1)?.[1] as { body: Record<string, unknown> }).body
+    const body = (post.mock.calls.at(-1)![1] as { body: Record<string, unknown> }).body
     expect(body).toMatchObject({ kind: 'feed', git_release: {} })
   })
 })

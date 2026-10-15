@@ -9,7 +9,10 @@ function setup(keys = ['a', 'b', 'c', 'd', 'e', 'f'], members: (key: string) => 
   const selected = ref(new Set<string>())
   const range = useRangeSelection(order, (picked, value) => {
     const next = new Set(selected.value)
-    for (const key of picked) value ? next.add(key) : next.delete(key)
+    for (const key of picked) {
+      if (value) next.add(key)
+      else next.delete(key)
+    }
     selected.value = next
   }, members)
   const chosen = () => [...selected.value].sort()

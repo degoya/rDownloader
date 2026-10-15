@@ -100,7 +100,7 @@ describe('exporting packages', () => {
     open.mockReturnValue({ result: Promise.resolve({ format: 'crawljob', passphrase: '' }) })
     vi.mocked(api.POST).mockResolvedValue(answer({}, undefined, 'export.nothing_exportable') as never)
     await usePackageExport().exportPackages({ all: true })
-    const body = (vi.mocked(api.POST).mock.calls[0]?.[1] as unknown as { body: Record<string, unknown> }).body
+    const body = (vi.mocked(api.POST).mock.calls[0]![1] as unknown as { body: Record<string, unknown> }).body
     expect(body).not.toHaveProperty('passphrase')
     expect(saved).toEqual([])
     expect(add.mock.calls[0]?.[0]).toMatchObject({ color: 'error', description: 'export.nothing_exportable' })

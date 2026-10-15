@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
-import common from '@/locales/en/common.json'
 import system from '@/locales/en/system.json'
 import { mountComponent } from '@/test/mount'
 import { leaveFor } from '@/utils/identityProvider'

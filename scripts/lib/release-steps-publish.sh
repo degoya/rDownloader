@@ -23,12 +23,12 @@ step_doc_facts() { scripts/doc-facts.sh; }
 step_docs_gate() {
     local failed=0
 
-    if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
-        echo "CHANGELOG.md has no '## [$VERSION]' section" >&2; failed=1
-    else
-        echo "CHANGELOG.md: $(grep -c . <<< "$(awk -v v="## [$VERSION]" '
-            $0 ~ "^## \\[" { inside = (index($0, v) == 1) } inside' CHANGELOG.md)") lines for $VERSION"
-    fi
+    # The version's CHANGELOG.md section, its finished RELEASE-NOTES.md section (RD-1150-02: the
+    # update dialog, the Updates page and the GitHub release show it, and rd-pack refuses to sign a
+    # manifest over a draft) and docs/roadmap.md naming it (a roadmap that still calls the milestone
+    # planned after it shipped is the drift AGENTS.md forbids): the checks release-start.sh made
+    # before anything detached, from the same source (RD-1300-04), so a change since is found here.
+    scripts/release-docs.sh --check "$VERSION" || failed=1
 
     # The version has moved; anything still naming the previous one is stale by definition.
     #
@@ -67,24 +67,10 @@ step_docs_gate() {
         echo "$doc: present, $(wc -l < "$doc") lines"
     done
 
-    # A roadmap that still calls this milestone planned, after the milestone shipped, is the
-    # drift AGENTS.md forbids. Named rather than auto-corrected.
-    if grep -rn "$VERSION" docs/roadmap.md > /dev/null 2>&1; then
-        echo "docs/roadmap.md mentions $VERSION"
-    else
-        echo "docs/roadmap.md never mentions $VERSION" >&2; failed=1
-    fi
-
     # The plugin index takes each packaged version's notes from its plugin's CHANGES.md
     # (RD-1140-03): a raised version without its section, or a section the rules refuse, stops
     # the release here rather than shipping a card without notes or with developer prose.
     scripts/plugin-release-notes.sh --check || failed=1
-
-    # The application's notes for users (RD-1150-02): the update dialog, the Updates page and the
-    # GitHub release show this version's section of RELEASE-NOTES.md, and rd-pack refuses to sign
-    # a manifest over a draft — so a missing, draft or rule-breaking section stops the release here,
-    # not in the Release workflow after the tag.
-    scripts/release-notes.sh --check --version "$VERSION" || failed=1
 
     # doc-facts wrote them; this proves nothing edited them back, and holds the user wiki to the
     # same facts. The wiki is updated at the tag from this release's section, before the chain

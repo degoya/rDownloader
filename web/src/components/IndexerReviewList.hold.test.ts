@@ -180,7 +180,7 @@ describe('IndexerReviewList: the open drawer holds what arrives', () => {
 })
 
 function untilSent(call: number): string | undefined {
-  return (vi.mocked(api.PUT).mock.calls[call]?.[1] as unknown as { body: { until?: string } }).body.until
+  return (vi.mocked(api.PUT).mock.calls[call]![1] as unknown as { body: { until?: string } }).body.until
 }
 
 function useStoreItems(id: string): string[] {

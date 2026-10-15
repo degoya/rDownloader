@@ -24,7 +24,7 @@ claims = []
 description = "Uploads finished packages to {{PLUGIN_NAME}}."
 author = "Your name"
 license = "MIT"
-min_app_version = "1.29.1"
+min_app_version = "1.30.0"
 
 [limits]
 memory_bytes = 33554432

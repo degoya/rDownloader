@@ -5,6 +5,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.30.0] - 2026-10-15
+
+### Changed
+
+- **Node's floor has one source: 24.15.0, `engines.node` in `web/package.json`** (RD-1300-05).
+  jsdom 30, the web tests' environment, declares `^22.22.2 || ^24.15.0 || >=26.0.0`; the wiki's
+  "24.15 or later" now has its source. `scripts/tool-versions.sh` reads it (`rd_node_floor`),
+  `--check` holds the Prerequisites row of `docs/development.md` to it and the `node-version` of
+  `setup-web` and `repro.yml` and the Dockerfile's `FROM node:` to its major.
+
+- **`release-start.sh` refuses missing release documents and a dirty tree before it starts**
+  (RD-1300-04). Beside the baseline check it now runs `scripts/release-docs.sh --check X.Y.Z` (the
+  dated CHANGELOG section, a finished RELEASE-NOTES section, `docs/roadmap.md` naming the version)
+  and a clean-tree check, compiling nothing and naming each fix; the docs gate calls the same mode
+  instead of its own copy. Test: `scripts/tests/release-start-preconditions.sh`, one tree per case.
+
+- **The release's test step runs the version-dependent tests after reusing the pre-bump green**
+  (RD-1300-06). `scripts/lib/version-tests.list` names the 11 test files that read
+  `CARGO_PKG_VERSION`/`RD_RELEASE_VERSION`; `step_test` runs them with `RD_RELEASE_VERSION`, one
+  nextest run each, logs the count and goes red on a failure. The repo lint `version_tests` names
+  every version-reading test missing from the list. Test: `scripts/tests/release-version-tests.sh`.
+
+### Fixed
+
+- **oxlint checks the web tests with every rule again** (RD-1300-01). The 30 findings the
+  `**/*.test.ts` override of `web/.oxlintrc.json` hid since RD-1280-11 are fixed — 24 unsafe
+  optional chains on mock calls are non-null assertions (the same `TypeError` on a missing call),
+  four unused imports or types go, a ternary statement is an `if`, an empty spread fallback goes —
+  and the override is removed; no rule is disabled at a line.
+
+- **`scripts/tests/public-ci.sh` no longer flakes under load** (RD-1300-02). The case "no run
+  within a deadline that is waited for" counted on two looks within one wall-clock second, and
+  bash's whole-second `SECONDS` could leave a fraction of it; the deadline and the ceiling are now
+  read through `rd_public_ci_now`, which a test points at a file (`RD_PUBLIC_CI_CLOCK`) that the
+  stand-in `gh` moves one second per look: exactly two looks, then the deadline.
+
+- **`scripts/watch-run.sh` reads a green `public-ci.log` as green** (RD-1300-03). Every log was
+  judged by `check.sh`'s closing line; now a public-ci log, told by its opening line, is judged by
+  its own green after its last opening (`integrate.sh` appends a second run), and a log of no
+  known kind by its last `REAL EXIT`, saying so. Both public-ci lines come from
+  `scripts/lib/public-ci.sh` (`rd_public_ci_log_opening`/`_green` and their patterns).
+
+### Security
+
+- **`wasmtime` 49.0.3** (RUSTSEC-2026-0353 … -0364). The twelve advisories published on
+  2026-10-15 — host panics and stack overflows in the component model (async calls, streams and
+  futures, string transcoding, guest `realloc`, start functions, recursive types), handle tables
+  charged to no limit, unaligned exception tags and an unenforced async-entrypoint requirement —
+  are fixed in 49.0.3; `cargo deny` refused 49.0.2. Lock file only: the 28 `wasmtime-*`,
+  `cranelift-*` and `pulley-*` entries of `cargo update -p wasmtime --precise 49.0.3`, every other
+  entry as before — the command itself also moved six crates' `windows-sys` edges back to 0.45–0.60,
+  which `cargo deny`'s duplicate ban refuses.
+
 ## [1.29.1] - 2026-10-14
 
 ### Added
