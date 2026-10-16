@@ -9,6 +9,7 @@ mod cookies;
 mod engine;
 mod hostlimit;
 mod multisource;
+mod pinned_proxy;
 mod plan;
 mod probe;
 mod range_source;
@@ -16,7 +17,14 @@ mod redirect;
 mod sniff;
 mod tls;
 mod transform;
+mod tunnel_refusal;
 mod wind_down;
+
+/// The fixtures of a test behind a proxy, for this crate's tests and, with the feature
+/// `test-support`, for those of the crates that pin through it (RD-1330-01).
+#[cfg(any(test, feature = "test-support"))]
+#[path = "pinned_proxy_test_support.rs"]
+pub mod test_support;
 
 pub use address_guard::{
     AddressPolicy, AddressRefused, AddressScope, GuardedResolver, HostLookup, LookupFuture,
@@ -37,6 +45,10 @@ pub use engine::{
 };
 pub use hostlimit::{DEFAULT_CONNECTIONS_PER_HOST, HostLimits, MAX_CONNECTIONS_PER_HOST};
 pub use multisource::{MultiSourceRequest, SourceEndpoint, SourceLedger};
+pub use pinned_proxy::{
+    CODE_NAME_UNRESOLVED, EnvironmentProxy, EnvironmentRoute, NameResolution, NameUnresolved,
+    check_before_request, name_unresolved, unresolved_failure, with_proxy, with_proxy_lookup,
+};
 pub use plan::{ChunkSpec, chunks_aligned, plan_aligned_chunks, plan_chunks};
 pub use probe::{
     ConditionalBody, FetchedDocument, ProbeResult, UnfollowedRedirect, VerbatimBody,
@@ -48,3 +60,4 @@ pub use redirect::{RedirectGate, ReplayScope, is_approved, origin_of, with_redir
 pub use sniff::{SniffedBody, fetch_sniffed};
 pub use tls::{client_config as tls_client_config, tool_trust_bundle};
 pub use transform::{MacWalker, ResumePlan, StreamTransform, TransformCheckpoint, plan_resume};
+pub use tunnel_refusal::{CODE_TUNNEL_REFUSED, TunnelRefused, tunnel_failure, tunnel_refusal};

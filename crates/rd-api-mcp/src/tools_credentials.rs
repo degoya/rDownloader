@@ -142,7 +142,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a proxy profile from a credential-free URL such as socks5://10.0.0.2:1080. A proxy that needs a login is set up in the web UI."
+        description = "Create a proxy profile from a credential-free URL such as socks5://10.0.0.2:1080. A proxy that needs a login is set up in the web UI. By default the service resolves and checks an address a stranger named and asks the proxy for a tunnel to that address (the proxy must allow CONNECT to the target's port); resolves_names true hands the proxy the name instead, for a network where only the proxy can resolve. A tunnel the proxy refuses fails as proxy.tunnel_refused with its status."
     )]
     pub async fn create_proxy_profile(
         &self,
@@ -154,6 +154,7 @@ impl RdMcpServer {
             endpoint: params.endpoint,
             username: None,
             password: None,
+            resolves_names: params.resolves_names.unwrap_or(false),
         };
         respond(
             crate::config_handlers::create_proxy_profile(
@@ -167,7 +168,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change one proxy profile's name, type or address; only the fields you pass are changed. A stored login is kept only while the address keeps its scheme, host and port: a new address for a profile with a login is refused (proxy.password_host_changed), because the password is never sent to another host; set that one in the web UI. Every change is audited."
+        description = "Change one proxy profile's name, type, address or whether it resolves names itself (resolves_names; see create_proxy_profile); only the fields you pass are changed. A stored login is kept only while the address keeps its scheme, host and port: a new address for a profile with a login is refused (proxy.password_host_changed), because the password is never sent to another host; set that one in the web UI. Every change is audited."
     )]
     pub async fn update_proxy_profile(
         &self,
@@ -191,6 +192,7 @@ impl RdMcpServer {
                 // password itself never leaves the vault.
                 username: current.username,
                 password: None,
+                resolves_names: params.resolves_names.unwrap_or(current.resolves_names),
             };
             Ok(crate::config_handlers::update_proxy_profile(
                 State(self.state.clone()),

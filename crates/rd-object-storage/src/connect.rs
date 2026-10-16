@@ -3,12 +3,16 @@
 //! The only provider-specific part of the crate: everything else talks to the `object_store`
 //! traits, which Azure Blob and Google Cloud Storage implement too. [`s3`] is here, the other
 //! two are in [`azure`] and [`gcs`] (RD-150-05), each behind its cargo feature; all three
-//! share [`client_options`], so the proxy, the custom CA and the timeouts reach every one, and
-//! [`transport`]'s client, which follows no redirect (RD-1200-06).
+//! share [`client_options`], so the custom CA and the timeouts reach every one, and
+//! [`transport`]'s client, which follows no redirect (RD-1200-06) and goes through the proxy —
+//! the profile's or, without one, the environment's — pinned behind it like every guarded
+//! request (RD-1330-01).
 
 pub(crate) mod azure;
 pub(crate) mod gcs;
 mod transport;
+
+pub(crate) use transport::StoreProxy;
 
 use std::{sync::Arc, time::Duration};
 
@@ -35,12 +39,13 @@ pub(crate) struct Opening<'a> {
     pub bucket: &'a str,
     pub secret: Option<SecretString>,
     pub session_token: Option<SecretString>,
-    /// The global proxy as a URL, credentials included; never logged.
-    pub proxy: Option<SecretString>,
+    /// The global proxy, its login included; never logged.
+    pub proxy: Option<Arc<StoreProxy>>,
     pub custom_ca_pem: &'a [Vec<u8>],
     pub timeout: Duration,
-    /// The resolver an entered endpoint is held to the address rule through (RD-1190-18).
-    pub dns: Option<Arc<dyn object_store::client::DnsResolver>>,
+    /// The address rule an entered endpoint is held to (RD-1190-18), through the resolver and,
+    /// behind a proxy, through the pin.
+    pub guard: Option<rd_http::AddressPolicy>,
 }
 
 /// Why a profile could not be turned into a store. Each is a configuration fault the
@@ -132,7 +137,27 @@ fn connector(opening: &Opening<'_>) -> transport::NoRedirects {
     transport::NoRedirects {
         custom_ca_pem: opening.custom_ca_pem.to_vec(),
         timeout: opening.timeout,
+        proxy: opening.proxy.clone(),
+        environment: environment_way(opening).map(Arc::new),
+        guard: opening.guard.clone(),
     }
+}
+
+/// The way through the proxy the environment names, for an endpoint held to the address rule
+/// with no proxy profile set (RD-1330-01): the endpoint as the requests address it.
+fn environment_way(opening: &Opening<'_>) -> Option<transport::EnvironmentWay> {
+    if opening.proxy.is_some() || opening.guard.is_none() {
+        return None;
+    }
+    let profile = opening.profile;
+    let virtual_host = profile.provider == rd_core::ObjectStorageProvider::S3
+        && profile.addressing == ObjectAddressing::VirtualHost;
+    let endpoint =
+        bucket_endpoint(profile.endpoint.as_deref()?, opening.bucket, virtual_host).ok()?;
+    Some(transport::EnvironmentWay {
+        target: Url::parse(&endpoint).ok()?,
+        route: rd_http::EnvironmentRoute::system(),
+    })
 }
 
 fn client_options(opening: &Opening<'_>) -> Result<ClientOptions, OpenError> {
@@ -161,11 +186,8 @@ fn client_options(opening: &Opening<'_>) -> Result<ClientOptions, OpenError> {
             options = options.with_root_certificate(certificate);
         }
     }
-    if let Some(proxy) = &opening.proxy {
-        options = options.with_proxy_url(proxy.expose_secret());
-    }
-    if let Some(dns) = &opening.dns {
-        options = options.with_dns_resolver(Arc::clone(dns));
+    if let Some(policy) = &opening.guard {
+        options = options.with_dns_resolver(Arc::new(crate::endpoint::GuardedDns(policy.clone())));
     }
     Ok(options)
 }
@@ -279,7 +301,7 @@ mod tests {
             session_token: None,
             proxy: None,
             custom_ca_pem: &[],
-            dns: None,
+            guard: None,
             timeout: Duration::from_secs(5),
         }
     }

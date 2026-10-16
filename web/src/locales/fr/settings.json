@@ -199,7 +199,9 @@
       "in_use_here": "Il est choisi ici comme connexion globale ou comme proxy de pairs torrent — choisissez-en un autre d’abord et enregistrez.",
       "confirm": "Supprimer le profil"
     },
-    "password_host_changed": "L’adresse a changé : le mot de passe enregistré n’est pas envoyé au nouveau proxy. Saisissez-le à nouveau."
+    "password_host_changed": "L’adresse a changé : le mot de passe enregistré n’est pas envoyé au nouveau proxy. Saisissez-le à nouveau.",
+    "resolves_names_label": "Le proxy résout les noms lui-même",
+    "resolves_names_description": "Désactivé (recommandé) : rDownloader résout et vérifie lui-même les adresses indiquées par une page, un document ou un plugin et les endpoints du stockage objet, et demande au proxy un tunnel (CONNECT) vers l'adresse vérifiée. Le proxy doit alors autoriser CONNECT vers le port de la cible — Squid n'autorise que le 443 par défaut — et un proxy qui filtre par nom voit une adresse IP. Activez-le uniquement si, sur votre réseau, seul le proxy peut résoudre les noms."
   },
   "global_proxy": {
     "eyebrow": "Repli réseau",

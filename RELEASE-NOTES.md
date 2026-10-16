@@ -12,9 +12,15 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.33.0
+## 1.34.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.33.0
+
+- Behind a proxy, rDownloader now checks the address a link leads to itself and has the proxy connect to exactly that address. A new switch per proxy profile lets the proxy resolve names instead.
+- Webhooks, the IP check before a reconnect, object storage and site rules now keep that checked address through a proxy too, including the proxy set in the environment.
+- When only the proxy could look up a site's name, downloads and push notifications now say so clearly instead of failing with a general network error.
 
 ## 1.32.0
 

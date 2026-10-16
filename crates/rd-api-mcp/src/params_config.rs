@@ -395,6 +395,12 @@ pub(crate) struct CreateProxyProfileParams {
     pub kind: ProxyKindParam,
     /// Proxy URL without credentials, e.g. `socks5://10.0.0.2:1080`.
     pub endpoint: String,
+    /// Whether the proxy resolves target names itself (default false). Off, the service resolves
+    /// and checks an address a stranger named (a mirror, a plugin request, a hand-over) and
+    /// asks the proxy for a `CONNECT` tunnel to that address, so the proxy must allow
+    /// `CONNECT` to the target's port and sees an address, not a name. On, the proxy is handed
+    /// the name, for a network where only the proxy can resolve.
+    pub resolves_names: Option<bool>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]
@@ -403,6 +409,9 @@ pub(crate) struct UpdateProxyProfileParams {
     pub name: Option<String>,
     pub kind: Option<ProxyKindParam>,
     pub endpoint: Option<String>,
+    /// Whether the proxy resolves target names itself, as for `create_proxy_profile`; unchanged
+    /// when left out.
+    pub resolves_names: Option<bool>,
 }
 
 /// Name and address of a proxy. A proxy that needs a login is created in the web UI, because

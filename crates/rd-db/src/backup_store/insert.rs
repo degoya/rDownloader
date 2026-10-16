@@ -340,7 +340,7 @@ pub(super) async fn insert_proxy_profiles(
     for value in values {
         sqlx::query(
             "INSERT INTO proxy_profiles (id, name, kind, endpoint, username, secret_ref, \
-             created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+             resolves_names, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(value.id.to_string())
         .bind(value.name)
@@ -348,6 +348,7 @@ pub(super) async fn insert_proxy_profiles(
         .bind(value.endpoint.as_str())
         .bind(value.username)
         .bind(value.secret_ref)
+        .bind(value.resolves_names)
         .bind(now)
         .bind(now)
         .execute(&mut *tx)

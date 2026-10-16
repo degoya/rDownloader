@@ -45,6 +45,16 @@ pub(crate) fn network_failure(error: reqwest::Error) -> HttpDownloadError {
         )
         .into();
     }
+    // The proxy would not open the tunnel to the checked address (RD-1320-07).
+    if let Some(failure) = crate::tunnel_failure(&error) {
+        return failure.into();
+    }
+    // A name this machine could not resolve, behind a proxy that is handed checked addresses
+    // only (RD-1330-01): the network's resolver, not the server, and not worth hiding as a
+    // network failure.
+    if let Some(failure) = crate::unresolved_failure(&error) {
+        return failure.into();
+    }
     let category = if error.is_connect() {
         FailureKind::Offline
     } else {

@@ -97,6 +97,7 @@ impl Harness {
                 endpoint: "http://proxy.example:3128".parse().expect("endpoint"),
                 username: secret_ref.as_ref().map(|_| "alice".to_owned()),
                 secret_ref,
+                resolves_names: false,
             })
             .await
             .expect("proxy profile");

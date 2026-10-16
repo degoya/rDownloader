@@ -164,7 +164,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.32.0"
+version = "1.33.0"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.99"
@@ -214,8 +214,13 @@ global-hotkey = "0.8"
 governor = "0.10"
 hex = "0.4"
 hmac = "0.13"
+# `http::Uri`, which the proxy matcher below takes (RD-1330-01); the version reqwest links.
+http = "1"
 http-body-util = "0.1"
 httpdate = "1"
+# The proxy matcher reqwest reads `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` with, so a request
+# that pins behind the proxy the environment names reads them the same way (RD-1330-01).
+hyper-util = { version = "0.1", default-features = false, features = ["client-proxy"] }
 # The provider is pinned to aws-lc-rs on purpose: lettre's `rustls-tls` would pull in
 # `ring` alongside the `aws-lc-rs` reqwest already uses, and rustls then refuses to pick a
 # process-wide provider at all.

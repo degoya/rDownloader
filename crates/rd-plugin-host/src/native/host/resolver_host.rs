@@ -61,8 +61,8 @@ impl ResolverHost for NativeHost {
                 .append_pair(&query.name, &query.value_template);
         }
         let policy = address_policy(&self.own, &request.url);
-        let (client, proxied) = self.client(identity, &request.url, &policy).await?;
-        check_reach(&policy, &request.url, proxied, &self.own).await?;
+        let (client, resolution) = self.client(identity, &request.url, &policy).await?;
+        check_reach(&policy, &request.url, resolution, &self.own).await?;
         let method = Method::from_bytes(request.method.as_bytes()).map_err(super::permanent)?;
         // Reading is the default, and `PROPFIND` reads: it lists a collection. A storage
         // destination also writes — that is what it is for — and WebDAV spells that `PUT`,

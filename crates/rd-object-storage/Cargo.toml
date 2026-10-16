@@ -53,6 +53,8 @@ uuid.workspace = true
 workspace = true
 
 [dev-dependencies]
+# The fixtures of a test behind a proxy: a recording proxy, a rebinding lookup (RD-1330-01).
+rd-http = { path = "../rd-http", features = ["test-support"] }
 rd-testkit = { path = "../rd-testkit" }
 axum.workspace = true
 # The TLS endpoint of `tests/s3_tls.rs`: a CA of its own and a rustls listener.

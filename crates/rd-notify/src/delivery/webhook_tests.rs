@@ -8,7 +8,12 @@ use std::{
 
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
-use super::{send, sign};
+use rd_http::{
+    EnvironmentProxy, EnvironmentRoute,
+    test_support::{Answers, PUBLIC, connect_proxy, entries},
+};
+
+use super::{send, send_via, sign};
 use crate::{
     delivery::{Attempt, Message},
     model::{NotificationEvent, NotificationTarget, TargetKind},
@@ -47,29 +52,56 @@ fn ok_answer() -> Vec<u8> {
 }
 
 fn target(port: u16) -> NotificationTarget {
+    target_at(&format!("http://127.0.0.1:{port}/hook"))
+}
+
+fn target_at(endpoint: &str) -> NotificationTarget {
     NotificationTarget {
         id: rd_core::NotificationTargetId::new(),
         name: "hook".to_owned(),
         kind: TargetKind::Webhook,
         enabled: true,
-        endpoint: format!("http://127.0.0.1:{port}/hook"),
+        endpoint: endpoint.to_owned(),
         config: serde_json::json!({}),
         secret_ref: None,
         has_secret: false,
     }
 }
 
-async fn post(reach: &rd_http::AddressPolicy, port: u16) -> Attempt {
-    let message = Message {
+fn message() -> Message {
+    Message {
         title: "Package finished".to_owned(),
         body: "example.iso".to_owned(),
         event: NotificationEvent::PackageCompleted,
         idempotency_key: "test:1".to_owned(),
         payload: serde_json::json!({ "event": "package_completed" }),
-    };
-    send(reach, &target(port), &message, None)
+    }
+}
+
+async fn post(reach: &rd_http::AddressPolicy, port: u16) -> Attempt {
+    send(reach, &target(port), &message(), None)
         .await
         .expect("attempt")
+}
+
+/// A call to `hooks.test` on `port` behind the recording proxy the environment names, the
+/// name answering as `lookup` says; the receiver's own network is permitted, loopback is not.
+async fn post_behind_proxy(proxy: u16, lookup: std::sync::Arc<Answers>, port: u16) -> Attempt {
+    let endpoint = format!("http://127.0.0.1:{proxy}");
+    let route = EnvironmentRoute::new(
+        EnvironmentProxy::given(Some(&endpoint), Some(&endpoint), None),
+        lookup,
+    );
+    let target = target_at(&format!("http://hooks.test:{port}/hook"));
+    send_via(
+        &rd_http::AddressPolicy::new(true),
+        &route,
+        &target,
+        &message(),
+        None,
+    )
+    .await
+    .expect("attempt")
 }
 
 /// Without the person's word for loopback, a webhook never connects to this machine: the
@@ -129,6 +161,67 @@ async fn only_the_head_of_a_failed_answer_is_read() {
     assert!(attempt.retryable, "{attempt:?}");
     assert_eq!(attempt.status, Some(500));
     assert_eq!(attempt.excerpt.as_deref(), Some("x".repeat(500).as_str()));
+}
+
+/// RD-1330-01: behind the proxy the environment names, the proxy is handed the address the
+/// name answered when the connection was made, never the name.
+#[tokio::test]
+async fn behind_the_environment_proxy_the_receiver_is_reached_at_the_checked_address() {
+    let (port, taken) = receiver(ok_answer(), false).await;
+    let (proxy, asked) = connect_proxy(None).await;
+
+    let attempt = post_behind_proxy(proxy, Answers::steady(), port).await;
+
+    assert!(attempt.ok, "{attempt:?}");
+    assert_eq!(
+        entries(&asked),
+        [format!("CONNECT {PUBLIC}:{port} HTTP/1.1")]
+    );
+    assert_eq!(taken.load(Ordering::SeqCst), 1);
+}
+
+/// The acceptance case: the name passes the check with a public address and answers with
+/// loopback when the connection is made. Neither the proxy nor the receiver is reached.
+#[tokio::test]
+async fn behind_the_environment_proxy_a_rebinding_name_reaches_nothing_inside() {
+    let (port, taken) = receiver(ok_answer(), false).await;
+    let (proxy, asked) = connect_proxy(None).await;
+
+    let attempt = post_behind_proxy(proxy, Answers::rebinding(), port).await;
+
+    assert!(!attempt.ok, "{attempt:?}");
+    assert!(!attempt.retryable, "{attempt:?}");
+    assert!(
+        attempt
+            .excerpt
+            .as_deref()
+            .is_some_and(|text| text.contains("may not reach")),
+        "{attempt:?}"
+    );
+    assert!(entries(&asked).is_empty(), "{:?}", entries(&asked));
+    assert_eq!(taken.load(Ordering::SeqCst), 0);
+}
+
+/// A network where only the proxy could resolve the receiver: the call is not handed over
+/// unchecked, and the history names `proxy.name_unresolved`.
+#[tokio::test]
+async fn a_name_only_the_proxy_could_resolve_is_named_by_its_code() {
+    let (port, taken) = receiver(ok_answer(), false).await;
+    let (proxy, asked) = connect_proxy(None).await;
+
+    let attempt = post_behind_proxy(proxy, Answers::nothing(), port).await;
+
+    assert!(!attempt.ok, "{attempt:?}");
+    assert!(attempt.retryable, "{attempt:?}");
+    assert!(
+        attempt
+            .excerpt
+            .as_deref()
+            .is_some_and(|text| text.starts_with(rd_http::CODE_NAME_UNRESOLVED)),
+        "{attempt:?}"
+    );
+    assert!(entries(&asked).is_empty(), "{:?}", entries(&asked));
+    assert_eq!(taken.load(Ordering::SeqCst), 0);
 }
 
 #[test]

@@ -82,6 +82,7 @@ pub async fn create_proxy_profile(
             endpoint,
             username,
             secret_ref: secret_ref.clone(),
+            resolves_names: request.resolves_names,
         })
         .await;
     let value = match result {
@@ -141,6 +142,7 @@ pub async fn update_proxy_profile(
                 endpoint,
                 username,
                 secret_ref: new_secret_ref.clone(),
+                resolves_names: request.resolves_names,
             },
         )
         .await;
@@ -230,6 +232,10 @@ fn changed_fields(before: &rd_core::ProxyProfile, after: &rd_core::ProxyProfile)
         ("endpoint", before.endpoint != after.endpoint),
         ("username", before.username != after.username),
         ("password", before.secret_ref != after.secret_ref),
+        (
+            "resolves_names",
+            before.resolves_names != after.resolves_names,
+        ),
     ]
     .into_iter()
     .filter_map(|(name, changed)| changed.then_some(name))

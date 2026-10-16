@@ -224,3 +224,31 @@ async fn every_proxy_and_login_change_leaves_an_audit_record() {
         "a password reached the audit log: {all}"
     );
 }
+
+/// RD-1320-07: a profile says whether its proxy resolves target names itself — off unless it
+/// is asked for, so the proxy is handed the checked address — and an edit changes it.
+#[tokio::test]
+async fn a_proxy_resolves_names_itself_only_when_the_profile_says_so() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::test_harness(directory.path()).await;
+    let router = &harness.router;
+    let mut body = proxy("http://proxy-a.example:3128", None);
+    body["username"] = Value::Null;
+    let profile = created(router, PROXIES, body.clone()).await;
+    assert_eq!(profile["resolves_names"], false, "{profile}");
+    let uri = format!("{PROXIES}/{}", profile["id"].as_str().expect("id"));
+
+    let mut resolving = body;
+    resolving["resolves_names"] = json!(true);
+    let (status, body) = common::put_json(router, &uri, resolving).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["resolves_names"], true, "{body}");
+
+    let stored = harness
+        .database
+        .proxy_profile(serde_json::from_value(profile["id"].clone()).expect("id"))
+        .await
+        .expect("read")
+        .expect("profile");
+    assert!(stored.resolves_names);
+}

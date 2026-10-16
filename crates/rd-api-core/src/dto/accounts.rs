@@ -84,6 +84,12 @@ pub struct CreateProxyProfileRequest {
     pub username: Option<String>,
     #[schema(write_only)]
     pub password: Option<String>,
+    /// Whether the proxy resolves target names itself (RD-1320-07). Off, the default, the
+    /// service resolves and checks an address a stranger named and asks the proxy for a tunnel
+    /// to that address; the proxy must then allow `CONNECT` to the target's port. On, the proxy
+    /// is handed the name, for a network where only the proxy can resolve.
+    #[serde(default)]
+    pub resolves_names: bool,
 }
 
 /// Persistent NNTP endpoint with a write-only password.

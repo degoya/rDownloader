@@ -5,7 +5,9 @@
 //! (a push service is never on the person's own network), no redirect is followed and only the
 //! head of a failed answer is read. The service decides which subscriptions a message goes to;
 //! this module sends one and says how it went, including the 404/410 that means the browser has
-//! dropped the subscription.
+//! dropped the subscription. Behind the proxy the environment names it pins as a webhook does
+//! (RD-1330-01): a tunnel the proxy refuses is `proxy.tunnel_refused` with the status, a name
+//! only the proxy could resolve `proxy.name_unresolved`.
 
 use std::time::Duration;
 
@@ -139,7 +141,20 @@ pub async fn send_push(
     payload: &[u8],
     severity: Severity,
 ) -> PushOutcome {
-    match try_send(key, subscription, payload, severity).await {
+    let route = rd_http::EnvironmentRoute::system();
+    send_push_via(&route, key, subscription, payload, severity).await
+}
+
+/// [`send_push`] the way `route` says: its lookup and the proxy it names. A test hands in its
+/// own.
+async fn send_push_via(
+    route: &rd_http::EnvironmentRoute,
+    key: &VapidKey,
+    subscription: &WebPushSubscription,
+    payload: &[u8],
+    severity: Severity,
+) -> PushOutcome {
+    match try_send(route, key, subscription, payload, severity).await {
         Ok(outcome) => outcome,
         // A transport error (DNS, TLS, connection refused) is worth another attempt.
         Err(error) => failed(None, error.to_string(), true),
@@ -147,12 +162,13 @@ pub async fn send_push(
 }
 
 async fn try_send(
+    route: &rd_http::EnvironmentRoute,
     key: &VapidKey,
     subscription: &WebPushSubscription,
     payload: &[u8],
     severity: Severity,
 ) -> anyhow::Result<PushOutcome> {
-    if !is_deliverable_push_address(&subscription.endpoint, &rd_http::SystemLookup).await {
+    if !is_deliverable_push_address(&subscription.endpoint, route.lookup()).await {
         return Ok(failed(None, REFUSED, false));
     }
     let Ok(url) = reqwest::Url::parse(subscription.endpoint.trim()) else {
@@ -170,7 +186,7 @@ async fn try_send(
     } else {
         "high"
     };
-    let response = match webhook::client(&reach, TIMEOUT)?
+    let response = match webhook::client(&reach, route, &url, TIMEOUT)?
         .post(url)
         .header(reqwest::header::AUTHORIZATION, authorization)
         .header(reqwest::header::CONTENT_ENCODING, "aes128gcm")
@@ -183,7 +199,12 @@ async fn try_send(
     {
         Ok(response) => response,
         Err(error) if rd_http::is_refusal(&error) => return Ok(failed(None, REFUSED, false)),
-        Err(error) => return Err(error.into()),
+        Err(error) => {
+            return match webhook::proxy_detail(&error) {
+                Some((detail, retryable)) => Ok(failed(None, detail, retryable)),
+                None => Err(error.into()),
+            };
+        }
     };
     Ok(judge(response).await)
 }

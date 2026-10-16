@@ -45,6 +45,11 @@ pub struct ProxyProfile {
     #[schema(ignore)]
     pub secret_ref: Option<String>,
     pub has_credentials: bool,
+    /// Whether the proxy resolves target names itself (RD-1320-07): off, the service resolves
+    /// and checks a stranger's address and hands the proxy that address; on, the proxy is
+    /// handed the name, for a network where only the proxy can resolve.
+    #[serde(default)]
+    pub resolves_names: bool,
 }
 
 /// Resolver selected for a link.

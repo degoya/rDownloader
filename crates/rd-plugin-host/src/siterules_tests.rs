@@ -19,6 +19,8 @@ use tokio::{
 };
 use url::Url;
 
+use rd_http::test_support::{PUBLIC, connect_proxy, entries, refusing_proxy};
+
 use super::{RuleCaptcha, RuleNetwork, RuleResolver};
 
 /// A server that answers canned responses and remembers the request lines it saw.
@@ -71,16 +73,41 @@ fn ok(body: &str) -> String {
 }
 
 async fn test_network(directory: &Path) -> RuleNetwork {
+    network_with(directory, None).await
+}
+
+/// A rule network whose global proxy is the recording one on `port`, resolving names itself
+/// when `resolves_names`.
+async fn test_network_behind(directory: &Path, port: u16, resolves_names: bool) -> RuleNetwork {
+    network_with(directory, Some((port, resolves_names))).await
+}
+
+async fn network_with(directory: &Path, proxy: Option<(u16, bool)>) -> RuleNetwork {
     let database = rd_db::Database::open(directory.join("rules.sqlite"))
         .await
         .expect("database");
     let secrets = rd_secrets::SecretStore::open(directory.join("secrets"))
         .await
         .expect("secret store");
+    let mut defaults = rd_http::NetworkDefaults::default();
+    if let Some((port, resolves_names)) = proxy {
+        let profile = database
+            .create_proxy_profile(rd_db::NewProxyProfile {
+                name: "recording proxy".to_owned(),
+                kind: rd_core::ProxyKind::Http,
+                endpoint: format!("http://127.0.0.1:{port}").parse().expect("proxy"),
+                username: None,
+                secret_ref: None,
+                resolves_names,
+            })
+            .await
+            .expect("proxy profile");
+        defaults.global_proxy_profile_id = Some(profile.id);
+    }
     RuleNetwork::new(
         database,
         secrets,
-        Arc::new(tokio::sync::RwLock::new(rd_http::NetworkDefaults::default())),
+        Arc::new(tokio::sync::RwLock::new(defaults)),
     )
 }
 
@@ -128,6 +155,77 @@ async fn the_fetcher_connects_to_the_addresses_it_is_handed_and_resolves_nothing
         ),
         "without the checked addresses the name cannot be reached at all: {unpinned:?}"
     );
+}
+
+/// RD-1330-01: behind the proxy the pinning holds — the proxy is handed the address the
+/// executor checked, never the name, so whatever the name would answer the proxy a moment
+/// later reaches nothing. `.invalid` never resolves anywhere: the request arriving proves that
+/// no resolver, here or at the proxy, was asked.
+#[tokio::test]
+async fn behind_the_proxy_the_fetcher_hands_it_the_checked_address() {
+    let server = serve(vec![ok("pinned")]).await;
+    let port = server.address.port();
+    let (proxy, asked) = connect_proxy(None).await;
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let network = test_network_behind(directory.path(), proxy, false).await;
+    let url: Url = format!("http://pinned.invalid:{port}/page")
+        .parse()
+        .expect("url");
+
+    let answered = network
+        .fetcher()
+        .fetch(request(&url, vec![PUBLIC]))
+        .await
+        .expect("the checked address answered");
+
+    assert_eq!(answered.status, 200);
+    assert_eq!(answered.body, "pinned");
+    assert_eq!(
+        entries(&asked),
+        [format!("CONNECT {PUBLIC}:{port} HTTP/1.1")]
+    );
+    assert_eq!(server.requests(), ["GET /page HTTP/1.1"]);
+}
+
+/// The profile's "the proxy resolves names itself": the proxy is handed the name, as before.
+#[tokio::test]
+async fn with_the_proxy_resolving_names_it_is_handed_the_name() {
+    let (proxy, asked) = connect_proxy(None).await;
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let network = test_network_behind(directory.path(), proxy, true).await;
+    let url: Url = "http://pinned.invalid:8080/page".parse().expect("url");
+
+    let answered = network
+        .fetcher()
+        .fetch(request(&url, vec![PUBLIC]))
+        .await
+        .expect("the proxy answered");
+
+    // The fixture opens tunnels only; an absolute-form request is answered `502`.
+    assert_eq!(answered.status, 502);
+    assert_eq!(
+        entries(&asked),
+        ["GET http://pinned.invalid:8080/page HTTP/1.1"]
+    );
+}
+
+/// A tunnel the proxy refuses reaches the run by its stable code and the proxy's status.
+#[tokio::test]
+async fn a_refused_tunnel_is_named_by_its_code_and_status() {
+    let (proxy, asked) = refusing_proxy(403).await;
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let network = test_network_behind(directory.path(), proxy, false).await;
+    let url: Url = "http://pinned.invalid:8080/page".parse().expect("url");
+
+    let failure = network.fetcher().fetch(request(&url, vec![PUBLIC])).await;
+
+    let reason = match failure {
+        Err(FetchFailure::Other(reason)) => reason,
+        other => panic!("a refused tunnel is a failure with a reason: {other:?}"),
+    };
+    assert!(reason.starts_with(rd_http::CODE_TUNNEL_REFUSED), "{reason}");
+    assert!(reason.contains("403"), "{reason}");
+    assert_eq!(entries(&asked), [format!("CONNECT {PUBLIC}:8080 HTTP/1.1")]);
 }
 
 /// Obligation two: a client that followed redirects on its own would hide every hop from the

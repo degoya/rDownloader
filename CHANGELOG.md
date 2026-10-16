@@ -5,6 +5,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.33.0] - 2026-10-16
+
+### Fixed
+
+- **The address rule holds behind a proxy** (RD-1320-07). A name that answered the check with a
+  public address and the proxy a moment later with an internal one (DNS rebinding) got through
+  on every guarded path behind a proxy. A guarded client behind an HTTP(S) proxy now resolves and
+  checks the target itself and asks the proxy for `CONNECT <ip>:<port>` through a loopback SOCKS5
+  bridge private to that client (`rd-http` `pinned_proxy.rs`); TLS keeps the name for SNI and the
+  certificate, plain HTTP goes through the tunnel in origin-form. SOCKS5 profiles are pinned by
+  the guarded resolver, `socks5h` is connected as `socks5`. A refused tunnel is
+  `proxy.tunnel_refused` with the proxy's status. The proxy profile's new setting "Proxy resolves
+  names itself" (`resolves_names`, migration 0148, REST, MCP, settings backup; off by default)
+  keeps the old behaviour for a network where only the proxy can resolve. One rule
+  (`NameResolution`, `check_before_request`) for the client pool, the plugin host's
+  `check_reach` and the hand-over fetch.
+- **A link to a SOCKS5 proxy's own name is judged like any other** (RD-1320-07 follow-up). The
+  guarded resolver let the proxy's name through unchecked for every lookup, so a stranger's
+  `http://proxy.lan:8080/` reached the proxy's host on any port. A SOCKS5 profile now goes
+  through the loopback bridge like an HTTP(S) one: the bridge resolves the proxy's name itself
+  and speaks SOCKS5 upstream (`CONNECT` to the checked address, RFC 1929 login; a refused login
+  is `proxy.tunnel_refused` with `407`), and the exemption is gone (`rd-http`
+  `pinned_proxy_upstream.rs`).
+- **Webhooks, the reconnect IP check, object storage and site rules pin behind a proxy too**
+  (RD-1330-01). Each built its own client and still let the proxy resolve the name. Webhooks,
+  Web Push and the IP check now take the proxy `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY` names
+  (`NO_PROXY` as before, read with reqwest's own matcher) through the bridge and always pin
+  (`rd_http::EnvironmentRoute`; owner 2026-10-16, no switch). Object storage takes the global
+  proxy profile in its own connector instead of `with_proxy_url`, the site-rule fetcher goes
+  through `rd_http::with_proxy`; both follow the profile's `resolves_names`. Behind a pinned proxy
+  a name this machine cannot resolve fails as `proxy.name_unresolved`, and a refused tunnel is
+  `proxy.tunnel_refused` with its status on all four paths. The proxy test fixtures are
+  `rd_http::test_support` (feature `test-support`).
+- **Object storage pins the environment's proxy too; downloads and Web Push name the proxy's
+  failures** (RD-1330-01 follow-ups). Object storage without a global proxy profile no longer
+  hands the environment's proxy the endpoint's name: an endpoint held to the address rule goes
+  through `rd_http::EnvironmentRoute` like a webhook, always pinned
+  (`connect/transport.rs::EnvironmentWay`; `NO_PROXY` matched against the host reached). A
+  download behind a pinned proxy whose name does not resolve here fails as
+  `proxy.name_unresolved` instead of `download.network_failed`. Web Push reports a refused tunnel
+  as `proxy.tunnel_refused` with the status and an unresolved name as `proxy.name_unresolved`, as
+  webhooks do. The proxy profile's "Proxy resolves names itself" text names object storage.
+
 ## [1.32.0] - 2026-10-16
 
 ### Added

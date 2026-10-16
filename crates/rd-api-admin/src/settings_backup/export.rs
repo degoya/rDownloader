@@ -119,6 +119,7 @@ async fn bundle_proxy_profiles(
             endpoint: profile.endpoint,
             username: profile.username,
             secret_slot,
+            resolves_names: profile.resolves_names,
         });
     }
     Ok(bundled_proxies)

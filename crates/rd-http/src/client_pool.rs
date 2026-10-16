@@ -7,7 +7,7 @@ use std::{
 use anyhow::{Context, Result};
 use rd_core::{AccountId, AuthProfileId, ProxyProfile, ProxyProfileId};
 use reqwest::{
-    Certificate, Client, Identity, Proxy,
+    Certificate, Client, Identity,
     cookie::Jar,
     redirect::{Attempt, Policy},
 };
@@ -207,14 +207,6 @@ fn build_client(context: &ClientContext, cookie_jar: Arc<Jar>) -> Result<Client>
             context.key.address_policy.clone(),
         ));
 
-    if let Some(profile) = &context.proxy {
-        let mut proxy = Proxy::all(profile.endpoint.as_str()).context("create proxy")?;
-        if let Some(credentials) = &context.proxy_credentials {
-            proxy = proxy.basic_auth(&credentials.username, credentials.password.expose_secret());
-        }
-        builder = builder.proxy(proxy);
-    }
-
     for pem in &context.custom_ca_pem {
         let certificate = Certificate::from_pem(pem).context("parse custom CA certificate")?;
         builder = builder.add_root_certificate(certificate);
@@ -226,14 +218,25 @@ fn build_client(context: &ClientContext, cookie_jar: Arc<Jar>) -> Result<Client>
         builder = builder.identity(identity);
     }
 
-    // Through a proxy the resolver would only ever see the proxy's own name — which may well
-    // sit on the person's network — while the proxy resolves the target. The target was still
-    // judged before the request (`check_target`), and every redirect hop still is.
-    if let Some(policy) = &context.key.address_policy
-        && context.proxy.is_none()
-    {
-        builder = builder.dns_resolver(crate::GuardedResolver::system(policy.clone()));
-    }
+    // A guarded client resolves and checks every target itself, when the connection is made;
+    // behind a proxy the proxy is then handed the checked address, not the name, which it
+    // would resolve again — unless the profile says it resolves names itself (RD-1320-07).
+    // The target is also judged before the request (`check_target`), and every redirect hop is.
+    let guard = context.key.address_policy.as_ref();
+    builder = match (&context.proxy, guard) {
+        (Some(profile), _) => crate::with_proxy(
+            builder,
+            &profile.endpoint,
+            context.proxy_credentials.as_ref(),
+            guard,
+            crate::NameResolution::of(Some(profile)),
+            &context.custom_ca_pem,
+        )?,
+        (None, Some(policy)) => {
+            builder.dns_resolver(crate::GuardedResolver::system(policy.clone()))
+        }
+        (None, None) => builder,
+    };
 
     builder.build().context("build HTTP client")
 }

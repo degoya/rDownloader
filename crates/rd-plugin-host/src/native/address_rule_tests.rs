@@ -4,7 +4,11 @@
 
 use std::sync::Arc;
 
-use rd_http::{AddressPolicy, ClientPool, NetworkDefaults};
+use rd_http::{
+    AddressPolicy, ClientPool,
+    NameResolution::{AtProxy, Here},
+    NetworkDefaults,
+};
 use rd_plugin_api::{ClientIdentity, HostHttpRequest, ResolverHost};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -173,9 +177,10 @@ async fn our_own_services_are_refused_even_for_an_entered_address() {
     assert_eq!(refused.code.as_deref(), Some("plugin.http_local_target"));
 }
 
-/// A literal, and any target behind a proxy, is judged before the request.
+/// A literal, and a name behind a proxy that resolves names itself, is judged before the
+/// request.
 #[tokio::test]
-async fn literals_and_proxied_targets_are_judged_before_the_request() {
+async fn literals_and_names_a_proxy_resolves_are_judged_before_the_request() {
     let url = |text: &str| -> Url { text.parse().expect("url") };
     let own = own();
     let public = AddressPolicy::new(false);
@@ -185,26 +190,32 @@ async fn literals_and_proxied_targets_are_judged_before_the_request() {
         "http://10.0.0.5:8080/",
         "http://[fd12:3456::1]/",
     ] {
-        let refused = check_reach(&public, &url(target), false, &own)
+        let refused = check_reach(&public, &url(target), Here, &own)
             .await
             .expect_err("a domain the plugin named reaches public addresses only");
         assert_eq!(refused.code.as_deref(), Some("plugin.http_local_target"));
-        assert!(check_reach(&lan, &url(target), false, &own).await.is_ok());
+        assert!(check_reach(&lan, &url(target), Here, &own).await.is_ok());
     }
     assert!(
-        check_reach(&public, &url("http://93.184.216.34/"), false, &own)
+        check_reach(&public, &url("http://93.184.216.34/"), Here, &own)
             .await
             .is_ok()
     );
-    // Through a proxy a name is judged here as well, since the proxy resolves it; one this
-    // machine cannot resolve is left to the proxy.
+    // Behind a proxy that resolves names itself a name is judged here as well; one this
+    // machine cannot resolve is left to the proxy (RD-1320-07). Resolved here, a name is the
+    // guarded resolver's to judge, behind a proxy or not.
     assert!(
-        check_reach(&public, &url("http://localhost:9/"), true, &own)
+        check_reach(&public, &url("http://localhost:9/"), AtProxy, &own)
             .await
             .is_err()
     );
     assert!(
-        check_reach(&public, &url("http://unresolvable.invalid/"), true, &own)
+        check_reach(&public, &url("http://unresolvable.invalid/"), AtProxy, &own)
+            .await
+            .is_ok()
+    );
+    assert!(
+        check_reach(&public, &url("http://localhost:9/"), Here, &own)
             .await
             .is_ok()
     );

@@ -1,5 +1,6 @@
 //! The hand-over fetch goes out on the service's own network (RD-1320-06): through the proxy,
-//! never around one it cannot use, and trusting the custom CA.
+//! never around one it cannot use, and trusting the custom CA. Behind a proxy the checked
+//! address is pinned unless the profile says the proxy resolves names itself (RD-1320-07).
 
 use std::{
     net::SocketAddr,
@@ -126,8 +127,43 @@ fn plan(url: &str, cookies: Option<&str>) -> FetchPlan {
     FetchPlan::new(url, cookies, None, None).expect("plan")
 }
 
-fn proxy(address: SocketAddr) -> reqwest::Proxy {
-    reqwest::Proxy::all(format!("http://{address}")).expect("proxy")
+/// The proxy at `address`, resolving names itself: the behaviour before RD-1320-07, which the
+/// fixtures below, that play proxy and server at once for names nothing resolves, rely on.
+fn proxy(address: SocketAddr) -> rd_scheduler::ToolProxy {
+    pinned_proxy(address).resolving_names(true)
+}
+
+/// The proxy at `address` as a profile has it by default: handed the checked address.
+fn pinned_proxy(address: SocketAddr) -> rd_scheduler::ToolProxy {
+    let endpoint = format!("http://{address}").parse().expect("endpoint");
+    rd_scheduler::ToolProxy::new(rd_core::ProxyKind::Http, endpoint, None, None).expect("proxy")
+}
+
+/// A proxy that refuses every request with `403` and records each request line.
+async fn refusing() -> (SocketAddr, Log) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let address = listener.local_addr().expect("address");
+    let log = Log::default();
+    let seen = Arc::clone(&log);
+    tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let mut raw = Vec::new();
+            let mut buffer = [0_u8; 1024];
+            while !raw.windows(4).any(|window| window == b"\r\n\r\n") {
+                match stream.read(&mut buffer).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(read) => raw.extend_from_slice(&buffer[..read]),
+                }
+            }
+            let text = String::from_utf8_lossy(&raw).into_owned();
+            let line = text.lines().next().unwrap_or_default().to_owned();
+            rd_testkit::lock(&seen).push((line, None));
+            let _ = stream
+                .write_all(b"HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\n\r\n")
+                .await;
+        }
+    });
+    (address, log)
 }
 
 /// Through the proxy, with the cookies. The target's name does not resolve, so a request the
@@ -265,4 +301,53 @@ async fn through_the_proxy_a_redirect_inside_is_refused() {
         seen[0].0,
         "GET http://indexer.test/redirect-inside HTTP/1.1"
     );
+}
+
+/// RD-1320-07, the setting off: the proxy is handed only an address checked here, so a name
+/// this machine cannot resolve is not fetched — the proxy is never asked for it.
+#[tokio::test]
+async fn with_the_pin_a_name_only_the_proxy_could_resolve_is_not_fetched() {
+    let (address, seen) = plain().await;
+    let guard = rd_http::AddressPolicy::new(true);
+    let network = FetchNetwork::new(Some(pinned_proxy(address)), Vec::new());
+
+    let error = fetch_once(
+        &plan("http://indexer.test/getnzb/abc", None),
+        1024,
+        Some(&guard),
+        &network,
+    )
+    .await
+    .expect_err("not resolvable here");
+
+    assert_eq!(error.code(), "capture.fetch_failed");
+    assert!(rd_testkit::lock(&seen).is_empty(), "the proxy was asked");
+}
+
+/// The setting off: the proxy is asked for a tunnel to the checked address, and its refusal
+/// reaches the caller as `proxy.tunnel_refused` with the status.
+#[tokio::test]
+async fn with_the_pin_a_refused_tunnel_is_reported_with_its_status() {
+    let (address, seen) = refusing().await;
+    let guard = rd_http::AddressPolicy::new(true);
+    let network = FetchNetwork::new(Some(pinned_proxy(address)), Vec::new());
+
+    let error = fetch_once(
+        &plan("http://93.184.216.34/file.nzb", None),
+        1024,
+        Some(&guard),
+        &network,
+    )
+    .await
+    .expect_err("refused");
+
+    let message = error.into_message();
+    assert_eq!(message.code, rd_http::CODE_TUNNEL_REFUSED);
+    assert_eq!(
+        message.params.get("status").map(String::as_str),
+        Some("403")
+    );
+    let seen = rd_testkit::lock(&seen).clone();
+    assert_eq!(seen.len(), 1, "{seen:?}");
+    assert_eq!(seen[0].0, "CONNECT 93.184.216.34:80 HTTP/1.1");
 }

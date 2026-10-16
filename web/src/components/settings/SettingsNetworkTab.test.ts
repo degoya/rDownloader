@@ -34,7 +34,8 @@ const TOR: ProxyProfile = {
   kind: 'socks5',
   endpoint: 'socks5h://127.0.0.1:9050',
   username: 'relay',
-  has_credentials: true
+  has_credentials: true,
+  resolves_names: false
 }
 
 function mount(proxies: ProxyProfile[] = [], globalProxy: string | null = null) {
@@ -79,6 +80,23 @@ describe('SettingsNetworkTab proxy form', () => {
     expect(failure.compareDocumentPosition(proxyForm()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect((screen.getByLabelText(settings.proxy.name_label) as HTMLInputElement).value).toBe('Tor')
   })
+
+  // RD-1320-07: off by default, so the proxy is handed the checked address; on for a network
+  // where only the proxy resolves names.
+  it('sends whether the proxy resolves names itself, off unless switched on', async () => {
+    post.mockReset()
+    post.mockResolvedValue({ data: { ...TOR, resolves_names: true } })
+    mount()
+    const resolves = screen.getByTestId('proxy-resolves-names')
+    expect(resolves.getAttribute('aria-checked')).toBe('false')
+    await fireEvent.update(screen.getByLabelText(settings.proxy.name_label), 'Corporate')
+    await fireEvent.click(resolves)
+    await fireEvent.submit(proxyForm())
+
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/proxy-profiles', {
+      body: expect.objectContaining({ name: 'Corporate', resolves_names: true })
+    }))
+  })
 })
 
 describe('SettingsNetworkTab proxy rows (RD-190-22)', () => {
@@ -88,6 +106,7 @@ describe('SettingsNetworkTab proxy rows (RD-190-22)', () => {
     await fireEvent.click(screen.getByRole('button', { name: settings.proxy.edit_title }))
 
     // The row's own endpoint, not the default the protocol switch would write.
+    expect(screen.getByTestId('proxy-resolves-names').getAttribute('aria-checked')).toBe('false')
     expect((screen.getByLabelText(settings.proxy.endpoint_label) as HTMLInputElement).value).toBe(TOR.endpoint)
     expect((screen.getByLabelText(settings.proxy.password_label) as HTMLInputElement).placeholder).toBe(settings.proxy.password_keep)
     await fireEvent.update(screen.getByLabelText(settings.proxy.name_label), 'Tor relay')
@@ -95,7 +114,7 @@ describe('SettingsNetworkTab proxy rows (RD-190-22)', () => {
 
     await waitFor(() => expect(put).toHaveBeenCalledWith('/api/v1/proxy-profiles/{id}', {
       params: { path: { id: 'p1' } },
-      body: { name: 'Tor relay', kind: 'socks5', endpoint: TOR.endpoint, username: 'relay', password: null }
+      body: { name: 'Tor relay', kind: 'socks5', endpoint: TOR.endpoint, username: 'relay', password: null, resolves_names: false }
     }))
     expect(await screen.findByText(settings.proxy.updated)).not.toBeNull()
     expect(screen.getByText('Tor relay')).not.toBeNull()
@@ -119,7 +138,7 @@ describe('SettingsNetworkTab proxy rows (RD-190-22)', () => {
     await fireEvent.submit(proxyForm())
     await waitFor(() => expect(put).toHaveBeenCalledWith('/api/v1/proxy-profiles/{id}', {
       params: { path: { id: 'p1' } },
-      body: { name: 'Tor', kind: 'socks5', endpoint: 'socks5h://10.0.0.9:9050', username: 'relay', password: 'secret' }
+      body: { name: 'Tor', kind: 'socks5', endpoint: 'socks5h://10.0.0.9:9050', username: 'relay', password: 'secret', resolves_names: false }
     }))
   })
 
@@ -136,7 +155,7 @@ describe('SettingsNetworkTab proxy rows (RD-190-22)', () => {
     await fireEvent.submit(proxyForm())
 
     await waitFor(() => expect(post).toHaveBeenCalledWith('/api/v1/proxy-profiles', {
-      body: { name: 'Tor (copy)', kind: 'socks5', endpoint: TOR.endpoint, username: 'relay', password: 'secret' }
+      body: { name: 'Tor (copy)', kind: 'socks5', endpoint: TOR.endpoint, username: 'relay', password: 'secret', resolves_names: false }
     }))
     expect(await screen.findAllByTestId('proxy-row')).toHaveLength(2)
   })

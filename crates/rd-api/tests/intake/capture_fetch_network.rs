@@ -89,6 +89,8 @@ async fn global_proxy(
             endpoint: endpoint.parse().expect("endpoint"),
             username: username.map(str::to_owned),
             secret_ref: secret_ref.map(str::to_owned),
+            // The fixture plays the proxy and resolves the names itself (RD-1320-07).
+            resolves_names: true,
         })
         .await
         .expect("proxy profile");

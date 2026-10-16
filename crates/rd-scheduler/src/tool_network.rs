@@ -54,6 +54,9 @@ pub struct ToolProxy {
     credentialed: Option<SecretString>,
     /// The same credentials undecoded, for a client of the service's own (RD-1240-22).
     basic_auth: Option<(String, SecretString)>,
+    /// Whether the proxy resolves target names itself (RD-1320-07); only a client of the
+    /// service's own under an address rule asks.
+    resolves_names: bool,
 }
 
 impl std::fmt::Debug for ToolProxy {
@@ -107,7 +110,41 @@ impl ToolProxy {
             endpoint,
             credentialed,
             basic_auth,
+            resolves_names: false,
         })
+    }
+
+    /// The same proxy, resolving target names itself when the profile says so (RD-1320-07).
+    #[must_use]
+    pub fn resolving_names(mut self, resolves_names: bool) -> Self {
+        self.resolves_names = resolves_names;
+        self
+    }
+
+    /// Gives a `reqwest` client of the service's own this proxy, under the address rule
+    /// `guard` when there is one: the rule every guarded request keeps behind a proxy
+    /// (`rd_http::with_proxy`, RD-1320-07).
+    pub fn route(
+        &self,
+        builder: reqwest::ClientBuilder,
+        guard: Option<&rd_http::AddressPolicy>,
+        custom_ca_pem: &[Vec<u8>],
+    ) -> Result<reqwest::ClientBuilder> {
+        let credentials =
+            self.basic_auth
+                .as_ref()
+                .map(|(username, password)| rd_http::ProxyCredentials {
+                    username: username.clone(),
+                    password: password.clone(),
+                });
+        rd_http::with_proxy(
+            builder,
+            &self.endpoint,
+            credentials.as_ref(),
+            guard,
+            rd_http::NameResolution::resolving_at_proxy(self.resolves_names),
+            custom_ca_pem,
+        )
     }
 
     /// The proxy for a `reqwest` client of the service's own, built as `rd-http` builds a
@@ -395,12 +432,16 @@ impl ToolNetworkSource {
                     ),
                     None => None,
                 };
-                Some(ToolProxy::new(
-                    profile.kind,
-                    profile.endpoint,
-                    profile.username.as_deref(),
-                    password.as_ref(),
-                )?)
+                let resolves_names = profile.resolves_names;
+                Some(
+                    ToolProxy::new(
+                        profile.kind,
+                        profile.endpoint,
+                        profile.username.as_deref(),
+                        password.as_ref(),
+                    )?
+                    .resolving_names(resolves_names),
+                )
             }
             None => None,
         };

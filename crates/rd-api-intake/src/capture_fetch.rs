@@ -28,7 +28,9 @@
 //!   custom CA, as the LinkGrabber's check does (RD-1320-06, RD-1240-22): a person behind a
 //!   proxy does not show the site their own address, and a company proxy with its own CA works.
 //!   A proxy that cannot be used is an error, never a direct fetch. Through a proxy the guard
-//!   judges every hop's target before the request, and the proxy resolves it.
+//!   judges every hop's target before the request and again as the connection is made, and the
+//!   proxy is handed the checked address — unless its profile says it resolves names itself
+//!   (RD-1320-07, `rd_http::with_proxy`).
 
 use std::{fmt, time::Duration};
 
@@ -90,7 +92,7 @@ pub(crate) struct FetchPlan {
 /// The network the fetch goes out on: the global proxy and the custom CA (RD-1320-06).
 #[derive(Default)]
 pub(crate) struct FetchNetwork {
-    proxy: Option<reqwest::Proxy>,
+    proxy: Option<rd_scheduler::ToolProxy>,
     custom_ca_pem: Vec<Vec<u8>>,
 }
 
@@ -102,21 +104,12 @@ impl FetchNetwork {
         scheduler: &rd_scheduler::SchedulerHandle,
         url: &Url,
     ) -> Result<Self, ApiError> {
-        let unusable = |reason: String| {
-            ApiError::bad_gateway(
-                "proxy.check_unavailable",
-                format!(
-                    "The proxy cannot be used, so the address was not fetched without it: {reason}"
-                ),
-            )
-            .with_param("reason", reason)
-        };
         let tool = scheduler
             .tool_network()
             .for_request(url)
             .await
             .map_err(|failure| {
-                unusable(
+                proxy_unusable(
                     failure
                         .params
                         .get("reason")
@@ -124,11 +117,7 @@ impl FetchNetwork {
                         .unwrap_or(failure.message),
                 )
             })?;
-        let proxy = tool
-            .proxy()
-            .map(rd_scheduler::ToolProxy::http_proxy)
-            .transpose()
-            .map_err(|error| unusable(rd_core::redact_text(&format!("{error:#}"))))?;
+        let proxy = tool.proxy().cloned();
         let custom_ca_pem = scheduler
             .network_defaults()
             .read()
@@ -142,7 +131,7 @@ impl FetchNetwork {
     }
 
     #[cfg(test)]
-    pub(crate) fn new(proxy: Option<reqwest::Proxy>, custom_ca_pem: Vec<Vec<u8>>) -> Self {
+    pub(crate) fn new(proxy: Option<rd_scheduler::ToolProxy>, custom_ca_pem: Vec<Vec<u8>>) -> Self {
         Self {
             proxy,
             custom_ca_pem,
@@ -312,31 +301,27 @@ pub(crate) async fn fetch_once(
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(TOTAL_TIMEOUT);
-    if let Some(proxy) = &network.proxy {
-        // The proxy alone: the service's own proxy variables do not apply beside it.
-        builder = builder.no_proxy().proxy(proxy.clone());
-    }
     for pem in &network.custom_ca_pem {
         let certificate = reqwest::Certificate::from_pem(pem).map_err(anyhow::Error::new)?;
         builder = builder.add_root_certificate(certificate);
     }
-    if let Some(policy) = guard
-        && network.proxy.is_none()
-    {
-        // The name is resolved again to connect; the guard sees that answer too, so a name
-        // that pointed elsewhere at the check below cannot point inside now.
-        //
-        // Through a proxy the service's rule for every guarded request applies (RD-150-03;
-        // `rd_http::client_pool::build_client`, `rd_plugin_host`'s `check_reach`, and the
-        // LinkGrabber's guarded check, which builds on the former): the resolver would only see
-        // the proxy's own name, so it is left out, and the target is judged before every hop
-        // by `screen_hop`. The proxy resolves the target itself, so a name that answers
-        // differently there is the proxy's to resolve — the person chose it — and a name this
-        // machine cannot resolve is left to the proxy, which may know it. Neither a proxy on
-        // loopback or the local network (a local authenticating proxy, the company's) is
-        // refused: the LinkGrabber's check does not refuse them either.
-        builder = builder.dns_resolver(rd_http::GuardedResolver::system(policy.clone()));
-    }
+    // The name is resolved again to connect, and the guard sees that answer too, so a name that
+    // pointed elsewhere at the check below cannot point inside now. Behind a proxy as well: the
+    // proxy is handed the checked address, the rule of every guarded request (RD-1320-07;
+    // `rd_http::client_pool::build_client`, `rd_plugin_host`'s `check_reach`) — unless the
+    // profile says the proxy resolves names itself, when the target is judged before every hop
+    // alone (`screen_hop`). A proxy on loopback or the local network is not refused: the
+    // LinkGrabber's check does not refuse one either.
+    builder = match (&network.proxy, guard) {
+        // The proxy alone: the service's own proxy variables do not apply beside it.
+        (Some(proxy), _) => proxy
+            .route(builder.no_proxy(), guard, &network.custom_ca_pem)
+            .map_err(|error| proxy_unusable(rd_core::redact_text(&format!("{error:#}"))))?,
+        (None, Some(policy)) => {
+            builder.dns_resolver(rd_http::GuardedResolver::system(policy.clone()))
+        }
+        (None, None) => builder,
+    };
     let client = builder.build().map_err(anyhow::Error::new)?;
     let mut current = plan.url.clone();
     for _ in 0..=MAX_REDIRECTS {
@@ -361,6 +346,13 @@ pub(crate) async fn fetch_once(
         let response = request.send().await.map_err(|error| {
             if rd_http::is_refusal(&error) {
                 return address_refused();
+            }
+            if let Some(status) = rd_http::tunnel_refusal(&error) {
+                return ApiError::bad_gateway(
+                    rd_http::CODE_TUNNEL_REFUSED,
+                    format!("The proxy refused the connection with status {status}"),
+                )
+                .with_param("status", status);
             }
             tracing::info!(
                 host = plan.host(),
@@ -467,6 +459,15 @@ fn address_refused() -> ApiError {
         "capture.fetch_address_refused",
         "The address points at this machine or at an address the service may not request",
     )
+}
+
+/// `proxy.check_unavailable` (`502`): the proxy cannot be set up, so nothing is fetched.
+fn proxy_unusable(reason: String) -> ApiError {
+    ApiError::bad_gateway(
+        "proxy.check_unavailable",
+        format!("The proxy cannot be used, so the address was not fetched without it: {reason}"),
+    )
+    .with_param("reason", reason)
 }
 
 fn fetch_failed() -> ApiError {

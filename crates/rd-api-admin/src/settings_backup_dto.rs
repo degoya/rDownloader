@@ -34,6 +34,9 @@ pub struct BundleProxyProfile {
     pub username: Option<String>,
     #[serde(default)]
     pub secret_slot: Option<String>,
+    /// Whether the proxy resolves target names itself (RD-1320-07).
+    #[serde(default)]
+    pub resolves_names: bool,
 }
 
 /// Auth profile in a settings bundle. Credentials travel as slot names, never as values.

@@ -10,8 +10,7 @@ use rd_db::{
 };
 
 fn replacement(label: &str) -> ConfigReplacement {
-    let root_id = StorageRootId::new();
-    let category_id = CategoryId::new();
+    let (root_id, category_id) = (StorageRootId::new(), CategoryId::new());
     let proxy_id = ProxyProfileId::new();
     ConfigReplacement {
         storage_roots: vec![StorageRootConfig {
@@ -105,6 +104,7 @@ fn replacement(label: &str) -> ConfigReplacement {
             endpoint: "socks5h://127.0.0.1:1080".parse().expect("proxy URL"),
             username: Some("proxy-user".to_owned()),
             secret_ref: Some(format!("vault://{label}-proxy")),
+            resolves_names: false,
         }],
         accounts: vec![ReplacementAccount {
             id: AccountId::new(),

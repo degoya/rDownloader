@@ -34,6 +34,7 @@ pub struct ReplacementProxyProfile {
     pub endpoint: Url,
     pub username: Option<String>,
     pub secret_ref: Option<String>,
+    pub resolves_names: bool,
 }
 
 #[derive(Clone, Debug)]

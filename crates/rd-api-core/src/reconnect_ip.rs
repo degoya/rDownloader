@@ -9,6 +9,10 @@
 //! 2026-10-05, S8): their own network and a responder on this machine are fine, a link-local
 //! address and rDownloader's own listeners are not, every redirect hop is held to the same rule,
 //! and only the head of an answer is read.
+//!
+//! Behind the proxy the environment names the lookup pins (RD-1330-01, owner 2026-10-16): the
+//! proxy is handed the address checked when the connection is made, never the name
+//! ([`rd_http::EnvironmentRoute`]); a name only the proxy could resolve is not asked at all.
 
 use std::time::Duration;
 
@@ -39,7 +43,7 @@ pub(crate) async fn public_address(configured: &[String]) -> Option<String> {
             continue;
         };
         let policy = rd_plugin_host::entered_address_policy(&url);
-        if let Some(address) = ask(&policy, url).await {
+        if let Some(address) = ask(&policy, &rd_http::EnvironmentRoute::system(), url).await {
             return Some(address);
         }
     }
@@ -83,29 +87,48 @@ fn endpoints(configured: &[String]) -> Vec<String> {
     }
 }
 
-async fn ask(policy: &rd_http::AddressPolicy, url: url::Url) -> Option<String> {
-    // A literal address never reaches the guarded resolver, and a proxy resolves the name
-    // itself; both are judged here.
+async fn ask(
+    policy: &rd_http::AddressPolicy,
+    route: &rd_http::EnvironmentRoute,
+    url: url::Url,
+) -> Option<String> {
+    // A literal address never reaches the guarded resolver; it is judged here, and a name with
+    // it.
     if let Err(rd_http::TargetRefusal::Refused(refused)) =
-        rd_http::check_target(policy, &rd_http::SystemLookup, &url).await
+        rd_http::check_target(policy, route.lookup(), &url).await
     {
         tracing::warn!(host = %refused.host, "an IP check address is refused by the address rule");
         return None;
     }
-    let response = client(policy)?.get(url).send().await.ok()?;
+    let response = match client(policy, route, &url)?.get(url).send().await {
+        Ok(response) => response,
+        Err(error) => {
+            if let Some(failure) =
+                rd_http::tunnel_failure(&error).or_else(|| rd_http::unresolved_failure(&error))
+            {
+                let code = failure.code.as_deref().unwrap_or_default();
+                tracing::warn!(code, %failure, "the proxy did not carry the IP check");
+            }
+            return None;
+        }
+    };
     let head = crate::input_checks::read_body_prefix(response, MAX_ANSWER_BYTES)
         .await
         .ok()?;
     parse_address(&String::from_utf8_lossy(&head))
 }
 
-/// A client for one lookup: names resolved through the guard at connect time, and every
-/// redirect hop held to the same rule.
-fn client(policy: &rd_http::AddressPolicy) -> Option<reqwest::Client> {
+/// A client for one lookup of `target`: names resolved through the guard at connect time,
+/// behind the proxy the environment names as well, and every redirect hop held to the same
+/// rule.
+fn client(
+    policy: &rd_http::AddressPolicy,
+    route: &rd_http::EnvironmentRoute,
+    target: &url::Url,
+) -> Option<reqwest::Client> {
     let hops = policy.clone();
-    rd_http::client_builder(rd_http::ClientPurpose::Service)
+    let builder = rd_http::client_builder(rd_http::ClientPurpose::Service)
         .timeout(LOOKUP_TIMEOUT)
-        .dns_resolver(rd_http::GuardedResolver::system(policy.clone()))
         .redirect(reqwest::redirect::Policy::custom(move |attempt| {
             if attempt.previous().len() >= MAX_REDIRECTS {
                 return attempt.stop();
@@ -114,9 +137,8 @@ fn client(policy: &rd_http::AddressPolicy) -> Option<reqwest::Client> {
                 Some(refused) => attempt.error(refused),
                 None => attempt.follow(),
             }
-        }))
-        .build()
-        .ok()
+        }));
+    route.guarded(builder, target, policy).ok()?.build().ok()
 }
 
 /// Keeps only an answer that is actually an address.
@@ -138,9 +160,36 @@ mod tests {
         atomic::{AtomicUsize, Ordering},
     };
 
+    use rd_http::{
+        EnvironmentProxy, EnvironmentRoute,
+        test_support::{Answers, PUBLIC, connect_proxy, entries},
+    };
     use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
     use super::{DEFAULT_ENDPOINTS, ask, endpoints, parse_address};
+
+    /// No proxy, whatever the machine running the test has in its environment.
+    fn direct() -> EnvironmentRoute {
+        EnvironmentRoute::new(
+            EnvironmentProxy::given(None, None, None),
+            Arc::new(rd_http::SystemLookup),
+        )
+    }
+
+    /// The recording proxy as the environment's, the name answering as `lookup` says.
+    fn behind(proxy: u16, lookup: Arc<Answers>) -> EnvironmentRoute {
+        let endpoint = format!("http://127.0.0.1:{proxy}");
+        EnvironmentRoute::new(
+            EnvironmentProxy::given(Some(&endpoint), Some(&endpoint), None),
+            lookup,
+        )
+    }
+
+    /// The responder's address with the name `ip.test` in place of its loopback address.
+    fn named(url: &url::Url) -> url::Url {
+        let port = url.port().expect("port");
+        format!("http://ip.test:{port}/ip").parse().expect("URL")
+    }
 
     const ADDRESS_ANSWER: &[u8] =
         b"HTTP/1.1 200 OK\r\ncontent-length: 11\r\nconnection: close\r\n\r\n203.0.113.7";
@@ -180,12 +229,15 @@ mod tests {
     async fn a_refused_address_is_never_asked() {
         let (url, taken) = responder(ADDRESS_ANSWER.to_vec(), false).await;
         assert_eq!(
-            ask(&rd_http::AddressPolicy::new(true), url.clone()).await,
+            ask(&rd_http::AddressPolicy::new(true), &direct(), url.clone()).await,
             None
         );
         assert_eq!(taken.load(Ordering::SeqCst), 0);
         let entered = rd_http::AddressPolicy::new(true).with_loopback();
-        assert_eq!(ask(&entered, url).await.as_deref(), Some("203.0.113.7"));
+        assert_eq!(
+            ask(&entered, &direct(), url).await.as_deref(),
+            Some("203.0.113.7")
+        );
         assert_eq!(taken.load(Ordering::SeqCst), 1);
     }
 
@@ -200,7 +252,7 @@ mod tests {
         let policy = rd_http::AddressPolicy::new(true)
             .with_loopback()
             .refusing_redirects_to(&[inner.port().expect("port")]);
-        assert_eq!(ask(&policy, outer).await, None);
+        assert_eq!(ask(&policy, &direct(), outer).await, None);
         assert_eq!(reached.load(Ordering::SeqCst), 0);
     }
 
@@ -212,8 +264,45 @@ mod tests {
         let (url, _) = responder(head.to_vec(), true).await;
         let started = std::time::Instant::now();
         let entered = rd_http::AddressPolicy::new(true).with_loopback();
-        assert_eq!(ask(&entered, url).await.as_deref(), Some("203.0.113.7"));
+        assert_eq!(
+            ask(&entered, &direct(), url).await.as_deref(),
+            Some("203.0.113.7")
+        );
         assert!(started.elapsed() < std::time::Duration::from_secs(5));
+    }
+
+    /// RD-1330-01: behind the proxy the environment names, the proxy is handed the address the
+    /// name answered when the connection was made, never the name.
+    #[tokio::test]
+    async fn behind_the_environment_proxy_the_responder_is_asked_at_the_checked_address() {
+        let (url, taken) = responder(ADDRESS_ANSWER.to_vec(), false).await;
+        let (proxy, asked) = connect_proxy(None).await;
+        let route = behind(proxy, Answers::steady());
+
+        let address = ask(&rd_http::AddressPolicy::new(true), &route, named(&url)).await;
+
+        assert_eq!(address.as_deref(), Some("203.0.113.7"));
+        let port = url.port().expect("port");
+        assert_eq!(
+            entries(&asked),
+            [format!("CONNECT {PUBLIC}:{port} HTTP/1.1")]
+        );
+        assert_eq!(taken.load(Ordering::SeqCst), 1);
+    }
+
+    /// The acceptance case: the name passes the check with a public address and answers with
+    /// loopback when the connection is made. Neither the proxy nor the responder is asked.
+    #[tokio::test]
+    async fn behind_the_environment_proxy_a_rebinding_name_reaches_nothing_inside() {
+        let (url, taken) = responder(ADDRESS_ANSWER.to_vec(), false).await;
+        let (proxy, asked) = connect_proxy(None).await;
+        let route = behind(proxy, Answers::rebinding());
+
+        let address = ask(&rd_http::AddressPolicy::new(true), &route, named(&url)).await;
+
+        assert_eq!(address, None);
+        assert!(entries(&asked).is_empty(), "{:?}", entries(&asked));
+        assert_eq!(taken.load(Ordering::SeqCst), 0);
     }
 
     #[test]

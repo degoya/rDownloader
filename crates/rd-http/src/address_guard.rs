@@ -382,7 +382,12 @@ impl reqwest::dns::Resolve for GuardedResolver {
     fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
         let policy = self.policy.clone();
         let lookup = Arc::clone(&self.lookup);
-        let host = name.as_str().to_owned();
+        // A SOCKS proxy's path hands even a literal address here, an IPv6 one in brackets.
+        let host = name
+            .as_str()
+            .trim_start_matches('[')
+            .trim_end_matches(']')
+            .to_owned();
         Box::pin(async move {
             let answered = lookup.lookup(&host).await?;
             let permitted = match policy.screen(&host, answered) {

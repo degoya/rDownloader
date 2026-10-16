@@ -32,6 +32,7 @@ pub(crate) async fn backed_up(harness: &Harness, directory: &Path) -> (String, P
             endpoint: "socks5h://127.0.0.1:1080".parse().expect("proxy URL"),
             username: Some("proxy-user".to_owned()),
             secret_ref: Some(secret),
+            resolves_names: false,
         })
         .await
         .expect("proxy");
@@ -324,6 +325,7 @@ async fn a_staged_restore_becomes_the_installation_at_the_next_start() {
             endpoint: "http://127.0.0.1:3128".parse().expect("proxy URL"),
             username: None,
             secret_ref: None,
+            resolves_names: false,
         })
         .await
         .expect("second proxy");

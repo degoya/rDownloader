@@ -26,6 +26,8 @@ tokio.workspace = true
 utoipa.workspace = true
 
 [dev-dependencies]
+# The fixtures of a test behind a proxy: a recording proxy, a rebinding lookup (RD-1330-01).
+rd-http = { path = "../rd-http", features = ["test-support"] }
 tempfile.workspace = true
 
 [lints]

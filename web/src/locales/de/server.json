@@ -1326,7 +1326,9 @@
     "notification.template_syntax": "Eine geschweifte Klammer in der Vorlage ist nicht geschlossen, nicht geöffnet oder leer.",
     "notification.template_unknown_placeholder": "„{placeholder}“ ist kein Platzhalter.",
     "notification.template_too_long": "Die Vorlage ist länger als {max} Zeichen.",
-    "media.ytdlp_signin_required": "Dieses Video auf {site} gibt es nur angemeldet. Übergib deine Sitzung mit „Sitzung dieser Seite an rDownloader senden“ in der Browser-Erweiterung oder hinterlege die Browser-Cookies der Seite in einem Authentifizierungsprofil (Konten → Authentifizierungsprofile). Ist schon ein Profil im Spiel, sind seine Cookies wohl abgelaufen: übergib sie neu. {detail}"
+    "media.ytdlp_signin_required": "Dieses Video auf {site} gibt es nur angemeldet. Übergib deine Sitzung mit „Sitzung dieser Seite an rDownloader senden“ in der Browser-Erweiterung oder hinterlege die Browser-Cookies der Seite in einem Authentifizierungsprofil (Konten → Authentifizierungsprofile). Ist schon ein Profil im Spiel, sind seine Cookies wohl abgelaufen: übergib sie neu. {detail}",
+    "proxy.tunnel_refused": "Der Proxy hat die Verbindung zur geprüften Adresse mit Status {status} abgelehnt. Ein Proxy, der CONNECT nur zu Port 443 erlaubt, lehnt andere Ports ab; 407 heißt, er verlangt eine Anmeldung.",
+    "proxy.name_unresolved": "{host} lässt sich auf diesem Rechner nicht auflösen, deshalb konnte der Proxy keine geprüfte Adresse bekommen. rDownloader löst jede Adresse selbst auf und prüft sie, bevor der Proxy gefragt wird. Bei einem Proxy-Profil lässt „Proxy löst Namen selbst auf“ den Proxy den Namen auflösen; der Proxy aus der Umgebung hat diesen Schalter nicht."
   },
   "capabilities": {
     "media_download": "Mediendownloads",

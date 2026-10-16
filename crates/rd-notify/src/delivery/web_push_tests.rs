@@ -2,9 +2,14 @@ use aws_lc_rs::agreement::{ECDH_P256, PrivateKey};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
+use rd_http::{
+    EnvironmentProxy, EnvironmentRoute,
+    test_support::{Answers, PUBLIC, connect_proxy, entries, refusing_proxy},
+};
+
 use super::{
     PushOutcome, VapidKey, WebPushSubscription, are_push_keys, crypto, is_deliverable_push_address,
-    is_push_address, judge, push_payload, send_push,
+    is_push_address, judge, push_payload, send_push, send_push_via,
 };
 use crate::{
     delivery::Message,
@@ -315,4 +320,68 @@ async fn the_push_service_answer_decides_the_outcome() {
             other => panic!("{status}: {other:?}"),
         }
     }
+}
+
+/// A push to `push.test` behind the proxy on `proxy` the environment names, the name answering
+/// as `lookup` says.
+async fn push_behind_proxy(proxy: u16, lookup: std::sync::Arc<Answers>) -> PushOutcome {
+    let (key, _) = VapidKey::generate().expect("key");
+    let endpoint = format!("http://127.0.0.1:{proxy}");
+    let route = EnvironmentRoute::new(
+        EnvironmentProxy::given(Some(&endpoint), Some(&endpoint), None),
+        lookup,
+    );
+    send_push_via(
+        &route,
+        &key,
+        &subscription("https://push.test/push/abc", Vec::new()),
+        b"{}",
+        Severity::Info,
+    )
+    .await
+}
+
+/// RD-1330-01: a proxy that refuses the tunnel to the checked address is named by its code and
+/// status, as for a webhook, and a refusal for a `4xx` is not retried.
+#[tokio::test]
+async fn a_refused_tunnel_is_reported_with_the_proxys_status() {
+    let (proxy, asked) = refusing_proxy(403).await;
+
+    let outcome = push_behind_proxy(proxy, Answers::steady()).await;
+
+    let PushOutcome::Failed {
+        status,
+        detail,
+        retryable,
+    } = outcome
+    else {
+        panic!("{outcome:?}");
+    };
+    assert_eq!(status, None);
+    assert!(detail.starts_with(rd_http::CODE_TUNNEL_REFUSED), "{detail}");
+    assert!(detail.contains("403"), "{detail}");
+    assert!(!retryable);
+    assert_eq!(entries(&asked), [format!("CONNECT {PUBLIC}:443 HTTP/1.1")]);
+}
+
+/// A network where only the proxy could resolve the push service: nothing is handed over
+/// unchecked, and the outcome names `proxy.name_unresolved`, retried.
+#[tokio::test]
+async fn a_name_only_the_proxy_could_resolve_is_named_by_its_code() {
+    let (proxy, asked) = connect_proxy(None).await;
+
+    let outcome = push_behind_proxy(proxy, Answers::nothing()).await;
+
+    let PushOutcome::Failed {
+        detail, retryable, ..
+    } = outcome
+    else {
+        panic!("{outcome:?}");
+    };
+    assert!(
+        detail.starts_with(rd_http::CODE_NAME_UNRESOLVED),
+        "{detail}"
+    );
+    assert!(retryable);
+    assert!(entries(&asked).is_empty(), "{:?}", entries(&asked));
 }

@@ -57,7 +57,8 @@ const proxyForm = reactive<CreateProxyProfile>({
   kind: 'http',
   endpoint: defaultEndpoint('http'),
   username: null,
-  password: null
+  password: null,
+  resolves_names: false
 })
 /** Whether the proxy form holds edits a leave would lose; the settings view asks before them. */
 const proxyBaseline = useFormBaseline(() => proxyForm)
@@ -89,6 +90,7 @@ const list = useEditableList<ProxyProfile, CreateProxyProfile>({
     proxyForm.name = ''
     proxyForm.username = null
     proxyForm.password = null
+    proxyForm.resolves_names = false
     copiedFrom.value = null
     proxyBaseline.settle()
   },
@@ -151,6 +153,7 @@ function fill(proxy: ProxyProfile, name: string): void {
   proxyForm.name = name
   proxyForm.username = proxy.username ?? null
   proxyForm.password = null
+  proxyForm.resolves_names = proxy.resolves_names ?? false
 }
 
 function editProxy(proxy: ProxyProfile): void {
@@ -246,6 +249,10 @@ defineExpose({ proxyDirty: proxyBaseline.dirty })
                       autocomplete="new-password"
                       class="w-full"
                     />
+                  </UFormField>
+                  <!-- Off pins the checked address behind the proxy (RD-1320-07). -->
+                  <UFormField :label="t('settings.proxy.resolves_names_label')" :description="t('settings.proxy.resolves_names_description')" orientation="horizontal">
+                    <USwitch v-model="proxyForm.resolves_names" data-testid="proxy-resolves-names" />
                   </UFormField>
                   <FormActions
                     :editing="editingId !== null"

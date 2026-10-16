@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.32.0"
+    "version": "1.33.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -22504,6 +22504,10 @@
           "name": {
             "type": "string"
           },
+          "resolves_names": {
+            "type": "boolean",
+            "description": "Whether the proxy resolves target names itself (RD-1320-07)."
+          },
           "secret_slot": {
             "type": [
               "string",
@@ -27061,6 +27065,10 @@
               "null"
             ],
             "writeOnly": true
+          },
+          "resolves_names": {
+            "type": "boolean",
+            "description": "Whether the proxy resolves target names itself (RD-1320-07). Off, the default, the\nservice resolves and checks an address a stranger named and asks the proxy for a tunnel\nto that address; the proxy must then allow `CONNECT` to the target's port. On, the proxy\nis handed the name, for a network where only the proxy can resolve."
           },
           "username": {
             "type": [
@@ -37067,6 +37075,10 @@
           },
           "name": {
             "type": "string"
+          },
+          "resolves_names": {
+            "type": "boolean",
+            "description": "Whether the proxy resolves target names itself (RD-1320-07): off, the service resolves\nand checks a stranger's address and hands the proxy that address; on, the proxy is\nhanded the name, for a network where only the proxy can resolve."
           },
           "username": {
             "type": [

@@ -99,6 +99,13 @@ pub fn unsafe_path() -> Failure {
 #[must_use]
 pub fn classify(error: &object_store::Error, bucket: &str) -> Failure {
     use object_store::Error;
+    // Behind a pinned proxy (RD-1330-01): a tunnel the proxy refused, with its status, or a
+    // name only the proxy could have resolved, each by the code every other transport uses.
+    if let Some(failure) =
+        rd_http::tunnel_failure(error).or_else(|| rd_http::unresolved_failure(error))
+    {
+        return failure;
+    }
     match error {
         Error::NotFound { .. } => not_found(bucket),
         Error::Precondition { .. } | Error::NotModified { .. } => object_changed(),

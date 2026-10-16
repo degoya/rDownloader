@@ -97,6 +97,7 @@ pub(super) async fn installation_parts(directory: &std::path::Path) -> (Router, 
             endpoint: "http://127.0.0.1:9/".parse().expect("endpoint"),
             username: Some("canary-user".to_owned()),
             secret_ref: Some(reference),
+            resolves_names: false,
         })
         .await
         .expect("proxy profile");

@@ -305,6 +305,8 @@ pub async fn service_over(directory: &std::path::Path, wire: &Wire) -> Service {
             endpoint: format!("http://{}", wire.proxy).parse().expect("proxy url"),
             username: None,
             secret_ref: None,
+            // The fixture plays the proxy and resolves the names itself (RD-1320-07).
+            resolves_names: true,
         })
         .await
         .expect("proxy profile");

@@ -55,6 +55,8 @@ zip.workspace = true
 # This crate's own integration tests load components too; a dev-dependency on itself is how
 # they get `test-support` without the service getting it.
 rd-plugin-host = { path = ".", features = ["test-support"] }
+# The fixtures of a test behind a proxy: a recording proxy, a rebinding lookup (RD-1330-01).
+rd-http = { path = "../rd-http", features = ["test-support"] }
 rcgen.workspace = true
 tempfile.workspace = true
 # The log budget's tests read what a plugin's lines leave behind (RD-1260-12).

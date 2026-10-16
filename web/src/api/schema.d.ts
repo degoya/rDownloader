@@ -8272,6 +8272,8 @@ export interface components {
             id: components["schemas"]["ProxyProfileId"];
             kind: components["schemas"]["ProxyKind"];
             name: string;
+            /** @description Whether the proxy resolves target names itself (RD-1320-07). */
+            resolves_names?: boolean;
             secret_slot?: string | null;
             username?: string | null;
         };
@@ -10082,6 +10084,13 @@ export interface components {
             kind: components["schemas"]["ProxyKind"];
             name: string;
             password?: string | null;
+            /**
+             * @description Whether the proxy resolves target names itself (RD-1320-07). Off, the default, the
+             *     service resolves and checks an address a stranger named and asks the proxy for a tunnel
+             *     to that address; the proxy must then allow `CONNECT` to the target's port. On, the proxy
+             *     is handed the name, for a network where only the proxy can resolve.
+             */
+            resolves_names?: boolean;
             username?: string | null;
         };
         /**
@@ -14124,6 +14133,12 @@ export interface components {
             id: components["schemas"]["ProxyProfileId"];
             kind: components["schemas"]["ProxyKind"];
             name: string;
+            /**
+             * @description Whether the proxy resolves target names itself (RD-1320-07): off, the service resolves
+             *     and checks a stranger's address and hands the proxy that address; on, the proxy is
+             *     handed the name, for a network where only the proxy can resolve.
+             */
+            resolves_names?: boolean;
             username?: string | null;
         };
         /** Format: uuid */

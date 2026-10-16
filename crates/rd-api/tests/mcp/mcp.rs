@@ -82,9 +82,8 @@ async fn mcp_endpoint_requires_a_token_with_an_api_scope() {
     let (status, _, _) = send_text(&router, mcp_request(None, None, INITIALIZE)).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
-    // A capture-scoped token must not unlock the MCP endpoint. It carries a scope, so a
-    // check that merely counted them would let it through; the endpoint asks for an *API*
-    // scope specifically.
+    // A capture-scoped token must not unlock the MCP endpoint. It carries a scope, so a check
+    // that merely counted them would let it through; the endpoint asks for an *API* scope.
     let (status, _, _) =
         send_text(&router, mcp_request(Some(CAPTURE_BEARER), None, INITIALIZE)).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -877,6 +876,7 @@ async fn no_tool_answers_with_a_stored_credential() {
             endpoint: "http://127.0.0.1:9/".parse().expect("endpoint"),
             username: Some("canary-user".to_owned()),
             secret_ref: Some(reference.clone()),
+            resolves_names: false,
         })
         .await
         .expect("proxy profile");

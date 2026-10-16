@@ -55,7 +55,7 @@ pub(crate) async fn account_secret_refs(
 
 pub(crate) async fn list_proxy_profiles(pool: &SqlitePool) -> Result<Vec<ProxyProfile>> {
     sqlx::query_as::<_, ProxyRow>(
-        "SELECT id, name, kind, endpoint, username, secret_ref, \
+        "SELECT id, name, kind, endpoint, username, secret_ref, resolves_names, \
          secret_ref IS NOT NULL AS has_credentials FROM proxy_profiles ORDER BY name",
     )
     .fetch_all(pool)
@@ -163,7 +163,7 @@ pub(crate) async fn load_proxy(
     id: ProxyProfileId,
 ) -> Result<Option<ProxyProfile>> {
     sqlx::query_as::<_, ProxyRow>(
-        "SELECT id, name, kind, endpoint, username, secret_ref, \
+        "SELECT id, name, kind, endpoint, username, secret_ref, resolves_names, \
          secret_ref IS NOT NULL AS has_credentials FROM proxy_profiles WHERE id = ?",
     )
     .bind(id.to_string())
@@ -238,6 +238,7 @@ struct ProxyRow {
     endpoint: String,
     username: Option<String>,
     secret_ref: Option<String>,
+    resolves_names: bool,
     has_credentials: bool,
 }
 
@@ -253,6 +254,7 @@ impl TryFrom<ProxyRow> for ProxyProfile {
             username: row.username,
             secret_ref: row.secret_ref,
             has_credentials: row.has_credentials,
+            resolves_names: row.resolves_names,
         })
     }
 }

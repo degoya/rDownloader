@@ -10,10 +10,10 @@
 //! [`GuardedDns`], so a name that answers differently the second time is refused there.
 //!
 //! A redirect, which could name a literal address and so pass the resolver by, is never
-//! followed (RD-1200-06, `connect/transport.rs`). What stays open: through a proxy the proxy
-//! resolves the name.
-
-use std::sync::Arc;
+//! followed (RD-1200-06, `connect/transport.rs`). Through a proxy the rule holds as well
+//! (RD-1330-01): the store's client hands the proxy the address checked when the connection is
+//! made, never the name — unless the proxy's profile says it resolves names itself, where the
+//! check before the store is opened is the one.
 
 use object_store::client::{DnsError, DnsFuture, DnsResolver};
 use rd_core::{Failure, FailureKind, ObjectStorageProfile};
@@ -21,12 +21,12 @@ use rd_core::{Failure, FailureKind, ObjectStorageProfile};
 /// Stable code of an endpoint the address rule refuses.
 pub const ENDPOINT_REFUSED: &str = "object_storage.endpoint_refused";
 
-/// The resolver a profile's store connects through, once its endpoint passed the rule; `None`
-/// for a profile on its provider's own service, or with an endpoint that does not parse, which
+/// The rule a profile's store connects under, once its endpoint passed it; `None` for a
+/// profile on its provider's own service, or with an endpoint that does not parse, which
 /// opening the store reports.
 pub(crate) async fn guard(
     profile: &ObjectStorageProfile,
-) -> Result<Option<Arc<dyn DnsResolver>>, Failure> {
+) -> Result<Option<rd_http::AddressPolicy>, Failure> {
     let Some(url) = profile
         .endpoint
         .as_deref()
@@ -41,7 +41,7 @@ pub(crate) async fn guard(
     {
         return Err(refused());
     }
-    Ok(Some(Arc::new(GuardedDns(policy))))
+    Ok(Some(policy))
 }
 
 /// The refusal of an endpoint the rule does not permit.
@@ -56,7 +56,7 @@ fn refused() -> Failure {
 /// Resolves like the system does and refuses a name with any address the rule does not permit,
 /// at the moment the connection is made.
 #[derive(Debug)]
-pub(crate) struct GuardedDns(rd_http::AddressPolicy);
+pub(crate) struct GuardedDns(pub(crate) rd_http::AddressPolicy);
 
 impl DnsResolver for GuardedDns {
     fn resolve(&self, host: &str) -> DnsFuture {

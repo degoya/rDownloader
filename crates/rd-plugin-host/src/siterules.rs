@@ -25,9 +25,11 @@
 //! A fetcher therefore belongs to **one run**: its clients, its cookies and its pinning die
 //! with it, which is also what keeps a board's session cookie from reaching a download.
 //!
-//! A configured proxy is honoured, and with one the name is resolved at the proxy rather than
-//! here — the pinning cannot bind there. That is the person's own configuration, and the
-//! executor's ban on private addresses still refuses a name that resolves into this network.
+//! A configured proxy is honoured, and the pinning holds behind it (RD-1330-01): the client
+//! goes through the bridge of [`rd_http::with_proxy`], which hands the proxy the address the
+//! executor checked — `CONNECT <address>:<port>` — and never the name. Only a proxy profile that
+//! says it resolves names itself (`resolves_names`) is handed the name, as before; the
+//! executor's ban on private addresses then judges what the name answered here.
 
 use std::{
     collections::HashMap,
@@ -42,8 +44,7 @@ use rd_plugin_api::{CaptchaChallenge, WidgetChallenge};
 use rd_siterules::{
     CaptchaRequest, FetchFailure, FetchRequest, FetchResponse, Fetcher, HostResolver, Method,
 };
-use reqwest::{Certificate, Client, Proxy, cookie::Jar, redirect::Policy};
-use secrecy::ExposeSecret;
+use reqwest::{Certificate, Client, cookie::Jar, redirect::Policy};
 use tokio::sync::Mutex;
 use url::Url;
 
@@ -152,16 +153,25 @@ impl RuleFetcher {
             builder = builder.resolve_to_addrs(host, &pinned);
         }
         if let Some(profile) = &config.proxy {
-            let mut proxy = Proxy::all(profile.endpoint.as_str())
-                .map_err(|error| FetchFailure::Other(format!("proxy: {error}")))?;
-            if let (Some(reference), Some(username)) = (&profile.secret_ref, &profile.username) {
-                let password =
-                    self.network.secrets.get(reference).await.map_err(|error| {
+            let credentials = match (&profile.secret_ref, &profile.username) {
+                (Some(reference), Some(username)) => Some(rd_http::ProxyCredentials {
+                    username: username.clone(),
+                    password: self.network.secrets.get(reference).await.map_err(|error| {
                         FetchFailure::Other(format!("proxy credential: {error}"))
-                    })?;
-                proxy = proxy.basic_auth(username, password.expose_secret());
-            }
-            builder = builder.proxy(proxy);
+                    })?,
+                }),
+                _ => None,
+            };
+            // The executor's rule, public addresses only: the bridge relays nothing else.
+            builder = rd_http::with_proxy(
+                builder,
+                &profile.endpoint,
+                credentials.as_ref(),
+                Some(&rd_http::AddressPolicy::new(false)),
+                rd_http::NameResolution::of(Some(profile)),
+                &defaults.custom_ca_pem,
+            )
+            .map_err(|error| FetchFailure::Other(format!("proxy: {error}")))?;
         }
         for pem in &defaults.custom_ca_pem {
             let certificate = Certificate::from_pem(pem)
@@ -250,8 +260,13 @@ fn encode_body(
     Some(("application/x-www-form-urlencoded", body))
 }
 
-/// Why nothing answered, in the terms the executor sorts its refusals by.
+/// Why nothing answered, in the terms the executor sorts its refusals by. A tunnel the proxy
+/// refused carries its stable code and status into the reason.
 fn transport_failure(error: reqwest::Error) -> FetchFailure {
+    if let Some(failure) = rd_http::tunnel_failure(&error) {
+        let code = failure.code.as_deref().unwrap_or_default();
+        return FetchFailure::Other(format!("{code}: {}", failure.message));
+    }
     if error.is_timeout() {
         return FetchFailure::Timeout;
     }

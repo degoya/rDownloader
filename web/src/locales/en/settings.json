@@ -199,7 +199,9 @@
       "in_use_here": "It is chosen here as the global connection route or the torrent peer proxy — choose another one first and save.",
       "confirm": "Delete profile"
     },
-    "password_host_changed": "The address changed: the stored password is not sent to the new proxy. Enter it again."
+    "password_host_changed": "The address changed: the stored password is not sent to the new proxy. Enter it again.",
+    "resolves_names_label": "Proxy resolves names itself",
+    "resolves_names_description": "Off (recommended): rDownloader itself resolves and checks the addresses a page, a document or a plugin named and the object storage endpoints, and asks the proxy for a tunnel (CONNECT) to the checked address. The proxy must then allow CONNECT to the target's port — Squid allows only 443 by default — and a proxy that filters by name sees an IP address. Turn it on only if only the proxy can resolve names in your network."
   },
   "global_proxy": {
     "eyebrow": "Network fallback",

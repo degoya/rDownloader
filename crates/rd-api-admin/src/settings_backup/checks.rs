@@ -163,6 +163,7 @@ pub(super) fn into_replacement(
                 endpoint: value.endpoint,
                 username: value.username,
                 secret_ref: slot_reference(minted, value.secret_slot),
+                resolves_names: value.resolves_names,
             })
             .collect(),
         accounts: bundle

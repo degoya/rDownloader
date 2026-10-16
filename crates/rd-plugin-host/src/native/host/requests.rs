@@ -252,16 +252,18 @@ impl NativeHost {
         }
     }
 
-    /// The client for one request, and whether it goes through a proxy.
+    /// The client for one request, and where its target names are resolved.
     ///
-    /// Built with `policy` as its address rule (RA-HOST-01): without a proxy it resolves names
-    /// through the guarded resolver, and every redirect hop to a literal address is judged.
+    /// Built with `policy` as its address rule (RA-HOST-01): it resolves names through the
+    /// guarded resolver — behind a proxy too, which is then handed the checked address, unless
+    /// the profile says the proxy resolves names itself (RD-1320-07) — and every redirect hop
+    /// to a literal address is judged.
     pub(super) async fn client(
         &self,
         identity: &ClientIdentity,
         scope: &Url,
         policy: &rd_http::AddressPolicy,
-    ) -> Result<(reqwest::Client, bool), Failure> {
+    ) -> Result<(reqwest::Client, rd_http::NameResolution), Failure> {
         let defaults = self.network_defaults.read().await.clone();
         let config = self
             .database
@@ -289,7 +291,7 @@ impl NativeHost {
             None => Arc::new(Jar::default()),
         };
         let proxy_id = config.proxy.as_ref().map(|proxy| proxy.id);
-        let proxied = config.proxy.is_some();
+        let resolution = rd_http::NameResolution::of(config.proxy.as_ref());
         let proxy_credentials = match config.proxy.as_ref() {
             Some(proxy) if proxy.secret_ref.is_some() => {
                 let stored = proxy.secret_ref.as_deref().ok_or_else(|| {
@@ -340,7 +342,7 @@ impl NativeHost {
                 replay_scope: None,
             })
             .await
-            .map(|client| (client, proxied))
+            .map(|client| (client, resolution))
             .map_err(super::permanent)
     }
 }

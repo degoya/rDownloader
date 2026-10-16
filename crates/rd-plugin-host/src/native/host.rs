@@ -108,29 +108,31 @@ fn address_policy(own: &crate::OwnEndpoints, url: &Url) -> rd_http::AddressPolic
 /// Refuses a target before anything is sent, where the guarded resolver cannot judge it.
 ///
 /// A name is resolved by the client's [`rd_http::GuardedResolver`], which hands the connector
-/// only addresses the rule permits — resolved once, so the checked address is the dialled one
-/// and a rebinding name gains nothing. Two cases never reach it: a literal address, and any
-/// target behind a proxy, which resolves the name itself. Both are judged here; a name this
-/// machine cannot resolve is left to the proxy, which may know it.
+/// — or the proxy, as a `CONNECT` to that address — only addresses the rule permits: resolved
+/// once, so the checked address is the dialled one and a rebinding name gains nothing. Two cases
+/// never reach it: a literal address, and a name behind a proxy whose profile says it resolves
+/// names itself. Both are judged here, by the rule `rd-http` keeps for every guarded request
+/// ([`rd_http::check_before_request`], RD-1320-07); a name this machine cannot resolve is then
+/// left to the proxy, which may know it.
 async fn check_reach(
     policy: &rd_http::AddressPolicy,
     url: &Url,
-    proxied: bool,
+    resolution: rd_http::NameResolution,
     own: &crate::OwnEndpoints,
 ) -> Result<(), Failure> {
-    if rd_http::literal_address(url).is_none() && !proxied {
-        return Ok(());
-    }
-    match rd_http::check_target(policy, &rd_http::SystemLookup, url).await {
-        Ok(_) | Err(rd_http::TargetRefusal::Unresolved(_)) => Ok(()),
-        Err(rd_http::TargetRefusal::Refused(_)) => Err(own.refused(url)),
-    }
+    rd_http::check_before_request(policy, &rd_http::SystemLookup, url, resolution)
+        .await
+        .map_err(|_| own.refused(url))
 }
 
 /// A failed send, with a refusal of the address rule told apart from a network error.
 fn send_failure(error: reqwest::Error, own: &crate::OwnEndpoints, url: &Url) -> Failure {
     if rd_http::is_refusal(&error) {
         return own.refused(url);
+    }
+    // The proxy would not open the tunnel to the checked address (RD-1320-07).
+    if let Some(failure) = rd_http::tunnel_failure(&error) {
+        return failure;
     }
     http_failure(error)
 }

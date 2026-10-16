@@ -116,6 +116,7 @@ async fn seed_all(harness: &Harness, directory: &std::path::Path) -> SeededConfi
             endpoint: "socks5h://127.0.0.1:1080".parse().expect("proxy URL"),
             username: Some("proxy-user".to_owned()),
             secret_ref: Some(proxy_ref.clone()),
+            resolves_names: false,
         })
         .await
         .expect("proxy");
@@ -666,6 +667,7 @@ async fn a_proxy_the_settings_still_name_is_not_deleted() {
             endpoint: "socks5h://127.0.0.1:1080".parse().expect("proxy URL"),
             username: None,
             secret_ref: None,
+            resolves_names: false,
         })
         .await
         .expect("proxy");
@@ -686,13 +688,10 @@ async fn a_proxy_the_settings_still_name_is_not_deleted() {
         assert_eq!(status, StatusCode::CONFLICT, "{field}: {body}");
         assert_eq!(body["code"], "proxy.in_use");
     }
-    assert_eq!(
-        harness
-            .database
-            .list_proxy_profiles()
-            .await
-            .expect("proxies")
-            .len(),
-        1
-    );
+    let remaining = harness
+        .database
+        .list_proxy_profiles()
+        .await
+        .expect("proxies");
+    assert_eq!(remaining.len(), 1);
 }

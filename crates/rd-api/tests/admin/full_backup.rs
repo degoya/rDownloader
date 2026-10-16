@@ -206,6 +206,7 @@ async fn a_backup_restores_its_settings_with_the_same_passphrase() {
             endpoint: "socks5h://127.0.0.1:1080".parse().expect("proxy URL"),
             username: Some("proxy-user".to_owned()),
             secret_ref: Some(secret),
+            resolves_names: false,
         })
         .await
         .expect("proxy");

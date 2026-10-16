@@ -6,6 +6,12 @@
 //! and hand back what came out. So the call keeps to the rule every other request to an entered
 //! address keeps to: the address is checked before the request, the client resolves names only
 //! through the guard, no redirect is followed, and only the head of an answer is read.
+//!
+//! Behind the proxy the environment names (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`) the call
+//! pins too (RD-1330-01, owner 2026-10-16): the proxy is handed the address checked when the
+//! connection is made, never the name ([`rd_http::EnvironmentRoute`]). A name only the proxy
+//! could resolve fails as `proxy.name_unresolved`, a tunnel the proxy refuses as
+//! `proxy.tunnel_refused` with its status.
 
 use std::time::Duration;
 
@@ -34,16 +40,28 @@ pub(super) async fn send(
     message: &Message,
     secret: Option<&secrecy::SecretString>,
 ) -> Result<Attempt> {
+    let route = rd_http::EnvironmentRoute::system();
+    send_via(reach, &route, target, message, secret).await
+}
+
+/// [`send`] the way `route` says: its lookup and the proxy it names. A test hands in its own.
+pub(super) async fn send_via(
+    reach: &rd_http::AddressPolicy,
+    route: &rd_http::EnvironmentRoute,
+    target: &NotificationTarget,
+    message: &Message,
+    secret: Option<&secrecy::SecretString>,
+) -> Result<Attempt> {
     let url = reqwest::Url::parse(target.endpoint.trim()).context("webhook address")?;
-    // A literal address never reaches the guarded resolver, and a proxy resolves the name
-    // itself; both are judged here. A name without an address is left to fail as unreachable.
+    // A literal address never reaches the guarded resolver; it is judged here, and a name with
+    // it. A name without an address is left to fail as unreachable.
     if let Err(rd_http::TargetRefusal::Refused(_)) =
-        rd_http::check_target(reach, &rd_http::SystemLookup, &url).await
+        rd_http::check_target(reach, route.lookup(), &url).await
     {
         return Ok(refused());
     }
     let body = serde_json::to_vec(&message.payload)?;
-    let mut request = client(reach, TIMEOUT)?
+    let mut request = client(reach, route, &url, TIMEOUT)?
         .post(url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .header(IDEMPOTENCY_HEADER, &message.idempotency_key);
@@ -53,7 +71,7 @@ pub(super) async fn send(
     let response = match request.body(body).send().await {
         Ok(response) => response,
         Err(error) if rd_http::is_refusal(&error) => return Ok(refused()),
-        Err(error) => return Err(error.into()),
+        Err(error) => return proxy_failure(&error).ok_or_else(|| error.into()),
     };
     let status = response.status();
     if status.is_success() {
@@ -68,15 +86,23 @@ pub(super) async fn send(
     Ok(Attempt::failed(Some(status.as_u16()), text, retryable))
 }
 
-/// A client for one call: names resolved through the guard at connect time, so a name that
-/// passed the check above cannot point inside a moment later, and no redirect followed — a
-/// receiver that answers `302` with an inner address would otherwise be the way around it. The
-/// Web Push transport sends through the same kind of client (RD-1240-13).
-pub(super) fn client(reach: &rd_http::AddressPolicy, timeout: Duration) -> Result<reqwest::Client> {
-    rd_http::client_builder(rd_http::ClientPurpose::Service)
+/// A client for one call to `target`: names resolved through the guard at connect time, so a
+/// name that passed the check above cannot point inside a moment later — behind the proxy the
+/// environment names as well, which is handed the checked address — and no redirect followed:
+/// a receiver that answers `302` with an inner address would otherwise be the way around it.
+/// The Web Push transport sends through the same kind of client (RD-1240-13).
+pub(super) fn client(
+    reach: &rd_http::AddressPolicy,
+    route: &rd_http::EnvironmentRoute,
+    target: &reqwest::Url,
+    timeout: Duration,
+) -> Result<reqwest::Client> {
+    let builder = rd_http::client_builder(rd_http::ClientPurpose::Service)
         .redirect(reqwest::redirect::Policy::none())
-        .dns_resolver(rd_http::GuardedResolver::system(reach.clone()))
-        .timeout(timeout)
+        .timeout(timeout);
+    route
+        .guarded(builder, target, reach)
+        .context("webhook client")?
         .build()
         .context("webhook client")
 }
@@ -84,6 +110,24 @@ pub(super) fn client(reach: &rd_http::AddressPolicy, timeout: Duration) -> Resul
 /// A refused target is refused again on every retry.
 fn refused() -> Attempt {
     Attempt::failed(None, REFUSED, false)
+}
+
+fn proxy_failure(error: &reqwest::Error) -> Option<Attempt> {
+    let (detail, retryable) = proxy_detail(error)?;
+    Some(Attempt::failed(None, detail, retryable))
+}
+
+/// What the proxy made of the call, by its stable code, and whether it is worth another
+/// attempt: a tunnel it refused (retried unless the status says the proxy forbids it), or a
+/// name only it could have resolved. `None` for any other failure. The Web Push transport
+/// reports it the same way.
+pub(super) fn proxy_detail(error: &reqwest::Error) -> Option<(String, bool)> {
+    let failure = rd_http::tunnel_failure(error).or_else(|| rd_http::unresolved_failure(error))?;
+    let code = failure.code.as_deref().unwrap_or_default();
+    Some((
+        format!("{code}: {}", failure.message),
+        failure.category.is_retryable(),
+    ))
 }
 
 /// The first [`MAX_ANSWER_BYTES`] of an answer; the rest is never read. A broken transfer

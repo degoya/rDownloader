@@ -1326,7 +1326,9 @@
     "notification.template_syntax": "A brace in the template is not closed, not opened or encloses nothing.",
     "notification.template_unknown_placeholder": "“{placeholder}” is not a placeholder.",
     "notification.template_too_long": "The template is longer than {max} characters.",
-    "media.ytdlp_signin_required": "This video on {site} is only shown to a signed-in session. Hand over your session with “Share session for this site with rDownloader” in the browser extension, or add the site’s browser cookies in an authentication profile (Accounts → Authentication profiles). If a profile is already in use, its cookies have probably expired: hand them over again. {detail}"
+    "media.ytdlp_signin_required": "This video on {site} is only shown to a signed-in session. Hand over your session with “Share session for this site with rDownloader” in the browser extension, or add the site’s browser cookies in an authentication profile (Accounts → Authentication profiles). If a profile is already in use, its cookies have probably expired: hand them over again. {detail}",
+    "proxy.tunnel_refused": "The proxy refused the connection to the checked address with status {status}. A proxy that allows CONNECT only to port 443 refuses other ports; 407 means it wants a login.",
+    "proxy.name_unresolved": "{host} could not be resolved on this machine, so the proxy could not be given a checked address. rDownloader resolves and checks every address itself before it asks the proxy. For a proxy profile, “Proxy resolves names itself” lets the proxy resolve the name; the proxy from the environment has no such switch."
   },
   "capabilities": {
     "media_download": "media downloads",

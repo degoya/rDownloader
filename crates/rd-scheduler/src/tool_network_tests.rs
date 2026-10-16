@@ -187,6 +187,7 @@ async fn profile(database: &rd_db::Database, secret_ref: Option<String>) -> rd_c
             endpoint: endpoint("http://proxy.example:3128"),
             username: secret_ref.as_ref().map(|_| "alice".to_owned()),
             secret_ref,
+            resolves_names: false,
         })
         .await
         .expect("proxy profile")

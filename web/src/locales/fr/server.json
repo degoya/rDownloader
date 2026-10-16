@@ -1326,7 +1326,9 @@
     "notification.template_syntax": "Une accolade du modèle n’est pas fermée, pas ouverte ou n’entoure rien.",
     "notification.template_unknown_placeholder": "« {placeholder} » n’est pas une variable.",
     "notification.template_too_long": "Le modèle dépasse {max} caractères.",
-    "media.ytdlp_signin_required": "Cette vidéo sur {site} n’est montrée qu’à une session connectée. Transmettez votre session avec « Envoyer la session de ce site à rDownloader » dans l’extension du navigateur ou ajoutez les cookies du navigateur pour ce site dans un profil d’authentification (Comptes → Profils d’authentification). Si un profil est déjà utilisé, ses cookies ont probablement expiré : transmettez-les à nouveau. {detail}"
+    "media.ytdlp_signin_required": "Cette vidéo sur {site} n’est montrée qu’à une session connectée. Transmettez votre session avec « Envoyer la session de ce site à rDownloader » dans l’extension du navigateur ou ajoutez les cookies du navigateur pour ce site dans un profil d’authentification (Comptes → Profils d’authentification). Si un profil est déjà utilisé, ses cookies ont probablement expiré : transmettez-les à nouveau. {detail}",
+    "proxy.tunnel_refused": "Le proxy a refusé la connexion vers l'adresse vérifiée avec le statut {status}. Un proxy qui n'autorise CONNECT que vers le port 443 refuse les autres ports ; 407 signifie qu'il demande une authentification.",
+    "proxy.name_unresolved": "{host} n’a pas pu être résolu sur cette machine, le proxy n’a donc pas pu recevoir d’adresse vérifiée. rDownloader résout et vérifie lui-même chaque adresse avant d’interroger le proxy. Pour un profil de proxy, « Le proxy résout les noms lui-même » laisse le proxy résoudre le nom ; le proxy de l’environnement n’a pas cette option."
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

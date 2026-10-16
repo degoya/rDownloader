@@ -18,6 +18,7 @@ async fn account_and_proxy_lists_never_serialize_secret_references() {
             endpoint: "socks5h://127.0.0.1:1080".parse().expect("URL"),
             username: Some("proxy-user".to_owned()),
             secret_ref: Some("secret://proxy/password".to_owned()),
+            resolves_names: false,
         })
         .await
         .expect("proxy");
@@ -114,6 +115,7 @@ async fn proxy_precedence_is_job_then_account_then_global() {
                         .expect("URL"),
                     username: None,
                     secret_ref: None,
+                    resolves_names: false,
                 })
                 .await
                 .expect("proxy"),

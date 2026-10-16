@@ -174,8 +174,8 @@ impl ObjectStorageService {
             return Ok(Ok(store.clone()));
         }
         // Before a secret is read: an endpoint the address rule refuses gets nothing.
-        let dns = match endpoint::guard(profile).await {
-            Ok(dns) => dns,
+        let guard = match endpoint::guard(profile).await {
+            Ok(guard) => guard,
             Err(failure) => return Ok(Err(failure)),
         };
         let secret = self.secret(profile.secret_ref.as_deref()).await?;
@@ -189,7 +189,7 @@ impl ObjectStorageService {
             proxy,
             custom_ca_pem: &custom_ca_pem,
             timeout: self.timeout(),
-            dns,
+            guard,
         });
         Ok(opened.map_err(|error| match error {
             OpenError::Endpoint => Failure::coded(
@@ -233,9 +233,9 @@ impl ObjectStorageService {
         }
     }
 
-    /// The global proxy (as a URL with its credentials) and the custom CA — the same two the
-    /// HTTP engine, FTPS and Usenet use, so an operator's network rules reach this too.
-    async fn network_settings(&self) -> Result<(Option<SecretString>, Vec<Vec<u8>>)> {
+    /// The global proxy (with its login and its `resolves_names`) and the custom CA — the same
+    /// two the HTTP engine, FTPS and Usenet use, so an operator's network rules reach this too.
+    async fn network_settings(&self) -> Result<(Option<Arc<connect::StoreProxy>>, Vec<Vec<u8>>)> {
         let (proxy_id, custom_ca_pem) = {
             let network = self.network.read().await;
             (
@@ -249,15 +249,26 @@ impl ObjectStorageService {
         let Some(proxy) = self.database.proxy_profile(proxy_id).await? else {
             return Ok((None, custom_ca_pem));
         };
-        let mut url = proxy.endpoint.clone();
-        if let Some(username) = proxy.username.as_deref() {
-            let _ = url.set_username(username);
-            if let Some(reference) = proxy.secret_ref.as_deref() {
-                let password = self.secrets.get(reference).await?;
-                let _ = url.set_password(Some(secrecy::ExposeSecret::expose_secret(&password)));
+        let credentials = match proxy.username.as_deref() {
+            Some(username) => {
+                let password = match proxy.secret_ref.as_deref() {
+                    Some(reference) => self.secrets.get(reference).await?,
+                    None => SecretString::from(String::new()),
+                };
+                Some(rd_http::ProxyCredentials {
+                    username: username.to_owned(),
+                    password,
+                })
             }
-        }
-        Ok((Some(SecretString::from(url.to_string())), custom_ca_pem))
+            None => None,
+        };
+        let store_proxy = connect::StoreProxy {
+            endpoint: proxy.endpoint.clone(),
+            credentials,
+            resolution: rd_http::NameResolution::of(Some(&proxy)),
+            lookup: Arc::new(rd_http::SystemLookup),
+        };
+        Ok((Some(Arc::new(store_proxy)), custom_ca_pem))
     }
 
     /// Resolves one link into the listing the LinkGrabber reviews.

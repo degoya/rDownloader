@@ -137,6 +137,8 @@ async fn queue(scratch: &Path, proxy: &str) -> (SchedulerHandle, TorrentService,
             endpoint: proxy.parse().expect("proxy url"),
             username: None,
             secret_ref: None,
+            // The fixture plays the proxy and resolves the names itself (RD-1320-07).
+            resolves_names: true,
         })
         .await
         .expect("proxy profile");
