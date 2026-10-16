@@ -76,7 +76,7 @@ docker run -d --name rdownloader -p 127.0.0.1:8710:8710 \
   ghcr.io/degoya/rdownloader:latest
 ```
 
-The browser extension is in the [Chrome Web Store](https://chromewebstore.google.com/detail/rdownloader/nfdbhbkjnbdnaaekabaochlhgkaafnda) and on [Firefox Add-ons](https://addons.mozilla.org/addon/rdownloader/).
+The browser extension is in the [Chrome Web Store](https://chromewebstore.google.com/detail/rdownloader/nfdbhbkjnbdnaaekabaochlhgkaafnda), on [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/rdownloader/cedhajncmfngiehikgegfpcagbkddjoo) and on [Firefox Add-ons](https://addons.mozilla.org/addon/rdownloader/).
 
 ## Documentation
 

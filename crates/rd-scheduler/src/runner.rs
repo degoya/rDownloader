@@ -92,6 +92,10 @@ pub trait ExternalRunner: Send + Sync {
     fn live_connections(&self) -> Option<crate::LiveConnections> {
         None
     }
+    /// Called once at the start, before the first dispatch, with the queue the runner works
+    /// for. A runner that fetches over HTTP itself keeps it, to go out on each file's
+    /// [`SchedulerHandle::transfer_network`] (RD-1320-05). Nothing by default.
+    fn attach(&self, _scheduler: &SchedulerHandle) {}
     async fn run(
         &self,
         file: &DownloadFile,

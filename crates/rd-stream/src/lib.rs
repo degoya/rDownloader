@@ -4,6 +4,7 @@
 
 #![warn(unreachable_pub)]
 
+mod cookies;
 mod probe;
 mod runner;
 mod schedule;
@@ -18,6 +19,7 @@ use rd_db::Database;
 use rd_scheduler::ExternalRunner;
 use tokio::sync::RwLock;
 
+pub use cookies::StreamCookies;
 pub use probe::{
     StreamProbe, parse_probe_output, parse_replay_capability, probe_live, probe_stream,
 };
@@ -55,10 +57,12 @@ pub fn build(database: Database, settings: SharedStreamSettings) -> Arc<dyn Exte
     Arc::new(StreamRunner::new(database, settings))
 }
 
-/// [`build`], with the sidecar fetches trusting what the rest of the service trusts, and
-/// streamlink handed each recording's proxy and the custom CA (RD-1240-08).
+/// [`build`], with the sidecar fetches trusting what the rest of the service trusts,
+/// streamlink handed each recording's proxy and the custom CA (RD-1240-08), and both its
+/// cookie profile (RD-1320-03).
 pub fn build_with_network_defaults(
     database: Database,
+    secrets: rd_secrets::SecretStore,
     settings: SharedStreamSettings,
     network: rd_http::SharedNetworkDefaults,
     tools: rd_scheduler::ToolNetworkSource,
@@ -66,7 +70,8 @@ pub fn build_with_network_defaults(
     Arc::new(
         StreamRunner::new(database, settings)
             .with_network_defaults(network)
-            .with_tool_network(tools),
+            .with_tool_network(tools)
+            .with_auth_profiles(secrets),
     )
 }
 

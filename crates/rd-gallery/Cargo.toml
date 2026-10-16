@@ -11,12 +11,16 @@ async-trait.workspace = true
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }
 rd-files = { path = "../rd-files" }
+# The one cookie resolution every media tool shares (RD-1320-03).
+rd-media = { path = "../rd-media" }
 rd-scheduler = { path = "../rd-scheduler" }
+rd-secrets = { path = "../rd-secrets" }
 rd-tools = { path = "../rd-tools" }
 tokio.workspace = true
 tokio-util.workspace = true
 
 [dev-dependencies]
+rd-limits = { path = "../rd-limits" }
 secrecy.workspace = true
 tempfile.workspace = true
 

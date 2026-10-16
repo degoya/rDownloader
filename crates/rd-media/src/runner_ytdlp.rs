@@ -133,6 +133,7 @@ pub(super) async fn resolve_format(
     criteria: Option<&MediaFormatCriteria>,
     capabilities: MediaCapabilities,
     network: &rd_scheduler::ToolNetwork,
+    cookies: Option<&std::path::Path>,
 ) -> Result<String, Failure> {
     let Some(criteria) =
         criteria.filter(|criteria| criteria.strictness == rd_core::MediaStrictness::Required)
@@ -140,8 +141,11 @@ pub(super) async fn resolve_format(
         return Ok(degrade(&selection.format, selection.kind, capabilities));
     };
     let timeout = Duration::from_secs(u64::from(settings.media_check_timeout_seconds.max(5)));
+    // With the run's cookies (RD-1320-02): a page behind a login answers the format query
+    // only with the session the download itself is going to use.
     let inventory =
-        crate::probe::probe_inventory(ytdlp, &selection.page_url, timeout, network).await?;
+        crate::probe::probe_inventory(ytdlp, &selection.page_url, timeout, network, cookies)
+            .await?;
     let resolution = resolve(&inventory, criteria, capabilities).map_err(|error| {
         let failure = Failure::coded(FailureKind::Permanent, error.code(), error.to_string());
         match &error {

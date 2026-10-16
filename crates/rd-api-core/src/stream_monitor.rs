@@ -15,6 +15,9 @@ const ERROR_BACKOFF_THRESHOLD: u32 = 3;
 
 struct Inner {
     database: Database,
+    /// The vault the cookie profiles' blobs are in: a channel behind a sign-in is probed with
+    /// the profile whose scope matches it (RD-1320-03).
+    secrets: rd_secrets::SecretStore,
     scheduler: SchedulerHandle,
     settings: rd_stream::SharedStreamSettings,
     shutdown: CancellationToken,
@@ -30,12 +33,14 @@ impl StreamMonitorService {
     #[must_use]
     pub fn start(
         database: Database,
+        secrets: rd_secrets::SecretStore,
         scheduler: SchedulerHandle,
         settings: rd_stream::SharedStreamSettings,
     ) -> Self {
         let service = Self {
             inner: Arc::new(Inner {
                 database,
+                secrets,
                 scheduler,
                 settings,
                 shutdown: CancellationToken::new(),
@@ -181,6 +186,29 @@ impl StreamMonitorService {
             .unwrap_or(false)
     }
 
+    /// One channel probe: through the global proxy profile (RD-1240-22) and with the cookie
+    /// profile whose scope matches the channel, as the recording will carry it (RD-1320-03).
+    async fn probe_channel(
+        &self,
+        streamlink: &std::path::Path,
+        url: &Url,
+        tool_network: &rd_scheduler::ToolNetworkSource,
+    ) -> Result<rd_stream::StreamProbe> {
+        let network = tool_network
+            .for_request(url)
+            .await
+            .map_err(|failure| anyhow::anyhow!(failure.message))?;
+        let cookies = rd_stream::StreamCookies::resolve(
+            &self.inner.database,
+            &self.inner.secrets,
+            rd_core::AuthProfileSelection::Auto,
+            url,
+        )
+        .await
+        .map_err(|error| anyhow::anyhow!(error.message()))?;
+        rd_stream::probe_stream(streamlink, url.as_str(), &network, cookies.as_ref()).await
+    }
+
     async fn poll_channels(
         &self,
         errors: &mut HashMap<StreamChannelId, u32>,
@@ -216,12 +244,10 @@ impl StreamMonitorService {
             }
             // A proxy that cannot be used is a probe failure, never a direct probe.
             let probed = match Url::parse(&channel.url) {
-                Ok(url) => match tool_network.for_request(&url).await {
-                    Ok(network) => {
-                        rd_stream::probe_stream(&streamlink.path, &channel.url, &network).await
-                    }
-                    Err(failure) => Err(anyhow::anyhow!(failure.message)),
-                },
+                Ok(url) => {
+                    self.probe_channel(&streamlink.path, &url, &tool_network)
+                        .await
+                }
                 Err(error) => Err(anyhow::anyhow!("channel URL is not a valid URL: {error}")),
             };
             match probed {

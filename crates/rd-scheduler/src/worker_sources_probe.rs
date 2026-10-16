@@ -144,7 +144,7 @@ async fn probe_one(
                 transition_stopped(scheduler, file).await?;
                 return Ok(ControlFlow::Break(()));
             }
-            result = http_endpoint(scheduler, network, source) => result?,
+            result = http_endpoint(scheduler, file, network, source) => result?,
         }
     } else {
         tokio::select! {
@@ -163,10 +163,11 @@ async fn probe_one(
 /// the source's, and the attempt goes on with the others.
 async fn http_endpoint(
     scheduler: &SchedulerHandle,
+    file: &DownloadFile,
     network: &NetworkClient,
     source: &DownloadSource,
 ) -> Result<std::result::Result<Option<(SourceEndpoint, Option<u64>)>, Failure>> {
-    let headers = match headers_for(scheduler, network, &source.url).await? {
+    let headers = match headers_for(scheduler, file, network, &source.url).await? {
         Ok(headers) => headers,
         Err(failure) => return Ok(Err(failure)),
     };
@@ -190,7 +191,7 @@ async fn http_endpoint(
     let headers = if probe.final_url == source.url {
         headers
     } else {
-        match headers_for(scheduler, network, &probe.final_url).await? {
+        match headers_for(scheduler, file, network, &probe.final_url).await? {
             Ok(headers) => headers,
             Err(failure) => return Ok(Err(failure)),
         }
@@ -254,11 +255,13 @@ async fn mirror_endpoint(
     )))
 }
 
-/// The headers a request to `target` carries: the profile's where its scope admits them, the
-/// account's credential where its provider's gate does. Decided per address, because the
-/// mirrors of one file sit on hosts that have nothing to do with each other.
-async fn headers_for(
+/// The headers a request to `target` carries: the download's profile's where its scope admits
+/// them, the account's credential where its provider's gate does, and on a mirror's own host
+/// the profile that host matches (RD-1320-05). Decided per address, because the mirrors of one
+/// file sit on hosts that have nothing to do with each other.
+pub(super) async fn headers_for(
     scheduler: &SchedulerHandle,
+    file: &DownloadFile,
     network: &NetworkClient,
     target: &url::Url,
 ) -> Result<std::result::Result<Vec<(String, String)>, Failure>> {
@@ -268,6 +271,8 @@ async fn headers_for(
         Ok(None) => {}
         Err(failure) => return Ok(Err(failure)),
     }
+    let mirror = super::profile::mirror_profile_headers(scheduler, file, target, &headers).await?;
+    headers.extend(mirror);
     Ok(Ok(headers))
 }
 

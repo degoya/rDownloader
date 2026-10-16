@@ -2353,7 +2353,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Resolves the metadata behind a magnet link so it can be reviewed like a `.torrent`. */
+        /**
+         * Resolves the metadata behind a magnet link, or reads the `.torrent` at an http(s) address on
+         *     the link's own network (RD-1320-05), so it can be reviewed like an uploaded `.torrent`.
+         */
         post: operations["resolve_candidate_torrent"];
         delete?: never;
         options?: never;
@@ -22747,7 +22750,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The address could not be fetched, or the decryption service did not answer */
+            /** @description The address could not be fetched, the proxy cannot be used, or the decryption service did not answer */
             502: {
                 headers: {
                     [name: string]: unknown;

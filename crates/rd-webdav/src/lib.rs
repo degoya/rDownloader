@@ -40,8 +40,14 @@ pub enum Probed {
 ///
 /// `client` is the same pooled client the transfer will use, so the probe authenticates
 /// exactly the way the download does; building a separate one here would bypass the auth
-/// profile rules, the proxy and the custom CA.
-pub async fn probe(client: &Client, target: &RemoteTarget) -> Result<Probed> {
+/// profile rules, the proxy and the custom CA. `headers` are that client's per-request
+/// credentials — a Basic or Bearer profile's `Authorization` (RD-1320-04) — which the client
+/// itself does not carry; a cookie profile rides in its jar.
+pub async fn probe(
+    client: &Client,
+    headers: &[(String, String)],
+    target: &RemoteTarget,
+) -> Result<Probed> {
     let Some(url) = target.sanitized_url() else {
         return Ok(Probed::Failed(Failure::coded(
             FailureKind::Permanent,
@@ -49,11 +55,19 @@ pub async fn probe(client: &Client, target: &RemoteTarget) -> Result<Probed> {
             "The WebDAV address is not valid",
         )));
     };
-    let response = client
-        .request(
-            reqwest::Method::from_bytes(b"PROPFIND").expect("PROPFIND is a valid method"),
-            url.clone(),
-        )
+    let mut request = client.request(
+        reqwest::Method::from_bytes(b"PROPFIND").expect("PROPFIND is a valid method"),
+        url.clone(),
+    );
+    for (name, value) in headers {
+        if let Ok(name) = header::HeaderName::from_bytes(name.as_bytes())
+            && let Ok(mut value) = header::HeaderValue::from_str(value)
+        {
+            value.set_sensitive(true);
+            request = request.header(name, value);
+        }
+    }
+    let response = request
         // Depth 1 lists the collection and its direct children. Depth `infinity` is
         // refused by most servers and would hand back an unbounded body from the rest.
         .header("depth", "1")

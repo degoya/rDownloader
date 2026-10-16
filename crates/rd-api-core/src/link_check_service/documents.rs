@@ -19,7 +19,10 @@ impl LinkCheckService {
         force: bool,
         guard: Option<&rd_http::AddressPolicy>,
     ) -> bool {
-        let Ok(network) = self.client_for(&candidate.url, guard).await else {
+        let Ok(network) = self
+            .client_for(&candidate.url, candidate.auth_profile, guard)
+            .await
+        else {
             return false;
         };
         // Reading the body of every direct link to see whether it might be a playlist would
@@ -146,7 +149,10 @@ impl LinkCheckService {
         candidate: &LinkCandidate,
         guard: Option<&rd_http::AddressPolicy>,
     ) -> Rerouted {
-        let Ok(network) = self.client_for(&candidate.url, guard).await else {
+        let Ok(network) = self
+            .client_for(&candidate.url, candidate.auth_profile, guard)
+            .await
+        else {
             return Rerouted::No;
         };
         let Ok(probed) =

@@ -25,7 +25,10 @@ impl HttpApiFetcher {
         url: &url::Url,
         headers: &[(String, String)],
     ) -> anyhow::Result<reqwest::Response> {
-        let network = self.scheduler.direct_client(url).await?;
+        let network = self
+            .scheduler
+            .direct_client(url, rd_core::AuthProfileSelection::Auto)
+            .await?;
         let header = |(name, value): &(String, String)| {
             let name = HeaderName::from_bytes(name.as_bytes()).ok()?;
             let mut value = HeaderValue::from_str(value).ok()?;

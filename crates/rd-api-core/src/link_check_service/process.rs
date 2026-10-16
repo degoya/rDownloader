@@ -192,9 +192,14 @@ impl LinkCheckService {
                 let guard = guards.get(&candidate.id).cloned();
                 tasks.push(tokio::spawn(async move {
                     let _permit = permit;
+                    let selection = candidate.auth_profile;
                     let network = match guard {
-                        Some(policy) => scheduler.guarded_client(&candidate.url, policy).await,
-                        None => scheduler.direct_client(&candidate.url).await,
+                        Some(policy) => {
+                            scheduler
+                                .guarded_client(&candidate.url, selection, policy)
+                                .await
+                        }
+                        None => scheduler.direct_client(&candidate.url, selection).await,
                     };
                     let result = match network {
                         Ok(network) => Some(

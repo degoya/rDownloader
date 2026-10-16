@@ -313,7 +313,7 @@ impl CompatRules {
                 },
                 CompatRule {
                     tool: "streamlink".to_owned(),
-                    min_version: Some("5.5.0".to_owned()),
+                    min_version: Some("8.2.0".to_owned()),
                     known_bad: Vec::new(),
                     affects: vec![Capability::StreamRecording],
                 },

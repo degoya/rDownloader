@@ -14,6 +14,8 @@ use rd_core::{SidecarOutcome, SidecarPolicy, SidecarStatus};
 use rd_http::SharedNetworkDefaults;
 use rd_scheduler::{ToolNetwork, ToolProxy};
 
+use crate::StreamCookies;
+
 /// Largest thumbnail accepted.
 const MAX_THUMBNAIL_BYTES: usize = 8 * 1024 * 1024;
 
@@ -29,7 +31,12 @@ const MAX_THUMBNAIL_REDIRECTS: usize = 5;
 /// Captures what the policy asked for, reporting every requested kind.
 ///
 /// The metadata streamlink reports is the source for all of it: it is the only description of
-/// the stream available without a provider-specific client.
+/// the stream available without a provider-specific client. Both fetches carry the recording's
+/// cookie profile (RD-1320-03).
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one recording's context, each part used once"
+)]
 pub async fn capture(
     clients: &SidecarClients,
     streamlink: &Path,
@@ -38,9 +45,10 @@ pub async fn capture(
     stem: &str,
     policy: SidecarPolicy,
     network: &ToolNetwork,
+    cookies: Option<&StreamCookies>,
 ) -> Vec<SidecarOutcome> {
     let mut outcomes = Vec::new();
-    let probe = crate::probe::probe_json(streamlink, url, network)
+    let probe = crate::probe::probe_json(streamlink, url, network, cookies)
         .await
         .ok();
 
@@ -51,9 +59,12 @@ pub async fn capture(
         });
     }
     if policy.thumbnail {
-        outcomes.push(
-            capture_thumbnail(clients, network.proxy(), probe.as_deref(), directory, stem).await,
-        );
+        let thumbnail = Thumbnail {
+            proxy: network.proxy(),
+            cookies,
+        };
+        outcomes
+            .push(capture_thumbnail(clients, &thumbnail, probe.as_deref(), directory, stem).await);
     }
     if policy.subtitles {
         // streamlink hands the muxed stream over as-is; a separate subtitle track is not
@@ -178,9 +189,15 @@ fn build_client(custom_ca_pem: &[Vec<u8>], proxy: Option<&ToolProxy>) -> Option<
     }
 }
 
+/// How the thumbnail is fetched: the recording's proxy and cookies.
+struct Thumbnail<'a> {
+    proxy: Option<&'a ToolProxy>,
+    cookies: Option<&'a StreamCookies>,
+}
+
 async fn capture_thumbnail(
     clients: &SidecarClients,
-    proxy: Option<&ToolProxy>,
+    fetch: &Thumbnail<'_>,
     probe: Option<&str>,
     directory: &Path,
     stem: &str,
@@ -188,10 +205,21 @@ async fn capture_thumbnail(
     let Some(url) = probe.and_then(thumbnail_url) else {
         return outcome("thumbnail", SidecarStatus::NotOffered, None);
     };
-    let Some(client) = clients.client(proxy).await else {
+    let Some(client) = clients.client(fetch.proxy).await else {
         return outcome("thumbnail", SidecarStatus::Failed, None);
     };
-    let Ok(mut response) = client.get(&url).send().await else {
+    let mut request = client.get(&url);
+    // Only the rows the thumbnail's host may receive; reqwest drops the header on a redirect
+    // to another host.
+    if let Some(mut value) = fetch
+        .cookies
+        .and_then(|cookies| cookies.header_for(&url))
+        .and_then(|header| reqwest::header::HeaderValue::from_str(&header).ok())
+    {
+        value.set_sensitive(true);
+        request = request.header(reqwest::header::COOKIE, value);
+    }
+    let Ok(mut response) = request.send().await else {
         return outcome("thumbnail", SidecarStatus::Failed, None);
     };
     if !response.status().is_success() {
@@ -328,7 +356,7 @@ mod proxy_tests {
     use secrecy::SecretString;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    use super::{SidecarClients, capture_thumbnail};
+    use super::{SidecarClients, Thumbnail, capture_thumbnail};
 
     const THUMBNAIL: &[u8] = b"\x89PNG-thumbnail";
 
@@ -376,9 +404,24 @@ mod proxy_tests {
         // A name nothing resolves: only the proxy can have answered.
         let probe = r#"{"metadata":{"thumbnail":"http://thumbnails.invalid/show.png"}}"#;
 
+        // The recording's cookies for that host travel with it (RD-1320-03).
+        let cookies = crate::StreamCookies::from_rows(vec![rd_core::CookieRow {
+            domain: "thumbnails.invalid".to_owned(),
+            include_subdomains: false,
+            path: "/".to_owned(),
+            secure: false,
+            expires: 0,
+            name: "session".to_owned(),
+            value: "thumb-secret".to_owned(),
+        }])
+        .expect("cookies");
+
         let outcome = capture_thumbnail(
             &SidecarClients::new(),
-            Some(&proxy),
+            &Thumbnail {
+                proxy: Some(&proxy),
+                cookies: Some(&cookies),
+            },
             Some(probe),
             directory.path(),
             "show",
@@ -400,6 +443,13 @@ mod proxy_tests {
                 .any(|line| line.split_once(':').is_some_and(|(name, value)| name
                     .eq_ignore_ascii_case("proxy-authorization")
                     && value.trim() == "Basic YWxpY2U6cHIweHktc2VjcmV0")),
+            "{head}"
+        );
+        assert!(
+            head.lines().any(|line| line
+                .split_once(':')
+                .is_some_and(|(name, value)| name.eq_ignore_ascii_case("cookie")
+                    && value.trim() == "session=thumb-secret")),
             "{head}"
         );
     }

@@ -1325,7 +1325,8 @@
     "automation.version_reset_run_active": "Ein Lauf einer älteren Version ist noch aktiv. Setze die Versionen zurück, sobald er fertig ist.",
     "notification.template_syntax": "Eine geschweifte Klammer in der Vorlage ist nicht geschlossen, nicht geöffnet oder leer.",
     "notification.template_unknown_placeholder": "„{placeholder}“ ist kein Platzhalter.",
-    "notification.template_too_long": "Die Vorlage ist länger als {max} Zeichen."
+    "notification.template_too_long": "Die Vorlage ist länger als {max} Zeichen.",
+    "media.ytdlp_signin_required": "Dieses Video auf {site} gibt es nur angemeldet. Übergib deine Sitzung mit „Sitzung dieser Seite an rDownloader senden“ in der Browser-Erweiterung oder hinterlege die Browser-Cookies der Seite in einem Authentifizierungsprofil (Konten → Authentifizierungsprofile). Ist schon ein Profil im Spiel, sind seine Cookies wohl abgelaufen: übergib sie neu. {detail}"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

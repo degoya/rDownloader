@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.31.0"
+    "version": "1.32.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -4706,7 +4706,7 @@
             "description": "The file exceeds 64 MiB (48 MiB as base64 JSON)"
           },
           "502": {
-            "description": "The address could not be fetched, or the decryption service did not answer"
+            "description": "The address could not be fetched, the proxy cannot be used, or the decryption service did not answer"
           }
         }
       }
@@ -6989,7 +6989,7 @@
         "tags": [
           "collector"
         ],
-        "summary": "Resolves the metadata behind a magnet link so it can be reviewed like a `.torrent`.",
+        "summary": "Resolves the metadata behind a magnet link, or reads the `.torrent` at an http(s) address on\nthe link's own network (RD-1320-05), so it can be reviewed like an uploaded `.torrent`.",
         "operationId": "resolve_candidate_torrent",
         "parameters": [
           {

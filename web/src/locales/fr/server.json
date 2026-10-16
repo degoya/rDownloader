@@ -1325,7 +1325,8 @@
     "automation.version_reset_run_active": "Une exécution d'une version antérieure est encore active ; réinitialisez les versions une fois qu'elle est terminée.",
     "notification.template_syntax": "Une accolade du modèle n’est pas fermée, pas ouverte ou n’entoure rien.",
     "notification.template_unknown_placeholder": "« {placeholder} » n’est pas une variable.",
-    "notification.template_too_long": "Le modèle dépasse {max} caractères."
+    "notification.template_too_long": "Le modèle dépasse {max} caractères.",
+    "media.ytdlp_signin_required": "Cette vidéo sur {site} n’est montrée qu’à une session connectée. Transmettez votre session avec « Envoyer la session de ce site à rDownloader » dans l’extension du navigateur ou ajoutez les cookies du navigateur pour ce site dans un profil d’authentification (Comptes → Profils d’authentification). Si un profil est déjà utilisé, ses cookies ont probablement expiré : transmettez-les à nouveau. {detail}"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

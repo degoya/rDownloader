@@ -24,6 +24,11 @@
 //!   service's own addresses and the link-local block are not (security review 2026-09-28,
 //!   finding 9). A capture token would otherwise be a way to make the service request its own
 //!   API or a cloud metadata endpoint.
+//! - **The service's own way out.** The fetch goes through the global proxy and trusts the
+//!   custom CA, as the LinkGrabber's check does (RD-1320-06, RD-1240-22): a person behind a
+//!   proxy does not show the site their own address, and a company proxy with its own CA works.
+//!   A proxy that cannot be used is an error, never a direct fetch. Through a proxy the guard
+//!   judges every hop's target before the request, and the proxy resolves it.
 
 use std::{fmt, time::Duration};
 
@@ -82,6 +87,69 @@ pub(crate) struct FetchPlan {
     user_agent: HeaderValue,
 }
 
+/// The network the fetch goes out on: the global proxy and the custom CA (RD-1320-06).
+#[derive(Default)]
+pub(crate) struct FetchNetwork {
+    proxy: Option<reqwest::Proxy>,
+    custom_ca_pem: Vec<Vec<u8>>,
+}
+
+impl FetchNetwork {
+    /// The proxy and CA the LinkGrabber's check of `url` would use: no profile, no account, so
+    /// the global proxy (`ToolNetworkSource::for_request`). `proxy.check_unavailable` (`502`)
+    /// when that proxy cannot be set up: the address is then not fetched at all.
+    pub(crate) async fn for_request(
+        scheduler: &rd_scheduler::SchedulerHandle,
+        url: &Url,
+    ) -> Result<Self, ApiError> {
+        let unusable = |reason: String| {
+            ApiError::bad_gateway(
+                "proxy.check_unavailable",
+                format!(
+                    "The proxy cannot be used, so the address was not fetched without it: {reason}"
+                ),
+            )
+            .with_param("reason", reason)
+        };
+        let tool = scheduler
+            .tool_network()
+            .for_request(url)
+            .await
+            .map_err(|failure| {
+                unusable(
+                    failure
+                        .params
+                        .get("reason")
+                        .cloned()
+                        .unwrap_or(failure.message),
+                )
+            })?;
+        let proxy = tool
+            .proxy()
+            .map(rd_scheduler::ToolProxy::http_proxy)
+            .transpose()
+            .map_err(|error| unusable(rd_core::redact_text(&format!("{error:#}"))))?;
+        let custom_ca_pem = scheduler
+            .network_defaults()
+            .read()
+            .await
+            .custom_ca_pem
+            .clone();
+        Ok(Self {
+            proxy,
+            custom_ca_pem,
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new(proxy: Option<reqwest::Proxy>, custom_ca_pem: Vec<Vec<u8>>) -> Self {
+        Self {
+            proxy,
+            custom_ca_pem,
+        }
+    }
+}
+
 /// What the one fetch brought back.
 #[derive(Debug)]
 pub(crate) struct Fetched {
@@ -121,6 +189,11 @@ impl FetchPlan {
             referrer,
             user_agent,
         })
+    }
+
+    /// The address the fetch starts at.
+    pub(crate) fn url(&self) -> &Url {
+        &self.url
     }
 
     /// The address, for a log line that names the host and nothing else.
@@ -226,20 +299,42 @@ pub(crate) fn cookie_header(cookies: &[CaptureCookie]) -> Result<Option<HeaderVa
 /// Fetches the plan's address once, following redirects by hand so each hop is decided here.
 ///
 /// `guard` is the address policy every hop is held to; `None` only where
-/// `AppState::with_local_capture_fetches` asked for it.
+/// `AppState::with_local_capture_fetches` asked for it. `network` is the proxy and CA the
+/// request goes out with.
 pub(crate) async fn fetch_once(
     plan: &FetchPlan,
     max_bytes: usize,
     guard: Option<&rd_http::AddressPolicy>,
+    network: &FetchNetwork,
 ) -> Result<Fetched, ApiError> {
     // No cookie store: a `Set-Cookie` in the answer is dropped with the client.
     let mut builder = rd_http::client_builder(rd_http::ClientPurpose::Service)
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(TOTAL_TIMEOUT);
-    if let Some(policy) = guard {
+    if let Some(proxy) = &network.proxy {
+        // The proxy alone: the service's own proxy variables do not apply beside it.
+        builder = builder.no_proxy().proxy(proxy.clone());
+    }
+    for pem in &network.custom_ca_pem {
+        let certificate = reqwest::Certificate::from_pem(pem).map_err(anyhow::Error::new)?;
+        builder = builder.add_root_certificate(certificate);
+    }
+    if let Some(policy) = guard
+        && network.proxy.is_none()
+    {
         // The name is resolved again to connect; the guard sees that answer too, so a name
         // that pointed elsewhere at the check below cannot point inside now.
+        //
+        // Through a proxy the service's rule for every guarded request applies (RD-150-03;
+        // `rd_http::client_pool::build_client`, `rd_plugin_host`'s `check_reach`, and the
+        // LinkGrabber's guarded check, which builds on the former): the resolver would only see
+        // the proxy's own name, so it is left out, and the target is judged before every hop
+        // by `screen_hop`. The proxy resolves the target itself, so a name that answers
+        // differently there is the proxy's to resolve — the person chose it — and a name this
+        // machine cannot resolve is left to the proxy, which may know it. Neither a proxy on
+        // loopback or the local network (a local authenticating proxy, the company's) is
+        // refused: the LinkGrabber's check does not refuse them either.
         builder = builder.dns_resolver(rd_http::GuardedResolver::system(policy.clone()));
     }
     let client = builder.build().map_err(anyhow::Error::new)?;
@@ -390,3 +485,7 @@ pub(crate) fn file_too_large(max_bytes: usize) -> ApiError {
 #[cfg(test)]
 #[path = "capture_fetch_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "capture_fetch_network_tests.rs"]
+mod network_tests;

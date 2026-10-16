@@ -21,6 +21,8 @@ use rd_scheduler::ToolNetwork;
 use rd_tools::{ToolProcess, process::Stdout};
 use tokio_util::sync::CancellationToken;
 
+use crate::StreamCookies;
+
 /// How often the running segment's size is sampled.
 const SIZE_POLL_INTERVAL: Duration = Duration::from_secs(2);
 /// Extension streamlink writes; MPEG-TS survives a hard kill, which is why segments are
@@ -80,6 +82,8 @@ pub struct SegmentTool<'a> {
     pub quality: &'a str,
     /// The recording's proxy and the custom CA (RD-1240-08).
     pub network: &'a ToolNetwork,
+    /// The recording's cookie profile (RD-1320-03); `None` without one.
+    pub cookies: Option<&'a StreamCookies>,
 }
 
 /// streamlink's network options (RD-1240-08): the proxy as `--http-proxy` when it carries no
@@ -93,15 +97,18 @@ pub(crate) fn network_args(network: &ToolNetwork) -> Vec<OsString> {
         .unwrap_or_default()
 }
 
-/// A streamlink command with `network`'s environment and options set; the caller adds the rest.
+/// A streamlink command with `network`'s environment and options and the cookie file set; the
+/// caller adds the rest.
 pub(crate) fn streamlink_command(
     streamlink: &Path,
     network: &ToolNetwork,
+    cookies: Option<&StreamCookies>,
 ) -> tokio::process::Command {
     let mut command = tokio::process::Command::new(streamlink);
     command.no_console_window();
     network.apply(&mut command);
     command.args(network_args(network));
+    command.args(crate::cookies::cookie_args(cookies));
     command
 }
 
@@ -134,7 +141,7 @@ pub(crate) async fn record<F>(
 where
     F: FnMut(u64),
 {
-    let mut command = streamlink_command(tool.streamlink, tool.network);
+    let mut command = streamlink_command(tool.streamlink, tool.network, tool.cookies);
     command.args(segment_args(tool, output));
     // Discarded, not captured: streamlink writes the stream itself to `--output` and nothing
     // here parses its stdout. Piping it would only fill a buffer nobody drains, which stalls
@@ -306,8 +313,9 @@ mod tests {
                 url: "https://live.example/channel",
                 quality: "best",
                 network,
+                cookies: None,
             };
-            let command = streamlink_command(tool.streamlink, network);
+            let command = streamlink_command(tool.streamlink, network, tool.cookies);
             command
                 .as_std()
                 .get_args()
@@ -338,6 +346,46 @@ mod tests {
 
         let args = command_line(&ToolNetwork::direct());
         assert!(!args.iter().any(|arg| arg.contains("proxy")), "{args:?}");
+    }
+
+    /// RD-1320-03: a recording carries its cookie file, by path, before its own options.
+    #[test]
+    fn a_recording_carries_its_cookie_file_by_path() {
+        let cookies = crate::StreamCookies::from_rows(vec![rd_core::CookieRow {
+            domain: "live.example".to_owned(),
+            include_subdomains: true,
+            path: "/".to_owned(),
+            secure: true,
+            expires: 0,
+            name: "auth-token".to_owned(),
+            value: "recording-secret".to_owned(),
+        }])
+        .expect("cookies");
+        let network = ToolNetwork::direct();
+        let tool = SegmentTool {
+            streamlink: Path::new("streamlink"),
+            url: "https://live.example/channel",
+            quality: "best",
+            network: &network,
+            cookies: Some(&cookies),
+        };
+        let command = streamlink_command(tool.streamlink, tool.network, tool.cookies);
+        let args: Vec<String> = command
+            .as_std()
+            .get_args()
+            .map(OsStr::to_owned)
+            .chain(segment_args(&tool, Path::new("/rec/show.part001.ts")))
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(args[0], "--http-cookies-file");
+        assert!(std::path::Path::new(&args[1]).exists(), "{args:?}");
+        assert_eq!(args[2..4], ["--output", "/rec/show.part001.ts"]);
+        assert!(
+            !args
+                .iter()
+                .any(|arg| arg.contains("recording-secret") || arg.contains("auth-token")),
+            "{args:?}"
+        );
     }
 
     #[test]

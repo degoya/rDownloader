@@ -10,9 +10,10 @@ use rd_core::{DownloadFile, DownloadKind, DownloadPackage, Failure, FailureKind}
 use rd_db::Database;
 use rd_http::SharedNetworkDefaults;
 use rd_scheduler::{ExternalRunner, RunOutcome, ToolNetwork, ToolNetworkSource};
+use rd_secrets::SecretStore;
 use tokio_util::sync::CancellationToken;
 
-use crate::{SharedStreamSettings, sidecars::SidecarClients};
+use crate::{SharedStreamSettings, StreamCookies, sidecars::SidecarClients};
 
 /// Records `DownloadKind::Record` files.
 pub struct StreamRunner {
@@ -26,6 +27,9 @@ pub struct StreamRunner {
     sidecars: SidecarClients,
     /// The proxy and CA streamlink is started with (RD-1240-08); none without it, as in tests.
     network: Option<ToolNetworkSource>,
+    /// The vault the cookie profiles' blobs are in (RD-1320-03); none without it, as in tests,
+    /// and then nothing is recorded with cookies.
+    secrets: Option<SecretStore>,
 }
 
 impl StreamRunner {
@@ -40,7 +44,16 @@ impl StreamRunner {
             slots,
             sidecars: SidecarClients::new(),
             network: None,
+            secrets: None,
         }
+    }
+
+    /// Records with the download's cookie profile, by the rules the media download keeps
+    /// (RD-1320-03): pinned, none, or the one whose scope matches the channel.
+    #[must_use]
+    pub fn with_auth_profiles(mut self, secrets: SecretStore) -> Self {
+        self.secrets = Some(secrets);
+        self
     }
 
     /// Hands streamlink the recording's proxy and the custom CA (RD-1240-08).
@@ -171,6 +184,9 @@ struct Recording {
     stem: String,
     /// The proxy and CA every segment and the sidecar probe go through (RD-1240-08).
     network: ToolNetwork,
+    /// The cookie profile every segment and both sidecar fetches carry (RD-1320-03); the file
+    /// lives as long as the recording.
+    cookies: Option<StreamCookies>,
 }
 
 impl StreamRunner {
@@ -188,6 +204,20 @@ impl StreamRunner {
                 Err(failure) => return Ok(ControlFlow::Break(RunOutcome::Failed(failure))),
             },
             None => ToolNetwork::direct(),
+        };
+        let cookies = match &self.secrets {
+            Some(secrets) => match StreamCookies::resolve(
+                &self.database,
+                secrets,
+                file.auth_profile,
+                &file.source,
+            )
+            .await
+            {
+                Ok(cookies) => cookies,
+                Err(error) => return Ok(ControlFlow::Break(RunOutcome::Failed(error.failure()))),
+            },
+            None => None,
         };
         let settings = self.settings.read().await.clone();
         // Leased before the version is assessed, and only recordings stop when Streamlink is
@@ -226,6 +256,7 @@ impl StreamRunner {
             policy,
             stem,
             network,
+            cookies,
         }))
     }
 
@@ -328,6 +359,7 @@ impl StreamRunner {
                 url: file.source.as_str(),
                 quality: &recording.quality,
                 network: &recording.network,
+                cookies: recording.cookies.as_ref(),
             },
             output,
             recording.policy,
@@ -365,6 +397,7 @@ impl StreamRunner {
                 &recording.stem,
                 policy.sidecars,
                 &recording.network,
+                recording.cookies.as_ref(),
             )
             .await;
         }

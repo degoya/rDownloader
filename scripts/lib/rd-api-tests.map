@@ -82,7 +82,7 @@
 ^crates/rd-api(-[a-z]+)?/src/browser_session[a-z_]*\.rs$                                  browser_session
 ^crates/rd-api(-[a-z]+)?/src/captcha_handlers(\.rs$|/)                                        captcha
 ^crates/rd-api(-[a-z]+)?/src/capture_sanitize(\.rs$|/)                                        capture_intake capture_boundary captcha event_resume browser_session auth_profiles
-^crates/rd-api(-[a-z]+)?/src/(capture_fetch|capture_file|nzb_zip)(\.rs$|/)                    capture_file capture_container
+^crates/rd-api(-[a-z]+)?/src/(capture_fetch|capture_file|nzb_zip)(\.rs$|/)                    capture_file capture_container capture_fetch_network
 ^crates/rd-api(-[a-z]+)?/src/capture_click_and_load(\.rs$|/)                                 capture_click_and_load
 ^crates/rd-api(-[a-z]+)?/src/(collector_[a-z_]+|routes/collector)(\.rs$|/)                    capture_intake capture_boundary containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens source_sets git_releases collector_pages capture_pick address_rule
 ^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions(\.rs$|/)   compat_qbittorrent compat_arr
@@ -92,6 +92,8 @@
 # Exporting packages as a link file, taking one back in, and re-resolving (RD-1210-01).
 ^crates/rd-api(-[a-z]+)?/src/(package_export|package_export_nzb|links_file|links_nzb|container_enqueue|download_handlers/reresolve(_now)?)(\.rs$|/)   package_export package_export_nzb reresolve_now mcp scope_matrix
 ^crates/rd-scheduler/src/resolve_now\.rs$                                                     + reresolve_now
+# The client a check goes out with: the candidate's own profile, WebDAV's headers (RD-1320-04).
+^crates/rd-scheduler/src/(network|worker_client)\.rs$|^crates/rd-webdav/src/                   + check_auth_profile reresolve_now
 ^crates/rd-db/src/writer_pins(_tests)?\.rs$                                                   + reresolve_now package_export
 ^crates/rd-api(-[a-z]+)?/src/nzb_candidate(\.rs$|/)                                          nzb_paused package_export_nzb indexers
 ^crates/rd-api(-[a-z]+)?/src/(lifecycle_handlers|pre_update_service|local_control|routes/lifecycle)(\.rs$|/)   service_lifecycle oidc password_reset
@@ -157,7 +159,7 @@
 # A pending restart and the restart itself (RD-1240-32): its routes, the tray's, the scope rows.
 ^crates/rd-api(-[a-z]+)?/src/(restart_service|restart_auto|restart_state|restart_handlers)(\.rs$|/)   restart capture_server_update scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/capture_agents(\.rs$|/)                                         updates
-^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)(\.rs$|/)                        torrent compat_qbittorrent compat_arr container_json service_switches capture_file
+^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)(\.rs$|/)                        torrent compat_qbittorrent compat_arr container_json service_switches capture_file torrent_resolve
 ^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)(\.rs$|/)                         nzb_paused nzb_remote_job container_json indexers compat_sabnzbd unique_names unreadable_secrets usenet_connections
 ^crates/rd-api(-[a-z]+)?/src/nzb_remote_job_handlers(\.rs$|/)                                nzb_remote_job
 
@@ -170,7 +172,7 @@
 ^crates/rd-api(-[a-z]+)?/src/plugin_live(\.rs$|/)                                             plugin_enabled plugin_bundled plugin_bundled_removal plugin_bundled_repository plugin_versions plugin_repositories plugin_auto_updates
 ^crates/rd-api(-[a-z]+)?/src/destination(\.rs$|/)                                             storage_roots storage_capacity protected_roots category_move_and_reset unique_names capture_intake compat_sabnzbd torrent hotfolder_poll automations stream_schedules
 ^crates/rd-api(-[a-z]+)?/src/hosters(\.rs$|/)                                                 canaries mirrors mcp
-^crates/rd-api(-[a-z]+)?/src/link_check_[a-z_]+(\.rs$|/)                                      capture_intake capture_boundary containers container_json dlc mirrors media_manifest source_sets subscriptions torrent hotfolder_poll nzb_remote_job address_rule
+^crates/rd-api(-[a-z]+)?/src/link_check_[a-z_]+(\.rs$|/)                                      capture_intake capture_boundary containers container_json dlc mirrors media_manifest source_sets subscriptions torrent hotfolder_poll nzb_remote_job address_rule check_auth_profile
 ^crates/rd-api(-[a-z]+)?/src/notify_notice(\.rs$|/)                                           notifications updates plugin_repositories full_backup update_auto_install notification_templates
 ^crates/rd-api(-[a-z]+)?/src/postprocess_handlers(\.rs$|/)                                    api_tokens
 ^crates/rd-api(-[a-z]+)?/src/(remote_job_service|remote_job_handlers)(\.rs$|/)                 nzb_remote_job container_json mcp remote_jobs_clear

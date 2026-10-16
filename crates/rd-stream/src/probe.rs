@@ -6,6 +6,8 @@ use anyhow::{Context, Result};
 use rd_scheduler::ToolNetwork;
 use rd_tools::process::run_to_output;
 
+use crate::StreamCookies;
+
 const PROBE_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// Whether the probe output announces at least one playable stream.
@@ -68,8 +70,13 @@ pub fn parse_replay_capability(output: &str) -> bool {
 
 /// Probes one channel URL; `Ok(true)` = live now. Errors mean the probe itself failed
 /// (missing tool, timeout, a proxy streamlink cannot use), not that the channel is offline.
-pub async fn probe_live(streamlink: &Path, url: &str, network: &ToolNetwork) -> Result<bool> {
-    Ok(probe_stream(streamlink, url, network).await?.live)
+pub async fn probe_live(
+    streamlink: &Path,
+    url: &str,
+    network: &ToolNetwork,
+    cookies: Option<&StreamCookies>,
+) -> Result<bool> {
+    Ok(probe_stream(streamlink, url, network, cookies).await?.live)
 }
 
 /// Runs `streamlink --json <url>` and hands back what it printed to stdout.
@@ -82,8 +89,13 @@ pub async fn probe_live(streamlink: &Path, url: &str, network: &ToolNetwork) -> 
 /// `error` field when a channel is simply offline, which is an answer and not a failure; the
 /// parsers below decide what the text means. An `Err` here is the probe itself failing —
 /// a missing binary or a timeout — and that is what the callers must not read as "offline".
-async fn probe_output(streamlink: &Path, url: &str, network: &ToolNetwork) -> Result<String> {
-    let mut command = crate::segments::streamlink_command(streamlink, network);
+async fn probe_output(
+    streamlink: &Path,
+    url: &str,
+    network: &ToolNetwork,
+    cookies: Option<&StreamCookies>,
+) -> Result<String> {
+    let mut command = crate::segments::streamlink_command(streamlink, network, cookies);
     command.args(["--json", "--"]).arg(url);
     let output = run_to_output(&mut command, PROBE_TIMEOUT)
         .await
@@ -93,13 +105,14 @@ async fn probe_output(streamlink: &Path, url: &str, network: &ToolNetwork) -> Re
 }
 
 /// The raw `streamlink --json` output, for the sidecar capture (RD-080-09), through the
-/// recording's proxy (RD-1240-08).
+/// recording's proxy (RD-1240-08) and with its cookies (RD-1320-03).
 pub(crate) async fn probe_json(
     streamlink: &Path,
     url: &str,
     network: &ToolNetwork,
+    cookies: Option<&StreamCookies>,
 ) -> Result<String> {
-    probe_output(streamlink, url, network).await
+    probe_output(streamlink, url, network, cookies).await
 }
 
 /// Probes one channel URL through `network` and reports both liveness and replay capability.
@@ -107,13 +120,15 @@ pub(crate) async fn probe_json(
 /// The channel monitor hands in the global proxy profile (RD-1240-22). A streamlink that cannot
 /// speak that proxy says so in the `error` field an offline channel uses too; read as
 /// "offline", the channel would never be recorded and nobody would learn why. A proxy that
-/// refuses the profile's password is the same silence (RD-1240-29).
+/// refuses the profile's password is the same silence (RD-1240-29). A channel behind a sign-in
+/// is probed with the cookie profile that matches it (RD-1320-03).
 pub async fn probe_stream(
     streamlink: &Path,
     url: &str,
     network: &ToolNetwork,
+    cookies: Option<&StreamCookies>,
 ) -> Result<StreamProbe> {
-    let text = probe_output(streamlink, url, network).await?;
+    let text = probe_output(streamlink, url, network, cookies).await?;
     if let Some(failure) = probe_error(&text).and_then(|error| {
         network
             .unsupported_proxy("streamlink", &error)
@@ -227,13 +242,46 @@ mod network_tests {
         );
         let network = proxied(ProxyKind::Http, "http://proxy.example:3128");
 
-        let probe = probe_stream(&streamlink, CHANNEL, &network)
+        let probe = probe_stream(&streamlink, CHANNEL, &network, None)
             .await
             .expect("probe");
         assert!(probe.live);
         let args = std::fs::read_to_string(directory.path().join("args.log")).expect("args");
         assert!(
             args.starts_with("--http-proxy http://proxy.example:3128/ --json -- "),
+            "{args}"
+        );
+    }
+
+    /// RD-1320-03: a channel behind a sign-in is probed with its cookie file, by path; no
+    /// cookie value reaches the argument list.
+    #[tokio::test]
+    async fn the_probe_carries_the_cookie_file_and_no_value() {
+        let directory = tempfile::tempdir().expect("directory");
+        let streamlink = fake_streamlink(
+            directory.path(),
+            r#"{"plugin":"twitch","streams":{"best":{"type":"hls"}}}"#,
+        );
+        let cookies = crate::StreamCookies::from_rows(vec![rd_core::CookieRow {
+            domain: "live.example".to_owned(),
+            include_subdomains: true,
+            path: "/".to_owned(),
+            secure: true,
+            expires: 0,
+            name: "auth-token".to_owned(),
+            value: "channel-secret".to_owned(),
+        }])
+        .expect("cookies");
+
+        let probe = probe_stream(&streamlink, CHANNEL, &ToolNetwork::direct(), Some(&cookies))
+            .await
+            .expect("probe");
+        assert!(probe.live);
+        let args = std::fs::read_to_string(directory.path().join("args.log")).expect("args");
+        assert!(args.starts_with("--http-cookies-file "), "{args}");
+        assert!(args.contains(" --json -- "), "{args}");
+        assert!(
+            !args.contains("channel-secret") && !args.contains("auth-token"),
             "{args}"
         );
     }
@@ -249,13 +297,13 @@ mod network_tests {
         );
 
         let network = proxied(ProxyKind::Socks5, "socks5h://proxy.example:1080");
-        let error = probe_stream(&streamlink, CHANNEL, &network)
+        let error = probe_stream(&streamlink, CHANNEL, &network, None)
             .await
             .expect_err("no answer through the proxy");
         assert!(error.to_string().contains("SOCKS5"), "{error}");
 
         // Without a proxy the same answer stays what it was: not live.
-        let probe = probe_stream(&streamlink, CHANNEL, &ToolNetwork::direct())
+        let probe = probe_stream(&streamlink, CHANNEL, &ToolNetwork::direct(), None)
             .await
             .expect("probe");
         assert!(!probe.live);
@@ -273,7 +321,7 @@ mod network_tests {
         );
 
         let network = proxied(ProxyKind::Http, "http://proxy.example:3128");
-        let error = probe_stream(&streamlink, CHANNEL, &network)
+        let error = probe_stream(&streamlink, CHANNEL, &network, None)
             .await
             .expect_err("refused by the proxy");
         assert!(error.to_string().contains("407"), "{error}");

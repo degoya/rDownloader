@@ -11,7 +11,9 @@ use anyhow::Result;
 use async_trait::async_trait;
 use rd_core::{DownloadFile, DownloadKind, DownloadPackage, Failure, FailureKind};
 use rd_db::Database;
+use rd_media::CookieFile;
 use rd_scheduler::{ExternalRunner, RunOutcome, ToolNetwork, ToolNetworkSource};
+use rd_secrets::SecretStore;
 use rd_tools::{
     LiveSlots, ProgressThrottle, ToolLine, ToolProcess,
     process::{Stdout, prepare},
@@ -28,6 +30,9 @@ pub struct GalleryRunner {
     slots: LiveSlots<rd_core::GallerySettings>,
     /// The proxy and CA gallery-dl is started with (RD-1240-08); none without it, as in tests.
     network: Option<ToolNetworkSource>,
+    /// The vault the cookie profiles' blobs are in (RD-1320-03); none without it, as in tests,
+    /// and then no gallery is fetched with cookies.
+    secrets: Option<SecretStore>,
 }
 
 impl GalleryRunner {
@@ -41,6 +46,7 @@ impl GalleryRunner {
             settings,
             slots,
             network: None,
+            secrets: None,
         }
     }
 
@@ -50,18 +56,29 @@ impl GalleryRunner {
         self.network = Some(network);
         self
     }
+
+    /// Hands gallery-dl the download's cookie profile, by the rules the media download keeps
+    /// (RD-1320-03): pinned, none, or the one whose scope matches the gallery.
+    #[must_use]
+    pub fn with_auth_profiles(mut self, secrets: SecretStore) -> Self {
+        self.secrets = Some(secrets);
+        self
+    }
 }
 
 /// gallery-dl's arguments for one gallery.
 ///
 /// The proxy goes as `--proxy` when it carries no credentials. One with credentials reaches
 /// gallery-dl through its environment only, which `proxy-env` tells it to read; an argument
-/// list is readable by every process on the machine. A custom CA is its `verify` file.
+/// list is readable by every process on the machine. A custom CA is its `verify` file. A cookie
+/// profile is its `--cookies` file, by path only: the file is the credential (`rd-media`'s
+/// `cookies.rs`).
 pub(crate) fn gallery_args(
     target: &Path,
     source: &str,
     limit_rate: Option<u64>,
     network: &ToolNetwork,
+    cookies: Option<&Path>,
 ) -> Vec<OsString> {
     let mut args: Vec<OsString> = Vec::new();
     let mut push = |value: OsString| args.push(value);
@@ -83,6 +100,10 @@ pub(crate) fn gallery_args(
         option.push(bundle);
         push(OsString::from("-o"));
         push(option);
+    }
+    if let Some(cookies) = cookies {
+        push(OsString::from("--cookies"));
+        push(cookies.as_os_str().to_owned());
     }
     push(OsString::from("-D"));
     push(target.as_os_str().to_owned());
@@ -205,6 +226,21 @@ impl ExternalRunner for GalleryRunner {
             },
             None => ToolNetwork::direct(),
         };
+        // Bound until `run` returns by any path; the file deletes itself when the binding drops.
+        let cookie_file = match &self.secrets {
+            Some(secrets) => match rd_media::cookie_file_for(
+                &self.database,
+                secrets,
+                file.auth_profile,
+                &file.source,
+            )
+            .await
+            {
+                Ok(cookies) => cookies,
+                Err(error) => return Ok(RunOutcome::Failed(error.failure())),
+            },
+            None => None,
+        };
         let settings = self.settings.read().await.clone();
         // Leased before the version is assessed, and only gallery downloads stop when
         // gallery-dl is too old or listed as broken; both rules live in `prepare`.
@@ -242,6 +278,7 @@ impl ExternalRunner for GalleryRunner {
                 .binding_limit()
                 .map(|binding| binding.bytes_per_second),
             &network,
+            cookie_file.as_ref().map(CookieFile::path),
         ));
         let mut process = ToolProcess::spawn(&mut command, "gallery-dl", Stdout::Read)?
             .with_silence_limit(rd_tools::SILENCE_LIMIT);
@@ -293,153 +330,5 @@ impl ExternalRunner for GalleryRunner {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use super::{claim_folder, gallery_args, gallery_folder, map_gallery_error, timed_out};
-    use rd_core::{FailureKind, ProxyKind};
-    use rd_scheduler::{ToolNetwork, ToolProxy};
-    use secrecy::SecretString;
-
-    fn proxy(password: Option<&str>) -> ToolNetwork {
-        let password = password.map(|password| SecretString::from(password.to_owned()));
-        ToolNetwork::with_proxy(
-            ToolProxy::new(
-                ProxyKind::Socks5,
-                "socks5://proxy.example:1080".parse().expect("endpoint"),
-                password.as_ref().map(|_| "alice"),
-                password.as_ref(),
-            )
-            .expect("proxy"),
-        )
-    }
-
-    fn args(network: &ToolNetwork) -> Vec<String> {
-        gallery_args(
-            Path::new("/downloads/set"),
-            "https://gallery.example/set/1",
-            None,
-            network,
-        )
-        .into_iter()
-        .map(|arg| arg.to_string_lossy().into_owned())
-        .collect()
-    }
-
-    /// RD-1240-08: the download's proxy is gallery-dl's own option, and without one there is
-    /// none.
-    #[test]
-    fn the_proxy_is_on_the_command_line_only_when_there_is_one() {
-        assert_eq!(
-            args(&proxy(None)),
-            [
-                "--proxy",
-                "socks5://proxy.example:1080",
-                "-D",
-                "/downloads/set",
-                "--",
-                "https://gallery.example/set/1"
-            ]
-        );
-        let direct = args(&ToolNetwork::direct());
-        assert!(
-            !direct.iter().any(|arg| arg.contains("proxy")),
-            "{direct:?}"
-        );
-    }
-
-    /// Credentials never reach the argument list; gallery-dl reads them from its environment.
-    #[test]
-    fn proxy_credentials_stay_off_the_command_line() {
-        let args = args(&proxy(Some("pr0xy-secret")));
-        assert!(!args.iter().any(|arg| arg.contains("pr0xy")), "{args:?}");
-        assert!(!args.iter().any(|arg| arg == "--proxy"), "{args:?}");
-        assert!(
-            args.windows(2)
-                .any(|pair| pair == ["-o".to_owned(), "proxy-env=true".to_owned()]),
-            "{args:?}"
-        );
-    }
-
-    #[test]
-    fn a_proxy_gallery_dl_cannot_speak_fails_with_a_code() {
-        let stderr = "requests.exceptions.InvalidSchema: Missing dependencies for SOCKS support.";
-        let failure = proxy(None)
-            .unsupported_proxy("gallery-dl", stderr)
-            .expect("failure");
-        assert_eq!(failure.code.as_deref(), Some("proxy.unsupported_by_tool"));
-        assert!(!failure.category.is_retryable());
-    }
-
-    /// RA-TR-03: a deadline is a failure with a retry, not a stop.
-    #[test]
-    fn a_run_past_its_deadline_is_a_retryable_failure() {
-        let failure = timed_out("");
-        assert_eq!(failure.code.as_deref(), Some("gallery.tool_failed"));
-        assert!(failure.category.is_retryable());
-        assert!(
-            failure.message.contains("time limit"),
-            "{}",
-            failure.message
-        );
-    }
-
-    /// RD-1240-28: a second gallery of the same name met the first one's folder, gallery-dl
-    /// skipped the file there, and the download finished with nothing transferred.
-    #[test]
-    fn a_new_gallery_never_shares_another_one_s_folder() {
-        let destination = tempfile::tempdir().expect("tempdir");
-        let root = destination.path();
-        // Nothing there yet, or only an empty folder: the download's own name.
-        assert_eq!(claim_folder(root, "picture", false), "picture");
-        std::fs::create_dir(root.join("picture")).expect("folder");
-        assert_eq!(claim_folder(root, "picture", false), "picture");
-        // Another download's file in it: the next free name.
-        std::fs::write(root.join("picture").join("direct-picture.png"), b"png").expect("file");
-        assert_eq!(claim_folder(root, "picture", false), "picture (1)");
-        // An earlier attempt of the same download: its own files, adopted.
-        assert_eq!(claim_folder(root, "picture", true), "picture");
-        // The claimed name read back as the folder, so a later attempt finds it again.
-        assert_eq!(gallery_folder("picture (1)"), "picture (1)");
-    }
-
-    #[test]
-    fn folder_name_is_sanitized_and_never_empty() {
-        assert_eq!(gallery_folder("artworks"), "artworks");
-        assert_eq!(gallery_folder("set: one?"), "set_ one_");
-        assert_eq!(gallery_folder(""), "gallery");
-    }
-
-    #[test]
-    fn errors_map_to_retry_policy() {
-        assert!(matches!(
-            map_gallery_error("error: Unsupported URL 'https://x'").category,
-            FailureKind::Unsupported
-        ));
-        assert!(matches!(
-            map_gallery_error("error: Login required").category,
-            FailureKind::Permanent
-        ));
-        assert!(matches!(
-            map_gallery_error("HTTPError 503").category,
-            FailureKind::Transient { .. }
-        ));
-    }
-
-    /// RD-1240-28: gallery-dl's words for a proxy that refused its password, from the live test
-    /// of 1.24, are the proxy's failure, not a sign-in the gallery asks for.
-    #[test]
-    fn a_proxy_refusing_its_password_is_a_proxy_failure() {
-        let stderr = "[downloader.http][error] ProxyError: ('Unable to connect to proxy', \
-            OSError('Tunnel connection failed: 407 Proxy Authentication Required'))";
-        let failure = map_gallery_error(stderr);
-        assert_eq!(failure.code.as_deref(), Some("proxy.auth_failed"));
-        assert!(matches!(failure.category, FailureKind::Permanent));
-        assert_eq!(
-            map_gallery_error("[twitter][error] AuthenticationError: login required")
-                .code
-                .as_deref(),
-            Some("gallery.auth_required")
-        );
-    }
-}
+#[path = "runner_tests.rs"]
+mod tests;

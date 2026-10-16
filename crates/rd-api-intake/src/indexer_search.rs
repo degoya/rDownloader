@@ -223,10 +223,14 @@ async fn search_one(
     .map_err(|error| ApiError::unprocessable("indexer.url_invalid", error.to_string()))?;
     // The same client a subscription poll uses: the global proxy and TLS defaults, and the
     // person's own network allowed, because the address is one they typed themselves.
-    let network = state.scheduler.direct_client(&url).await.map_err(|error| {
-        ApiError::bad_gateway("indexer.unreachable", error.to_string())
-            .with_param("reason", "client")
-    })?;
+    let network = state
+        .scheduler
+        .direct_client(&url, rd_core::AuthProfileSelection::Auto)
+        .await
+        .map_err(|error| {
+            ApiError::bad_gateway("indexer.unreachable", error.to_string())
+                .with_param("reason", "client")
+        })?;
     let fetched = rd_http::fetch_conditional(
         &network.client,
         url.clone(),

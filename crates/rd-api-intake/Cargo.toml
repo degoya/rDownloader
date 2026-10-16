@@ -49,3 +49,7 @@ workspace = true
 
 [dev-dependencies]
 rd-testkit = { path = "../rd-testkit", default-features = false }
+# A server with a certificate of its own CA, for the hand-over fetch's custom CA (RD-1320-06).
+rcgen.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true

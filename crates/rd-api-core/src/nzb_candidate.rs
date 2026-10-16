@@ -52,9 +52,17 @@ pub async fn fetch_nzb_candidate(
                 )
                 .with_param("candidate_id", candidate.id));
             }
-            state.scheduler.guarded_client(&candidate.url, policy).await
+            state
+                .scheduler
+                .guarded_client(&candidate.url, candidate.auth_profile, policy)
+                .await
         }
-        None => state.scheduler.direct_client(&candidate.url).await,
+        None => {
+            state
+                .scheduler
+                .direct_client(&candidate.url, candidate.auth_profile)
+                .await
+        }
     }
     .map_err(|error| {
         ApiError::bad_gateway("collector.nzb_client_unavailable", error.to_string())

@@ -91,7 +91,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Trigger an online check for collector links and wait briefly for results. Pass candidate_ids or batch_id. Links still in checking state are returned as-is with settled=false; call again to poll. A link somebody other than the person chose (collect_links, Click'n'Load, the clipboard, the browser extension, a site rule's find) is checked under the address rule: pointing at this machine or into the local network it is not requested and carries collector.check_internal_address."
+        description = "Trigger an online check for collector links and wait briefly for results. Pass candidate_ids or batch_id. Links still in checking state are returned as-is with settled=false; call again to poll. A link somebody other than the person chose (collect_links, Click'n'Load, the clipboard, the browser extension, a site rule's find) is checked under the address rule: pointing at this machine or into the local network it is not requested and carries collector.check_internal_address. A media page is checked with the link's authentication profile, as its download will be: a matching cookie profile unless the link is set to none or pinned to another; a page shown only to a signed-in session without one carries media.ytdlp_signin_required."
     )]
     pub async fn check_links(
         &self,

@@ -143,7 +143,7 @@ async fn a_propfind_lists_a_collection_and_reports_range_support() {
     let fixture = Fixture::start(Reply::multistatus(COLLECTION)).await;
     let client = Client::new();
 
-    let probed = rd_webdav::probe(&client, &fixture.target("/dav/share/"))
+    let probed = rd_webdav::probe(&client, &[], &fixture.target("/dav/share/"))
         .await
         .expect("probe");
     let listing = match probed {
@@ -161,6 +161,21 @@ async fn a_propfind_lists_a_collection_and_reports_range_support() {
     // unbounded body from the rest.
     assert!(fixture.saw_header("depth: 1"));
     assert!(fixture.saw_header("PROPFIND /dav/share/"));
+    assert!(!fixture.saw_header("authorization:"));
+}
+
+/// RD-1320-04: a Basic or Bearer profile's `Authorization` is a per-request header the pooled
+/// client does not carry, so the probe has to send it — before, it was dropped.
+#[tokio::test]
+async fn the_probe_sends_the_credential_headers_it_is_handed() {
+    let fixture = Fixture::start(Reply::multistatus(COLLECTION)).await;
+    let headers = vec![("authorization".to_owned(), "Bearer dav-canary".to_owned())];
+
+    let probed = rd_webdav::probe(&Client::new(), &headers, &fixture.target("/dav/share/"))
+        .await
+        .expect("probe");
+    assert!(matches!(probed, rd_webdav::Probed::Resolved(_)));
+    assert!(fixture.saw_header("authorization: Bearer dav-canary"));
 }
 
 #[tokio::test]
@@ -169,7 +184,7 @@ async fn a_server_without_accept_ranges_is_marked_as_not_resumable() {
     reply.accept_ranges = false;
     let fixture = Fixture::start(reply).await;
 
-    let probed = rd_webdav::probe(&Client::new(), &fixture.target("/dav/share/"))
+    let probed = rd_webdav::probe(&Client::new(), &[], &fixture.target("/dav/share/"))
         .await
         .expect("probe");
     let rd_webdav::Probed::Resolved(listing) = probed else {
@@ -184,7 +199,7 @@ async fn a_server_without_accept_ranges_is_marked_as_not_resumable() {
 async fn an_unauthorised_share_reports_that_credentials_are_needed() {
     let fixture = Fixture::start(Reply::status("401 Unauthorized")).await;
 
-    let probed = rd_webdav::probe(&Client::new(), &fixture.target("/dav/share/"))
+    let probed = rd_webdav::probe(&Client::new(), &[], &fixture.target("/dav/share/"))
         .await
         .expect("probe");
     match probed {
@@ -199,7 +214,7 @@ async fn an_unauthorised_share_reports_that_credentials_are_needed() {
 async fn a_plain_http_server_is_reported_as_not_speaking_webdav() {
     let fixture = Fixture::start(Reply::status("405 Method Not Allowed")).await;
 
-    let probed = rd_webdav::probe(&Client::new(), &fixture.target("/dav/share/"))
+    let probed = rd_webdav::probe(&Client::new(), &[], &fixture.target("/dav/share/"))
         .await
         .expect("probe");
     match probed {
@@ -219,7 +234,7 @@ async fn an_oversized_listing_is_refused_rather_than_buffered() {
     assert!(body.len() > rd_webdav::MAX_BODY_BYTES);
     let fixture = Fixture::start(Reply::multistatus(body)).await;
 
-    let probed = rd_webdav::probe(&Client::new(), &fixture.target("/dav/share/"))
+    let probed = rd_webdav::probe(&Client::new(), &[], &fixture.target("/dav/share/"))
         .await
         .expect("probe");
     match probed {
@@ -243,7 +258,7 @@ async fn a_listing_pointing_outside_the_collection_is_refused() {
 </D:multistatus>"#;
     let fixture = Fixture::start(Reply::multistatus(body)).await;
 
-    let probed = rd_webdav::probe(&Client::new(), &fixture.target("/dav/share/"))
+    let probed = rd_webdav::probe(&Client::new(), &[], &fixture.target("/dav/share/"))
         .await
         .expect("probe");
     match probed {

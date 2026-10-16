@@ -18,6 +18,7 @@ async fn a_tool_that_cannot_start_reports_the_cause() {
         false,
         std::time::Duration::from_secs(10),
         &rd_scheduler::ToolNetwork::direct(),
+        None,
     )
     .await;
     let Err(failure) = failure else {
@@ -136,6 +137,70 @@ fn a_precondition_failed_asks_for_the_sites_cookies() {
         FailureKind::Transient {
             retry_after_seconds: Some(120)
         }
+    );
+}
+
+/// RD-1320-01: Facebook shows a reel only to a signed-in session and yt-dlp reports that as
+/// data it cannot parse, asking for a bug report. A case for the site's cookies, never retried.
+#[test]
+fn facebook_cannot_parse_data_asks_for_a_session() {
+    let stderr = "WARNING: [facebook] unable to extract uploader\n\
+                  ERROR: [facebook] 1428647186119665: Cannot parse data; please report this \
+                  issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the \
+                  appropriate issue template. Confirm you are on the latest version using  \
+                  yt-dlp -U";
+    let failure = map_tool_error(stderr, Some(1));
+    assert_eq!(failure.category, FailureKind::AuthRequired);
+    assert_eq!(failure.code.as_deref(), Some("media.ytdlp_signin_required"));
+    assert_eq!(
+        failure.params.get("site").map(String::as_str),
+        Some("facebook")
+    );
+    assert_eq!(
+        failure.params.get("detail").map(String::as_str),
+        Some("ERROR: [facebook] 1428647186119665: Cannot parse data")
+    );
+    assert!(!failure.message.contains("report this issue"));
+}
+
+/// RD-1320-01: the same words from another extractor stay where they were, and the 412 case
+/// keeps its own code.
+#[test]
+fn cannot_parse_data_elsewhere_keeps_its_class() {
+    let failure = map_tool_error(
+        "ERROR: [instagram] C1a2b3: Cannot parse data; please report this issue on  \
+         https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template",
+        Some(1),
+    );
+    assert_eq!(failure.code.as_deref(), Some("media.ytdlp_failed"));
+    assert_eq!(
+        failure.category,
+        FailureKind::Transient {
+            retry_after_seconds: Some(120)
+        }
+    );
+    // Only the extractor's own prefix decides, not the word somewhere in the line.
+    assert_eq!(
+        map_tool_error("ERROR: [generic] facebook.com: Cannot parse data", Some(1))
+            .code
+            .as_deref(),
+        Some("media.ytdlp_failed")
+    );
+    // A Facebook error that is something else is not a sign-in case.
+    assert_eq!(
+        category("ERROR: [facebook] 1428647186119665: Unable to extract video data"),
+        FailureKind::Transient {
+            retry_after_seconds: Some(120)
+        }
+    );
+    assert_eq!(
+        map_tool_error(
+            "ERROR: [facebook] 1: Unable to download webpage: HTTP Error 412: Precondition Failed",
+            Some(1)
+        )
+        .code
+        .as_deref(),
+        Some("media.ytdlp_cookies_required")
     );
 }
 

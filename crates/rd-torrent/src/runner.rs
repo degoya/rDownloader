@@ -20,6 +20,9 @@ pub struct TorrentRunner {
     service: TorrentService,
     /// Read on every dispatch pass, so a changed limit needs no restart (RD-1240-16).
     slots: crate::limits::ActiveDownloads,
+    /// The queue this runner works for, handed over at its start: a `.torrent` address is
+    /// fetched on the row's own network (RD-1320-05).
+    scheduler: std::sync::OnceLock<rd_scheduler::SchedulerHandle>,
 }
 
 impl TorrentRunner {
@@ -27,12 +30,18 @@ impl TorrentRunner {
     pub fn new(service: TorrentService) -> Self {
         let slots =
             crate::limits::ActiveDownloads::new(std::sync::Arc::clone(&service.inner.settings));
-        Self { service, slots }
+        Self {
+            service,
+            slots,
+            scheduler: std::sync::OnceLock::new(),
+        }
     }
 }
 
-/// Turns a queue source into a librqbit request: magnet and http(s) URLs go straight to
-/// the session, `file://` points at a stored `.torrent` file.
+/// Turns a source into a librqbit request: a magnet and an http(s) address go straight to
+/// the session, `file://` points at a stored `.torrent` file. Neither a queue row's nor a
+/// LinkGrabber link's http(s) address comes here: [`TorrentService::request_for`] and
+/// `rd_api_core::torrent_candidate` fetch it on the row's or the link's own network (RD-1320-05).
 pub(crate) fn add_request(source: &Url) -> Result<AddTorrent<'static>> {
     if source.scheme() == "file" {
         let path = source
@@ -70,19 +79,27 @@ impl ExternalRunner for TorrentRunner {
         self.slots.get()
     }
 
+    fn attach(&self, scheduler: &rd_scheduler::SchedulerHandle) {
+        let _ = self.scheduler.set(scheduler.clone());
+    }
+
     async fn run(
         &self,
         file: &DownloadFile,
         package: &DownloadPackage,
         cancellation: CancellationToken,
-        _limits: rd_scheduler::RunLimits,
+        limits: rd_scheduler::RunLimits,
     ) -> Result<RunOutcome> {
+        let network = self
+            .scheduler
+            .get()
+            .map(|scheduler| scheduler.transfer_network(file, limits.address_policy));
         let Added {
             session,
             generation,
             torrent_id,
             handle,
-        } = match self.add_to_session(file, package).await? {
+        } = match self.add_to_session(file, package, network.as_ref()).await? {
             ControlFlow::Continue(added) => added,
             ControlFlow::Break(outcome) => return Ok(outcome),
         };
@@ -149,7 +166,7 @@ impl ExternalRunner for TorrentRunner {
         }
         let _ = session.delete(id_or_hash, false).await;
         self.service.inner.registry.write().await.forget(file.id);
-        self.service.discard_stored_torrent_file(&file.source).await;
+        self.service.discard_stored_torrent_file(file).await;
         Ok(RunOutcome::Completed { final_name: name })
     }
 }
@@ -168,6 +185,7 @@ impl TorrentRunner {
         &self,
         file: &DownloadFile,
         package: &DownloadPackage,
+        network: Option<&rd_scheduler::TransferNetwork>,
     ) -> Result<ControlFlow<RunOutcome, Added>> {
         // Its files are being carried to another folder right now; added here, the torrent
         // would start writing into the folder that is being emptied (RD-1100-10).
@@ -193,15 +211,9 @@ impl TorrentRunner {
             }
         };
         tokio::fs::create_dir_all(&package.destination).await?;
-        let request = match add_request(&file.source) {
+        let request = match self.service.request_for(file, network).await {
             Ok(request) => request,
-            Err(error) => {
-                return Ok(ControlFlow::Break(RunOutcome::Failed(Failure::coded(
-                    FailureKind::Permanent,
-                    "torrent.source_invalid",
-                    format!("{error:#}"),
-                ))));
-            }
+            Err(failure) => return Ok(ControlFlow::Break(RunOutcome::Failed(failure))),
         };
         let options = self
             .service

@@ -249,3 +249,99 @@ async fn a_hoster_link_without_an_account_is_skipped_and_reported() {
     assert_eq!(file.file_name, "download", "nothing written");
     assert!(file.last_error.is_none(), "nothing written");
 }
+
+/// RD-1320-04: the check goes out with the download's own profile choice, the one its transfer
+/// uses — the profile it is pinned to, or none when it says none — not with whichever profile
+/// the address would pick by itself.
+#[tokio::test]
+async fn re_resolving_now_sends_the_downloads_own_profile_choice() {
+    use std::sync::{Arc, Mutex};
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = parked_harness(directory.path()).await;
+    let seen: Arc<Mutex<Vec<Option<String>>>> = Arc::default();
+    let log = Arc::clone(&seen);
+    let server = rd_testkit::serve(axum::Router::new().route(
+        "/file",
+        axum::routing::get(move |headers: axum::http::HeaderMap| {
+            let log = Arc::clone(&log);
+            async move {
+                rd_testkit::lock(&log).push(
+                    headers
+                        .get("authorization")
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_owned),
+                );
+                (
+                    [("content-type", "application/octet-stream")],
+                    vec![7_u8; 4_096],
+                )
+            }
+        }),
+    ))
+    .await;
+    let mut profiles = Vec::new();
+    // The first is the automatic choice for `/file`, being the more specific.
+    for (scope, token) in [
+        ("127.0.0.1/file", "auto-token"),
+        ("127.0.0.1", "pinned-token"),
+    ] {
+        let secret_ref = harness
+            .secrets
+            .put_string(token.to_owned())
+            .await
+            .expect("vault");
+        let profile = harness
+            .database
+            .create_auth_profile(rd_db::NewAuthProfile {
+                name: token.to_owned(),
+                scope: rd_core::AuthScope::parse(scope, false).expect("scope"),
+                method: rd_core::AuthMethod::Bearer,
+                origin: rd_core::AuthOrigin::Manual,
+                enabled: true,
+                expires_at: None,
+                username: None,
+                secret_ref: Some(secret_ref),
+                certificate_ref: None,
+            })
+            .await
+            .expect("profile");
+        profiles.push(profile.id);
+    }
+
+    for (selection, expected) in [
+        (
+            rd_core::AuthProfileSelection::Auto,
+            Some("Bearer auto-token"),
+        ),
+        (
+            rd_core::AuthProfileSelection::Pinned(profiles[1]),
+            Some("Bearer pinned-token"),
+        ),
+        (rd_core::AuthProfileSelection::None, None),
+    ] {
+        let download = paused_download(&harness.database, server.url("/file")).await;
+        harness
+            .database
+            .set_download_auth_profile(download, selection)
+            .await
+            .expect("choice");
+        rd_testkit::lock(&seen).clear();
+        let (status, body) = post_json(
+            &harness.router,
+            "/api/v1/downloads/reresolve",
+            json!({ "ids": [download], "check_now": true }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert_eq!(body["resolved"], 1, "{selection:?}: {body}");
+        let requests = rd_testkit::lock(&seen).clone();
+        assert!(
+            !requests.is_empty(),
+            "{selection:?}: the server was never asked"
+        );
+        for authorization in requests {
+            assert_eq!(authorization.as_deref(), expected, "{selection:?}");
+        }
+    }
+}

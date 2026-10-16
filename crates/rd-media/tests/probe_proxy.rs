@@ -10,7 +10,7 @@ use std::{
     sync::Arc,
 };
 
-use rd_core::{MediaSettings, ProxyKind};
+use rd_core::{AuthProfileSelection::Auto, MediaSettings, ProxyKind};
 use rd_db::Database;
 use rd_media::{MediaProbe, YtDlpProbe};
 use rd_scheduler::ToolNetworkSource;
@@ -105,7 +105,10 @@ impl Harness {
 
     async fn probe(&self) -> Result<Vec<rd_core::MediaCandidate>, rd_core::Failure> {
         self.probe
-            .probe(&"https://www.youtube.com/watch?v=abc".parse().expect("url"))
+            .probe(
+                &"https://www.youtube.com/watch?v=abc".parse().expect("url"),
+                Auto,
+            )
             .await
     }
 

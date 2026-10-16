@@ -76,6 +76,7 @@ impl AppState {
         );
         let stream_monitor = stream_monitor::StreamMonitorService::start(
             database.clone(),
+            secrets.clone(),
             scheduler.clone(),
             stream_settings.clone(),
         );

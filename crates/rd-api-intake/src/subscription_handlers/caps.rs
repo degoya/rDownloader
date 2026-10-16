@@ -118,10 +118,14 @@ pub(crate) async fn fetch_caps(
             .with_param("reason", error)
     })?;
 
-    let network = state.scheduler.direct_client(&url).await.map_err(|error| {
-        ApiError::bad_gateway("subscription.client_unavailable", error.to_string())
-            .with_param("reason", error)
-    })?;
+    let network = state
+        .scheduler
+        .direct_client(&url, rd_core::AuthProfileSelection::Auto)
+        .await
+        .map_err(|error| {
+            ApiError::bad_gateway("subscription.client_unavailable", error.to_string())
+                .with_param("reason", error)
+        })?;
     let body = rd_http::fetch_conditional(
         &network.client,
         url.clone(),

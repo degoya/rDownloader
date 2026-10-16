@@ -39,11 +39,17 @@ pub fn build(database: Database, settings: SharedGallerySettings) -> Arc<dyn Ext
     Arc::new(GalleryRunner::new(database, settings))
 }
 
-/// [`build`], with gallery-dl handed each download's proxy and the custom CA (RD-1240-08).
+/// [`build`], with gallery-dl handed each download's proxy and the custom CA (RD-1240-08) and
+/// its cookie profile (RD-1320-03).
 pub fn build_with_tool_network(
     database: Database,
+    secrets: rd_secrets::SecretStore,
     settings: SharedGallerySettings,
     network: rd_scheduler::ToolNetworkSource,
 ) -> Arc<dyn ExternalRunner> {
-    Arc::new(GalleryRunner::new(database, settings).with_tool_network(network))
+    Arc::new(
+        GalleryRunner::new(database, settings)
+            .with_tool_network(network)
+            .with_auth_profiles(secrets),
+    )
 }

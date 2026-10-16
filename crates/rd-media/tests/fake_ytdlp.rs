@@ -4,6 +4,7 @@
 
 use std::{path::PathBuf, sync::Arc};
 
+use rd_core::AuthProfileSelection::Auto;
 use rd_core::{DownloadKind, DownloadState, MediaKind, MediaSettings, PackageId};
 use rd_db::{Database, NewDownload, NewPackage};
 use rd_media::{MediaProbe, MediaRunner, YtDlpProbe};
@@ -42,6 +43,9 @@ fn settings_for(script: &str) -> Arc<RwLock<MediaSettings>> {
     }))
 }
 
+const WATCH: &str = "https://www.youtube.com/watch?v=abc";
+const PLAYLIST: &str = "https://www.youtube.com/playlist?list=PL1";
+
 fn settings() -> Arc<RwLock<MediaSettings>> {
     settings_for("fake-yt-dlp")
 }
@@ -50,7 +54,7 @@ fn settings() -> Arc<RwLock<MediaSettings>> {
 async fn probe_returns_variants_for_a_single_page_and_fans_out_playlists() {
     let probe = YtDlpProbe::new(settings());
     let single = probe
-        .probe(&"https://www.youtube.com/watch?v=abc".parse().expect("url"))
+        .probe(&WATCH.parse().expect("url"), Auto)
         .await
         .expect("probe");
     assert_eq!(single.len(), 1);
@@ -63,11 +67,7 @@ async fn probe_returns_variants_for_a_single_page_and_fans_out_playlists() {
     assert_eq!(rd_db::media_file_name(info), "Idle Immortal _ Trailer.mp4");
 
     let playlist = probe
-        .probe(
-            &"https://www.youtube.com/playlist?list=PL1"
-                .parse()
-                .expect("url"),
-        )
+        .probe(&PLAYLIST.parse().expect("url"), Auto)
         .await
         .expect("playlist");
     assert_eq!(playlist.len(), 2);
@@ -96,7 +96,7 @@ async fn probe_returns_variants_for_a_single_page_and_fans_out_playlists() {
 async fn probe_maps_tool_errors_to_failures() {
     let probe = YtDlpProbe::new(settings_for("fake-yt-dlp-fail"));
     let failure = probe
-        .probe(&"https://www.youtube.com/watch?v=abc".parse().expect("url"))
+        .probe(&WATCH.parse().expect("url"), Auto)
         .await
         .expect_err("failure");
     assert_eq!(failure.code.as_deref(), Some("media.ytdlp_failed"));
@@ -153,7 +153,7 @@ async fn runner_hands_yt_dlp_a_scoped_cookie_file_and_removes_it_afterwards() {
         .await
         .expect("package");
     let selection = rd_core::MediaSelection {
-        page_url: "https://www.youtube.com/watch?v=abc".parse().expect("url"),
+        page_url: WATCH.parse().expect("url"),
         variant_id: "best".to_owned(),
         format: "b".to_owned(),
         kind: MediaKind::Video,
@@ -249,7 +249,7 @@ async fn runner_downloads_audio_reports_progress_and_final_name() {
         .await
         .expect("package");
     let selection = rd_core::MediaSelection {
-        page_url: "https://www.youtube.com/watch?v=abc".parse().expect("url"),
+        page_url: WATCH.parse().expect("url"),
         variant_id: "audio_mp3".to_owned(),
         format: "ba/b".to_owned(),
         kind: MediaKind::Audio,
@@ -401,7 +401,7 @@ async fn runner_merges_two_streams_and_reports_the_full_size() {
         .await
         .expect("package");
     let selection = rd_core::MediaSelection {
-        page_url: "https://www.youtube.com/watch?v=abc".parse().expect("url"),
+        page_url: WATCH.parse().expect("url"),
         variant_id: "1080p".to_owned(),
         format: "bv*[height<=1080]+ba/b[height<=1080]".to_owned(),
         kind: MediaKind::Video,
@@ -475,7 +475,7 @@ async fn run_merged_video(script: &str) -> RunOutcome {
         .await
         .expect("package");
     let selection = rd_core::MediaSelection {
-        page_url: "https://www.youtube.com/watch?v=abc".parse().expect("url"),
+        page_url: WATCH.parse().expect("url"),
         variant_id: "1080p".to_owned(),
         format: "bv*[height<=1080]+ba/b[height<=1080]".to_owned(),
         kind: MediaKind::Video,
@@ -556,7 +556,7 @@ async fn separate_stream_files_without_a_merged_target_fail_the_download() {
 async fn a_yt_dlp_below_the_supported_floor_blocks_only_media_probing() {
     let probe = YtDlpProbe::new(settings_for("fake-yt-dlp-ancient"));
     let failure = probe
-        .probe(&"https://www.youtube.com/watch?v=abc".parse().expect("url"))
+        .probe(&WATCH.parse().expect("url"), Auto)
         .await
         .expect_err("an unsupported yt-dlp must not probe");
     assert_eq!(failure.code.as_deref(), Some("media.tool_incompatible"));
@@ -582,7 +582,7 @@ async fn a_yt_dlp_below_the_supported_floor_blocks_only_media_probing() {
     let working = YtDlpProbe::new(settings());
     assert_eq!(
         working
-            .probe(&"https://www.youtube.com/watch?v=abc".parse().expect("url"))
+            .probe(&WATCH.parse().expect("url"), Auto)
             .await
             .expect("a supported yt-dlp still probes")
             .len(),

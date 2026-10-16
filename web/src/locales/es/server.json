@@ -1325,7 +1325,8 @@
     "automation.version_reset_run_active": "Una ejecución de una versión anterior sigue activa; restablece las versiones cuando haya terminado.",
     "notification.template_syntax": "Una llave de la plantilla no está cerrada, no está abierta o no contiene nada.",
     "notification.template_unknown_placeholder": "«{placeholder}» no es un marcador.",
-    "notification.template_too_long": "La plantilla supera los {max} caracteres."
+    "notification.template_too_long": "La plantilla supera los {max} caracteres.",
+    "media.ytdlp_signin_required": "Este vídeo de {site} solo se muestra con una sesión iniciada. Envía tu sesión con «Enviar la sesión de este sitio a rDownloader» en la extensión del navegador o añade las cookies del navegador de este sitio en un perfil de autenticación (Cuentas → Perfiles de autenticación). Si ya se usa un perfil, sus cookies probablemente han caducado: vuelve a enviarlas. {detail}"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

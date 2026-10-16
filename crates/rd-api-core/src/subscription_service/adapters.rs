@@ -32,7 +32,10 @@ impl rd_subscription::FeedFetcher for HttpFeedFetcher {
         etag: Option<&str>,
         last_modified: Option<&str>,
     ) -> anyhow::Result<rd_subscription::FetchedFeed> {
-        let network = self.scheduler.direct_client(url).await?;
+        let network = self
+            .scheduler
+            .direct_client(url, rd_core::AuthProfileSelection::Auto)
+            .await?;
         let mut headers: Vec<(String, String)> = network.headers.clone();
         if let Some(etag) = etag {
             headers.push(("if-none-match".to_owned(), etag.to_owned()));

@@ -108,7 +108,7 @@ pub type CaptureFileBody = JsonOrMultipart<CaptureFileRequest>;
         (status = 401, description = "Capture token missing or revoked"),
         (status = 403, description = "The address, or one a redirect leads to, is on this machine or otherwise not one the service may request"),
         (status = 413, description = "The file exceeds 64 MiB (48 MiB as base64 JSON)"),
-        (status = 502, description = "The address could not be fetched, or the decryption service did not answer")
+        (status = 502, description = "The address could not be fetched, the proxy cannot be used, or the decryption service did not answer")
     )
 )]
 pub async fn capture_file(
@@ -121,7 +121,7 @@ pub async fn capture_file(
         CaptureFileBody::Json(request) => {
             let guard =
                 (!state.local_capture_fetches).then(|| state.scheduler.remote_address_policy(true));
-            read_json(request, guard.as_ref()).await?
+            read_json(&state, request, guard.as_ref()).await?
         }
     };
     // The extension tells the person itself; the agent's file associations keep the agent's
@@ -165,6 +165,7 @@ async fn read_multipart(mut multipart: Multipart) -> Result<(Vec<u8>, Option<Str
 }
 
 async fn read_json(
+    state: &AppState,
     request: CaptureFileRequest,
     guard: Option<&rd_http::AddressPolicy>,
 ) -> Result<(Vec<u8>, Option<String>), ApiError> {
@@ -184,7 +185,10 @@ async fn read_json(
             )?;
             // The request's cookies are dropped here, with the body they came in.
             drop(request.cookies);
-            let fetched = capture_fetch::fetch_once(&plan, MAX_CAPTURE_FILE_BYTES, guard).await?;
+            let network =
+                capture_fetch::FetchNetwork::for_request(&state.scheduler, plan.url()).await?;
+            let fetched =
+                capture_fetch::fetch_once(&plan, MAX_CAPTURE_FILE_BYTES, guard, &network).await?;
             Ok((fetched.bytes, request.file_name.or(fetched.file_name)))
         }
         _ => Err(ApiError::bad_request(

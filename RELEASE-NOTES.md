@@ -12,9 +12,18 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.32.0
+## 1.33.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.32.0
+
+- Videos, galleries and streams that need a sign-in now use the site's cookies from your authentication profile when links are checked, not only when they download.
+- A Facebook video that is only shown to signed-in users now waits with a hint to hand over your session, instead of retrying every two minutes.
+- Link checks use the authentication profile you chose for a link, and checks of WebDAV folders now send your user name and password or token.
+- Torrent files from a web address and mirrors on another server are fetched with the matching sign-in and through your proxy.
+- Links handed over from the browser extension are fetched through your proxy and trust your own certificate authority.
+- Stream recordings now need streamlink 8.2.0 or newer; the tools page marks an older version as too old.
 
 ## 1.31.0
 

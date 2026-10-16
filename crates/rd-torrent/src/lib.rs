@@ -10,6 +10,7 @@
 mod adding;
 mod bencode;
 mod error;
+mod fetch;
 mod forget;
 mod kill_switch;
 mod limits;
@@ -219,13 +220,14 @@ impl TorrentService {
     }
 
     /// Deletes the stored `.torrent` file behind a finished download when the user opted
-    /// out of keeping import history. Only touches `file://` sources inside the service's
-    /// torrent directory; magnets and external paths are left alone.
-    pub(crate) async fn discard_stored_torrent_file(&self, source: &url::Url) {
+    /// out of keeping import history. Only touches a `file://` source, or the copy fetched
+    /// for an http(s) one (RD-1320-05), inside the service's torrent directory; magnets and
+    /// external paths are left alone.
+    pub(crate) async fn discard_stored_torrent_file(&self, file: &rd_core::DownloadFile) {
         if self.inner.settings.read().await.keep_import_history {
             return;
         }
-        let Ok(path) = source.to_file_path() else {
+        let Some(path) = self.stored_copy_path(file).await else {
             return;
         };
         let Ok(directory) = dunce::canonicalize(self.torrent_file_directory()) else {

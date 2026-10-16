@@ -5,6 +5,66 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.32.0] - 2026-10-16
+
+### Added
+
+- **gallery-dl and streamlink use the authentication profile** (RD-1320-03). The cookie
+  resolution `rd_media::cookie_file_for`/`cookie_rows_for` (pinned, none, auto) is shared;
+  `GalleryRunner` passes `--cookies <file>`, streamlink's recording, sidecar probe and the channel
+  monitor's probe (Auto) `--http-cookies-file <file>` (`rd-stream` `StreamCookies`; streamlink
+  8.2.0, chosen over one `--http-cookie name=value` per cookie because values stay out of argv and
+  streamlink keeps each cookie to its domain), and the thumbnail fetch a `Cookie` header with the
+  rows its host may receive. `build_with_tool_network`/`build_with_network_defaults` and
+  `StreamMonitorService::start` take the vault. Tests: `rd-gallery` `tests/cookies.rs`,
+  `runner_tests.rs`; `rd-stream` `cookies.rs`, `segments.rs`, `probe.rs`, `sidecars.rs`.
+  streamlink's compatibility floor rises from 5.5.0 to 8.2.0 (`rd-tools` `compat.rs`): older
+  versions are reported *Too old* and block only recordings.
+
+### Fixed
+
+- **The LinkGrabber check and the format query use the authentication profile** (RD-1320-02).
+  `MediaRunner::cookie_file` became `rd_media::cookie_file_for` in `cookies.rs`;
+  `MediaProbe::probe` takes the `AuthProfileSelection` (LinkGrabber `candidate.auth_profile`,
+  media subscription Auto), `YtDlpProbe::with_auth_profiles`, and `probe_inventory` of a required
+  selection runs with the download's cookie file. Tests: `rd-media` `tests/probe_cookies.rs`,
+  `rd-subscription` `media_adapter.rs`.
+
+- **Facebook's "Cannot parse data" is a sign-in case** (RD-1320-01). An `ERROR: [facebook] …
+  Cannot parse data` line is `AuthRequired` with `media.ytdlp_signin_required` (`site`, `detail`
+  ending before yt-dlp's "; please report this issue"), no longer a 120-s retry; other extractors
+  and the 412 case are unchanged. `map_tool_error` moved to `probe_error.rs`; the `check_links`
+  MCP description names the profile and the code. Tests: `probe_error_tests.rs`,
+  `tests/probe_cookies.rs`.
+
+- **Checks go out with the link's own authentication profile; WebDAV checks send Basic/Bearer**
+  (RD-1320-04). `SchedulerHandle::direct_client`/`guarded_client` take an
+  `AuthProfileSelection`: the online check (direct probe, manifest/document/`.torrent` read,
+  WebDAV), the NZB fetch of a candidate and *re-resolve now* pass the candidate's or the file's
+  choice (pinned, none, auto) instead of always `Auto`; indexer, feed, git and crawl fetches pass
+  `Auto`. `rd_webdav::probe` takes the client's per-request headers, so a Basic or Bearer profile's
+  `Authorization` reaches the `PROPFIND`. Tests: `rd-api` `intake/check_auth_profile.rs`,
+  `queue/reresolve_now.rs`, `rd-webdav` `tests/propfind_server.rs`.
+
+- **A `.torrent` address queued without a check and a mirror on another host get their profile
+  and proxy** (RD-1320-05). The torrent runner fetches an http(s) source on the row's
+  `TransferNetwork` (`SchedulerHandle::transfer_network`, handed to runners by the new
+  `ExternalRunner::attach`) and gives librqbit the bytes, stored by info hash for retries, seeds
+  after a restart and rechecks (`rd-torrent` `src/fetch.rs`). An HTTP mirror on another host
+  carries the auto profile of its own host per request; the download's pinned profile stays on
+  its own host, "no profile" sends none (`worker_sources_profile.rs`). *Resolve* on a LinkGrabber
+  `.torrent` link reads the file on the link's own network and keeps it for the download instead
+  of handing librqbit the address (`rd-api-core` `torrent_candidate.rs`). Tests: `rd-torrent`
+  `fetch_tests.rs`, `rd-scheduler` `worker_sources_profile_tests.rs`, `rd-api`
+  `intake/torrent_resolve.rs`.
+
+- **The extension hand-over fetch goes through the global proxy and trusts the custom CA**
+  (RD-1320-06). `capture/file`'s one fetch takes the proxy the LinkGrabber's check takes
+  (`ToolNetworkSource::for_request`) and the custom CA; an unusable proxy is
+  `proxy.check_unavailable` (502), never a direct fetch. The guard still judges every hop's
+  target, the cookies still go to the handed-over origin only. Tests: `rd-api-intake`
+  `capture_fetch_network_tests.rs`, `rd-api` `intake/capture_fetch_network.rs`.
+
 ## [1.31.0] - 2026-10-15
 
 ### Added

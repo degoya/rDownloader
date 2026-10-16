@@ -33,7 +33,9 @@ impl SourceAdapter for MediaAdapter {
     async fn poll(&self, subscription: &Subscription) -> anyhow::Result<PollOutcome> {
         let entries = self
             .probe
-            .probe(&subscription.url)
+            // A subscription carries no profile of its own: the one whose scope matches the
+            // channel, as for a download left on automatic (RD-1320-02).
+            .probe(&subscription.url, rd_core::AuthProfileSelection::Auto)
             .await
             .map_err(|failure| anyhow::anyhow!(failure.message))?;
         let items = entries
@@ -95,7 +97,48 @@ pub fn parse_upload_date(value: &str) -> Option<chrono::DateTime<chrono::Utc>> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_upload_date;
+    use std::sync::{Arc, Mutex};
+
+    use rd_core::{AuthProfileSelection, Failure, MediaCandidate, SubscriptionKind};
+
+    use super::{MediaAdapter, parse_upload_date};
+    use crate::adapter::SourceAdapter;
+
+    /// Remembers the profile choice each probe was asked with.
+    #[derive(Default)]
+    struct RecordingProbe {
+        asked: Mutex<Vec<AuthProfileSelection>>,
+    }
+
+    #[async_trait::async_trait]
+    impl rd_media::MediaProbe for RecordingProbe {
+        async fn probe(
+            &self,
+            _url: &url::Url,
+            auth: AuthProfileSelection,
+        ) -> Result<Vec<MediaCandidate>, Failure> {
+            self.asked.lock().expect("lock").push(auth);
+            Ok(Vec::new())
+        }
+    }
+
+    /// RD-1320-02: a channel is checked with the profile whose scope matches it, as a download
+    /// left on automatic is.
+    #[tokio::test]
+    async fn a_media_subscription_probes_with_the_matching_profile() {
+        let probe = Arc::new(RecordingProbe::default());
+        let adapter = MediaAdapter::new(probe.clone());
+        let subscription = crate::test_support::subscription(
+            "Channel",
+            SubscriptionKind::Media,
+            "https://www.youtube.com/@channel",
+        );
+        adapter.poll(&subscription).await.expect("poll");
+        assert_eq!(
+            *probe.asked.lock().expect("lock"),
+            [AuthProfileSelection::Auto]
+        );
+    }
 
     #[test]
     fn a_yyyymmdd_date_becomes_midnight_utc() {

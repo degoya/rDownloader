@@ -256,12 +256,14 @@ pub(crate) async fn native_runners(
     let gallery_settings = rd_gallery::shared_settings(database).await?;
     let gallery_runner = rd_gallery::build_with_tool_network(
         database.clone(),
+        secrets.clone(),
         gallery_settings.clone(),
         tool_network.clone(),
     );
     let stream_settings = rd_stream::shared_settings(database).await?;
     let stream_runner = rd_stream::build_with_network_defaults(
         database.clone(),
+        secrets.clone(),
         stream_settings.clone(),
         config.network_defaults.clone(),
         tool_network,

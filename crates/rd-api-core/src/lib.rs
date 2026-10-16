@@ -70,6 +70,7 @@ pub mod stream_monitor;
 pub mod stream_standing;
 pub mod subscription_hosts;
 pub mod subscription_service;
+pub mod torrent_candidate;
 pub mod torrent_intake;
 pub mod trace_context;
 pub mod update_service;

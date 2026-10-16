@@ -47,8 +47,10 @@ pub(crate) async fn resume(
 ) -> Result<()> {
     let (session, generation) = service.session_slot().await?;
     let options = service.add_options(file.id, &package.destination).await;
+    // No queue run, so no network: an http(s) source comes from the copy its run fetched.
+    let request = service.request_for(file, None).await?;
     let response = service
-        .add_to(&session, crate::runner::add_request(&file.source)?, options)
+        .add_to(&session, request, options)
         .await
         .context("re-add seeding torrent")?;
     match response {
@@ -154,7 +156,7 @@ pub(crate) async fn stop(service: &TorrentService, id: DownloadId, reason: &str)
         .transition_download(id, DownloadState::Completed)
         .await?;
     if let Ok(Some(file)) = service.inner.database.get_download(id).await {
-        service.discard_stored_torrent_file(&file.source).await;
+        service.discard_stored_torrent_file(&file).await;
     }
     tracing::info!(download_id = %id, reason, "seeding finished");
     Ok(true)

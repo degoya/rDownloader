@@ -286,7 +286,10 @@ pub(super) async fn provider_authorization(
 }
 
 /// Renders the `Authorization` value for a profile.
-fn authorization_value(profile: &rd_core::AuthProfile, secret: &SecretString) -> Result<String> {
+pub(super) fn authorization_value(
+    profile: &rd_core::AuthProfile,
+    secret: &SecretString,
+) -> Result<String> {
     match profile.method {
         AuthMethod::Bearer => Ok(format!("Bearer {}", secret.expose_secret())),
         AuthMethod::Basic => {

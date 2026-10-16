@@ -5,9 +5,12 @@ use std::{sync::Arc, time::Duration};
 use anyhow::Context;
 use async_trait::async_trait;
 use rd_core::{
-    Failure, FailureKind, MediaCandidate, MediaCandidateState, MediaFormatInventory, MediaInfo,
+    AuthProfileSelection, Failure, FailureKind, MediaCandidate, MediaCandidateState,
+    MediaFormatInventory, MediaInfo,
 };
+use rd_db::Database;
 use rd_scheduler::{ToolNetwork, ToolNetworkSource};
+use rd_secrets::SecretStore;
 use rd_tools::process::prepare;
 use serde::Deserialize;
 use tokio::sync::Semaphore;
@@ -22,6 +25,13 @@ use crate::{
     variants::synthesize_from_inventory,
 };
 
+#[path = "probe_error.rs"]
+mod error;
+
+#[cfg(test)]
+use error::contains_words;
+pub(crate) use error::map_tool_error;
+
 /// Maximum playlist entries expanded into separate candidates.
 pub(crate) const MAX_PLAYLIST_ENTRIES: usize = 200;
 
@@ -29,7 +39,14 @@ pub(crate) const MAX_PLAYLIST_ENTRIES: usize = 200;
 #[async_trait]
 pub trait MediaProbe: Send + Sync {
     /// One entry for a single page, several for a playlist/channel (capped).
-    async fn probe(&self, url: &Url) -> Result<Vec<MediaCandidate>, Failure>;
+    ///
+    /// `auth` is the link's authentication profile choice, resolved by the same rules as the
+    /// download's (RD-1320-02): a matching cookie profile reaches yt-dlp as `--cookies`.
+    async fn probe(
+        &self,
+        url: &Url,
+        auth: AuthProfileSelection,
+    ) -> Result<Vec<MediaCandidate>, Failure>;
 }
 
 /// Probe backed by the configured `yt-dlp` executable.
@@ -38,6 +55,9 @@ pub struct YtDlpProbe {
     slots: Arc<Semaphore>,
     /// The proxy and CA the probe goes through (RD-1240-22); none without it, as in tests.
     network: Option<ToolNetworkSource>,
+    /// Where the cookie profiles come from (RD-1320-02); none without it, as in tests, and
+    /// then every probe runs without cookies.
+    profiles: Option<(Database, SecretStore)>,
 }
 
 impl YtDlpProbe {
@@ -47,7 +67,15 @@ impl YtDlpProbe {
             settings,
             slots: Arc::new(Semaphore::new(2)),
             network: None,
+            profiles: None,
         }
+    }
+
+    /// Lets the probe use the authentication profiles the download uses (RD-1320-02).
+    #[must_use]
+    pub fn with_auth_profiles(mut self, database: Database, secrets: SecretStore) -> Self {
+        self.profiles = Some((database, secrets));
+        self
     }
 
     /// Sends the probe through the global proxy profile and the custom CA (RD-1240-22): a
@@ -104,7 +132,11 @@ struct Thumbnail {
 
 #[async_trait]
 impl MediaProbe for YtDlpProbe {
-    async fn probe(&self, url: &Url) -> Result<Vec<MediaCandidate>, Failure> {
+    async fn probe(
+        &self,
+        url: &Url,
+        auth: AuthProfileSelection,
+    ) -> Result<Vec<MediaCandidate>, Failure> {
         let _permit = self.slots.clone().acquire_owned().await.map_err(|_| {
             Failure::coded(
                 FailureKind::Transient {
@@ -147,12 +179,24 @@ impl MediaProbe for YtDlpProbe {
         let ffmpeg = FfmpegTools::resolve(&settings);
         let capabilities = ffmpeg.media_capabilities().await;
         let preferred = settings.media_default_variant.clone();
+        // The link's cookie profile, by the download's rules (RD-1320-02): a check without
+        // the session tells a page behind a login apart from a broken one no better than a
+        // guess. Bound until the run returns; the file deletes itself when the binding drops.
+        let cookie_file = match &self.profiles {
+            Some((database, secrets)) => {
+                crate::cookies::for_selection(database, secrets, auth, url)
+                    .await
+                    .map_err(crate::CookieError::failure)?
+            }
+            None => None,
+        };
         // One flat run (RD-1240-37). A full `-J` came first before, and on a playlist address
         // it resolved every video only to learn that the page is a playlist: 196 s and exit 1
         // for a 240-entry YouTube list, where one private or removed video failed the whole
         // run. `--flat-playlist` lists a playlist's entries and still probes a single page in
         // full, formats included.
-        let metadata = run_json(ytdlp, url, true, timeout, &network).await?;
+        let cookies = cookie_file.as_ref().map(crate::CookieFile::path);
+        let metadata = run_json(ytdlp, url, true, timeout, &network, cookies).await?;
         candidates(metadata, url, &preferred, capabilities)
     }
 }
@@ -215,8 +259,9 @@ pub(crate) async fn probe_inventory(
     url: &Url,
     timeout: Duration,
     network: &ToolNetwork,
+    cookies: Option<&std::path::Path>,
 ) -> Result<MediaFormatInventory, Failure> {
-    let metadata = run_json(ytdlp, url, false, timeout, network).await?;
+    let metadata = run_json(ytdlp, url, false, timeout, network, cookies).await?;
     Ok(normalize(&metadata.formats))
 }
 
@@ -226,6 +271,7 @@ async fn run_json(
     flat: bool,
     timeout: Duration,
     network: &ToolNetwork,
+    cookies: Option<&std::path::Path>,
 ) -> Result<Metadata, Failure> {
     let mut command = crate::args::ytdlp_command(ytdlp, network);
     // `--no-playlist` keeps a video address that also names a list (`watch?v=…&list=…`) the
@@ -236,6 +282,10 @@ async fn run_json(
         command
             .args(["--flat-playlist", "--playlist-end"])
             .arg(MAX_PLAYLIST_ENTRIES.to_string());
+    }
+    // The path, never the cookies: the file is the credential (`cookies.rs`).
+    if let Some(cookies) = cookies {
+        command.arg("--cookies").arg(cookies);
     }
     command.arg("--").arg(url.as_str());
     // The stdio wiring, the timeout and the Windows console-window flag are the same for
@@ -352,91 +402,6 @@ fn playlist_entry(
     Some(MediaCandidate {
         info,
         state: MediaCandidateState::default(),
-    })
-}
-
-/// Maps yt-dlp's stderr and exit code to a failure class the queue can retry or block on.
-///
-/// Read from the `ERROR:` line alone and by whole words (audit 1.9.1, TR-02): matched as a
-/// substring of all of stderr, "age" found "Unable to download web*page*" — a network failure
-/// that then counted as a login wall and was never retried — and a warning's "404" or
-/// "removed" made a passing problem permanent.
-pub(crate) fn map_tool_error(stderr: &str, exit_code: Option<i32>) -> Failure {
-    let text = stderr.trim();
-    if crate::merge::merge_skipped(text) {
-        return crate::merge::merge_failure();
-    }
-    let error_line = text
-        .lines()
-        .rev()
-        .map(str::trim)
-        .find(|line| line.starts_with("ERROR:"))
-        .unwrap_or_else(|| text.lines().last().unwrap_or_default());
-    // Before the rest: a proxy refusing the profile's password was a network failure retried
-    // every two minutes, never the proxy's (RD-1240-29).
-    if let Some(failure) = rd_scheduler::proxy_auth_failed(error_line) {
-        return failure;
-    }
-    let lower = error_line.to_ascii_lowercase();
-    let says = |phrases: &[&str]| phrases.iter().any(|phrase| contains_words(&lower, phrase));
-    // Redacted before it becomes a message and a param: this tail is shown in the UI and
-    // stored on the download row, and yt-dlp happily echoes the signed URL it just tried.
-    let tail: String = rd_core::redact_text(error_line).chars().take(300).collect();
-    // Never an empty detail: "yt-dlp failed: " with nothing after it names no cause at all
-    // (RD-1240-37). A run that printed nothing still has its exit code to say.
-    let tail = if tail.is_empty() {
-        match exit_code {
-            Some(code) => format!("exit code {code}, no error output"),
-            None => "ended by a signal, no error output".to_owned(),
-        }
-    } else {
-        tail
-    };
-    // A site's bot check refusing a request without its fingerprint cookies (Bilibili's 412
-    // without `buvid3`/`buvid4`): retrying every two minutes only provokes it further, the
-    // site's cookies through an authentication profile are what helps (RD-1270-01).
-    if says(&["412", "precondition failed"]) {
-        return Failure::coded(
-            FailureKind::AuthRequired,
-            "media.ytdlp_cookies_required",
-            format!("The site refused yt-dlp without its cookies (HTTP 412): {tail}"),
-        )
-        .with_param("detail", tail);
-    }
-    let category = if says(&[
-        "unsupported url",
-        "video unavailable",
-        "private video",
-        "not available",
-        "removed",
-        "404",
-    ]) {
-        FailureKind::Permanent
-    } else if says(&["sign in", "login", "log in", "age"]) {
-        FailureKind::AuthRequired
-    } else if says(&["429", "too many requests"]) {
-        FailureKind::RateLimited {
-            retry_after_seconds: Some(600),
-        }
-    } else {
-        FailureKind::Transient {
-            retry_after_seconds: Some(120),
-        }
-    };
-    Failure::coded(
-        category,
-        "media.ytdlp_failed",
-        format!("yt-dlp failed: {tail}"),
-    )
-    .with_param("detail", tail)
-}
-
-/// Whether `phrase` occurs in `text` with no letter or digit directly before or after it.
-fn contains_words(text: &str, phrase: &str) -> bool {
-    let is_word = |character: Option<char>| character.is_some_and(char::is_alphanumeric);
-    text.match_indices(phrase).any(|(start, _)| {
-        !is_word(text[..start].chars().next_back())
-            && !is_word(text[start + phrase.len()..].chars().next())
     })
 }
 

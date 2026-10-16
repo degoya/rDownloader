@@ -189,7 +189,10 @@ async fn fetch_download(
     let network = if own_server {
         // The indexer's own server is the person's word, like its search: their own network
         // included.
-        state.scheduler.direct_client(&url).await
+        state
+            .scheduler
+            .direct_client(&url, rd_core::AuthProfileSelection::Auto)
+            .await
     } else {
         // Anything else was proposed by the indexer's answer, and is held to the rule the
         // LinkGrabber's proposed links keep to: never this machine, not the local network.
@@ -202,7 +205,10 @@ async fn fetch_download(
                 "The result's address points at this machine or into your own network",
             ));
         }
-        state.scheduler.guarded_client(&url, policy).await
+        state
+            .scheduler
+            .guarded_client(&url, rd_core::AuthProfileSelection::Auto, policy)
+            .await
     }
     .map_err(|error| {
         ApiError::bad_gateway("indexer.unreachable", error.to_string())

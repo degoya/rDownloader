@@ -27,7 +27,10 @@ use rd_scheduler::ExternalRunner;
 use tokio::sync::RwLock;
 
 pub use args::{DownloadPlan, output_mode};
-pub use cookies::{CookieError, CookieFile, materialize as materialize_cookies, rows_for_url};
+pub use cookies::{
+    CookieError, CookieFile, for_selection as cookie_file_for, materialize as materialize_cookies,
+    rows_for_selection as cookie_rows_for, rows_for_url,
+};
 pub use format_inventory::{
     RawFormat, audio_codec_family, dynamic_range, normalize, video_codec_family,
 };
@@ -60,15 +63,20 @@ pub async fn shared_settings(database: &Database) -> Result<SharedMediaSettings>
     Ok(Arc::new(RwLock::new(load_media_settings(database).await?)))
 }
 
-/// Convenience: runner + probe wired to the same settings handle.
+/// Convenience: runner + probe wired to the same settings handle and the same authentication
+/// profiles (RD-1320-02).
 pub fn build(
     database: Database,
     secrets: rd_secrets::SecretStore,
     settings: SharedMediaSettings,
 ) -> (Arc<dyn ExternalRunner>, Arc<dyn MediaProbe>) {
     (
-        Arc::new(MediaRunner::new(database, secrets, settings.clone())),
-        Arc::new(YtDlpProbe::new(settings)),
+        Arc::new(MediaRunner::new(
+            database.clone(),
+            secrets.clone(),
+            settings.clone(),
+        )),
+        Arc::new(YtDlpProbe::new(settings).with_auth_profiles(database, secrets)),
     )
 }
 
@@ -82,9 +90,13 @@ pub fn build_with_tool_network(
 ) -> (Arc<dyn ExternalRunner>, Arc<dyn MediaProbe>) {
     (
         Arc::new(
-            MediaRunner::new(database, secrets, settings.clone())
+            MediaRunner::new(database.clone(), secrets.clone(), settings.clone())
                 .with_tool_network(network.clone()),
         ),
-        Arc::new(YtDlpProbe::new(settings).with_tool_network(network)),
+        Arc::new(
+            YtDlpProbe::new(settings)
+                .with_tool_network(network)
+                .with_auth_profiles(database, secrets),
+        ),
     )
 }

@@ -1325,7 +1325,8 @@
     "automation.version_reset_run_active": "A run of an older version is still active; reset once it has finished.",
     "notification.template_syntax": "A brace in the template is not closed, not opened or encloses nothing.",
     "notification.template_unknown_placeholder": "“{placeholder}” is not a placeholder.",
-    "notification.template_too_long": "The template is longer than {max} characters."
+    "notification.template_too_long": "The template is longer than {max} characters.",
+    "media.ytdlp_signin_required": "This video on {site} is only shown to a signed-in session. Hand over your session with “Share session for this site with rDownloader” in the browser extension, or add the site’s browser cookies in an authentication profile (Accounts → Authentication profiles). If a profile is already in use, its cookies have probably expired: hand them over again. {detail}"
   },
   "capabilities": {
     "media_download": "media downloads",

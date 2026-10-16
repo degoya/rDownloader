@@ -1,4 +1,5 @@
-//! Materialises an authentication profile's cookies for `yt-dlp --cookies` (RD-080-04).
+//! Materialises an authentication profile's cookies for the tools that want a file (RD-080-04):
+//! `yt-dlp --cookies`, `gallery-dl --cookies`; streamlink takes them one by one (RD-1320-03).
 //!
 //! yt-dlp cannot be handed a cookie jar; it wants a file. That file is the credential, so
 //! three properties are non-negotiable and each is enforced here rather than by the caller:
@@ -18,8 +19,11 @@
 
 use std::path::Path;
 
-use rd_core::{AuthMethod, AuthProfile, CookieRow};
+use chrono::Utc;
+use rd_core::{AuthMethod, AuthProfile, AuthProfileSelection, CookieRow};
+use rd_db::Database;
 use rd_http::CookieScope;
+use rd_secrets::SecretStore;
 use secrecy::ExposeSecret;
 use tempfile::{Builder, NamedTempFile};
 use url::Url;
@@ -40,6 +44,11 @@ impl CookieFile {
     #[must_use]
     pub fn path(&self) -> &Path {
         self.handle.path()
+    }
+
+    /// Writes `rows`, already scoped by [`rows_for_selection`], as a Netscape cookie file.
+    pub fn from_rows(rows: &[CookieRow]) -> Result<Self, CookieError> {
+        write_file(&rd_core::to_netscape_file(rows))
     }
 }
 
@@ -89,6 +98,13 @@ impl CookieError {
             Self::WriteFailed => "The temporary cookie file could not be written",
         }
     }
+
+    /// The failure a download, a check or a tool run reports; never retried, because a
+    /// pinned profile does not repair itself.
+    #[must_use]
+    pub fn failure(self) -> rd_core::Failure {
+        rd_core::Failure::coded(rd_core::FailureKind::Permanent, self.code(), self.message())
+    }
 }
 
 /// Keeps only the rows that may be sent to `page_url`'s host, each in the form `scope` stores
@@ -129,6 +145,16 @@ pub fn materialize(
     page_url: &Url,
     now: chrono::DateTime<chrono::Utc>,
 ) -> Result<CookieFile, CookieError> {
+    CookieFile::from_rows(&scoped_rows(profile, secret, page_url, now)?)
+}
+
+/// The rows of `profile` that may be sent to `page_url`, in the form its scope stores them.
+fn scoped_rows(
+    profile: &AuthProfile,
+    secret: &secrecy::SecretString,
+    page_url: &Url,
+    now: chrono::DateTime<chrono::Utc>,
+) -> Result<Vec<CookieRow>, CookieError> {
     if !profile.is_usable(now) {
         return Err(CookieError::ProfileUnusable);
     }
@@ -150,7 +176,87 @@ pub fn materialize(
     if scoped.is_empty() {
         return Err(CookieError::NoCookiesForHost);
     }
-    write_file(&rd_core::to_netscape_file(&scoped))
+    Ok(scoped)
+}
+
+/// Resolves a job's profile selection into a scoped, self-deleting cookie file for `page_url`.
+///
+/// The one answer to "which profile, which cookie file" (RD-1320-02), shared by the yt-dlp
+/// download, its format query, the LinkGrabber check and the gallery-dl and streamlink runs.
+///
+/// Returns `Ok(None)` when the job asked for no profile and none matches the page, which is
+/// the ordinary case for a public video. A *pinned* profile that cannot be used is an error
+/// rather than a silent fallback: the user asked for that session specifically, and quietly
+/// downloading the public version of a private page is the kind of "help" that produces a
+/// 30-second trailer named like the full episode. A disabled or expired profile is never
+/// matched automatically ([`Database::match_auth_profile`]) and refused when pinned.
+pub async fn for_selection(
+    database: &Database,
+    secrets: &SecretStore,
+    selection: AuthProfileSelection,
+    page_url: &Url,
+) -> Result<Option<CookieFile>, CookieError> {
+    rows_for_selection(database, secrets, selection, page_url)
+        .await?
+        .map(|rows| CookieFile::from_rows(&rows))
+        .transpose()
+}
+
+/// [`for_selection`] before the file is written: the scoped rows, for a caller that also
+/// sends them itself (streamlink's thumbnail fetch, RD-1320-03). Never logged, never shown.
+pub async fn rows_for_selection(
+    database: &Database,
+    secrets: &SecretStore,
+    selection: AuthProfileSelection,
+    page_url: &Url,
+) -> Result<Option<Vec<CookieRow>>, CookieError> {
+    let (profile, pinned) = match selection {
+        AuthProfileSelection::None => return Ok(None),
+        AuthProfileSelection::Auto => (
+            database
+                .match_auth_profile(page_url)
+                .await
+                .map_err(|_| CookieError::SecretUnavailable)?,
+            false,
+        ),
+        AuthProfileSelection::Pinned(id) => (
+            database
+                .auth_profile(id)
+                .await
+                .map_err(|_| CookieError::SecretUnavailable)?,
+            true,
+        ),
+    };
+    let Some(profile) = profile else {
+        return if pinned {
+            Err(CookieError::ProfileUnusable)
+        } else {
+            Ok(None)
+        };
+    };
+    // An automatically matched Basic/Bearer profile is not an error: it simply has nothing
+    // the tools can use. Pinning one is a mistake worth reporting.
+    if profile.method != AuthMethod::Cookies && !pinned {
+        return Ok(None);
+    }
+    let Some(reference) = profile.secret_ref.as_deref() else {
+        return if pinned {
+            Err(CookieError::SecretUnavailable)
+        } else {
+            Ok(None)
+        };
+    };
+    let secret = secrets
+        .get(reference)
+        .await
+        .map_err(|_| CookieError::SecretUnavailable)?;
+    match scoped_rows(&profile, &secret, page_url, Utc::now()) {
+        Ok(rows) => Ok(Some(rows)),
+        // A profile that merely happens to match and has nothing for this host is not a
+        // failure; one the user pinned is.
+        Err(CookieError::NoCookiesForHost) if !pinned => Ok(None),
+        Err(error) => Err(error),
+    }
 }
 
 fn write_file(contents: &str) -> Result<CookieFile, CookieError> {
@@ -174,300 +280,5 @@ fn write_file(contents: &str) -> Result<CookieFile, CookieError> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{CookieError, CookieScope, materialize, rows_for_url};
-    use chrono::{TimeZone, Utc};
-    use rd_core::{AuthMethod, AuthOrigin, AuthProfile, AuthProfileId, AuthScope};
-    use secrecy::SecretString;
-    use url::Url;
-
-    fn url(input: &str) -> Url {
-        input.parse().expect("url")
-    }
-
-    fn profile(host: &str) -> AuthProfile {
-        scoped_profile(host, true)
-    }
-
-    fn scoped_profile(host: &str, include_subdomains: bool) -> AuthProfile {
-        AuthProfile {
-            id: AuthProfileId::new(),
-            name: "test".to_owned(),
-            scope: AuthScope::parse(host, include_subdomains).expect("scope"),
-            method: AuthMethod::Cookies,
-            origin: AuthOrigin::Manual,
-            enabled: true,
-            expires_at: None,
-            username: None,
-            secret_ref: None,
-            certificate_ref: None,
-            has_secret: true,
-            has_client_certificate: false,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        }
-    }
-
-    fn example_scope() -> CookieScope {
-        CookieScope::new(&url("https://example.com/"), true).expect("scope")
-    }
-
-    /// The cookie file yt-dlp would be handed, as written to disk.
-    fn written(
-        host: &str,
-        include_subdomains: bool,
-        content: &str,
-        page: &str,
-    ) -> Result<String, CookieError> {
-        let file = materialize(
-            &scoped_profile(host, include_subdomains),
-            &SecretString::from(content.to_owned()),
-            &url(page),
-            Utc::now(),
-        )?;
-        Ok(std::fs::read_to_string(file.path()).expect("read"))
-    }
-
-    /// The cookie rows of a written file, without the header comment.
-    fn lines(file: &str) -> Vec<&str> {
-        file.lines().filter(|line| !line.starts_with('#')).collect()
-    }
-
-    // RD-120-52: the three findings of RD-120-49, each against the written file.
-
-    #[test]
-    fn a_public_suffix_row_is_not_written() {
-        for (host, suffix) in [("example.com", ".com"), ("example.co.uk", ".co.uk")] {
-            let content = format!(
-                "{suffix}\tTRUE\t/\tTRUE\t0\tleak\tto-every-site\n\
-                 .{host}\tTRUE\t/\tTRUE\t0\tsid\tmine\n"
-            );
-            let file = written(host, true, &content, &format!("https://{host}/watch"))
-                .expect("cookie file");
-            assert!(!file.contains("to-every-site"), "{suffix}:\n{file}");
-            assert_eq!(
-                lines(&file),
-                [format!(".{host}\tTRUE\t/\tTRUE\t0\tsid\tmine")],
-                "{suffix}"
-            );
-            // Nothing else in the set: the file is refused, not written empty.
-            let only_suffix = format!("{suffix}\tTRUE\t/\tTRUE\t0\tleak\tto-every-site\n");
-            assert_eq!(
-                written(host, true, &only_suffix, &format!("https://{host}/watch")),
-                Err(CookieError::NoCookiesForHost),
-                "{suffix}"
-            );
-        }
-    }
-
-    #[test]
-    fn a_parent_domain_row_is_written_for_the_scope_host() {
-        let parent = ".example.com\tTRUE\t/\tTRUE\t0\tsid\tsession\n";
-        let narrow = written(
-            "www.example.com",
-            false,
-            parent,
-            "https://www.example.com/v",
-        )
-        .expect("cookie file");
-        assert_eq!(
-            lines(&narrow),
-            ["www.example.com\tFALSE\t/\tTRUE\t0\tsid\tsession"]
-        );
-        let wide = written("www.example.com", true, parent, "https://www.example.com/v")
-            .expect("cookie file");
-        assert_eq!(
-            lines(&wide),
-            [".www.example.com\tTRUE\t/\tTRUE\t0\tsid\tsession"]
-        );
-        // A sibling of the scope host is not reached through the parent domain.
-        assert_eq!(
-            written("www.example.com", true, parent, "https://dl.example.com/v"),
-            Err(CookieError::NoCookiesForHost)
-        );
-    }
-
-    #[test]
-    fn header_cookies_follow_include_subdomains() {
-        let header = "Cookie: sid=abc; theme=dark";
-        let host_only =
-            written("example.com", false, header, "https://example.com/v").expect("cookie file");
-        assert_eq!(
-            lines(&host_only),
-            [
-                "example.com\tFALSE\t/\tFALSE\t0\tsid\tabc",
-                "example.com\tFALSE\t/\tFALSE\t0\ttheme\tdark",
-            ]
-        );
-        assert_eq!(
-            written("example.com", false, header, "https://www.example.com/v"),
-            Err(CookieError::NoCookiesForHost)
-        );
-        let wide =
-            written("example.com", true, header, "https://www.example.com/v").expect("cookie file");
-        assert_eq!(
-            lines(&wide),
-            [
-                ".example.com\tTRUE\t/\tFALSE\t0\tsid\tabc",
-                ".example.com\tTRUE\t/\tFALSE\t0\ttheme\tdark",
-            ]
-        );
-        // A scope host that is itself a public suffix (an intranet `nas`) stays host-only.
-        let intranet = written("nas", true, header, "https://nas/v").expect("cookie file");
-        assert!(
-            lines(&intranet)
-                .iter()
-                .all(|line| line.starts_with("nas\tFALSE\t")),
-            "{intranet}"
-        );
-    }
-
-    fn rows(content: &str) -> Vec<rd_core::CookieRow> {
-        rd_core::parse_cookie_file(content, "example.com").expect("rows")
-    }
-
-    const MIXED_JAR: &str = "# Netscape HTTP Cookie File\n\
-        .example.com\tTRUE\t/\tTRUE\t0\tsid\tsecret-value\n\
-        .tracker.invalid\tTRUE\t/\tTRUE\t0\ttrack\tfollow-me\n\
-        cdn.other.tld\tFALSE\t/\tTRUE\t0\tedge\tnope\n";
-
-    #[test]
-    fn foreign_domains_are_dropped_from_the_jar() {
-        let scoped = rows_for_url(
-            rows(MIXED_JAR),
-            &example_scope(),
-            &url("https://example.com/watch?v=1"),
-        );
-        assert_eq!(scoped.len(), 1);
-        assert_eq!(scoped[0].name, "sid");
-    }
-
-    #[test]
-    fn a_subdomain_page_still_gets_the_wildcard_cookie() {
-        let scoped = rows_for_url(
-            rows(MIXED_JAR),
-            &example_scope(),
-            &url("https://www.example.com/watch"),
-        );
-        assert_eq!(scoped.len(), 1);
-        assert_eq!(scoped[0].name, "sid");
-    }
-
-    #[test]
-    fn a_lookalike_host_gets_nothing() {
-        for page in [
-            "https://evil-example.com/watch",
-            "https://example.com.evil.tld/watch",
-        ] {
-            assert!(
-                rows_for_url(rows(MIXED_JAR), &example_scope(), &url(page)).is_empty(),
-                "{page}"
-            );
-        }
-    }
-
-    #[test]
-    fn the_written_file_holds_only_the_matching_rows() {
-        let file = materialize(
-            &profile("example.com"),
-            &SecretString::from(MIXED_JAR.to_owned()),
-            &url("https://example.com/watch"),
-            Utc::now(),
-        )
-        .expect("cookie file");
-        let written = std::fs::read_to_string(file.path()).expect("read");
-        assert!(written.contains("secret-value"));
-        assert!(!written.contains("follow-me"));
-        assert!(!written.contains("nope"));
-    }
-
-    #[test]
-    fn the_file_is_removed_when_the_guard_drops() {
-        let path = {
-            let file = materialize(
-                &profile("example.com"),
-                &SecretString::from(MIXED_JAR.to_owned()),
-                &url("https://example.com/watch"),
-                Utc::now(),
-            )
-            .expect("cookie file");
-            file.path().to_path_buf()
-        };
-        assert!(!path.exists(), "cookie file outlived its guard");
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn the_file_is_not_readable_by_anyone_else() {
-        use std::os::unix::fs::PermissionsExt;
-        let file = materialize(
-            &profile("example.com"),
-            &SecretString::from(MIXED_JAR.to_owned()),
-            &url("https://example.com/watch"),
-            Utc::now(),
-        )
-        .expect("cookie file");
-        let mode = std::fs::metadata(file.path())
-            .expect("metadata")
-            .permissions()
-            .mode();
-        assert_eq!(mode & 0o077, 0, "cookie file is group- or world-accessible");
-    }
-
-    #[test]
-    fn a_page_with_no_matching_cookie_is_an_error_not_an_empty_file() {
-        let error = materialize(
-            &profile("example.com"),
-            &SecretString::from(MIXED_JAR.to_owned()),
-            &url("https://unrelated.tld/watch"),
-            Utc::now(),
-        )
-        .expect_err("should refuse");
-        assert_eq!(error, CookieError::NoCookiesForHost);
-    }
-
-    #[test]
-    fn a_disabled_or_expired_profile_is_refused() {
-        let mut disabled = profile("example.com");
-        disabled.enabled = false;
-        assert_eq!(
-            materialize(
-                &disabled,
-                &SecretString::from(MIXED_JAR.to_owned()),
-                &url("https://example.com/watch"),
-                Utc::now(),
-            )
-            .expect_err("disabled profile"),
-            CookieError::ProfileUnusable
-        );
-
-        let mut expired = profile("example.com");
-        expired.expires_at = Some(Utc.timestamp_opt(1, 0).single().expect("timestamp"));
-        assert_eq!(
-            materialize(
-                &expired,
-                &SecretString::from(MIXED_JAR.to_owned()),
-                &url("https://example.com/watch"),
-                Utc::now(),
-            )
-            .expect_err("expired profile"),
-            CookieError::ProfileUnusable
-        );
-    }
-
-    #[test]
-    fn a_non_cookie_profile_is_refused() {
-        let mut bearer = profile("example.com");
-        bearer.method = AuthMethod::Bearer;
-        assert_eq!(
-            materialize(
-                &bearer,
-                &SecretString::from("token".to_owned()),
-                &url("https://example.com/watch"),
-                Utc::now(),
-            )
-            .expect_err("bearer profile"),
-            CookieError::NotCookieBased
-        );
-    }
-}
+#[path = "cookies_tests.rs"]
+mod tests;

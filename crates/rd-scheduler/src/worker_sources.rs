@@ -42,6 +42,8 @@ use crate::{
 mod ledger;
 #[path = "worker_sources_probe.rs"]
 mod probe;
+#[path = "worker_sources_profile.rs"]
+mod profile;
 
 use ledger::DatabaseLedger;
 

@@ -202,7 +202,12 @@ async fn probe(
     guard: Option<&rd_http::AddressPolicy>,
 ) -> CrawlVerdict {
     let network = match guard {
-        None => state.scheduler.direct_client(url).await,
+        None => {
+            state
+                .scheduler
+                .direct_client(url, rd_core::AuthProfileSelection::Auto)
+                .await
+        }
         Some(policy) => {
             if rd_http::check_target(policy, &rd_http::SystemLookup, url)
                 .await
@@ -210,7 +215,10 @@ async fn probe(
             {
                 return CrawlVerdict::Unconfirmed;
             }
-            state.scheduler.guarded_client(url, policy.clone()).await
+            state
+                .scheduler
+                .guarded_client(url, rd_core::AuthProfileSelection::Auto, policy.clone())
+                .await
         }
     };
     let Ok(network) = network else {

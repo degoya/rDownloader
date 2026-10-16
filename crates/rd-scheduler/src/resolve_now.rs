@@ -79,7 +79,7 @@ impl SchedulerHandle {
     async fn direct_probe(&self, file: &DownloadFile) -> Result<Result<ResolvedNow, Failure>> {
         let Some(policy) = self.address_policy_for(file.id).await? else {
             return Ok(Ok(ResolvedNow::Direct(
-                self.direct_client(&file.source).await?,
+                self.direct_client(&file.source, file.auth_profile).await?,
             )));
         };
         if let Err(rd_http::TargetRefusal::Refused(_)) =
@@ -88,7 +88,8 @@ impl SchedulerHandle {
             return Ok(Err(crate::worker::internal_address()));
         }
         Ok(Ok(ResolvedNow::Direct(
-            self.guarded_client(&file.source, policy).await?,
+            self.guarded_client(&file.source, file.auth_profile, policy)
+                .await?,
         )))
     }
 }

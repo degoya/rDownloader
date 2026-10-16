@@ -48,17 +48,18 @@ impl SchedulerHandle {
     }
 
     /// HTTP client honouring the global proxy/TLS defaults without an account identity,
-    /// plus any credential headers of the auth profile matching `scope`.
-    pub async fn direct_client(&self, scope: &Url) -> Result<NetworkClient> {
-        worker::build_client(
-            self,
-            None,
-            None,
-            rd_core::AuthProfileSelection::Auto,
-            scope,
-            None,
-        )
-        .await
+    /// plus the credential headers and cookies of the auth profile `auth_profile` selects for
+    /// `scope`: the one pinned, none, or the most specific matching one (`Auto`).
+    ///
+    /// A check passes the candidate's or the download's own selection, so the check goes out
+    /// the way the transfer will (RD-1320-04); a fetch without one (indexer, feed, git) passes
+    /// `Auto`.
+    pub async fn direct_client(
+        &self,
+        scope: &Url,
+        auth_profile: rd_core::AuthProfileSelection,
+    ) -> Result<NetworkClient> {
+        worker::build_client(self, None, None, auth_profile, scope, None).await
     }
 
     /// [`Self::direct_client`] held to `policy`: names are resolved through the guard at
@@ -67,17 +68,10 @@ impl SchedulerHandle {
     pub async fn guarded_client(
         &self,
         scope: &Url,
+        auth_profile: rd_core::AuthProfileSelection,
         policy: rd_http::AddressPolicy,
     ) -> Result<NetworkClient> {
-        worker::build_client(
-            self,
-            None,
-            None,
-            rd_core::AuthProfileSelection::Auto,
-            scope,
-            Some(policy),
-        )
-        .await
+        worker::build_client(self, None, None, auth_profile, scope, Some(policy)).await
     }
 
     /// The address rule for a request made on a stranger's word (RD-150-03): never this

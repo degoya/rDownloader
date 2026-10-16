@@ -4,20 +4,22 @@
 use super::*;
 
 impl LinkCheckService {
-    /// The client a check of `url` goes out with: held to `guard` when the link was proposed.
+    /// The client a check of `url` goes out with: the candidate's own profile selection, the
+    /// one the transfer will use (RD-1320-04), and held to `guard` when the link was proposed.
     pub(super) async fn client_for(
         &self,
         url: &url::Url,
+        auth_profile: rd_core::AuthProfileSelection,
         guard: Option<&rd_http::AddressPolicy>,
     ) -> Result<rd_scheduler::NetworkClient> {
         match guard {
             Some(policy) => {
                 self.inner
                     .scheduler
-                    .guarded_client(url, policy.clone())
+                    .guarded_client(url, auth_profile, policy.clone())
                     .await
             }
-            None => self.inner.scheduler.direct_client(url).await,
+            None => self.inner.scheduler.direct_client(url, auth_profile).await,
         }
     }
 
@@ -31,7 +33,13 @@ impl LinkCheckService {
         if self.classify_manifest(&candidate, true, guard).await {
             return;
         }
-        match self.inner.media_probe.probe(&candidate.url).await {
+        // With the link's cookie profile, as the download will use it (RD-1320-02).
+        match self
+            .inner
+            .media_probe
+            .probe(&candidate.url, candidate.auth_profile)
+            .await
+        {
             Ok(mut entries) if !entries.is_empty() => {
                 let first = entries.remove(0);
                 let file_name = rd_db::media_file_name(&first.info);
@@ -142,7 +150,10 @@ impl LinkCheckService {
                         credential,
                     )
                 }),
-            rd_core::RemoteFamily::Webdav => self.probe_webdav(&target, guard).await,
+            rd_core::RemoteFamily::Webdav => {
+                self.probe_webdav(&target, candidate.auth_profile, guard)
+                    .await
+            }
         };
         let (outcome, credential_id) = match probed {
             Ok(value) => value,
@@ -241,6 +252,7 @@ impl LinkCheckService {
     async fn probe_webdav(
         &self,
         target: &rd_core::RemoteTarget,
+        auth_profile: rd_core::AuthProfileSelection,
         guard: Option<&rd_http::AddressPolicy>,
     ) -> anyhow::Result<(
         Result<Box<rd_core::RemoteListing>, rd_core::Failure>,
@@ -256,8 +268,8 @@ impl LinkCheckService {
                 None,
             ));
         };
-        let network = self.client_for(&scope, guard).await?;
-        let probed = rd_webdav::probe(&network.client, target).await?;
+        let network = self.client_for(&scope, auth_profile, guard).await?;
+        let probed = rd_webdav::probe(&network.client, &network.headers, target).await?;
         Ok((
             match probed {
                 rd_webdav::Probed::Resolved(listing) => Ok(listing),

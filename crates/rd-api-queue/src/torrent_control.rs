@@ -283,7 +283,8 @@ pub async fn put_candidate_torrent_plan(
     )))
 }
 
-/// Resolves the metadata behind a magnet link so it can be reviewed like a `.torrent`.
+/// Resolves the metadata behind a magnet link, or reads the `.torrent` at an http(s) address on
+/// the link's own network (RD-1320-05), so it can be reviewed like an uploaded `.torrent`.
 #[utoipa::path(
     post,
     path = "/api/v1/collector/candidates/{id}/torrent/resolve",
@@ -313,7 +314,7 @@ pub async fn resolve_candidate_torrent(
         state.database.get_candidate(id).await?.ok_or_else(|| {
             ApiError::not_found("collector.candidate_not_found", "Link not found")
         })?;
-    match state.torrent.resolve_metadata(&candidate.url).await {
+    match rd_api_core::torrent_candidate::resolve_torrent_candidate(&state, &candidate).await {
         Ok(metadata) => {
             stored.metadata_state = TorrentMetadataState::Ready;
             stored.metadata_error = None;

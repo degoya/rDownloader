@@ -4,10 +4,9 @@ use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use chrono::Utc;
 use rd_core::{
-    AuthProfileSelection, DownloadFile, DownloadKind, DownloadPackage, Failure, FailureKind,
-    MediaFormatCriteria, MediaKind, MediaSelection,
+    DownloadFile, DownloadKind, DownloadPackage, Failure, FailureKind, MediaFormatCriteria,
+    MediaKind, MediaSelection,
 };
 use rd_db::Database;
 use rd_scheduler::{ExternalRunner, RunOutcome, ToolNetwork, ToolNetworkSource};
@@ -21,7 +20,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     SharedMediaSettings,
     args::{DownloadPlan, output_mode},
-    cookies::{CookieError, CookieFile},
+    cookies::CookieFile,
     merge,
     pacing::job_pauses,
     probe::map_tool_error,
@@ -71,68 +70,6 @@ impl MediaRunner {
     pub fn with_tool_network(mut self, network: ToolNetworkSource) -> Self {
         self.network = Some(network);
         self
-    }
-
-    /// Resolves the file's cookie profile into a scoped, self-deleting cookie file.
-    ///
-    /// Returns `Ok(None)` when the download asked for no profile and none matches the page,
-    /// which is the ordinary case for a public video. A *pinned* profile that cannot be used
-    /// is an error rather than a silent fallback: the user asked for that session
-    /// specifically, and quietly downloading the public version of a private page is the
-    /// kind of "help" that produces a 30-second trailer named like the full episode.
-    async fn cookie_file(
-        &self,
-        file: &DownloadFile,
-        selection: &MediaSelection,
-    ) -> Result<Option<CookieFile>, CookieError> {
-        let (profile, pinned) = match file.auth_profile {
-            AuthProfileSelection::None => return Ok(None),
-            AuthProfileSelection::Auto => (
-                self.database
-                    .match_auth_profile(&selection.page_url)
-                    .await
-                    .map_err(|_| CookieError::SecretUnavailable)?,
-                false,
-            ),
-            AuthProfileSelection::Pinned(id) => (
-                self.database
-                    .auth_profile(id)
-                    .await
-                    .map_err(|_| CookieError::SecretUnavailable)?,
-                true,
-            ),
-        };
-        let Some(profile) = profile else {
-            return if pinned {
-                Err(CookieError::ProfileUnusable)
-            } else {
-                Ok(None)
-            };
-        };
-        // An automatically matched Basic/Bearer profile is not an error: it simply has
-        // nothing yt-dlp can use. Pinning one is a mistake worth reporting.
-        if profile.method != rd_core::AuthMethod::Cookies && !pinned {
-            return Ok(None);
-        }
-        let Some(reference) = profile.secret_ref.as_deref() else {
-            return if pinned {
-                Err(CookieError::SecretUnavailable)
-            } else {
-                Ok(None)
-            };
-        };
-        let secret = self
-            .secrets
-            .get(reference)
-            .await
-            .map_err(|_| CookieError::SecretUnavailable)?;
-        match crate::cookies::materialize(&profile, &secret, &selection.page_url, Utc::now()) {
-            Ok(cookies) => Ok(Some(cookies)),
-            // A profile that merely happens to match and has nothing for this host is not a
-            // failure; one the user pinned is.
-            Err(CookieError::NoCookiesForHost) if !pinned => Ok(None),
-            Err(error) => Err(error),
-        }
     }
 }
 
@@ -202,9 +139,16 @@ impl ExternalRunner for MediaRunner {
         // Bound here, before the spawn, and dropped when `run` returns by any path — the
         // success return, an early `Failed`, and the cancellation branch that kills the
         // child all unwind through this binding, so the file cannot outlive the download.
-        let cookies = match self.cookie_file(file, &selection).await {
+        let cookies = match crate::cookies::for_selection(
+            &self.database,
+            &self.secrets,
+            file.auth_profile,
+            &selection.page_url,
+        )
+        .await
+        {
             Ok(cookies) => cookies,
-            Err(error) => return Ok(RunOutcome::Failed(cookie_failure(error))),
+            Err(error) => return Ok(RunOutcome::Failed(error.failure())),
         };
         let format = match resolve_format(
             ytdlp,
@@ -213,6 +157,7 @@ impl ExternalRunner for MediaRunner {
             criteria.as_ref(),
             capabilities,
             &network,
+            cookies.as_ref().map(CookieFile::path),
         )
         .await
         {
@@ -405,10 +350,6 @@ fn media_stem(directory: &std::path::Path, file_name: &str) -> String {
 }
 
 /// A cookie profile that cannot be used, as the download's failure.
-fn cookie_failure(error: CookieError) -> Failure {
-    Failure::coded(FailureKind::Permanent, error.code(), error.message())
-}
-
 /// Why the tools at hand cannot produce this selection, or `None` when they can.
 async fn tool_failure(selection: &MediaSelection, ffmpeg: &FfmpegTools) -> Option<Failure> {
     // MP3 conversion cannot happen without the tools, so fail before downloading. A video
