@@ -33,7 +33,7 @@ pub(crate) async fn record_error(
         &failure,
         file.retry_count,
         limit_waits,
-        scheduler.max_retries(),
+        scheduler.retry_schedule(),
     );
     let failure = if retry_at.is_none() && retry::limit_waits_spent(&failure, limit_waits) {
         retry::limit_waits_exhausted(failure, limit_waits)

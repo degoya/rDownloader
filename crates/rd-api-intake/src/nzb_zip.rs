@@ -74,7 +74,10 @@ pub(crate) fn nzb_members(bytes: &[u8], limits: ZipLimits) -> Result<Vec<ZipMemb
             let raw = archive
                 .by_index_raw(index)
                 .map_err(|_| zip_invalid("unreadable_member"))?;
-            let path = raw.name().replace('\\', "/");
+            let path = raw
+                .name()
+                .map_err(|_| zip_invalid("unreadable_member"))?
+                .replace('\\', "/");
             if raw.is_dir() || path.starts_with("__MACOSX/") {
                 continue;
             }

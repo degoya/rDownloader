@@ -86,6 +86,8 @@ impl Default for SettingsResponse {
             rar_executable: None,
             rar_tool: "unrar".to_owned(),
             max_retries: rd_scheduler::DEFAULT_MAX_RETRIES,
+            retry_middle_attempts: default_retry_middle_attempts(),
+            retry_long_wait_minutes: default_retry_long_wait_minutes(),
             auto_retry_failed: false,
             auto_retry_interval_hours: default_auto_retry_interval_hours(),
             auto_retry_max_rounds: default_auto_retry_max_rounds(),
@@ -327,6 +329,14 @@ pub(super) const fn default_session_max_hours() -> u32 {
 /// A day: long enough to notice a finished package, short enough to keep the queue readable.
 pub(super) const fn default_auto_remove_delay_hours() -> u32 {
     24
+}
+
+pub(super) const fn default_retry_middle_attempts() -> u32 {
+    rd_scheduler::DEFAULT_RETRY_MIDDLE_ATTEMPTS
+}
+
+pub(super) const fn default_retry_long_wait_minutes() -> u32 {
+    rd_scheduler::DEFAULT_RETRY_LONG_WAIT_MINUTES
 }
 
 pub(super) const fn default_auto_retry_interval_hours() -> u32 {

@@ -41,6 +41,14 @@ pub struct SettingsResponse {
     /// the hoster imposed (a rate or daily limit, an IP block) is no retry and spends none of
     /// them; at most 48 such waits in a row (RD-191-12).
     pub max_retries: u32,
+    /// Retries of the middle stage (0–10): after five retries seconds apart, waits of one,
+    /// two, four minutes and on, doubling, before the long wait; `0` goes straight to the long
+    /// wait (RD-1340-01).
+    #[serde(default = "default_retry_middle_attempts")]
+    pub retry_middle_attempts: u32,
+    /// Minutes a file waits between retries after the middle stage (1–1440).
+    #[serde(default = "default_retry_long_wait_minutes")]
+    pub retry_long_wait_minutes: u32,
     /// Put failed downloads back into the queue on a timer when their failure may pass by
     /// itself: a limit, an IP block, a server or network that was down, a file reported
     /// offline (RD-191-12).

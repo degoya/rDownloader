@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The queue and its retries (RD-1120-21): the NNTP limits went to *Usenet*, the speed and upload
+ * The queue and its retries (RD-1120-21; their stages after the fast five, RD-1340-01): the NNTP limits went to *Usenet*, the speed and upload
  * limits to *Bandwidth*, the storage capacity to *Storage & rules*, the UI port and the admin
  * login to *Security*. Mirror detection went to the *LinkGrabber* page and the import history to
  * *System › Logs & retention* (RD-1120-23). The SHA-256 stays: the scheduler computes it for each
@@ -40,6 +40,12 @@ const { t } = useI18n()
       </UFormField>
       <UFormField data-settings-anchor="general.retries" :label="t('settings.retries.label')" :description="t('settings.retries.description')">
         <UInputNumber v-model="settings.max_retries" required :min="0" :max="100" :format-options="WHOLE" increment decrement class="mt-2 w-full" />
+      </UFormField>
+      <UFormField data-settings-anchor="general.retry_stages" :label="t('settings.retry_middle.label')" :description="t('settings.retry_middle.description')">
+        <UInputNumber v-model="settings.retry_middle_attempts" required :min="0" :max="10" :format-options="WHOLE" increment decrement class="mt-2 w-full" data-testid="retry-middle-attempts" />
+      </UFormField>
+      <UFormField :label="t('settings.retry_long_wait.label')" :description="t('settings.retry_long_wait.description')">
+        <NumberWithUnit v-model="settings.retry_long_wait_minutes" unit="min" required :min="1" :max="1440" :format-options="WHOLE" increment decrement class="mt-2 w-full" data-testid="retry-long-wait" />
       </UFormField>
       <USeparator />
       <div>

@@ -87,6 +87,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('general.active_files', 'general', 'settings.active_files.label', { descriptionKey: 'settings.active_files.description', keywordsKey: `${K}.active_files` }),
   field('general.connections_per_host', 'general', 'settings.connections_per_host.label', { descriptionKey: 'settings.connections_per_host.description' }),
   field('general.retries', 'general', 'settings.retries.label', { descriptionKey: 'settings.retries.description' }),
+  field('general.retry_stages', 'general', 'settings.retry_middle.label', { descriptionKey: 'settings.retry_middle.description', terms: ['503'] }),
   field('general.auto_retry', 'general', 'settings.auto_retry.label', { descriptionKey: 'settings.auto_retry.description' }),
   field('general.account_traffic', 'general', 'settings.account_traffic.label', { descriptionKey: 'settings.account_traffic.description', terms: ['Traffic', 'DDownload'] }),
   field('general.auto_remove', 'general', 'settings.auto_remove.label', { descriptionKey: 'settings.auto_remove.description' }),

@@ -15896,7 +15896,7 @@ export interface components {
              * @description Retries per file before a retryable failure becomes final (0–100). Waiting out a limit
              *     the hoster imposed (a rate or daily limit, an IP block) is no retry and spends none of
              *     them; at most 48 such waits in a row (RD-191-12).
-             * @default 8
+             * @default 11
              */
             max_retries: number;
             /**
@@ -16259,6 +16259,20 @@ export interface components {
              * @default false
              */
             restart_when_needed: boolean;
+            /**
+             * Format: int32
+             * @description Minutes a file waits between retries after the middle stage (1–1440).
+             * @default 30
+             */
+            retry_long_wait_minutes: number;
+            /**
+             * Format: int32
+             * @description Retries of the middle stage (0–10): after five retries seconds apart, waits of one,
+             *     two, four minutes and on, doubling, before the long wait; `0` goes straight to the long
+             *     wait (RD-1340-01).
+             * @default 3
+             */
+            retry_middle_attempts: number;
             /**
              * @description Whether a failed PAR2/SFV/RAR verification blocks unpacking and everything after it.
              *     On by default, like SABnzbd's `safe_postproc`; off means the unpack runs anyway and a

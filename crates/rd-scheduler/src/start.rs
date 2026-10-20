@@ -17,8 +17,9 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     DEFAULT_AUTO_RETRY_INTERVAL_HOURS, DEFAULT_AUTO_RETRY_MAX_ROUNDS, DEFAULT_MAX_RETRIES,
-    ExternalRunner, SchedulerConfig, SchedulerHandle, account_traffic, active::ActiveState, holds,
-    hostblock, rates, runner,
+    DEFAULT_RETRY_LONG_WAIT_MINUTES, DEFAULT_RETRY_MIDDLE_ATTEMPTS, ExternalRunner,
+    SchedulerConfig, SchedulerHandle, account_traffic, active::ActiveState, holds, hostblock,
+    rates, runner,
 };
 
 /// Marks the start's storage recovery as run when it is dropped, panic or not.
@@ -116,6 +117,8 @@ impl SchedulerHandle {
             database,
             max_active_files: Arc::new(AtomicUsize::new(config.max_active_files)),
             max_retries: Arc::new(AtomicU32::new(DEFAULT_MAX_RETRIES)),
+            retry_middle_attempts: Arc::new(AtomicU32::new(DEFAULT_RETRY_MIDDLE_ATTEMPTS)),
+            retry_long_wait_minutes: Arc::new(AtomicU32::new(DEFAULT_RETRY_LONG_WAIT_MINUTES)),
             max_chunks_per_file: Arc::new(AtomicUsize::new(config.max_chunks_per_file)),
             external_connections_per_file: Arc::new(AtomicUsize::new(0)),
             external_parallel_files: Arc::new(AtomicUsize::new(config.external_parallel_files)),

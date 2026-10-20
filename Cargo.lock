@@ -1397,9 +1397,12 @@ dependencies = [
 
 [[package]]
 name = "constant_time_eq"
-version = "0.4.2"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
+checksum = "9eb6feb175df65d0a3ccd3e73484e940d0ac664e8034f0519fd49a93db3071d9"
+dependencies = [
+ "rustversion",
+]
 
 [[package]]
 name = "cookie"
@@ -6843,7 +6846,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6912,7 +6915,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-access"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -6942,7 +6945,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-admin"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -6986,7 +6989,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-compat"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -7005,7 +7008,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-core"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -7071,7 +7074,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-intake"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7118,7 +7121,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-mcp"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -7142,7 +7145,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-queue"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -7173,7 +7176,7 @@ dependencies = [
 
 [[package]]
 name = "rd-authn"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
@@ -7195,7 +7198,7 @@ dependencies = [
 
 [[package]]
 name = "rd-automation"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "chrono",
  "croner",
@@ -7210,7 +7213,7 @@ dependencies = [
 
 [[package]]
 name = "rd-autostart"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "directories",
@@ -7220,7 +7223,7 @@ dependencies = [
 
 [[package]]
 name = "rd-backup"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -7259,7 +7262,7 @@ dependencies = [
 
 [[package]]
 name = "rd-captcha"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -7284,7 +7287,7 @@ dependencies = [
 
 [[package]]
 name = "rd-capture"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -7329,7 +7332,7 @@ dependencies = [
 
 [[package]]
 name = "rd-cnl"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7343,7 +7346,7 @@ dependencies = [
 
 [[package]]
 name = "rd-collector"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7387,7 +7390,7 @@ version = "1.0.0"
 
 [[package]]
 name = "rd-db"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -7415,7 +7418,7 @@ dependencies = [
 
 [[package]]
 name = "rd-diagnostics"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7440,7 +7443,7 @@ dependencies = [
 
 [[package]]
 name = "rd-extract"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7464,7 +7467,7 @@ dependencies = [
 
 [[package]]
 name = "rd-files"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "crc32fast",
@@ -7487,7 +7490,7 @@ dependencies = [
 
 [[package]]
 name = "rd-ftp"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7511,7 +7514,7 @@ dependencies = [
 
 [[package]]
 name = "rd-gallery"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7531,7 +7534,7 @@ dependencies = [
 
 [[package]]
 name = "rd-hotfolder"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7550,7 +7553,7 @@ dependencies = [
 
 [[package]]
 name = "rd-http"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -7593,7 +7596,7 @@ dependencies = [
 
 [[package]]
 name = "rd-limits"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7607,7 +7610,7 @@ dependencies = [
 
 [[package]]
 name = "rd-media"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7633,7 +7636,7 @@ dependencies = [
 
 [[package]]
 name = "rd-notify"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "aws-lc-rs",
@@ -7657,7 +7660,7 @@ dependencies = [
 
 [[package]]
 name = "rd-object-storage"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7693,7 +7696,7 @@ dependencies = [
 
 [[package]]
 name = "rd-pack"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -7907,7 +7910,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-ext"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -8003,7 +8006,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-host"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "aes 0.9.3",
  "anyhow",
@@ -8617,7 +8620,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-transfer"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8699,7 +8702,7 @@ dependencies = [
 
 [[package]]
 name = "rd-postprocess"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "dunce",
@@ -8718,7 +8721,7 @@ dependencies = [
 
 [[package]]
 name = "rd-power"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8744,7 +8747,7 @@ dependencies = [
 
 [[package]]
 name = "rd-scheduler"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8779,7 +8782,7 @@ dependencies = [
 
 [[package]]
 name = "rd-secrets"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -8798,7 +8801,7 @@ dependencies = [
 
 [[package]]
 name = "rd-sftp"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8822,7 +8825,7 @@ dependencies = [
 
 [[package]]
 name = "rd-sign"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -8836,7 +8839,7 @@ dependencies = [
 
 [[package]]
 name = "rd-siterules"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -8854,7 +8857,7 @@ dependencies = [
 
 [[package]]
 name = "rd-stream"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8880,7 +8883,7 @@ dependencies = [
 
 [[package]]
 name = "rd-subscription"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8913,7 +8916,7 @@ dependencies = [
 
 [[package]]
 name = "rd-tools"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -8945,7 +8948,7 @@ dependencies = [
 
 [[package]]
 name = "rd-torrent"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8974,7 +8977,7 @@ dependencies = [
 
 [[package]]
 name = "rd-transfer-file"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "rd-core",
@@ -8991,7 +8994,7 @@ dependencies = [
 
 [[package]]
 name = "rd-update"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -9020,7 +9023,7 @@ dependencies = [
 
 [[package]]
 name = "rd-usenet"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -9052,7 +9055,7 @@ dependencies = [
 
 [[package]]
 name = "rd-webdav"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -9067,7 +9070,7 @@ dependencies = [
 
 [[package]]
 name = "rdownloader"
-version = "1.33.0"
+version = "1.34.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -10893,7 +10896,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -13149,9 +13152,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "8.6.0"
+version = "9.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d04a6b5381502aa6087c94c669499eb1602eb9c5e8198e534de571f7154809b"
+checksum = "6e04976da629d3b04204ba8105b396a193af8ad2583b2c79bfb3ab8af580a11e"
 dependencies = [
  "aes 0.9.3",
  "constant_time_eq",
@@ -13161,6 +13164,7 @@ dependencies = [
  "hmac 0.13.0",
  "indexmap 2.14.2",
  "memchr",
+ "nix 0.31.3",
  "pbkdf2 0.13.0",
  "sha1 0.11.0",
  "typed-path",

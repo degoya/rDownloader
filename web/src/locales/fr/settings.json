@@ -134,7 +134,7 @@
   },
   "retries": {
     "label": "Nouvelles tentatives par fichier",
-    "description": "Tentatives après des erreurs temporaires avant qu'un téléchargement soit considéré comme échoué (0–100). L’attente d’une limite ou d’un blocage d’IP de l’hébergeur ne compte pas."
+    "description": "Tentatives après des erreurs temporaires avant qu'un téléchargement soit considéré comme échoué (0–100) : cinq en quelques secondes, puis les tentatives espacées de minutes, puis la longue attente. L’attente d’une limite ou d’un blocage d’IP de l’hébergeur ne compte pas."
   },
   "import_history": {
     "label": "Conserver l'historique d'importation",
@@ -1383,5 +1383,13 @@
     "items_days_label": "Garder entières les entrées ignorées",
     "items_days_description": "Jours pendant lesquels une entrée ignorée ou écartée garde son titre et son lien ; ensuite il ne reste que ce qui permet de la reconnaître, pour qu'elle ne revienne pas. 0 garde tout (0-3650).",
     "rewrite": "La base de données vient d'une version antérieure à 1.24 : « Nettoyer maintenant » la réécrit une fois, ensuite elle rend l'espace libre d'elle-même. Il faut de la place pour une seconde copie dans le dossier de données et que rien ne tourne."
+  },
+  "retry_middle": {
+    "label": "Tentatives espacées de minutes",
+    "description": "Après les cinq tentatives en quelques secondes : combien d’autres attendent une, deux, quatre minutes ou plus avant la longue attente ; 0 passe directement à la longue attente (0–10). Utile quand un serveur est surchargé quelques minutes."
+  },
+  "retry_long_wait": {
+    "label": "Longue attente entre les tentatives",
+    "description": "Minutes qu’un téléchargement attend entre ses tentatives suivantes ; les fichiers après lui avancent entre-temps (1–1440)."
   }
 }

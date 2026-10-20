@@ -5,6 +5,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.34.0] - 2026-10-20
+
+### Changed
+
+- **Retries wait minutes before the half hour** (RD-1340-01). A DDownload link answered HTTP 503
+  for forty seconds to a few minutes while the hoster's other files went through; the five fast
+  retries (1, 2, 4, 8, 16 s) were spent in half a minute and the file then sat out 30 minutes,
+  where a restart by hand worked at once. After the fast five a file now waits the middle stage —
+  one, two, four minutes, doubling, never above the long wait — and only then the long wait
+  between the rest (`rd-scheduler` `retry.rs`, `RetrySchedule`). Two settings under Settings →
+  General, REST and MCP: `retry_middle_attempts` (0–10, default 3; 0 is the old course) and
+  `retry_long_wait_minutes` (1–1440, default 30); stored in the settings document, no migration,
+  both runtime fields a start validates (`settings.retry_middle_attempts_too_high`,
+  `settings.retry_long_wait_invalid`). `max_retries` defaults to 11 instead of 8, so the three
+  long waits of before stay after the middle stage. The middle stage gives the queue place away
+  like the long wait (`dispatch_selection.rs`).
+
+### Security
+
+- **`zip` 9.0.5** (RUSTSEC-2026-0367, -0368, -0369). The three advisories published on 2026-10-20
+  — SUID, SGID and sticky bits kept during extraction, symbolic links whose targets leave the
+  destination, Unix permissions applied through symbolic links — sit in `ZipArchive::extract` and
+  `ZipStreamReader::extract`, which nothing here calls (`rd-postprocess` `zip_format.rs` writes
+  each member itself, refuses symbolic links and sets no permissions); `cargo deny` refused 8.6.0
+  all the same, and the fix is 9.0.0 on. In zip 9 a member's `name()` and `file_names()` return a
+  `Result`, so the readers of `rd-postprocess`, `rd-tools`, `rd-api-intake` and `rd-plugin-host`
+  turn an undecodable name into their archive error; `constant_time_eq` moved to 0.6.1 with it.
+  The three unmaintained-crate notices of the same day for `zbus_names`, `zvariant` and
+  `zvariant_derive` (RUSTSEC-2026-0370, -0371, -0372; merged into zbus 6) are acknowledged in
+  `deny.toml`: the latest notify-rust and secret-service still require zbus 5.
+
 ## [1.33.0] - 2026-10-16
 
 ### Fixed

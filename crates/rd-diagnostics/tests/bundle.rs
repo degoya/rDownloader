@@ -149,7 +149,14 @@ fn a_deselected_entry_is_left_out_and_named_in_the_manifest() {
         .expect("bundle");
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(built.bytes)).expect("zip");
     let mut names: Vec<String> = (0..archive.len())
-        .map(|index| archive.by_index(index).expect("entry").name().to_owned())
+        .map(|index| {
+            archive
+                .by_index(index)
+                .expect("entry")
+                .name()
+                .expect("name")
+                .into_owned()
+        })
         .collect();
     names.sort();
     assert_eq!(names, ["doctor.txt", "manifest.json", "versions.json"]);
@@ -190,7 +197,7 @@ fn no_entry_of_the_archive_carries_a_secret() {
             assert!(
                 !text.contains(canary),
                 "{} carries {canary}: {text}",
-                entry.name()
+                entry.name().expect("name")
             );
         }
     }

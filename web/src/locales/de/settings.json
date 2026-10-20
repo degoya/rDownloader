@@ -134,7 +134,7 @@
   },
   "retries": {
     "label": "Wiederholungen pro Datei",
-    "description": "Erneute Versuche bei vorübergehenden Fehlern, bevor ein Download als fehlgeschlagen gilt (0–100). Das Warten auf ein Limit oder eine IP-Sperre des Hosters zählt nicht mit."
+    "description": "Erneute Versuche bei vorübergehenden Fehlern, bevor ein Download als fehlgeschlagen gilt (0–100): fünf im Sekundentakt, dann die Wiederholungen im Minutentakt, dann die lange Wartezeit. Das Warten auf ein Limit oder eine IP-Sperre des Hosters zählt nicht mit."
   },
   "import_history": {
     "label": "Import-Verlauf behalten",
@@ -1383,5 +1383,13 @@
     "items_days_label": "Übersprungene Abo-Einträge vollständig behalten",
     "items_days_description": "Tage, die ein übersprungener oder verworfener Abo-Eintrag Titel und Link behält; danach bleibt nur, woran das Abo ihn wiedererkennt, damit er nicht zurückkommt. 0 behält alles (0-3650).",
     "rewrite": "Die Datenbank stammt aus einer Version vor 1.24: „Jetzt aufräumen“ schreibt sie einmal neu, danach gibt sie freien Platz von selbst zurück. Dafür braucht der Datenordner Platz für eine zweite Kopie, und es darf nichts laufen."
+  },
+  "retry_middle": {
+    "label": "Wiederholungen im Minutentakt",
+    "description": "Nach den fünf Wiederholungen im Sekundentakt: wie viele weitere eine, zwei, vier Minuten und länger warten, bevor die lange Wartezeit gilt; 0 geht direkt zur langen Wartezeit (0–10). Hilft, wenn ein Server ein paar Minuten überlastet ist."
+  },
+  "retry_long_wait": {
+    "label": "Lange Wartezeit zwischen Wiederholungen",
+    "description": "Minuten, die ein Download zwischen seinen späteren Wiederholungen wartet; die Dateien danach laufen solange weiter (1–1440)."
   }
 }

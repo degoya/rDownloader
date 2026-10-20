@@ -212,7 +212,7 @@ fn an_archive_member_cannot_escape_the_staging_directory() {
     let mut buffer = Vec::new();
     {
         let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut buffer));
-        let options: zip::write::FileOptions<'_, ()> = zip::write::FileOptions::default();
+        let options = zip::write::SimpleFileOptions::default();
         writer
             .start_file("../../escaped/yt-dlp", options)
             .expect("start");

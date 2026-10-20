@@ -153,6 +153,12 @@ pub struct RuntimeSettings {
     pub custom_ca_pem: Option<String>,
     /// Retries per file before a retryable failure becomes final.
     pub max_retries: u32,
+    /// Attempts of the retry's middle stage after the fast ones, at most
+    /// [`MAX_RETRY_MIDDLE_ATTEMPTS`] (RD-1340-01).
+    pub retry_middle_attempts: u32,
+    /// The retry's long wait after the middle stage, [`MIN_RETRY_LONG_WAIT_MINUTES`] to
+    /// [`MAX_RETRY_LONG_WAIT_MINUTES`] minutes.
+    pub retry_long_wait_minutes: u32,
     /// Hold new downloads while a package is post-processing.
     pub pause_during_postprocess: bool,
     /// Put failed downloads whose failure may pass later back into the queue (RD-191-12).
@@ -172,8 +178,9 @@ pub struct RuntimeSettings {
         std::collections::BTreeMap<rd_core::AccountId, rd_core::AccountTrafficAction>,
 }
 
-/// Default retries per file.
-pub const DEFAULT_MAX_RETRIES: u32 = 8;
+/// Default retries per file: the five fast ones, the middle stage's three and three long waits
+/// (RD-1340-01).
+pub const DEFAULT_MAX_RETRIES: u32 = 11;
 /// The most files an external runner may be told to work on at once. Why eight is the
 /// runner's to say: `rd_usenet::parallel::MAX_PARALLEL_FILES` carries the reasoning.
 pub const MAX_EXTERNAL_PARALLEL_FILES: usize = 8;
@@ -185,13 +192,17 @@ pub use auto_retry::{
 /// wires the service through this crate and does not link `rd-http` itself.
 pub use rd_http::{DEFAULT_CONNECTIONS_PER_HOST, MAX_CONNECTIONS_PER_HOST};
 pub use retry::{
-    DEFAULT_RATE_LIMIT_WAIT, LIMIT_WAITS_EXHAUSTED_CODE, MAX_CONFIGURABLE_RETRIES, MAX_LIMIT_WAITS,
+    DEFAULT_RATE_LIMIT_WAIT, DEFAULT_RETRY_LONG_WAIT_MINUTES, DEFAULT_RETRY_MIDDLE_ATTEMPTS,
+    LIMIT_WAITS_EXHAUSTED_CODE, MAX_CONFIGURABLE_RETRIES, MAX_LIMIT_WAITS,
+    MAX_RETRY_LONG_WAIT_MINUTES, MAX_RETRY_MIDDLE_ATTEMPTS, MIN_RETRY_LONG_WAIT_MINUTES,
 };
 
 impl Default for RuntimeSettings {
     fn default() -> Self {
         Self {
             max_retries: DEFAULT_MAX_RETRIES,
+            retry_middle_attempts: DEFAULT_RETRY_MIDDLE_ATTEMPTS,
+            retry_long_wait_minutes: DEFAULT_RETRY_LONG_WAIT_MINUTES,
             max_active_files: 3,
             max_chunks_per_file: 4,
             max_connections_per_host: rd_http::DEFAULT_CONNECTIONS_PER_HOST,
@@ -260,6 +271,8 @@ pub struct SchedulerHandle {
     external_connections_per_file: Arc<AtomicUsize>,
     external_parallel_files: Arc<AtomicUsize>,
     max_retries: Arc<AtomicU32>,
+    retry_middle_attempts: Arc<AtomicU32>,
+    retry_long_wait_minutes: Arc<AtomicU32>,
     generate_sha256: Arc<AtomicBool>,
     pause_during_postprocess: Arc<AtomicBool>,
     /// The automatic retry of failed downloads (RD-191-12); see `auto_retry.rs`.
@@ -316,8 +329,13 @@ impl SchedulerHandle {
         &self.config.downloads_directory
     }
 
-    pub(crate) fn max_retries(&self) -> u32 {
-        self.max_retries.load(Ordering::Acquire)
+    /// The retry budget and stages as configured now.
+    pub(crate) fn retry_schedule(&self) -> retry::RetrySchedule {
+        retry::RetrySchedule {
+            max_retries: self.max_retries.load(Ordering::Acquire),
+            middle_attempts: self.retry_middle_attempts.load(Ordering::Acquire),
+            long_wait_minutes: self.retry_long_wait_minutes.load(Ordering::Acquire),
+        }
     }
 
     pub(crate) fn max_chunks_per_file(&self) -> usize {

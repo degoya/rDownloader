@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.33.0"
+    "version": "1.34.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -41101,7 +41101,7 @@
             "type": "integer",
             "format": "int32",
             "description": "Retries per file before a retryable failure becomes final (0–100). Waiting out a limit\nthe hoster imposed (a rate or daily limit, an IP block) is no retry and spends none of\nthem; at most 48 such waits in a row (RD-191-12).",
-            "default": 8,
+            "default": 11,
             "minimum": 0
           },
           "mcp_scripts_allowed": {
@@ -41507,6 +41507,20 @@
             "type": "boolean",
             "description": "Whether a pending restart happens by itself (RD-1240-32): a plugin installed or updated\nthat runs only from the next start, once nothing has run for five minutes, inside\n`update_auto_install_window`. Off by default.",
             "default": false
+          },
+          "retry_long_wait_minutes": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Minutes a file waits between retries after the middle stage (1–1440).",
+            "default": 30,
+            "minimum": 0
+          },
+          "retry_middle_attempts": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Retries of the middle stage (0–10): after five retries seconds apart, waits of one,\ntwo, four minutes and on, doubling, before the long wait; `0` goes straight to the long\nwait (RD-1340-01).",
+            "default": 3,
+            "minimum": 0
           },
           "safe_postproc": {
             "type": "boolean",

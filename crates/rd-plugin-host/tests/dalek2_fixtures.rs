@@ -46,8 +46,14 @@ fn parts() -> Parts {
     let mut archive = Archive::new(Cursor::new(PACKAGE)).expect("the fixture is a zip archive");
     let languages: Vec<String> = archive
         .file_names()
-        .filter_map(|name| name.strip_prefix("locales/")?.strip_suffix(".json"))
-        .map(str::to_owned)
+        .map(|name| name.expect("member name"))
+        .filter_map(|name| {
+            Some(
+                name.strip_prefix("locales/")?
+                    .strip_suffix(".json")?
+                    .to_owned(),
+            )
+        })
         .collect();
     assert!(!languages.is_empty(), "the fixture carries its locales");
     let locales = languages

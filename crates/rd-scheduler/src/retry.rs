@@ -14,14 +14,72 @@ const DEFAULT_IP_BLOCK: Duration = Duration::from_secs(15 * 60);
 /// The longest wait the exponential backoff alone reaches.
 const MAX_BACKOFF: Duration = Duration::from_secs(5 * 60);
 
-/// Failed attempts in a row after which a download waits [`LONG_RETRY_WAIT`] instead of the
-/// backoff (RD-1250-07). The sixth failure leaves the queue place to the files after it rather
-/// than taking it again every few seconds.
-pub(crate) const RETRIES_BEFORE_LONG_WAIT: u32 = 5;
+/// Failed attempts in a row on the seconds-long backoff (RD-1250-07); from the sixth on a
+/// download leaves the queue place to the files after it rather than taking it again every few
+/// seconds.
+pub(crate) const FAST_RETRIES: u32 = 5;
 
-/// The wait from the sixth failed attempt in a row on (RD-1250-07): long enough for the files
+/// The first wait of the middle stage after the fast retries; each further one doubles it
+/// (RD-1340-01). A hoster's 503 for one file lasted from forty seconds to a few minutes: the
+/// fast retries were spent in half a minute and the file then sat out the long wait.
+const MIDDLE_WAIT: Duration = Duration::from_secs(60);
+
+/// Default attempts of the middle stage: one, two and four minutes.
+pub const DEFAULT_RETRY_MIDDLE_ATTEMPTS: u32 = 3;
+/// Upper bound accepted for the middle stage's attempts.
+pub const MAX_RETRY_MIDDLE_ATTEMPTS: u32 = 10;
+
+/// Default long wait after the middle stage, in minutes (RD-1250-07): long enough for the files
 /// after it to run, short enough for a server that recovers to be asked again the same hour.
-pub(crate) const LONG_RETRY_WAIT: Duration = Duration::from_secs(30 * 60);
+pub const DEFAULT_RETRY_LONG_WAIT_MINUTES: u32 = 30;
+/// Bounds accepted for the long wait, in minutes.
+pub const MIN_RETRY_LONG_WAIT_MINUTES: u32 = 1;
+pub const MAX_RETRY_LONG_WAIT_MINUTES: u32 = 24 * 60;
+
+/// The configured retry budget and stages (RD-1340-01).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct RetrySchedule {
+    pub(crate) max_retries: u32,
+    pub(crate) middle_attempts: u32,
+    pub(crate) long_wait_minutes: u32,
+}
+
+impl RetrySchedule {
+    /// The defaults with `max_retries` attempts.
+    #[cfg(test)]
+    pub(crate) const fn with_retries(max_retries: u32) -> Self {
+        Self {
+            max_retries,
+            middle_attempts: DEFAULT_RETRY_MIDDLE_ATTEMPTS,
+            long_wait_minutes: DEFAULT_RETRY_LONG_WAIT_MINUTES,
+        }
+    }
+
+    /// The wait before the next attempt of a failure that is no hoster's limit, unspread: one,
+    /// two, four, eight, sixteen seconds; then the middle stage's minutes, doubling and never
+    /// above the long wait; then the long wait.
+    fn backoff_ms(&self, previous_attempts: u32) -> u64 {
+        if previous_attempts < FAST_RETRIES {
+            return fast_backoff_ms(previous_attempts);
+        }
+        let long = u64::from(self.long_wait_minutes).saturating_mul(60_000);
+        let step = previous_attempts - FAST_RETRIES;
+        if step < self.middle_attempts {
+            let first = MIDDLE_WAIT.as_millis().try_into().unwrap_or(u64::MAX);
+            rd_core::exponential_backoff(step, first, long)
+        } else {
+            long
+        }
+    }
+}
+
+fn fast_backoff_ms(previous_attempts: u32) -> u64 {
+    rd_core::exponential_backoff(
+        previous_attempts,
+        1_000,
+        MAX_BACKOFF.as_millis().try_into().unwrap_or(u64::MAX),
+    )
+}
 
 /// Attempts allowed for a rejected captcha, independent of the general retry count.
 ///
@@ -55,8 +113,9 @@ pub(crate) fn retry_at(
     failure: &Failure,
     previous_attempts: u32,
     limit_waits: u32,
-    max_retries: u32,
+    schedule: RetrySchedule,
 ) -> Option<DateTime<Utc>> {
+    let max_retries = schedule.max_retries;
     if !failure.category.is_retryable() || max_retries == 0 {
         return None;
     }
@@ -71,19 +130,15 @@ pub(crate) fn retry_at(
         return None;
     }
     // The shared backoff and spread (re-audit 1.9.1, RA-TR-08): one, two, four, eight,
-    // sixteen seconds, then half an hour from the sixth failed attempt in a row (RD-1250-07),
-    // each spread by ±`RETRY_JITTER_PERCENT` so links that failed together do not return
+    // sixteen seconds, then the middle stage's minutes and the long wait (RD-1250-07,
+    // RD-1340-01), each spread by ±`RETRY_JITTER_PERCENT` so links that failed together do not return
     // together. Seeded by the clock's sub-second part, as the notification retry is; the
     // spread is what matters, not unpredictability. A limit has its own waits below.
     let now = Utc::now();
-    let backoff = if previous_attempts >= RETRIES_BEFORE_LONG_WAIT && !failure.category.is_limit() {
-        LONG_RETRY_WAIT.as_millis().try_into().unwrap_or(u64::MAX)
+    let backoff = if failure.category.is_limit() {
+        fast_backoff_ms(previous_attempts)
     } else {
-        rd_core::exponential_backoff(
-            previous_attempts,
-            1_000,
-            MAX_BACKOFF.as_millis().try_into().unwrap_or(u64::MAX),
-        )
+        schedule.backoff_ms(previous_attempts)
     };
     let backoff_ms = i64::try_from(backoff).unwrap_or(i64::MAX);
     let spread = rd_core::jitter(
@@ -142,8 +197,8 @@ mod tests {
     use rd_core::{Failure, FailureKind};
 
     use super::{
-        LIMIT_WAITS_EXHAUSTED_CODE, MAX_LIMIT_WAITS, limit_waits_exhausted, limit_waits_spent,
-        retry_at,
+        LIMIT_WAITS_EXHAUSTED_CODE, MAX_LIMIT_WAITS, RetrySchedule, limit_waits_exhausted,
+        limit_waits_spent, retry_at,
     };
 
     fn transient() -> Failure {
@@ -157,17 +212,17 @@ mod tests {
 
     #[test]
     fn retry_stops_at_configured_maximum() {
-        assert!(retry_at(&transient(), 0, 0, 0).is_none());
-        assert!(retry_at(&transient(), 0, 0, 1).is_some());
-        assert!(retry_at(&transient(), 1, 0, 1).is_none());
-        assert!(retry_at(&transient(), 7, 0, 8).is_some());
-        assert!(retry_at(&transient(), 8, 0, 8).is_none());
+        assert!(retry_at(&transient(), 0, 0, RetrySchedule::with_retries(0)).is_none());
+        assert!(retry_at(&transient(), 0, 0, RetrySchedule::with_retries(1)).is_some());
+        assert!(retry_at(&transient(), 1, 0, RetrySchedule::with_retries(1)).is_none());
+        assert!(retry_at(&transient(), 7, 0, RetrySchedule::with_retries(8)).is_some());
+        assert!(retry_at(&transient(), 8, 0, RetrySchedule::with_retries(8)).is_none());
     }
 
     #[test]
     fn permanent_failures_never_retry() {
         let failure = Failure::new(FailureKind::Permanent, "gone");
-        assert!(retry_at(&failure, 0, 0, 100).is_none());
+        assert!(retry_at(&failure, 0, 0, RetrySchedule::with_retries(100)).is_none());
     }
 
     /// Every captcha retry buys another solve from the configured service, so this class
@@ -176,14 +231,14 @@ mod tests {
     fn a_rejected_captcha_is_retried_only_a_couple_of_times() {
         let rejected = Failure::new(FailureKind::CaptchaFailed, "wrong captcha");
 
-        assert!(retry_at(&rejected, 0, 0, 8).is_some());
-        assert!(retry_at(&rejected, 1, 0, 8).is_some());
+        assert!(retry_at(&rejected, 0, 0, RetrySchedule::with_retries(8)).is_some());
+        assert!(retry_at(&rejected, 1, 0, RetrySchedule::with_retries(8)).is_some());
         assert!(
-            retry_at(&rejected, 2, 0, 8).is_none(),
+            retry_at(&rejected, 2, 0, RetrySchedule::with_retries(8)).is_none(),
             "a third paid solve for one link is not worth it"
         );
         // Other retryable classes keep the configured budget.
-        assert!(retry_at(&transient(), 2, 0, 8).is_some());
+        assert!(retry_at(&transient(), 2, 0, RetrySchedule::with_retries(8)).is_some());
     }
 
     /// A free-download IP limit must not be retried on the generic backoff: without a
@@ -196,7 +251,8 @@ mod tests {
             },
             "one download at a time",
         );
-        let due = retry_at(&blocked, 0, 0, 100).expect("ip blocks are retryable");
+        let due = retry_at(&blocked, 0, 0, RetrySchedule::with_retries(100))
+            .expect("ip blocks are retryable");
         let delay = (due - chrono::Utc::now()).num_seconds();
         assert!(
             (14 * 60..=15 * 60 + 1).contains(&delay),
@@ -209,7 +265,8 @@ mod tests {
             },
             "wait 90 seconds",
         );
-        let due = retry_at(&hinted, 0, 0, 100).expect("ip blocks are retryable");
+        let due = retry_at(&hinted, 0, 0, RetrySchedule::with_retries(100))
+            .expect("ip blocks are retryable");
         let delay = (due - chrono::Utc::now()).num_seconds();
         assert!(
             (89..=92).contains(&delay),
@@ -218,25 +275,83 @@ mod tests {
     }
 
     /// RA-TR-08: the shared backoff, spread by the shared percentage; from the sixth failed
-    /// attempt in a row on, half an hour (RD-1250-07).
+    /// attempt in a row on the middle stage's one, two and four minutes, then half an hour
+    /// (RD-1250-07, RD-1340-01).
     #[test]
-    fn the_backoff_doubles_within_its_spread_then_waits_half_an_hour() {
+    fn the_backoff_doubles_within_its_spread_then_waits_minutes_then_half_an_hour() {
         for (attempts, seconds) in [
             (0, 1),
             (1, 2),
             (3, 8),
             (4, 16),
-            (5, 1_800),
+            (5, 60),
+            (6, 120),
+            (7, 240),
             (8, 1_800),
             (40, 1_800),
         ] {
-            let due = retry_at(&transient(), attempts, 0, 100).expect("retryable");
+            let due = retry_at(&transient(), attempts, 0, RetrySchedule::with_retries(100))
+                .expect("retryable");
             let delay = (due - chrono::Utc::now()).num_milliseconds();
             let base = seconds * 1_000;
             let spread = base * i64::from(rd_core::RETRY_JITTER_PERCENT) / 100;
             assert!(
                 (base - spread - 50..=base + spread).contains(&delay),
                 "attempt {attempts} waits {delay} ms, not {seconds} s within its spread"
+            );
+        }
+    }
+
+    /// RD-1340-01: the settings shape the stages. No middle stage goes from the fast retries
+    /// straight to the long wait; a long wait shorter than a middle step caps it.
+    #[test]
+    fn the_middle_stage_and_the_long_wait_follow_the_settings() {
+        let cases = [
+            (
+                RetrySchedule {
+                    max_retries: 100,
+                    middle_attempts: 0,
+                    long_wait_minutes: 30,
+                },
+                5,
+                1_800,
+            ),
+            (
+                RetrySchedule {
+                    max_retries: 100,
+                    middle_attempts: 5,
+                    long_wait_minutes: 10,
+                },
+                8,
+                480,
+            ),
+            (
+                RetrySchedule {
+                    max_retries: 100,
+                    middle_attempts: 5,
+                    long_wait_minutes: 10,
+                },
+                9,
+                600,
+            ),
+            (
+                RetrySchedule {
+                    max_retries: 100,
+                    middle_attempts: 5,
+                    long_wait_minutes: 10,
+                },
+                10,
+                600,
+            ),
+        ];
+        for (schedule, attempts, seconds) in cases {
+            let due = retry_at(&transient(), attempts, 0, schedule).expect("retryable");
+            let delay = (due - chrono::Utc::now()).num_milliseconds();
+            let base = seconds * 1_000;
+            let spread = base * i64::from(rd_core::RETRY_JITTER_PERCENT) / 100;
+            assert!(
+                (base - spread - 50..=base + spread).contains(&delay),
+                "{schedule:?} attempt {attempts} waits {delay} ms, not {seconds} s"
             );
         }
     }
@@ -256,7 +371,8 @@ mod tests {
                 },
                 "come back much later",
             );
-            let due = retry_at(&failure, 0, 0, 8).expect("a rate limit is retryable");
+            let due = retry_at(&failure, 0, 0, RetrySchedule::with_retries(8))
+                .expect("a rate limit is retryable");
             let delay = (due - chrono::Utc::now()).num_seconds();
             let ceiling = i64::try_from(rd_core::MAX_RETRY_AFTER_SECONDS).expect("fits");
             assert!(
@@ -280,24 +396,40 @@ mod tests {
     #[test]
     fn a_limit_wait_does_not_spend_the_attempts() {
         assert!(
-            retry_at(&daily_limit(), 8, 0, 8).is_some(),
+            retry_at(&daily_limit(), 8, 0, RetrySchedule::with_retries(8)).is_some(),
             "a spent attempt budget ended a limit wait"
         );
-        assert!(retry_at(&transient(), 8, 0, 8).is_none());
+        assert!(retry_at(&transient(), 8, 0, RetrySchedule::with_retries(8)).is_none());
         let blocked = Failure::new(
             FailureKind::IpBlocked {
                 retry_after_seconds: None,
             },
             "one download at a time",
         );
-        assert!(retry_at(&blocked, 100, 3, 100).is_some());
+        assert!(retry_at(&blocked, 100, 3, RetrySchedule::with_retries(100)).is_some());
     }
 
     /// RD-191-12: the limit waits have a bound of their own, and the failure then says so.
     #[test]
     fn the_limit_waits_end_after_their_own_bound() {
-        assert!(retry_at(&daily_limit(), 0, MAX_LIMIT_WAITS - 1, 8).is_some());
-        assert!(retry_at(&daily_limit(), 0, MAX_LIMIT_WAITS, 8).is_none());
+        assert!(
+            retry_at(
+                &daily_limit(),
+                0,
+                MAX_LIMIT_WAITS - 1,
+                RetrySchedule::with_retries(8)
+            )
+            .is_some()
+        );
+        assert!(
+            retry_at(
+                &daily_limit(),
+                0,
+                MAX_LIMIT_WAITS,
+                RetrySchedule::with_retries(8)
+            )
+            .is_none()
+        );
         assert!(limit_waits_spent(&daily_limit(), MAX_LIMIT_WAITS));
         assert!(!limit_waits_spent(&daily_limit(), MAX_LIMIT_WAITS - 1));
         assert!(!limit_waits_spent(&transient(), MAX_LIMIT_WAITS));
@@ -328,7 +460,8 @@ mod tests {
     /// RD-191-12: a rate limit without a stated wait waits an hour, not the generic backoff.
     #[test]
     fn a_rate_limit_without_a_stated_wait_waits_an_hour() {
-        let due = retry_at(&daily_limit(), 0, 0, 8).expect("a rate limit is retryable");
+        let due = retry_at(&daily_limit(), 0, 0, RetrySchedule::with_retries(8))
+            .expect("a rate limit is retryable");
         let delay = (due - chrono::Utc::now()).num_seconds();
         assert!(
             (59 * 60..=60 * 60 + 1).contains(&delay),
@@ -339,6 +472,6 @@ mod tests {
     /// Retries switched off are off for limits too.
     #[test]
     fn no_retries_means_no_limit_waits_either() {
-        assert!(retry_at(&daily_limit(), 0, 0, 0).is_none());
+        assert!(retry_at(&daily_limit(), 0, 0, RetrySchedule::with_retries(0)).is_none());
     }
 }

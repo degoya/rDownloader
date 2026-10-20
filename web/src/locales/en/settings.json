@@ -134,7 +134,7 @@
   },
   "retries": {
     "label": "Retries per file",
-    "description": "Attempts after transient errors before a download counts as failed (0–100). Waiting out a hoster’s limit or IP block does not count."
+    "description": "Attempts after transient errors before a download counts as failed (0–100): five within seconds, then the retries after minutes, then the long wait. Waiting out a hoster’s limit or IP block does not count."
   },
   "import_history": {
     "label": "Keep import history",
@@ -1383,5 +1383,13 @@
     "items_days_label": "Keep skipped subscription entries whole",
     "items_days_description": "Days a skipped or dismissed subscription entry keeps its title and link; after that only what the subscription recognises it by stays, so it does not come back. 0 keeps everything (0-3650).",
     "rewrite": "The database comes from a version before 1.24: “Clean up now” rewrites it once, and afterwards it hands free space back by itself. That needs room for a second copy in the data folder and nothing running."
+  },
+  "retry_middle": {
+    "label": "Retries after minutes",
+    "description": "After the five retries within seconds: how many more wait one, two, four minutes and longer before the long wait applies; 0 goes straight to the long wait (0–10). Helps when a server is busy for a few minutes."
+  },
+  "retry_long_wait": {
+    "label": "Long wait between retries",
+    "description": "Minutes a download waits between its later retries; the files after it run in the meantime (1–1440)."
   }
 }

@@ -371,9 +371,10 @@ starts from 1.0.8.
 
 ## Install
 
-- **From the stores**: [Chrome Web Store](https://chromewebstore.google.com/detail/rdownloader/nfdbhbkjnbdnaaekabaochlhgkaafnda)
-  and [Firefox Add-ons](https://addons.mozilla.org/addon/rdownloader/), both listed since 2026-09-29, and
-  [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/rdownloader/cedhajncmfngiehikgegfpcagbkddjoo), listed since 2026-10-16; a store can trail a release until its review is through. Release Firefox installs
+- **From the stores**: [Chrome Web Store](https://chromewebstore.google.com/detail/rdownloader/nfdbhbkjnbdnaaekabaochlhgkaafnda),
+  listed since 2026-09-29,
+  [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/rdownloader/cedhajncmfngiehikgegfpcagbkddjoo), listed since 2026-10-16,
+  and [Firefox Add-ons](https://addons.mozilla.org/addon/rdownloader/), listed since 2026-10-20; a store can trail a release until its review is through. Release Firefox installs
   permanently only what Mozilla signed, which for this extension is the listing.
 - **Chrome / Edge, a local build**: `chrome://extensions` → Developer mode → *Load unpacked* → `artifacts/browser-extensions/chrome`.
 - **Firefox, a local build**: `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on* →

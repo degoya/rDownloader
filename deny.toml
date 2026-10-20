@@ -36,6 +36,14 @@ ignore = [
   # `cargo deny --target x86_64-unknown-linux-gnu check advisories`, which reports none of
   # it. Drop it once tao and tray-icon move off GTK3.
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error via glib-macros and gtk3-macros; unreachable GTK3 stack, see above." },
+
+  # zbus_names, zvariant and zvariant_derive are unmaintained as standalone crates: zbus 6.0.0
+  # (2026-10-16) took them in as modules. They come from zbus 5, which notify-rust 4.18.2 and
+  # secret-service 5.2.0, both the latest, still require (`zbus = "^5"`); no advisory names a
+  # flaw in them. Drop all three once both move to zbus 6.
+  { id = "RUSTSEC-2026-0370", reason = "zvariant via zbus 5, required by the latest notify-rust and secret-service; merged into zbus 6, no flaw reported." },
+  { id = "RUSTSEC-2026-0371", reason = "zbus_names via zbus 5, required by the latest notify-rust and secret-service; merged into zbus 6, no flaw reported." },
+  { id = "RUSTSEC-2026-0372", reason = "zvariant_derive via zbus 5, required by the latest notify-rust and secret-service; merged into zbus 6, no flaw reported." },
 ]
 
 [licenses]

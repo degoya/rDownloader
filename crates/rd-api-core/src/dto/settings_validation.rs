@@ -398,6 +398,34 @@ mod tests {
             };
             assert_eq!(code(settings).as_deref(), expected, "{rounds} rounds");
         }
+        // RD-1340-01: the retry's middle stage and long wait.
+        let retry = SettingsResponse::default();
+        let stages = (
+            retry.max_retries,
+            retry.retry_middle_attempts,
+            retry.retry_long_wait_minutes,
+        );
+        assert_eq!(stages, (11, 3, 30));
+        for (middle, minutes, expected) in [
+            (0, 30, None),
+            (10, 30, None),
+            (11, 30, Some("settings.retry_middle_attempts_too_high")),
+            (3, 0, Some("settings.retry_long_wait_invalid")),
+            (3, 1, None),
+            (3, 1440, None),
+            (3, 1441, Some("settings.retry_long_wait_invalid")),
+        ] {
+            let settings = SettingsResponse {
+                retry_middle_attempts: middle,
+                retry_long_wait_minutes: minutes,
+                ..SettingsResponse::default()
+            };
+            assert_eq!(
+                code(settings).as_deref(),
+                expected,
+                "{middle} / {minutes} min"
+            );
+        }
     }
 
     /// RD-1240-16: both active-torrent limits have a floor of one and a ceiling.

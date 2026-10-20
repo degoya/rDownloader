@@ -164,7 +164,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.33.0"
+version = "1.34.0"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.99"
@@ -348,7 +348,7 @@ wit-bindgen = "0.62"
 # `arboard` reads the text with, asked for the `x-kde-passwordManagerHint` it does not read.
 wl-clipboard-rs = "0.9.4"
 x11rb = "0.13"
-zip = { version = "8", default-features = false, features = ["deflate", "aes-crypto"] }
+zip = { version = "9", default-features = false, features = ["deflate", "aes-crypto"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

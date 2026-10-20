@@ -241,15 +241,16 @@ async fn a_stated_wait_leaves_its_place_and_comes_back_before_later_files() {
     scheduler.shutdown().await.expect("shutdown");
 }
 
-/// The sixth failed attempt in a row waits half an hour, through the real failure path, and the
-/// place moves on to the next file instead of being taken again every few seconds.
+/// The sixth failed attempt in a row waits the middle stage's first minute, through the real
+/// failure path, and the place moves on to the next file instead of being taken again every few
+/// seconds (RD-1250-07, RD-1340-01).
 #[tokio::test]
-async fn the_sixth_failure_in_a_row_waits_half_an_hour_and_the_place_moves_on() {
+async fn the_sixth_failure_in_a_row_waits_a_minute_and_the_place_moves_on() {
     let directory = tempfile::tempdir().expect("temp");
     let (scheduler, database) = queue(directory.path(), 1).await;
     let files = packages(&scheduler, directory.path(), &["broken", "next"]).await;
     let now = Utc::now();
-    for _ in 0..crate::retry::RETRIES_BEFORE_LONG_WAIT {
+    for _ in 0..crate::retry::FAST_RETRIES {
         waits(&database, &files[0], transient(), now).await;
     }
     let broken = database
@@ -257,7 +258,7 @@ async fn the_sixth_failure_in_a_row_waits_half_an_hour_and_the_place_moves_on() 
         .await
         .expect("read")
         .expect("row");
-    assert_eq!(broken.retry_count, crate::retry::RETRIES_BEFORE_LONG_WAIT);
+    assert_eq!(broken.retry_count, crate::retry::FAST_RETRIES);
     crate::failures::record_error(&scheduler, &broken, Failure::new(transient(), "refused"))
         .await
         .expect("sixth failure");
@@ -268,8 +269,8 @@ async fn the_sixth_failure_in_a_row_waits_half_an_hour_and_the_place_moves_on() 
         .expect("row");
     let wait = waiting.next_retry_at.expect("still retried") - now;
     assert!(
-        (chrono::Duration::minutes(27)..=chrono::Duration::minutes(34)).contains(&wait),
-        "the sixth failure waits {wait}, not half an hour"
+        (chrono::Duration::seconds(50)..=chrono::Duration::seconds(70)).contains(&wait),
+        "the sixth failure waits {wait}, not a minute"
     );
 
     pass(&scheduler, now).await;

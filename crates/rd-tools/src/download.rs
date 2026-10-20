@@ -192,7 +192,7 @@ fn extract_zip(
         if !file.is_file() {
             continue;
         }
-        let full_name = file.name().to_owned();
+        let full_name = file.name()?.into_owned();
         let Some(base) = wanted_member(&full_name, members)? else {
             continue;
         };

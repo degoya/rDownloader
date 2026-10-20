@@ -6,7 +6,8 @@ use anyhow::{Context, Result};
 
 use crate::{
     BlockReason, MAX_AUTO_RETRY_INTERVAL_HOURS, MAX_AUTO_RETRY_ROUNDS, MAX_CONFIGURABLE_RETRIES,
-    MAX_EXTERNAL_PARALLEL_FILES, MIN_AUTO_RETRY_INTERVAL_HOURS, RuntimeSettings, SchedulerHandle,
+    MAX_EXTERNAL_PARALLEL_FILES, MAX_RETRY_LONG_WAIT_MINUTES, MAX_RETRY_MIDDLE_ATTEMPTS,
+    MIN_AUTO_RETRY_INTERVAL_HOURS, MIN_RETRY_LONG_WAIT_MINUTES, RuntimeSettings, SchedulerHandle,
 };
 
 impl SchedulerHandle {
@@ -36,6 +37,16 @@ impl SchedulerHandle {
         anyhow::ensure!(
             settings.max_retries <= MAX_CONFIGURABLE_RETRIES,
             "max_retries must not exceed {MAX_CONFIGURABLE_RETRIES}"
+        );
+        anyhow::ensure!(
+            settings.retry_middle_attempts <= MAX_RETRY_MIDDLE_ATTEMPTS,
+            "retry_middle_attempts must not exceed {MAX_RETRY_MIDDLE_ATTEMPTS}"
+        );
+        anyhow::ensure!(
+            (MIN_RETRY_LONG_WAIT_MINUTES..=MAX_RETRY_LONG_WAIT_MINUTES)
+                .contains(&settings.retry_long_wait_minutes),
+            "retry_long_wait_minutes must be between {MIN_RETRY_LONG_WAIT_MINUTES} and \
+             {MAX_RETRY_LONG_WAIT_MINUTES}"
         );
         anyhow::ensure!(
             (MIN_AUTO_RETRY_INTERVAL_HOURS..=MAX_AUTO_RETRY_INTERVAL_HOURS)
@@ -79,6 +90,10 @@ impl SchedulerHandle {
             .set_limit(settings.max_connections_per_host);
         self.max_retries
             .store(settings.max_retries, Ordering::Release);
+        self.retry_middle_attempts
+            .store(settings.retry_middle_attempts, Ordering::Release);
+        self.retry_long_wait_minutes
+            .store(settings.retry_long_wait_minutes, Ordering::Release);
         self.generate_sha256
             .store(settings.generate_sha256, Ordering::Release);
         self.pause_during_postprocess

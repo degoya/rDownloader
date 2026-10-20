@@ -291,7 +291,14 @@ async fn a_bundle_is_only_written_after_its_preview_was_approved() {
 
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(on_disk)).expect("zip");
     let mut names: Vec<String> = (0..archive.len())
-        .map(|index| archive.by_index(index).expect("entry").name().to_owned())
+        .map(|index| {
+            archive
+                .by_index(index)
+                .expect("entry")
+                .name()
+                .expect("name")
+                .into_owned()
+        })
         .collect();
     names.sort();
     assert_eq!(
@@ -312,7 +319,11 @@ async fn a_bundle_is_only_written_after_its_preview_was_approved() {
         let mut text = String::new();
         std::io::Read::read_to_string(&mut entry, &mut text).expect("read");
         for canary in CANARIES {
-            assert!(!text.contains(canary), "{} carries {canary}", entry.name());
+            assert!(
+                !text.contains(canary),
+                "{} carries {canary}",
+                entry.name().expect("name")
+            );
         }
     }
 }

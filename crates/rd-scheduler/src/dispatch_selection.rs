@@ -9,8 +9,8 @@
 //! across packages, and left a begun file behind. A plain retry -- no wait anybody stated, the
 //! backoff's first steps of one to eight seconds -- now keeps its place: no file after it in the
 //! list takes the place it comes back to. Anything longer gives the place away: a hoster's limit,
-//! a wait a hoster or a plugin stated, the backoff's later steps and the half hour from the sixth
-//! failed attempt in a row on (`retry::LONG_RETRY_WAIT`). Once that wait is over the file comes
+//! a wait a hoster or a plugin stated, the backoff's later steps, the middle stage's minutes from
+//! the sixth failed attempt in a row on and the long wait after them (`retry::RetrySchedule`). Once that wait is over the file comes
 //! before the files after it again, because it is ahead of them in the list; nothing running
 //! is stopped for it.
 

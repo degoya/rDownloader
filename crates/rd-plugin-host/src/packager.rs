@@ -188,7 +188,10 @@ credentials = "api_key"
         use std::io::{Cursor, Read, Write};
 
         let mut source = zip::ZipArchive::new(Cursor::new(archive)).expect("read archive");
-        let names: Vec<String> = source.file_names().map(str::to_owned).collect();
+        let names: Vec<String> = source
+            .file_names()
+            .map(|name| name.expect("member name").into_owned())
+            .collect();
         let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
         let options = zip::write::SimpleFileOptions::default();
         for name in names {

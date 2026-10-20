@@ -12,9 +12,13 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.34.0
+## 1.35.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.34.0
+
+- A download that fails for a short while, such as a busy hoster server, is now retried after one, two and four minutes before it waits half an hour. Both waits can be set under Settings → General.
 
 ## 1.33.0
 

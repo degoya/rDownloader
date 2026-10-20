@@ -407,7 +407,7 @@ async fn bundle(router: &Router, scan: &mut Scan) {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).expect("zip");
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).expect("entry");
-        let name = entry.name().to_owned();
+        let name = entry.name().expect("name").into_owned();
         let mut content = Vec::new();
         std::io::Read::read_to_end(&mut entry, &mut content).expect("read entry");
         scan.record(format!("diagnostics bundle {name}"), content);

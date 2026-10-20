@@ -126,6 +126,30 @@ impl SettingsResponse {
             )
             .with_param("max", rd_scheduler::MAX_CONFIGURABLE_RETRIES));
         }
+        if self.retry_middle_attempts > rd_scheduler::MAX_RETRY_MIDDLE_ATTEMPTS {
+            return Err(crate::ApiError::bad_request(
+                "settings.retry_middle_attempts_too_high",
+                format!(
+                    "The middle stage of the retries may have at most {} attempts",
+                    rd_scheduler::MAX_RETRY_MIDDLE_ATTEMPTS
+                ),
+            )
+            .with_param("max", rd_scheduler::MAX_RETRY_MIDDLE_ATTEMPTS));
+        }
+        if !(rd_scheduler::MIN_RETRY_LONG_WAIT_MINUTES..=rd_scheduler::MAX_RETRY_LONG_WAIT_MINUTES)
+            .contains(&self.retry_long_wait_minutes)
+        {
+            return Err(crate::ApiError::bad_request(
+                "settings.retry_long_wait_invalid",
+                format!(
+                    "The long wait between retries must be between {} and {} minutes",
+                    rd_scheduler::MIN_RETRY_LONG_WAIT_MINUTES,
+                    rd_scheduler::MAX_RETRY_LONG_WAIT_MINUTES
+                ),
+            )
+            .with_param("min", rd_scheduler::MIN_RETRY_LONG_WAIT_MINUTES)
+            .with_param("max", rd_scheduler::MAX_RETRY_LONG_WAIT_MINUTES));
+        }
         if !(rd_scheduler::MIN_AUTO_RETRY_INTERVAL_HOURS
             ..=rd_scheduler::MAX_AUTO_RETRY_INTERVAL_HOURS)
             .contains(&self.auto_retry_interval_hours)

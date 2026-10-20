@@ -44,6 +44,26 @@ describe('SettingsGeneralTab automatic retry', () => {
   })
 })
 
+/** RD-1340-01: the retries' middle stage and long wait beside the retry count. */
+describe('SettingsGeneralTab retry stages', () => {
+  it('shows the middle stage as a count and the long wait in minutes', () => {
+    mount({ retry_middle_attempts: 4, retry_long_wait_minutes: 45 })
+
+    const middle = screen.getByTestId('retry-middle-attempts') as HTMLInputElement
+    expect(middle.value).toBe('4')
+    expect(middle.min).toBe('0')
+    expect(middle.max).toBe('10')
+    expect(unitOf(middle)).toBeNull()
+    const long = screen.getByTestId('retry-long-wait') as HTMLInputElement
+    expect(long.value).toBe('45')
+    expect(long.min).toBe('1')
+    expect(long.max).toBe('1440')
+    expect(unitOf(long)).toBe('min')
+    expect(screen.getByText(settingsMessages.retry_middle.label)).toBeTruthy()
+    expect(screen.getByText(settingsMessages.retry_long_wait.label)).toBeTruthy()
+  })
+})
+
 /**
  * RD-1140-08: the counts of one group look alike — the retries had no plus and minus beside three
  * neighbours that had them — and an hour stands at its field, not at the end of the label row.

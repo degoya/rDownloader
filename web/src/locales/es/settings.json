@@ -134,7 +134,7 @@
   },
   "retries": {
     "label": "Reintentos por archivo",
-    "description": "Intentos tras errores temporales antes de que una descarga se considere fallida (0–100). Esperar a que pase un límite o un bloqueo de IP del alojamiento no cuenta."
+    "description": "Intentos tras errores temporales antes de que una descarga se considere fallida (0–100): cinco en segundos, luego los reintentos en minutos y después la espera larga. Esperar a que pase un límite o un bloqueo de IP del alojamiento no cuenta."
   },
   "import_history": {
     "label": "Conservar historial de importación",
@@ -1383,5 +1383,13 @@
     "items_days_label": "Conservar completas las entradas omitidas",
     "items_days_description": "Días que una entrada omitida o descartada conserva su título y enlace; después solo queda lo que permite reconocerla, para que no vuelva. 0 lo conserva todo (0-3650).",
     "rewrite": "La base de datos procede de una versión anterior a 1.24: «Limpiar ahora» la reescribe una vez y después devuelve el espacio libre por sí sola. Necesita espacio para una segunda copia en la carpeta de datos y que no haya nada en curso."
+  },
+  "retry_middle": {
+    "label": "Reintentos en minutos",
+    "description": "Tras los cinco reintentos en segundos: cuántos más esperan uno, dos, cuatro minutos o más antes de la espera larga; 0 pasa directamente a la espera larga (0–10). Ayuda cuando un servidor está saturado unos minutos."
+  },
+  "retry_long_wait": {
+    "label": "Espera larga entre reintentos",
+    "description": "Minutos que una descarga espera entre sus reintentos posteriores; mientras tanto avanzan los archivos siguientes (1–1440)."
   }
 }

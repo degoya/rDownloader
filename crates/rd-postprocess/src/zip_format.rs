@@ -38,7 +38,8 @@ pub(crate) fn extract_zip(
                 .map_err(map_zip_error)?,
             _ => zip.by_index(index).map_err(map_zip_error)?,
         };
-        let relative = safe_relative(member.name())?;
+        let name = member.name().map_err(map_zip_error)?.into_owned();
+        let relative = safe_relative(&name)?;
         if relative.as_os_str().is_empty() {
             continue;
         }
@@ -88,7 +89,7 @@ pub(crate) fn extract_zip(
                 done_bytes: report.uncompressed_bytes,
                 total_bytes: Some(total),
                 percent: percent_of(report.uncompressed_bytes, Some(total)),
-                current: Some(member.name().to_owned()),
+                current: Some(name),
             },
         );
     }

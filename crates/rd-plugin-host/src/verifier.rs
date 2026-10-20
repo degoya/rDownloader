@@ -294,7 +294,11 @@ type ArchiveParts = (Vec<u8>, Vec<u8>, Option<Vec<u8>>, Vec<(String, Vec<u8>)>);
 
 pub(crate) fn read_archive<R: Read + Seek>(reader: R) -> Result<ArchiveParts> {
     let mut archive = zip::ZipArchive::new(reader).context("read .rdplug archive")?;
-    let names: Vec<String> = archive.file_names().map(str::to_owned).collect();
+    let names = archive
+        .file_names()
+        .map(|name| name.map(std::borrow::Cow::into_owned))
+        .collect::<Result<Vec<String>, _>>()
+        .context("read .rdplug member names")?;
     let mut languages = Vec::new();
     for name in &names {
         match name.as_str() {

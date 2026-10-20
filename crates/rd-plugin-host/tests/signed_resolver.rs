@@ -131,7 +131,7 @@ fn a_resolver_package_whose_component_was_swapped_is_still_refused() {
         let options = zip::write::SimpleFileOptions::default();
         for index in 0..reader.len() {
             let mut entry = reader.by_index(index).expect("entry");
-            let name = entry.name().to_owned();
+            let name = entry.name().expect("name").into_owned();
             let mut bytes = Vec::new();
             std::io::Read::read_to_end(&mut entry, &mut bytes).expect("read");
             if name == "locales/en.json" {
