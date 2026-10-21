@@ -19,8 +19,13 @@ so neither the web interface nor the desktop agent announces them a second time 
 A regular browser download is paused, handed to the LinkGrabber together with the metadata
 needed to repeat the request, and only removed from the browser once the server has accepted it.
 A failed handoff resumes it in the browser, so an unreachable server never loses a download.
-Interception can be switched off globally in the options, and each individual download can be
-kept in the browser from its notification.
+Everything that can keep a download in the browser — an unreachable server, a request the
+extension should have seen and did not — is decided *before* the pause: Firefox's pause is a
+cancel, and its resume a ranged request that a signed or generated address refuses
+(`NS_ERROR_ENTITY_CHANGED`). Where a resume after a failed handoff still fails, the extension
+starts the download again from its address.
+Interception can be switched off globally in the options or with the same switch at the top of
+the toolbar popup, and each individual download can be kept in the browser from its notification.
 
 ### What stays in the browser
 
@@ -106,7 +111,11 @@ normal installation cannot tell a `POST` from a `GET` and still hands such a dow
 before the pause, the browser's download is never paused for it. Where the extension
 *does* hold host access for the address and still finds no matching request, the download is
 kept by the browser and says so, because a request that was started by a form and then aged out
-of the correlation buffer is exactly the one that must not be repeated as a `GET`.
+of the correlation buffer is exactly the one that must not be repeated as a `GET`. "Could
+watch" also needs a background that was running: Firefox suspends an idle background page and
+wakes it for the download, not for the request in front of it, so a download that began less
+than the correlation window after the background started counts as unobserved and is handed
+over as a `GET`.
 
 The buffer holds fifty requests, and a `GET` is dropped from it before any `POST`: a page that
 polls in the background used to push the one entry that decides a handoff out of the window

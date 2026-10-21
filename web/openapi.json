@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.34.0"
+    "version": "1.35.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -18034,6 +18034,19 @@
                 "null"
               ],
               "format": "int64"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "description": "Only items found at or before this moment (RD-1250-13): the `newest_discovered_at` of\nan earlier read, so paging a list held still under the reader shows no hit found since.",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
             }
           }
         ],

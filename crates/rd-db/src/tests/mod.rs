@@ -32,6 +32,7 @@ mod packages;
 mod playlist_checks;
 mod recovery_volumes;
 mod remote_jobs;
+mod subscription_pages;
 mod subscriptions;
 mod token_expiry;
 

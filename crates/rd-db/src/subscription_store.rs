@@ -174,44 +174,57 @@ pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Sub
 }
 
 /// One state-filtered archive page plus totals calculated across the complete subscription.
+///
+/// `until` leaves out every row found after it — page, total and watermark alike — so a list a
+/// reader holds still pages through exactly the rows it held (RD-1250-13).
 pub(crate) async fn item_page(
     pool: &SqlitePool,
     id: SubscriptionId,
     state: Option<SubscriptionItemState>,
     limit: i64,
     offset: i64,
+    until: Option<DateTime<Utc>>,
 ) -> Result<SubscriptionItemPage> {
     let state = state.map(item_state_string);
     let rows = sqlx::query_as::<_, ItemRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {ITEM_COLUMNS} FROM subscription_items \
          WHERE subscription_id = ? AND (? IS NULL OR state = ?) \
+         AND (? IS NULL OR discovered_at <= ?) \
          ORDER BY discovered_at DESC, id DESC LIMIT ? OFFSET ?"
     )))
     .bind(id.to_string())
     .bind(state)
     .bind(state)
+    .bind(until)
+    .bind(until)
     .bind(limit)
     .bind(offset)
     .fetch_all(pool)
     .await?;
     let total = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM subscription_items \
-         WHERE subscription_id = ? AND (? IS NULL OR state = ?)",
+         WHERE subscription_id = ? AND (? IS NULL OR state = ?) \
+         AND (? IS NULL OR discovered_at <= ?)",
     )
     .bind(id.to_string())
     .bind(state)
     .bind(state)
+    .bind(until)
+    .bind(until)
     .fetch_one(pool)
     .await?;
     // The page's own order is `discovered_at` first, so its maximum is the newest row of the
     // filter on any page: the watermark of the list as this read saw it (RD-1250-13).
     let newest_discovered_at = sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
         "SELECT MAX(discovered_at) FROM subscription_items \
-         WHERE subscription_id = ? AND (? IS NULL OR state = ?)",
+         WHERE subscription_id = ? AND (? IS NULL OR state = ?) \
+         AND (? IS NULL OR discovered_at <= ?)",
     )
     .bind(id.to_string())
     .bind(state)
     .bind(state)
+    .bind(until)
+    .bind(until)
     .fetch_one(pool)
     .await?;
     let counts = item_counts(pool, id).await?;

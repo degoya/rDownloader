@@ -26,6 +26,7 @@
       #handovers .row button { margin: 0; padding: 7px 10px; font-size: 12px; }
       #files { margin: 0 0 10px; }
       #files .note { display: block; font-size: 11px; opacity: 0.8; margin: 2px 0 4px; }
+      label.check { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; cursor: pointer; }
     </style>
   </head>
   <body>
@@ -42,6 +43,7 @@
       <button id="files-toggle" class="secondary"></button>
       <span id="files-note" class="note"></span>
     </section>
+    <label class="check"><input id="intercept" type="checkbox" /><span data-i18n="optionsIntercept"></span></label>
     <button id="page" data-i18n="popupSendPage"></button>
     <button id="clipboard" data-i18n="popupSendClipboard"></button>
     <button id="send-file" data-i18n="menuSendFile"></button>

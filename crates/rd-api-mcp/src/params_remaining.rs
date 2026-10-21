@@ -89,6 +89,10 @@ pub(crate) struct SubscriptionItemsParams {
     /// Rows to skip, for the next page.
     #[serde(default)]
     pub offset: Option<i64>,
+    /// Only items found at or before this RFC 3339 moment: the newest_discovered_at an earlier
+    /// read reported, so later pages hold no hit found since that read.
+    #[serde(default)]
+    pub until: Option<String>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]

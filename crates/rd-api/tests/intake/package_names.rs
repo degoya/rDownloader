@@ -191,6 +191,50 @@ async fn the_linkgrabber_shows_and_queues_the_tidied_name_of_each_category() {
     }
 }
 
+/// A LinkGrabber package renamed in "Edit package" goes into the queue under exactly that name,
+/// umlauts and spaces included, and its folder follows it.
+#[tokio::test]
+async fn a_package_renamed_in_the_linkgrabber_keeps_its_name_in_the_queue() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let plain = category(&harness, directory.path(), "names-renamed").await;
+    let category_id = plain.parse::<rd_core::CategoryId>().expect("category id");
+    harness
+        .database
+        .add_collector_batch(release_batch("renamed.example", Some(category_id), None))
+        .await
+        .expect("batch");
+    let (_, packages) = get_json(&harness.router, "/api/v1/collector/packages").await;
+    let id = packages[0]["id"].as_str().expect("package id").to_owned();
+
+    let wanted = "\u{d6}kotest - Oktober 2026";
+    let (status, renamed) = patch_json(
+        &harness.router,
+        &format!("/api/v1/collector/packages/{id}"),
+        json!({ "name": wanted }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{renamed}");
+    assert_eq!(renamed["name"], wanted);
+    assert_eq!(renamed["auto_named"], false);
+
+    let (status, body) = post_json(
+        &harness.router,
+        "/api/v1/collector/packages/enqueue",
+        json!({ "ids": [id], "paused": true }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    let queued = harness.database.list_packages().await.expect("packages");
+    assert_eq!(queued.len(), 1, "{queued:?}");
+    assert_eq!(queued[0].name, wanted);
+    assert!(
+        queued[0].destination.ends_with(wanted),
+        "{}",
+        queued[0].destination
+    );
+}
+
 #[tokio::test]
 async fn an_nzb_and_a_direct_download_are_tidied_unless_the_name_was_stated() {
     let directory = tempfile::tempdir().expect("tempdir");

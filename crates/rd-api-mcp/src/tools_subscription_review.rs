@@ -45,7 +45,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List one subscription's hits (id from list_subscriptions), one page at a time: title, address, size, when found, and state. `state` filters: pending (default: waiting for review), queued, dismissed, skipped or all. Item ids are what review_subscription_item takes."
+        description = "List one subscription's hits (id from list_subscriptions), one page at a time: title, address, size, when found, and state. `state` filters: pending (default: waiting for review), queued, dismissed, skipped or all. With until (the newest_discovered_at of an earlier read) later pages leave out every hit found since, so offsets do not shift. Item ids are what review_subscription_item takes."
     )]
     pub async fn list_subscription_items(
         &self,
@@ -57,6 +57,7 @@ impl RdMcpServer {
                 ("state", params.state.into()),
                 ("limit", params.limit.into()),
                 ("offset", params.offset.into()),
+                ("until", params.until.into()),
             ]))?;
             let Json(page) = subscriptions::list_subscription_item_page(
                 State(self.state.clone()),

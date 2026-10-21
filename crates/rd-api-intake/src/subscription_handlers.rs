@@ -78,6 +78,10 @@ pub struct SubscriptionItemPageQuery {
     pub limit: Option<i64>,
     #[serde(default)]
     pub offset: Option<i64>,
+    /// Only items found at or before this moment (RD-1250-13): the `newest_discovered_at` of
+    /// an earlier read, so paging a list held still under the reader shows no hit found since.
+    #[serde(default)]
+    pub until: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl SubscriptionItemPageQuery {
@@ -316,7 +320,7 @@ pub async fn list_subscription_item_page(
     Ok(Json(
         state
             .database
-            .subscription_item_page(id, page.state(), page.limit(), page.offset())
+            .subscription_item_page_until(id, page.state(), page.limit(), page.offset(), page.until)
             .await?,
     ))
 }

@@ -111,6 +111,11 @@ export function useSubscriptionItems() {
    * and that one then answers for both.
    */
   const drawNext = new Set<string>()
+  /**
+   * The lists whose next drawing keeps their watermark: a page the reader turns to in a list held
+   * still. It is read up to the watermark, so the hits held back stay behind the group's "new".
+   */
+  const keepMark = new Set<string>()
 
   /**
    * Returns the failure message, so the caller can tell an empty archive from a failed read.
@@ -122,9 +127,12 @@ export function useSubscriptionItems() {
     id: string,
     state: SubscriptionItemFilter = itemQueries.value[id]?.state ?? 'pending',
     page = itemQueries.value[id]?.page ?? 1,
-    pages = 1
+    pages = 1,
+    { keepWatermark = false }: { keepWatermark?: boolean } = {}
   ): Promise<string | null> {
     drawNext.add(id)
+    if (keepWatermark) keepMark.add(id)
+    else keepMark.delete(id)
     return readItems(id, state, page, pages)
   }
 
@@ -145,6 +153,10 @@ export function useSubscriptionItems() {
     const wanted = safePages * ITEM_PAGE_SIZE
     const collected: SubscriptionItem[] = []
     let latest: SubscriptionItemPage | null = null
+    // A list held still is read only up to its watermark: a page turned or a re-read then finds
+    // no hit that arrived since, and no row shifts to the next page under it.
+    const held = holding.value && state === 'pending' && onScreen.has(id) && (keepMark.has(id) || !drawNext.has(id))
+    const until = held ? watermarks.value[id]?.until ?? undefined : undefined
     while (collected.length < wanted) {
       const limit = Math.min(ITEM_READ_MAX, wanted - collected.length)
       // A connection that never carried a response rejects instead of answering, and an
@@ -152,7 +164,7 @@ export function useSubscriptionItems() {
       const response = await api.GET('/api/v1/subscriptions/{id}/items/page', {
         params: {
           path: { id },
-          query: { state, limit, offset: offset + collected.length }
+          query: { state, limit, offset: offset + collected.length, ...(until ? { until } : {}) }
         }
       }).catch(() => null)
       // A newer read of the same list went out while this one was on its way; that one owns the
@@ -193,11 +205,12 @@ export function useSubscriptionItems() {
       heldItems.value = { ...heldItems.value, [id]: merged.held }
     } else {
       if (holding.value && drawNext.has(id)) onScreen.add(id)
-      if (state === 'pending' && (!holding.value || drawNext.has(id))) {
+      if (state === 'pending' && (!holding.value || (drawNext.has(id) && !keepMark.has(id)))) {
         const mark = { until: newestOf(latest), count: latest.total }
         watermarks.value = { ...watermarks.value, [id]: mark }
       }
       drawNext.delete(id)
+      keepMark.delete(id)
       decidedHere.delete(id)
       itemPages.value = { ...itemPages.value, [id]: latest }
       items.value = { ...items.value, [id]: fresh }
@@ -219,12 +232,16 @@ export function useSubscriptionItems() {
     decidedHere.set(id, decided)
   }
 
-  /** Takes every subscription's watermark from the review counts, as the drawer shows them now. */
-  function takeSummaryWatermarks(): void {
+  /**
+   * Takes every subscription's watermark from the review counts, as the drawer shows them now —
+   * except the lists in `kept`: the open groups, held still under the reader (RD-1250-13).
+   */
+  function takeSummaryWatermarks(kept: ReadonlySet<string> = new Set()): void {
     const counted = reviewSummary.value.subscriptions
     if (!Array.isArray(counted)) return
     const next = { ...watermarks.value }
     for (const entry of counted) {
+      if (kept.has(entry.subscription_id)) continue
       next[entry.subscription_id] = { until: newestOf(entry), count: entry.pending }
     }
     watermarks.value = next

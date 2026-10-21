@@ -5,6 +5,64 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-10-21
+
+### Added
+
+- **"Take over browser downloads" in the extension's popup.** The switch from the options page
+  sits at the top of the toolbar popup as well (`bindInterception` in `extension/src/popup.js`),
+  so letting one download through the browser no longer means a trip to the settings. Both write
+  the same `interceptDownloads`, which the interceptor reads per download.
+
+### Fixed
+
+- **Firefox: browser downloads survive a handover that does not happen.** A Stripe invoice (a
+  signed S3 address) failed in the browser and never reached rDownloader. Two causes, both
+  measured in the owner's Firefox: an idle background page is suspended and woken for the
+  download but not for the request in front of it, so its buffer was empty and the download was
+  refused as "not observed"; and the refusal came after the pause, which in Firefox is a cancel
+  whose resume a signed address answers with `NS_ERROR_ENTITY_CHANGED`. Every refusal is now
+  decided before the pause (`extension/src/downloads.js`), a background started less than the
+  correlation window before the download counts as unable to observe, and a resume that fails
+  after a failed handover starts the download again from its address.
+- **The replay approval could not be confirmed once an address was clicked.** The "Approved
+  addresses" list used one `UCheckbox` per origin bound to an array; Nuxt UI's checkbox models a
+  boolean and overwrote the list on the first click, which left "Approve and add" disabled. It
+  is a `UCheckboxGroup` now (`CollectorReplayConsentModal.vue`).
+
+### Changed
+
+- **The indexer review drawer holds only the open groups (RD-1250-13 follow-up, owner
+  2026-10-21).** Turning a page in a held group used to draw it afresh: the held hits slipped
+  into page one unannounced, the group's watermark jumped, and a later "dismiss all" took them
+  along unseen. A page turned now reads up to the watermark — `GET
+  /api/v1/subscriptions/{id}/items/page` takes `until` like the bulk decision does, and the MCP
+  tool `list_subscription_items` with it — and the watermark moves only on opening the group or
+  on its "+N new". That button in the group's header replaces the alert at the top of the
+  drawer; a folded group follows the counts (its watermark is the summary's), and a group whose
+  first hit arrives joins folded at the bottom instead of waiting for "show".
+
+- **GitHub Actions updated (Dependabot #22).** `taiki-e/install-action` 2.87.28, pinned by commit
+  SHA; the SDK's `sdk/ci/plugin.yml` carries the same pin.
+
+### Security
+
+- **rustls-webpki 0.103.16, webpki-roots 1.0.10 and wasmtime 49.0.4 for RUSTSEC-2026-0378,
+  -0379, -0381 and -0382** (all published 2026-10-21; the release chain's public supply-chain
+  job refused the candidate). The certificate verifier and the bundled roots no longer accept
+  paths through the distrusted emSign intermediates; wasmtime fixes a panic lowering a
+  host-created stream of a different payload type and a Cranelift `br_table` jump on aarch64.
+  Only the thirty updated lock entries were taken from `cargo update`, which had also re-pointed
+  fifteen unrelated crates to older `windows-sys` versions and failed `cargo deny`'s bans.
+  Licence list regenerated.
+- **zip 9.0.5 for RUSTSEC-2026-0367, -0368 and -0369.** The three advisories sit in
+  `ZipArchive::extract` and `ZipStreamReader::extract`, which nothing here calls; `cargo deny`
+  refused 8.6.0 all the same. zip 9 returns a `Result` from a member's `name()` and from
+  `file_names()`, so the archive readers in `rd-postprocess`, `rd-tools`, `rd-api-intake` and
+  `rd-plugin-host` map an undecodable name to their archive error. The zbus 5 notices
+  (RUSTSEC-2026-0370, -0371, -0372) are acknowledged in `deny.toml` until `notify-rust` and
+  `secret-service` move to zbus 6. Licence list regenerated.
+
 ## [1.34.0] - 2026-10-20
 
 ### Changed

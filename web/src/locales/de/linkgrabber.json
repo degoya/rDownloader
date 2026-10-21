@@ -483,8 +483,7 @@
       "details_title": "Details"
     },
     "held_title": "{count} weiterer Treffer | {count} weitere Treffer",
-    "held_description": "Die Liste bleibt stehen, solange du darin arbeitest.",
-    "show_held": "Anzeigen"
+    "held_chip": "+{count} neu"
   },
   "notices": {
     "reorder_filter_active": "Die Reihenfolge lässt sich nur ohne aktiven Filter ändern – die verborgenen Links würden sonst falsch einsortiert."

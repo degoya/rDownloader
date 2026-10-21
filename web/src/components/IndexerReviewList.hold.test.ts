@@ -6,6 +6,8 @@
  * are still read, but held back and counted until "show" or closing the drawer brings them in.
  * Owner, same day: "all" is every page of the list as it was drawn, never a hit held back — the
  * drawer sends the list's watermark, which moves only when the list is drawn again.
+ * Owner, 2026-10-21: only an open group holds still, a page turned in it included; a folded one
+ * and a new one follow the counts, and the hint is a small "new" in the group's header.
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
@@ -45,7 +47,7 @@ const components = {
     emits: ['update:open'],
     template: '<div v-if="open"><button aria-label="Close" @click="$emit(\'update:open\', false)">Close</button><slot name="body" /></div>'
   },
-  UPagination: passthrough
+  UPagination: { emits: ['update:page'], template: '<button @click="$emit(\'update:page\', 2)">Next page</button>' }
 }
 
 const rows = [
@@ -70,7 +72,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   items = { 'sub-1': [hit('item-1', 'Deep Ocean S01E01'), hit('item-2', 'Deep Ocean S01E02')], 'sub-2': [] }
   vi.mocked(api.GET).mockImplementation((async (path: string, options?: {
-    params: { path: { id: string }, query: { limit: number, offset: number } }
+    params: { path: { id: string }, query: { limit: number, offset: number, until?: string } }
   }) => {
     if (path === '/api/v1/subscriptions') return { data: rows }
     if (path === '/api/v1/subscriptions/review-summary') {
@@ -80,10 +82,11 @@ beforeEach(() => {
       return { data: { pending_total: counted.reduce((sum, entry) => sum + entry.pending, 0), subscriptions: counted } }
     }
     const id = options?.params.path.id ?? ''
-    const open = pending(id)
+    const until = options?.params.query.until
+    const open = pending(id).filter(item => !until || item.discovered_at <= until)
     const offset = options?.params.query.offset ?? 0
     const page = open.slice(offset, offset + (options?.params.query.limit ?? 50))
-    return { data: { items: page, total: open.length, newest_discovered_at: newest(id) } }
+    return { data: { items: page, total: open.length, newest_discovered_at: open[0]?.discovered_at ?? null } }
   }) as never)
   vi.mocked(api.PUT).mockImplementation((async (_path: string, options: {
     params: { path: { id: string } }, body: { state: SubscriptionItem['state'], until?: string }
@@ -95,13 +98,13 @@ beforeEach(() => {
   }) as never)
 })
 
-async function openGroup(): Promise<void> {
+async function openGroup(first = 'Deep Ocean S01E01'): Promise<void> {
   mountComponent(IndexerReviewList, { i18n, stubs: components, keepPinia: true })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Review' })).toBeTruthy())
   await fireEvent.click(screen.getByRole('button', { name: 'Review' }))
   await waitFor(() => expect(screen.getByText('Weekly documentaries')).toBeTruthy())
   await fireEvent.click(screen.getByLabelText('Weekly documentaries'))
-  await waitFor(() => expect(screen.getByText('Deep Ocean S01E01')).toBeTruthy())
+  await waitFor(() => expect(screen.getByText(first)).toBeTruthy())
 }
 
 /** A check that ran elsewhere writes a hit in front; the event says only that something changed. */
@@ -115,11 +118,11 @@ describe('IndexerReviewList: the open drawer holds what arrives', () => {
   it('counts a hit that arrives while the drawer is open and draws it on "show"', async () => {
     await openGroup()
     await arrives('sub-1', hit('item-5', 'Deep Ocean S01E03'))
-    expect(screen.getByText('1 more hit')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '+1 new' })).toBeTruthy()
     expect(screen.queryByText('Deep Ocean S01E03')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Dismiss' })).toHaveLength(2)
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Show' }))
+    await fireEvent.click(screen.getByRole('button', { name: '+1 new' }))
     await waitFor(() => expect(screen.getByText('Deep Ocean S01E03')).toBeTruthy())
     expect(screen.getAllByRole('button', { name: 'Dismiss' })).toHaveLength(3)
     expect(screen.queryByTestId('indexer-review-held')).toBeNull()
@@ -138,7 +141,7 @@ describe('IndexerReviewList: the open drawer holds what arrives', () => {
     await openGroup()
     await arrives('sub-1', hit('item-5', 'Deep Ocean S01E03', LATER))
     expect(useSubscriptionsStore().watermarks['sub-1']).toEqual({ until: EARLIER, count: 2 })
-    await fireEvent.click(screen.getByRole('button', { name: 'Show' }))
+    await fireEvent.click(screen.getByRole('button', { name: '+1 new' }))
     await waitFor(() => expect(screen.getByText('Deep Ocean S01E03')).toBeTruthy())
 
     await fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss all' })[0] as HTMLElement)
@@ -146,15 +149,17 @@ describe('IndexerReviewList: the open drawer holds what arrives', () => {
     expect(untilSent(0)).toBe(LATER)
   })
 
-  it('lets a folded group decide all of its list, up to the watermark taken on opening', async () => {
+  it('lets a folded group follow the counts and decide all of them', async () => {
     await openGroup()
     await fireEvent.click(screen.getByLabelText('Weekly documentaries'))
-    await arrives('sub-1', hit('item-5', 'Deep Ocean S01E03', LATER))
-    expect(screen.getByText('1 more hit')).toBeTruthy()
+    items['sub-1']?.unshift(hit('item-5', 'Deep Ocean S01E03', LATER))
+    subscriptionEvent?.({ data: JSON.stringify({ payload: {} }) } as MessageEvent<string>)
+    await waitFor(() => expect(screen.getByText('3 hits')).toBeTruthy())
+    expect(screen.queryByTestId('indexer-review-held')).toBeNull()
     await fireEvent.click(screen.getByRole('button', { name: 'Dismiss all' }))
 
-    await waitFor(() => expect(pending('sub-1').map(item => item.id)).toEqual(['item-5']))
-    expect(untilSent(0)).toBe(EARLIER)
+    await waitFor(() => expect(pending('sub-1')).toEqual([]))
+    expect(untilSent(0)).toBe(LATER)
   })
 
   it('takes the held hits in when the drawer closes', async () => {
@@ -165,16 +170,30 @@ describe('IndexerReviewList: the open drawer holds what arrives', () => {
     await waitFor(() => expect(useStoreItems('sub-1')).toEqual(['item-5', 'item-1', 'item-2']))
   })
 
-  it('holds a group whose first hit arrives while the drawer is open', async () => {
+  it('adds a group whose first hit arrives while the drawer is open folded, at the bottom', async () => {
     await openGroup()
-    await arrives('sub-2', hit('item-9', 'Alpine Winter'))
-    expect(screen.getByText('1 more hit')).toBeTruthy()
-    expect(screen.queryByText('Nature 2160p')).toBeNull()
+    items['sub-2']?.unshift(hit('item-9', 'Alpine Winter', LATER))
+    subscriptionEvent?.({ data: JSON.stringify({ payload: {} }) } as MessageEvent<string>)
 
-    await fireEvent.click(screen.getByRole('button', { name: 'Show' }))
     await waitFor(() => expect(screen.getByText('Nature 2160p')).toBeTruthy())
+    const names = screen.getAllByRole('button', { expanded: false }).map(button => button.getAttribute('aria-label'))
+    expect(names).toEqual(['Nature 2160p'])
+    expect(screen.queryByTestId('indexer-review-held')).toBeNull()
     // The open group kept its rows and its place.
     expect(screen.getByText('Deep Ocean S01E01')).toBeTruthy()
+  })
+
+  it('keeps the hits held back when a page is turned', async () => {
+    items['sub-1'] = Array.from({ length: 60 }, (_, index) => hit(`item-${index}`, `Episode ${index}`))
+    await openGroup('Episode 0')
+    await arrives('sub-1', hit('item-new', 'Deep Ocean S02E01', LATER))
+    await fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+
+    await waitFor(() => expect(screen.getByText('Episode 59')).toBeTruthy())
+    expect(screen.getByRole('button', { name: '+1 new' })).toBeTruthy()
+    const pageRead = vi.mocked(api.GET).mock.calls.at(-1)?.[1] as unknown as { params: { query: { offset: number, until?: string } } }
+    expect(pageRead.params.query).toMatchObject({ offset: 50, until: EARLIER })
+    expect(useSubscriptionsStore().watermarks['sub-1']).toEqual({ until: EARLIER, count: 60 })
   })
 
 })

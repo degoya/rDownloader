@@ -68,7 +68,7 @@ describe('IndexerReviewGroup', () => {
   })
 
   it('puts the bulk actions beside the pages when the list has several', async () => {
-    const { emitted } = mount({ total: 120 })
+    const { emitted } = mount({ total: 120, listTotal: 120 })
     await openGroup()
     const footer = screen.getByTestId('subscription-group-footer')
     expect(within(footer).getByRole('navigation')).toBeTruthy()

@@ -52,12 +52,20 @@ const props = defineProps<{
   error: string | null
   busyIds: string[]
   bulkBusy: boolean
+  /**
+   * Hits that arrived while the group is open and are held back from it (RD-1250-13). Owner,
+   * 2026-10-21: a small "new" in the header, not a banner that grows the drawer.
+   */
+  held?: number
 }>()
 const emit = defineEmits<{
-  load: [page: number]
+  /** `opening`: the group was unfolded, so it is drawn as it is now; otherwise a page or retry. */
+  load: [page: number, opening: boolean]
   /** The group was folded: its hits are off screen. */
   close: []
   more: []
+  /** The held hits were asked for: the list from its first hit, as it is now. */
+  showHeld: []
   queue: [itemId: string]
   dismiss: [itemId: string]
   queueAll: []
@@ -72,7 +80,7 @@ const startPage = computed(() => (cards.value ? 1 : props.page))
 
 function toggle(): void {
   open.value = !open.value
-  if (open.value) emit('load', startPage.value)
+  if (open.value) emit('load', startPage.value, true)
   else emit('close')
 }
 
@@ -99,6 +107,17 @@ function busy(itemId: string): boolean {
       <UBadge color="neutral" variant="subtle">
         {{ t('linkgrabber.indexers.group_hits', { count: props.total }, props.total) }}
       </UBadge>
+      <UButton
+        v-if="open && props.held"
+        size="xs"
+        color="info"
+        variant="soft"
+        icon="i-lucide-refresh-cw"
+        :label="t('linkgrabber.indexers.held_chip', { count: props.held })"
+        :title="t('linkgrabber.indexers.held_title', { count: props.held }, props.held)"
+        data-testid="indexer-review-held"
+        @click="emit('showHeld')"
+      />
       <IndexerReviewBulkActions :busy="props.bulkBusy" @queue-all="emit('queueAll')" @dismiss-all="emit('dismissAll')" />
     </header>
 
@@ -111,7 +130,7 @@ function busy(itemId: string): boolean {
           variant="soft"
           icon="i-lucide-refresh-cw"
           :label="t('common.actions.retry')"
-          @click="emit('load', startPage)"
+          @click="emit('load', startPage, false)"
         />
       </div>
       <template v-else-if="!props.loading">
@@ -156,12 +175,12 @@ function busy(itemId: string): boolean {
       data-testid="subscription-group-footer"
     >
       <UPagination
-        v-if="!cards && props.total > props.pageSize"
+        v-if="!cards && props.listTotal > props.pageSize"
         :page="props.page"
-        :total="props.total"
+        :total="props.listTotal"
         :items-per-page="props.pageSize"
         size="xs"
-        @update:page="emit('load', $event)"
+        @update:page="emit('load', $event, false)"
       />
       <div class="ms-auto flex flex-wrap items-center gap-2">
         <IndexerReviewBulkActions :busy="props.bulkBusy" @queue-all="emit('queueAll')" @dismiss-all="emit('dismissAll')" />

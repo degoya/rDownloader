@@ -181,17 +181,19 @@ test('an NZB stays in the browser even before a server is configured', async () 
   assert.deepStrictEqual(calls, [], 'no "configure first" notice for a download that never goes')
 })
 
-test('a download we could have observed but did not stays with the browser', async () => {
+test('a download we could have observed but did not stays with the browser, untouched', async () => {
   // RD-109-18: `correlateRequest` returning null used to be indistinguishable from an observed
-  // GET, so a POST whose buffered entry had been evicted went over as `method: "GET"`.
+  // GET, so a POST whose buffered entry had been evicted went over as `method: "GET"`. Decided
+  // before the pause: Firefox's pause is a cancel its resume does not always undo.
   const calls = []
-  const { interceptor, bodies } = setup({ calls, observing: true, hostAccess: true })
-  await interceptor.onDownloadCreated(ITEM)
+  const time = clock()
+  const { interceptor, bodies } = setup({ calls, observing: true, hostAccess: true, time })
+  time.advance(CORRELATION_WINDOW_MS + 1)
+  await interceptor.onDownloadCreated({ ...ITEM, startTime: new Date(time.now()).toISOString() })
   assert.deepStrictEqual(bodies, [], 'nothing is submitted for a request we never saw')
   assert.deepStrictEqual(calls.find(([name]) => name === 'contains'), ['contains', 'https://files.test/*'])
   const names = calls.map(([name]) => name)
-  assert.ok(names.includes('resume'))
-  assert.ok(!names.includes('cancel'))
+  assert.ok(!names.includes('pause'), 'the browser download is never touched')
   assert.ok(calls.some(([name, body]) => name === 'notify' && body === 'interceptRequestUnknown'))
 })
 
@@ -207,6 +209,34 @@ test('a download we could not observe at all is still handed over', async () => 
     assert.equal(bodies[0].links[0].request.method, 'GET')
     assert.ok(calls.map(([name]) => name).includes('cancel'))
   }
+})
+
+test('a worker woken by the download itself could not have observed its request', async () => {
+  // Firefox suspends an idle background page and wakes it for the download, not for the request
+  // in front of it: the buffer is empty, which says nothing. Refusing here refused every
+  // download after a pause in reading — and the pause before the refusal broke it as well.
+  const calls = []
+  const time = clock()
+  const { interceptor, bodies } = setup({ calls, observing: true, hostAccess: true, time })
+  await interceptor.onDownloadCreated({ ...ITEM, startTime: new Date(time.now() - 500).toISOString() })
+  assert.equal(bodies.length, 1)
+  assert.ok(!calls.some(([name, body]) => name === 'notify' && body === 'interceptRequestUnknown'))
+})
+
+test('a download whose resume fails is fetched again by its address', async () => {
+  // Firefox: a pause is a cancel, and the resume a ranged request a signed address refuses with
+  // NS_ERROR_ENTITY_CHANGED. The download then sat failed in the list.
+  const calls = []
+  const { interceptor } = setup({
+    calls,
+    submit: async () => ({ ok: false, status: 500, code: 'internal', message: 'down', links: 0 }),
+    resume: async () => {
+      throw new Error('It was attempted to resume the request, but the entity has changed in the meantime')
+    }
+  })
+  await interceptor.onDownloadCreated(ITEM)
+  const tail = calls.filter(([name]) => ['resume', 'download', 'erase'].includes(name))
+  assert.deepStrictEqual(tail, [['resume', 7], ['download', ITEM.url], ['erase', 7]])
 })
 
 test('a flood of GETs no longer evicts the buffered POST', async () => {
@@ -244,7 +274,7 @@ test('the correlation window really expires', async () => {
   const { interceptor, bodies } = setup({ calls, time, observing: true, hostAccess: true })
   interceptor.onSendHeaders({ url: ITEM.url, method: 'GET', requestHeaders: [{ name: 'Accept', value: '*/*' }] })
   time.advance(CORRELATION_WINDOW_MS + 1)
-  await interceptor.onDownloadCreated(ITEM)
+  await interceptor.onDownloadCreated({ ...ITEM, startTime: new Date(time.now()).toISOString() })
   assert.deepStrictEqual(bodies, [], 'an aged-out entry is no entry')
   assert.ok(calls.some(([name, body]) => name === 'notify' && body === 'interceptRequestUnknown'))
 })
@@ -315,7 +345,7 @@ test('a service that does not answer is not called too old', async () => {
   await interceptor.onDownloadCreated(ITEM)
   assert.deepStrictEqual(bodies, [], 'nothing is submitted to a service that is not there')
   const names = calls.map(([name]) => name)
-  assert.ok(names.includes('resume'), 'the browser keeps its own download')
+  assert.ok(!names.includes('pause'), 'the browser keeps its own download, untouched')
   assert.ok(!names.includes('cancel'))
   assert.ok(calls.some(([name, body]) => name === 'notify' && body === 'interceptServerUnreachable'))
 })

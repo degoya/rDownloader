@@ -4,7 +4,7 @@ use chrono::{Duration, Utc};
 
 use crate::Database;
 
-fn new_subscription(name: &str) -> crate::NewSubscription {
+pub(super) fn new_subscription(name: &str) -> crate::NewSubscription {
     crate::NewSubscription {
         source_categories: Vec::new(),
         name: name.to_owned(),
@@ -30,7 +30,7 @@ fn new_subscription(name: &str) -> crate::NewSubscription {
     }
 }
 
-fn new_item(key: &str) -> crate::NewSubscriptionItem {
+pub(super) fn new_item(key: &str) -> crate::NewSubscriptionItem {
     crate::NewSubscriptionItem {
         item_key: key.to_owned(),
         title: format!("Item {key}"),

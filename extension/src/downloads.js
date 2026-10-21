@@ -93,6 +93,12 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
   const notifications = new Map()
   const requests = []
   const notices = createNoticeStore(api, now)
+  /**
+   * When this worker started. Firefox suspends an idle background page and does not wake it for
+   * the request in front of a download, only for the download itself; a page woken by it holds
+   * an empty buffer and has seen nothing it could have (`couldObserve`).
+   */
+  const startedAt = now()
 
   /** Runs `say` the first time it is asked within the notice's lifetime, and not again. */
   async function once(key, say) {
@@ -144,9 +150,13 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
    * watched and saw nothing" and "we could not watch" two entirely different answers, and only
    * the first one may refuse a download (RD-109-18).
    */
-  async function couldObserve(url) {
+  async function couldObserve(item) {
     if (!observing) return false
-    const pattern = originMatchPattern(url)
+    // The worker has to have run a whole correlation window before the download began; one that
+    // started later may have missed the request, and "unseen" then says nothing.
+    const began = Date.parse(item?.startTime ?? '')
+    if (!(began - CORRELATION_WINDOW_MS >= startedAt)) return false
+    const pattern = originMatchPattern(item?.url)
     if (!pattern) return false
     try {
       return Boolean(await api.permissions?.contains?.({ origins: [pattern] }))
@@ -208,6 +218,28 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
     return { version: 0, reachable: (result?.status ?? 0) > 0 }
   }
 
+  /**
+   * Hands a paused download back to the browser. Firefox's pause is a cancel, and its resume a
+   * new ranged request that a signed or generated response refuses (`NS_ERROR_ENTITY_CHANGED`);
+   * the download then failed for good. Where the resume fails, the address is fetched afresh —
+   * only ever a download this extension treats as a GET reaches a pause.
+   */
+  async function giveBack(downloadId, entry) {
+    try {
+      await api.downloads.resume(downloadId)
+      return
+    } catch {
+      // not resumable; fetched again below
+    }
+    if (!entry?.url) return
+    try {
+      await api.downloads.download({ url: entry.url })
+      await api.downloads.erase({ id: downloadId })
+    } catch {
+      // the browser refused the new download as well; nothing left to give back
+    }
+  }
+
   async function finish(downloadId, entry, result) {
     if (result.ok) {
       // A late success must not cancel a download the user has taken back.
@@ -236,11 +268,7 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
     if (entry.state !== 'submitting') return
     entry.state = 'resumed'
     handoffs.delete(downloadId)
-    try {
-      await api.downloads.resume(downloadId)
-    } catch {
-      // the download may already have been removed by the user
-    }
+    await giveBack(downloadId, entry)
     await clearNotification(entry.notificationId)
     const reason = result.status === 401 ? message('errorUnauthorized') : (result.message ?? '')
     await notify(message('interceptFailed', [reason]))
@@ -264,6 +292,24 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
       await once(UNCONFIGURED_NOTICE_KEY, () => notify(message('notConfigured')))
       return
     }
+    // Everything that keeps a download in the browser is decided before it is touched: a pause
+    // in Firefox is a cancel, and what it cancelled does not always come back (`giveBack`).
+    const { reachable } = await captureVersion(config)
+    if (!reachable) {
+      // Nothing answered on that address. Submitting would fail anyway, and calling a service
+      // that is simply not running "too old" sends the person after a version problem that
+      // does not exist (RD-109-19).
+      await notify(message('interceptServerUnreachable'))
+      return
+    }
+    // `null` used to be indistinguishable from an observed GET, which is how a POST whose
+    // buffered entry had been evicted was handed over with `method: "GET"` and no body: the
+    // browser's own copy was cancelled and erased, and rDownloader fetched whatever a GET to
+    // that address answers — stored under the right file name (RD-109-18).
+    if (!captured && (await couldObserve(item))) {
+      await notify(message('interceptRequestUnknown'))
+      return
+    }
     try {
       await api.downloads.pause(item.id)
     } catch {
@@ -271,7 +317,7 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
       // Pausing then fails and we leave the download entirely to the browser — never download twice.
       return
     }
-    const entry = { state: 'paused', notificationId: null }
+    const entry = { state: 'paused', notificationId: null, url: item.url }
     handoffs.set(item.id, entry)
     const notificationId = await notify(message('interceptSending'), { keepButton: true })
     if (notificationId) {
@@ -280,40 +326,8 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
     }
     if (entry.state !== 'paused') return
     entry.state = 'submitting'
-
-    const { reachable } = await captureVersion(config)
-    if (!reachable) {
-      // Nothing answered on that address. Submitting would fail anyway, and calling a service
-      // that is simply not running "too old" sends the person after a version problem that
-      // does not exist (RD-109-19).
-      entry.state = 'paused'
-      await finishKept(item.id, entry, message('interceptServerUnreachable'))
-      return
-    }
-    // `null` used to be indistinguishable from an observed GET, which is how a POST whose
-    // buffered entry had been evicted was handed over with `method: "GET"` and no body: the
-    // browser's own copy was cancelled and erased, and rDownloader fetched whatever a GET to
-    // that address answers — stored under the right file name (RD-109-18).
-    if (!captured && (await couldObserve(item.url))) {
-      entry.state = 'paused'
-      await finishKept(item.id, entry, message('interceptRequestUnknown'))
-      return
-    }
     const result = await submit(config, buildIntakePayload({ item, captured, userAgent }))
     await finish(item.id, entry, result)
-  }
-
-  /** Resumes the browser's own download and explains why it was not handed over. */
-  async function finishKept(downloadId, entry, reason) {
-    entry.state = 'resumed'
-    handoffs.delete(downloadId)
-    await clearNotification(entry.notificationId)
-    try {
-      await api.downloads.resume(downloadId)
-    } catch {
-      // the download may already have been removed by the user
-    }
-    await notify(reason)
   }
 
   function onBeforeRequest(details) {
@@ -346,11 +360,7 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
     // The entry object stays referenced by the in-flight handoff, which checks the state again.
     entry.state = 'keptByUser'
     handoffs.delete(downloadId)
-    try {
-      await api.downloads.resume(downloadId)
-    } catch {
-      // nothing left to resume
-    }
+    await giveBack(downloadId, entry)
   }
 
   return {

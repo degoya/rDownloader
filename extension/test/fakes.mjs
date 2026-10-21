@@ -57,6 +57,7 @@ export function clock(start = 1_000) {
 export function fakeApi(calls, {
   pause = async () => {},
   cancel,
+  resume,
   buttons = true,
   hostAccess = false,
   granted = true,
@@ -103,7 +104,8 @@ export function fakeApi(calls, {
       pause: async (id) => { calls.push(['pause', id]); await pause(id) },
       cancel: async (id) => { calls.push(['cancel', id]); if (cancel) await cancel(id) },
       erase: async (query) => calls.push(['erase', query.id]),
-      resume: async (id) => calls.push(['resume', id])
+      resume: async (id) => { calls.push(['resume', id]); if (resume) await resume(id) },
+      download: async (options) => { calls.push(['download', options.url]); return 99 }
     },
     tabs: {
       create: async (options) => { nextTab += 1; calls.push(['createTab', options]); return { id: nextTab } },
@@ -141,6 +143,7 @@ export function setupInterceptor({
   calls,
   pause,
   cancel,
+  resume,
   buttons,
   captureVersion = 1,
   config = {},
@@ -153,7 +156,7 @@ export function setupInterceptor({
 } = {}) {
   const bodies = []
   const pings = { count: 0 }
-  const api = fakeApi(calls, { pause, cancel, buttons, hostAccess, session })
+  const api = fakeApi(calls, { pause, cancel, resume, buttons, hostAccess, session })
   const interceptor = createInterceptor({
     api,
     loadConfig: async () => ({ server: SERVER, token: 'tok', interceptDownloads: true, ...config }),

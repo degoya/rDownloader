@@ -33639,6 +33639,11 @@ export interface operations {
                 state?: components["schemas"]["SubscriptionItemFilter"];
                 limit?: number | null;
                 offset?: number | null;
+                /**
+                 * @description Only items found at or before this moment (RD-1250-13): the `newest_discovered_at` of
+                 *     an earlier read, so paging a list held still under the reader shows no hit found since.
+                 */
+                until?: string | null;
             };
             header?: never;
             path: {

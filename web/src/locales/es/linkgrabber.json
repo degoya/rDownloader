@@ -483,8 +483,7 @@
       "details_title": "Detalles"
     },
     "held_title": "{count} resultado más | {count} resultados más",
-    "held_description": "La lista no se mueve mientras se trabaja en ella.",
-    "show_held": "Mostrar"
+    "held_chip": "+{count} nuevos"
   },
   "notices": {
     "reorder_filter_active": "El orden solo se puede cambiar sin ningún filtro activo; de lo contrario, los enlaces ocultos quedarían mal ordenados."

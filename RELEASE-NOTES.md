@@ -12,9 +12,17 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.35.0
+## 1.36.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.35.0
+
+- In the indexer review, only an open list holds still: new hits wait behind a small "+N new" in its header, also while you page through it. Folded lists and new searches update at once.
+- In Firefox, browser downloads such as invoices no longer fail when the extension cannot take them over, and the extension takes them over more reliably after the browser was idle.
+- The browser extension's toolbar menu now has a switch for taking over browser downloads, so you no longer need its settings for that.
+- Approving a download that sends data from your browser works again after you change which addresses it may use.
+- Security updates for the bundled libraries that read ZIP archives, check server certificates and run plugins.
 
 ## 1.34.0
 

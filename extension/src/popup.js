@@ -104,6 +104,15 @@ export function sendOutcome(response, translate = message) {
   return { key: 'sendFailed', substitutions: [response?.message || response?.code || ''], ok: false }
 }
 
+/**
+ * The "take over browser downloads" switch, here as well as in the options, so turning it off for
+ * one download is a click away. It writes the one setting the interceptor reads per download.
+ */
+export async function bindInterception(input, { load, storage }) {
+  input.checked = (await load()).interceptDownloads !== false
+  input.addEventListener('change', () => storage.set({ interceptDownloads: input.checked }))
+}
+
 function setStatus(text, ok) {
   const status = document.getElementById('status')
   status.textContent = text
@@ -265,6 +274,7 @@ async function init() {
   for (const element of document.querySelectorAll('[data-i18n]')) {
     element.textContent = message(element.dataset.i18n)
   }
+  void bindInterception(document.getElementById('intercept'), { load: loadConfig, storage: api.storage.local })
   void renderCaptchas(captchas)
   void renderHandovers(createHandover({ api, loadConfig, message, notify: async () => null }))
   void api.tabs.query({ active: true, currentWindow: true }).then(([tab]) => renderFiles(tab))

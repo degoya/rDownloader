@@ -31,8 +31,22 @@ impl Database {
         limit: i64,
         offset: i64,
     ) -> Result<rd_core::SubscriptionItemPage> {
+        self.subscription_item_page_until(id, state, limit, offset, None)
+            .await
+    }
+
+    /// [`Self::subscription_item_page`] of the rows found at or before `until` only.
+    pub async fn subscription_item_page_until(
+        &self,
+        id: rd_core::SubscriptionId,
+        state: Option<rd_core::SubscriptionItemState>,
+        limit: i64,
+        offset: i64,
+        until: Option<chrono::DateTime<chrono::Utc>>,
+    ) -> Result<rd_core::SubscriptionItemPage> {
         let mut page =
-            crate::subscription_store::item_page(&self.readers, id, state, limit, offset).await?;
+            crate::subscription_store::item_page(&self.readers, id, state, limit, offset, until)
+                .await?;
         self.reveal_archive_passwords(&mut page.items).await;
         Ok(page)
     }

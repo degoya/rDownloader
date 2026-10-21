@@ -89,17 +89,14 @@ function submit(): void {
           :label="t('linkgrabber.replay.origins.title')"
           :description="t('linkgrabber.replay.origins.hint')"
         >
-          <div class="space-y-1">
-            <UCheckbox
-              v-for="origin in preview.approved_origins"
-              :key="origin"
-              v-model="selected"
-              :value="origin"
-              :disabled="readonly"
-              :label="origin"
-              class="font-mono text-xs"
-            />
-          </div>
+          <!-- A group, not one UCheckbox per origin: Nuxt UI's single checkbox models a boolean,
+               and bound to this list it overwrote it with true/false on the first click. -->
+          <UCheckboxGroup
+            v-model="selected"
+            :items="preview.approved_origins"
+            :disabled="readonly"
+            class="font-mono text-xs"
+          />
         </UFormField>
 
         <div>

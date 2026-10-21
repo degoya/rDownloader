@@ -6,7 +6,18 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { PICK_WAITING } from '../src/api.js'
-import { captchaListFailure, clipboardLinks, sendOutcome, sendablePageUrl, versionLine } from '../src/popup.js'
+import { bindInterception, captchaListFailure, clipboardLinks, sendOutcome, sendablePageUrl, versionLine } from '../src/popup.js'
+
+test('the popup switch shows the stored interception and writes a change of it', async () => {
+  const writes = []
+  let onChange
+  const input = { checked: true, addEventListener: (name, handler) => { if (name === 'change') onChange = handler } }
+  await bindInterception(input, { load: async () => ({ interceptDownloads: false }), storage: { set: async (value) => writes.push(value) } })
+  assert.equal(input.checked, false)
+  input.checked = true
+  await onChange()
+  assert.deepEqual(writes, [{ interceptDownloads: true }])
+})
 
 test('a refused clipboard and an empty one are told apart', async () => {
   assert.deepEqual(

@@ -1531,11 +1531,14 @@ recognised as drifting.
   - **The scale-background effect needs its wrapper.** `should-scale-background` only works if
     an ancestor carries `data-vaul-drawer-wrapper`; in this application that is the element
     around the whole control-room layout in `App.vue`. A drawer added elsewhere inherits it.
-  - **A list under the reader's hand does not move (RD-1250-13).** While the drawer is open, hits
-    and groups that arrive are read but held behind one "N more hits — show" alert at its top;
-    a row shown keeps its place, and "show" or closing the drawer brings the rest in. "All" in a
-    bulk action is every page of the list as it was last drawn — up to its watermark — never
-    "whatever is pending by now".
+  - **A list under the reader's hand does not move (RD-1250-13).** While the drawer is open, an
+    *open* group's hits that arrive are read but held behind a small "+N new" button in that
+    group's header — no banner that grows the drawer; a row shown keeps its place, a page turned
+    is read up to the group's watermark, and "+N new" or closing the drawer brings the rest in.
+    A folded group follows the counts at once, and a group whose first hit arrives joins folded
+    at the bottom (owner, 2026-10-21). "All" in a bulk action is every page of the list as it was
+    last drawn — up to its watermark — never "whatever is pending by now"; for a folded group
+    that is what its badge counts.
 
   Inside the drawer the older rules still hold: individual subscriptions start closed and fetch
   their first page on demand, the person's manual open/closed state wins over any event, and a

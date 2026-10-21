@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/vue'
+import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
 
 import type { ReplayPreview } from '@/api/types'
@@ -90,6 +90,23 @@ describe('CollectorReplayConsentModal', () => {
   it('offers no approval at all in read-only mode', () => {
     renderModal(preview(), true)
     expect(screen.queryByText('Approve and add')).toBeNull()
+  })
+
+  it('keeps the approval possible after an origin is unchecked and checked again', async () => {
+    // The checkboxes once wrote a bare true/false over the list, which left "Approve and add"
+    // disabled for good the moment anybody touched one.
+    const { emitted } = renderModal(preview())
+    // The first origin of the preview, in the order the dialog lists them.
+    const hoster = screen.getAllByRole('checkbox')[0] as HTMLElement
+    await fireEvent.click(hoster)
+    const confirm = screen.getByText('Approve and add').closest('button') as HTMLButtonElement
+    expect(confirm.disabled).toBe(false)
+    confirm.click()
+    await Promise.resolve()
+    expect(emitted().close?.[0]).toEqual([{ approvedOrigins: ['https://cdn.example.net'] }])
+
+    await fireEvent.click(hoster)
+    expect(confirm.disabled).toBe(false)
   })
 
   it('emits the approved origins when confirmed', async () => {
