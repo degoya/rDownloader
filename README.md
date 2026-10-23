@@ -52,6 +52,10 @@ Download the archive for your platform from [rdownloader.net/download](https://r
 # macOS and Linux (Homebrew)
 brew install degoya/rdownloader/rdownloader && brew services start rdownloader
 
+# Windows (winget)
+winget install degoya.rDownloader
+start-rdownloader
+
 # Windows (Scoop)
 scoop bucket add rdownloader https://github.com/degoya/scoop-rdownloader
 scoop install rdownloader

@@ -14,6 +14,9 @@ const MAX_PATH_UTF16_UNITS: usize = 250;
 /// Never shorten a name below this, otherwise deeply nested destinations would erase it.
 const MIN_NAME_UTF16_UNITS: usize = 24;
 
+/// The longest suffix behind the last dot that counts as an extension when a name is shortened.
+const MAX_EXTENSION_CHARS: usize = 8;
+
 /// Produces a portable filename safe on Windows, Linux and macOS.
 #[must_use]
 pub fn sanitize_file_name(input: &str) -> String {
@@ -252,15 +255,20 @@ fn truncate_utf16(input: &str, limit: usize) -> String {
         return input.to_owned();
     }
 
-    let path = Path::new(input);
-    let extension = path.extension().and_then(|value| value.to_str());
-    let suffix = extension.map_or(String::new(), |value| format!(".{value}"));
-    let suffix_units = suffix.encode_utf16().count();
-    let stem_limit = limit.saturating_sub(suffix_units);
-    let stem = path
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or("download");
+    // Only a real extension is kept whole. Everything behind the last dot of a title such as
+    // `Three... two... one... GO! …` is text, not an extension; kept whole, it alone overran
+    // the budget and yt-dlp could not open the file on Windows (owner report, 2026-10-23).
+    let (stem, suffix) = match input.rsplit_once('.') {
+        Some((stem, extension))
+            if !stem.is_empty()
+                && (1..=MAX_EXTENSION_CHARS).contains(&extension.len())
+                && extension.bytes().all(|byte| byte.is_ascii_alphanumeric()) =>
+        {
+            (stem, format!(".{extension}"))
+        }
+        _ => (input, String::new()),
+    };
+    let stem_limit = limit.saturating_sub(suffix.encode_utf16().count());
     let mut result = String::new();
     let mut units = 0;
     for character in stem.chars() {
@@ -270,6 +278,12 @@ fn truncate_utf16(input: &str, limit: usize) -> String {
         }
         units += width;
         result.push(character);
+    }
+    // The cut can land behind a space or a dot (`… — and `): Windows drops both at the end of
+    // a name, so the folder or file it creates would not be the one a tool then opens.
+    let mut result = result.trim_end_matches(['.', ' ']).to_owned();
+    if result.is_empty() {
+        result.push_str("download");
     }
     result.push_str(&suffix);
     result

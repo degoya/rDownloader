@@ -135,6 +135,9 @@ describe('IndexerReviewList: the open drawer holds what arrives', () => {
 
     await waitFor(() => expect(pending('sub-1').map(item => item.id)).toEqual(['item-5']))
     expect(untilSent(0)).toBe(EARLIER)
+    // Nothing is left on screen to hold still: the open group shows the held hit at once.
+    await waitFor(() => expect(screen.getByText('Deep Ocean S01E03')).toBeTruthy())
+    expect(screen.queryByTestId('indexer-review-held')).toBeNull()
   })
 
   it('moves the watermark on "show", not on the re-read that found the hit', async () => {

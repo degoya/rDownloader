@@ -114,6 +114,25 @@ fn a_long_package_name_leaves_room_for_its_files() {
 }
 
 #[test]
+fn a_shortened_name_ends_neither_in_a_space_nor_a_dot() {
+    // The cut of the owner's Facebook title (2026-10-23) landed right behind "and ".
+    let title = "_Three... two... one... GO!_ \u{1F3C1} Two big puppies, one little one \
+                 \u{2014} and the SMALLEST wins it ALL!";
+    let directory = "d".repeat(MAX_PATH_UTF16_UNITS - 1 - 70);
+    let name = sanitize_file_name_within(Path::new(&directory), title, 0);
+    assert!(name.ends_with("\u{2014} and"), "{name:?}");
+    // Everything behind "one..." is text, not an extension to keep whole.
+    assert!(name.starts_with("_Three... two"), "{name:?}");
+    assert!(name.encode_utf16().count() <= 70, "{name:?}");
+    let package = package_directory(Path::new("D:\\in"), &"Three... ".repeat(40));
+    let folder = package
+        .file_name()
+        .and_then(|value| value.to_str())
+        .expect("folder");
+    assert!(!folder.ends_with(['.', ' ']), "{folder:?}");
+}
+
+#[test]
 fn a_short_name_is_left_alone() {
     let directory = Path::new("/downloads/youtube.com");
     assert_eq!(

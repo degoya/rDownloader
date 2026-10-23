@@ -92,6 +92,8 @@ struct Metadata {
     #[serde(rename = "_type")]
     kind: Option<String>,
     title: Option<String>,
+    /// The post's text; names the video when the title is only a placeholder.
+    description: Option<String>,
     duration: Option<f64>,
     uploader: Option<String>,
     /// For a playlist, the channel it belongs to; the package's name when the list has no title.
@@ -332,10 +334,7 @@ fn single(
     let audio = audio_tracks(&inventory);
     let subtitles = subtitle_tracks(&metadata.subtitles, &metadata.automatic_captions);
     let info = MediaInfo {
-        title: metadata
-            .title
-            .filter(|title| !title.trim().is_empty())
-            .unwrap_or_else(|| "media".to_owned()),
+        title: media_title(&metadata),
         duration_seconds: metadata.duration.map(|value| value.round() as u32),
         uploader: metadata.uploader,
         thumbnail: metadata.thumbnail,
@@ -359,6 +358,28 @@ fn single(
             ..MediaCandidateState::probed(inventory, criteria)
         },
     }
+}
+
+/// A video's title, or for a placeholder title the first line of its text, else its uploader.
+/// Facebook answers a signed-in request (cookies) with the title "Video" for every post (owner
+/// report, 2026-10-22); signed out it names the post.
+fn media_title(metadata: &Metadata) -> String {
+    fn named(value: Option<&str>) -> Option<&str> {
+        value.map(str::trim).filter(|value| !value.is_empty())
+    }
+    let title = named(metadata.title.as_deref());
+    if let Some(title) = title.filter(|title| !title.eq_ignore_ascii_case("video")) {
+        return title.to_owned();
+    }
+    let first_line = metadata
+        .description
+        .as_deref()
+        .and_then(|text| text.lines().map(str::trim).find(|line| !line.is_empty()));
+    first_line
+        .or_else(|| named(metadata.uploader.as_deref()))
+        .or(title)
+        .unwrap_or("media")
+        .to_owned()
 }
 
 fn playlist_entry(

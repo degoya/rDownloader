@@ -115,10 +115,10 @@ pub async fn enqueue_candidate(
         .move_candidates(
             vec![id],
             rd_db::MoveTarget::New {
-                // The package name doubles as the folder name, so file extensions are stripped.
-                name: candidate.file_name.clone().map_or_else(
-                    || candidate.url.host_str().unwrap_or("Link").to_owned(),
-                    |name| rd_files::package_name_from_file_name(&name),
+                name: single_link_package_name(
+                    &candidate.url,
+                    candidate.file_name.as_deref(),
+                    candidate.media.as_ref(),
                 ),
             },
         )
@@ -126,4 +126,81 @@ pub async fn enqueue_candidate(
     let created =
         crate::collector_enqueue::enqueue_package(&state, package.id, false, None).await?;
     Ok((StatusCode::CREATED, Json(created.package)))
+}
+
+/// The name of the package a single queued link gets; it doubles as the folder name.
+///
+/// A media link is named after where it comes from — its playlist, else its site
+/// (`facebook.com`, `dumpert.nl`) — as the LinkGrabber groups it: its title already names the
+/// file, and a long post text as the folder too left yt-dlp no room on Windows (owner report,
+/// 2026-10-23). Any other link is named after its file, without the extensions.
+fn single_link_package_name(
+    url: &url::Url,
+    file_name: Option<&str>,
+    media: Option<&rd_core::MediaInfo>,
+) -> String {
+    if let Some(media) = media {
+        return media
+            .playlist_title
+            .as_deref()
+            .map(str::trim)
+            .filter(|title| !title.is_empty())
+            .map_or_else(
+                || rd_core::host_key(url.host_str().unwrap_or("Link")),
+                str::to_owned,
+            );
+    }
+    file_name.map_or_else(
+        || url.host_str().unwrap_or("Link").to_owned(),
+        rd_files::package_name_from_file_name,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::single_link_package_name;
+
+    fn media(playlist_title: Option<&str>) -> rd_core::MediaInfo {
+        rd_core::MediaInfo {
+            title: "\"Three... two... one... GO!\" a very long post text".to_owned(),
+            duration_seconds: None,
+            uploader: None,
+            thumbnail: None,
+            page_url: "https://www.facebook.com/reel/1".parse().expect("url"),
+            variants: Vec::new(),
+            selected: "best".to_owned(),
+            upload_date: None,
+            extractor: None,
+            video_id: None,
+            playlist_title: playlist_title.map(str::to_owned),
+        }
+    }
+
+    #[test]
+    fn a_media_link_is_named_after_its_site_not_its_title() {
+        let url = "https://www.facebook.com/reel/1119285790588420"
+            .parse()
+            .expect("url");
+        let file = Some("_Three... two... one... GO!_ a very long post text.mp4");
+        assert_eq!(
+            single_link_package_name(&url, file, Some(&media(None))),
+            "facebook.com"
+        );
+        assert_eq!(
+            single_link_package_name(&url, file, Some(&media(Some("Puppies")))),
+            "Puppies"
+        );
+    }
+
+    #[test]
+    fn any_other_link_is_named_after_its_file() {
+        let url = "https://example.com/files/backup.tar.gz"
+            .parse()
+            .expect("url");
+        assert_eq!(
+            single_link_package_name(&url, Some("backup.tar.gz"), None),
+            "backup"
+        );
+        assert_eq!(single_link_package_name(&url, None, None), "example.com");
+    }
 }

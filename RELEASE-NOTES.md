@@ -12,9 +12,16 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.36.0
+## 1.37.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.36.0
+
+- Facebook videos fetched with your cookies are named after the post again instead of "Video".
+- Videos with a long title, such as a Facebook post, download on Windows again, and a video queued on its own is put in a package named after its site.
+- After "Queue all" or "Dismiss all" in the indexer review, an open list shows the hits that arrived meanwhile at once.
+- A security update for a bundled library that compares cryptographic values in constant time.
 
 ## 1.35.0
 

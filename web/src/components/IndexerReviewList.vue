@@ -326,6 +326,10 @@ async function decideAll(subscriptionId: string, state: 'queued' | 'dismissed'):
   bulkFor.value = subscriptionId
   const result = await subscriptions.setPendingItemStates(subscriptionId, state, until)
   bulkFor.value = null
+  // The rows decided were the ones the open list held still; nothing is left on screen to keep
+  // in place, so it is drawn as it is now, held hits included (owner, 2026-10-22: an empty open
+  // group said "+28 new" until it was folded).
+  if (result && openGroups.value.has(subscriptionId)) await showHeld(subscriptionId)
   if (result && result.failed > 0) {
     toast.add({
       title: t('linkgrabber.indexers.bulk_failed', { count: result.failed }, result.failed),

@@ -5,6 +5,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.36.0] - 2026-10-23
+
+### Fixed
+
+- **"Queue all" and "Dismiss all" fill an open indexer group with its new hits.** The open
+  group holds hits that arrive behind "+N new" (RD-1250-13); after a bulk decision it was empty
+  but still said "+28 new" until it was folded. `decideAll` in
+  `web/src/components/IndexerReviewList.vue` now draws an open group as it is once the decision
+  is in.
+- **A Facebook video signed in with cookies is no longer named `Video.mp4`.** With a cookie
+  session Facebook reports every post's title as "Video" (yt-dlp 2026.08.19; signed out the same
+  reel carries its text). The probe now takes a bare "Video" as a placeholder and names the
+  file after the first line of the post's text, else its uploader (`media_title` in
+  `crates/rd-media/src/probe.rs`).
+- **A long title no longer breaks a video download on Windows, and a video queued on its own
+  is packaged by its site.** `truncate_utf16` (`crates/rd-files/src/names.rs`) took everything
+  behind a title's last dot as its extension and never shortened it: for "Three... two... one...
+  GO! …" that was nearly the whole title, the name overran the path budget and yt-dlp failed with
+  "unable to open for writing". Only up to eight ASCII letters and digits count as an extension
+  now, and a shortened name no longer ends in a space or a dot, which Windows drops. Queued on
+  its own (`enqueue_candidate`), a media link's package is named after its playlist, else its
+  site (`facebook.com`), as the LinkGrabber groups it, instead of after its title (owner report,
+  2026-10-23).
+
+### Changed
+
+- **The README names `winget install degoya.rDownloader` (RD-180-07).** winget-pkgs took the
+  first manifest with 1.27.0 on 2026-10-12 (pull request #451308), so the job is implemented; the
+  roadmap and the feature list no longer say it waits for its review.
+- **RD-1120-18 and RD-1130-05 implemented.** The 7-Zip password measurement on Windows (GitHub
+  run 39635892424, 7-Zip 26.x) found no fault: a password ending in `\` extracts, one with `"`
+  is refused before 7-Zip starts, as decided. `channels.yml` is green since the keychain decision
+  of 2026-10-08, last after 1.35.0 (39652829463, upgrade from v1.34.0 on every image).
+
+### Security
+
+- **ctutils 0.4.5 for RUSTSEC-2026-0385** (the release chain's public supply-chain job refused
+  the candidate). Its mask generation and `u128` comparisons no longer branch, so the
+  constant-time selection under `aes-gcm` and the PKCS#8 key handling of `ed25519-dalek` stays
+  constant-time; no plugin component links it.
+
 ## [1.35.0] - 2026-10-21
 
 ### Added

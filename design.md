@@ -1538,7 +1538,9 @@ recognised as drifting.
     A folded group follows the counts at once, and a group whose first hit arrives joins folded
     at the bottom (owner, 2026-10-21). "All" in a bulk action is every page of the list as it was
     last drawn — up to its watermark — never "whatever is pending by now"; for a folded group
-    that is what its badge counts.
+    that is what its badge counts. Once a bulk action has decided an open group's rows, nothing
+    under the hand is left to hold: the group is drawn as it is, held hits included
+    (owner, 2026-10-22).
 
   Inside the drawer the older rules still hold: individual subscriptions start closed and fetch
   their first page on demand, the person's manual open/closed state wins over any event, and a
