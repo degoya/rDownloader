@@ -117,7 +117,7 @@ function completedSegments(file: NzbFileStatus): number {
 <template>
   <section
     class="@container border bg-elevated transition"
-    :class="[props.selected ? 'border-primary' : 'border-muted', props.dragging ? 'opacity-50' : '']"
+    :class="[props.selected ? 'border-primary' : open ? 'border-primary/40' : 'border-muted', props.dragging ? 'opacity-50' : '']"
     @dragover.prevent
     @drop.prevent="emit('drop', props.item.id)"
   >

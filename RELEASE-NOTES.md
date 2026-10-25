@@ -12,9 +12,15 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.37.0
+## 1.38.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.37.0
+
+- Open packages, NZB imports and indexer groups are highlighted, so their buttons are no longer mistaken for the next group's.
+- Links to uploadhub work at its new address.
+- Security updates for two bundled libraries: the async runtime and a cryptographic number library.
 
 ## 1.36.0
 

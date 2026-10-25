@@ -25,6 +25,13 @@ ignore = [
   # host keys, which are still common on default sshd installations, so the compatibility cost
   # outweighs the exposure.
   { id = "RUSTSEC-2023-0071", reason = "rsa 0.9.10 via crypto-glue (webauthn-rs) and openidconnect, rsa 0.10 rc via russh; Marvin targets private-key operations, which signature, host key and ID-token verification do not perform. No safe upgrade is available." },
+  # crypto-bigint 0.5.5 (RUSTSEC-2026-0387): secret-dependent branches in operations meant to be
+  # constant-time. Fixed only in 0.7.6, which the 0.7 copy here takes; 0.5 gets no release.
+  # It comes from elliptic-curve 0.13 under the same two consumers as rsa above, crypto-glue
+  # (webauthn-rs, passkeys) and openidconnect (p256/p384), and both only *verify* ECDSA
+  # signatures — public key operations on public data, nothing secret to leak. Remove once
+  # webauthn-rs and openidconnect move to elliptic-curve 0.14.
+  { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5.5 via elliptic-curve 0.13 under webauthn-rs and openidconnect, which only verify signatures; no patched 0.5 release exists." },
 
   # proc-macro-error below, under the archived GTK3 bindings, is a graph artifact rather than a
   # real dependency: nothing here ever compiles it. (The nine GTK3 advisories themselves no

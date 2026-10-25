@@ -1,5 +1,9 @@
 # Changes
 
+## 0.1.16
+
+Supports uploadhub.pics, where uploadhub.ws links now lead; the retired address uploadhub.dad is gone.
+
 ## 0.1.15
 
 Maintenance release: internal changes only, no change in behaviour.

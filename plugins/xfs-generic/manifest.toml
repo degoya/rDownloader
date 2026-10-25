@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-00000000010d"
 name = "XFileSharing (generic)"
-version = "0.1.15"
+version = "0.1.16"
 
 # ---------------------------------------------------------------------------------------------
 # The domain list holds clones that were checked, and grows from there (RD-098-01).
@@ -76,7 +76,7 @@ match_domains = [
   "supervideo.cc", "tenstream.net", "terabytez.org", "thefileslocker.com", "theuser.cloud",
   "transfaze.com", "up-4.net", "up-4ever.com", "up-4ever.net", "up-4ever.org", "upbolt.to",
   "upload-4ever.com", "upload.tn", "upload42.com", "uploadao.com", "uploadcloud.pro",
-  "uploadfiles.eu", "uploadflix.cc", "uploadflix.com", "uploadhive.com", "uploadhub.dad",
+  "uploadfiles.eu", "uploadflix.cc", "uploadflix.com", "uploadhive.com", "uploadhub.pics",
   "uploadhub.ws", "uploadrar.com", "uploady.io", "uplod.ir", "upzur.com", "uqload.co",
   "uqload.com", "uqload.cx", "uqload.io", "uqload.is", "uqload.net", "uqload.ws",
   "usersdrive.com", "vibuxer.com", "vidhide.com", "vidhidehub.com", "vidoba.org",
@@ -156,7 +156,7 @@ download_domains = [
   "upload.tn", "*.upload.tn", "upload42.com", "*.upload42.com", "uploadao.com",
   "*.uploadao.com", "uploadcloud.pro", "*.uploadcloud.pro", "uploadfiles.eu",
   "*.uploadfiles.eu", "uploadflix.cc", "*.uploadflix.cc", "uploadflix.com", "*.uploadflix.com",
-  "uploadhive.com", "*.uploadhive.com", "uploadhub.dad", "*.uploadhub.dad", "uploadhub.ws",
+  "uploadhive.com", "*.uploadhive.com", "uploadhub.pics", "*.uploadhub.pics", "uploadhub.ws",
   "*.uploadhub.ws", "uploadrar.com", "*.uploadrar.com", "uploady.io", "*.uploady.io",
   "uplod.ir", "*.uplod.ir", "upzur.com", "*.upzur.com", "uqload.co", "*.uqload.co",
   "uqload.com", "*.uqload.com", "uqload.cx", "*.uqload.cx", "uqload.io", "*.uqload.io",
@@ -252,7 +252,7 @@ domains = [
   "upload.tn", "*.upload.tn", "upload42.com", "*.upload42.com", "uploadao.com",
   "*.uploadao.com", "uploadcloud.pro", "*.uploadcloud.pro", "uploadfiles.eu",
   "*.uploadfiles.eu", "uploadflix.cc", "*.uploadflix.cc", "uploadflix.com", "*.uploadflix.com",
-  "uploadhive.com", "*.uploadhive.com", "uploadhub.dad", "*.uploadhub.dad", "uploadhub.ws",
+  "uploadhive.com", "*.uploadhive.com", "uploadhub.pics", "*.uploadhub.pics", "uploadhub.ws",
   "*.uploadhub.ws", "uploadrar.com", "*.uploadrar.com", "uploady.io", "*.uploady.io",
   "uplod.ir", "*.uplod.ir", "upzur.com", "*.upzur.com", "uqload.co", "*.uqload.co",
   "uqload.com", "*.uqload.com", "uqload.cx", "*.uqload.cx", "uqload.io", "*.uqload.io",

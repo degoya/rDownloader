@@ -103,10 +103,13 @@ const {
   setPriority, applyToSelection, setSelectionPostprocessLevel
 } = useGrabberActions({ nzbGroups, selection, bulkBusy })
 
-/** Border frame of a link row: the package's frame carried down its children. */
+/**
+ * Border frame of a link row: the open package's accent frame carried down its children, so
+ * the block reads as one beside its neighbours (owner, 2026-10-25).
+ */
 function linkFrame(entry: CollectorEntry): string {
   const selected = entry.candidates.some(candidate => selection.collectorIdSet.value.has(candidate.id))
-  return `border-x border-b ${selected ? 'border-primary' : 'border-muted'}`
+  return `border-x border-b ${selected ? 'border-primary' : 'border-primary/40'}`
 }
 
 /**

@@ -107,7 +107,7 @@ const priorityModel = computed({
   -->
   <section
     class="@container border bg-elevated transition"
-    :class="[someSelected ? 'border-primary' : 'border-muted', props.dragging ? 'opacity-50' : '', props.open ? 'border-b-0' : '']"
+    :class="[someSelected ? 'border-primary' : props.open ? 'border-primary/40' : 'border-muted', props.dragging ? 'opacity-50' : '', props.open ? 'border-b-0' : '']"
     @dragover.prevent
     @drop.prevent="emit('drop', props.package.id)"
   >

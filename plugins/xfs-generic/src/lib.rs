@@ -205,7 +205,7 @@ pub(crate) const HOSTERS: &[&str] = &[
     "uploadflix.cc",
     "uploadflix.com",
     "uploadhive.com",
-    "uploadhub.dad",
+    "uploadhub.pics",
     "uploadhub.ws",
     "uploadrar.com",
     "uploady.io",

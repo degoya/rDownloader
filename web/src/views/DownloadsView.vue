@@ -133,9 +133,12 @@ useQueueReveal({
   list: queueList
 })
 
-/** Border frame of a file row: the package's frame carried down its children. */
+/**
+ * Border frame of a file row: the open package's accent frame carried down its children, so
+ * the block reads as one beside its neighbours (owner, 2026-10-25).
+ */
 function fileFrame(group: QueueGroup): string {
-  return `border-x border-b ${selection.packageState(group) !== 'none' ? 'border-primary' : 'border-muted'}`
+  return `border-x border-b ${selection.packageState(group) !== 'none' ? 'border-primary' : 'border-primary/40'}`
 }
 
 /**

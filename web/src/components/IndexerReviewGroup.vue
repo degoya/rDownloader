@@ -90,7 +90,9 @@ function busy(itemId: string): boolean {
 </script>
 
 <template>
-  <section class="border border-muted">
+  <!-- An open group is tinted and framed in the accent colour, so its header, rows and footer
+       read as one block and the bulk actions are not mistaken for the neighbour's. -->
+  <section class="border" :class="open ? 'border-primary/40 bg-elevated/60' : 'border-muted'">
     <header class="flex flex-wrap items-center gap-2 p-2" :class="open ? 'border-b border-muted' : ''">
       <UButton
         :icon="open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"

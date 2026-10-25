@@ -5,6 +5,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.37.0] - 2026-10-25
+
+### Changed
+
+- **An open group stands apart from its neighbours.** With one group open in the indexer
+  review drawer, its footer's "Queue all" and "Dismiss all" were hard to tell from the next
+  group's header (owner report, 2026-10-25). An open indexer group is now tinted and framed in
+  the accent colour (`IndexerReviewGroup.vue`); an open package in the download list and the
+  LinkGrabber and an open NZB import take the same frame, down their file and link rows
+  (`PackageGroup.vue`, `CollectorPackageGroup.vue`, `NzbImportGroup.vue`, `fileFrame` and
+  `linkFrame`). They stay untinted there: a tint is what a selected row shows. A selection keeps
+  its full accent frame.
+- **xfs-generic: `uploadhub.pics` replaces the dead `uploadhub.dad`** (RD-1370-01). The old
+  address has no DNS record since the host check before 1.36.0; `uploadhub.ws` now answers 301
+  with the path kept to `uploadhub.pics`, an XFileSharing site, which the network grant refused
+  until now. `xfs-generic` 0.1.16
+
+- **Plugin versions.** The versions this release raises: `xfs-generic` 0.1.16.
+- **The screenshot demo downloads again.** Its proxy profile now says the proxy resolves names
+  itself (`resolves_names`, `scripts/screenshots/seed.mjs`): since RD-1320-07 the service
+  resolved `files.example.org` before asking the proxy and every demo download failed.
+
+### Security
+
+- **tokio 1.54.1 for RUSTSEC-2026-0386, crypto-bigint 0.7.8 for RUSTSEC-2026-0387** (the
+  supply-chain job refused Dependabot's actions bump of 2026-10-24). `AsyncFd`'s safe
+  constructors no longer accept a descriptor they do not own; the 0.7 copy of `crypto-bigint`
+  under `ctutils` no longer branches on secrets. Its 0.5.5 copy under `elliptic-curve` 0.13
+  (webauthn-rs, openidconnect) has no patched release and is ignored in `deny.toml`: both only
+  verify signatures, public key operations. The lock takes only the two bumps — a plain
+  `cargo update` re-pointed `windows-sys` and `getrandom` edges, which the duplicate ban
+  refuses. No plugin component links either crate.
+
 ## [1.36.0] - 2026-10-23
 
 ### Fixed

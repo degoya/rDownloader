@@ -97,6 +97,18 @@ describe('NzbImportGroup failed badge', () => {
     expect(screen.getByRole('button', { name: linkgrabber.nzb.hide_files }).getAttribute('aria-expanded')).toBe('true')
   })
 
+  // Owner, 2026-10-25: an open group is framed in the accent colour, a selected one in full.
+  it('frames an open group in the accent colour', async () => {
+    respond([])
+    const { container } = renderGroup(nzb({ state: 'imported', error: null }))
+    const section = container.querySelector('section')
+    expect(section?.className).toContain('border-muted')
+    await fireEvent.click(screen.getByRole('button', { name: linkgrabber.nzb.show_files }))
+    await screen.findByText('Some.Release.part01.rar')
+    expect(section?.className).toContain('border-primary/40')
+    expect(section?.className).not.toContain('border-muted')
+  })
+
   it('says so when a failed import carries no reason at all', async () => {
     respond([])
     renderGroup(nzb({ error: null }))

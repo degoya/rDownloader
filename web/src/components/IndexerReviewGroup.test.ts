@@ -56,6 +56,16 @@ describe('IndexerReviewGroup', () => {
     expect(emitted('dismissAll')).toHaveLength(1)
   })
 
+  // Owner, 2026-10-25: with one group open its buttons were hard to tell from the neighbours'.
+  it('sets an open group apart from the folded ones', async () => {
+    const { container } = mount()
+    const section = container.querySelector('section')
+    expect(section?.className).not.toContain('bg-elevated')
+    await openGroup()
+    expect(section?.className).toContain('bg-elevated')
+    expect(section?.className).toContain('border-primary')
+  })
+
   // Owner, 2026-10-05 (RD-1101-01): the actions belong at the end of a group that fits on one
   // page as much as of one with pages; the footer must not hang on the pagination bar.
   it('repeats the bulk actions under a list of one page, without pages', async () => {

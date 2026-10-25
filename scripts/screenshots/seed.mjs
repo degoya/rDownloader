@@ -83,7 +83,9 @@ if (phase === 'base') {
   }
   await ensure('/api/v1/category-rules', { name: 'Texture packs', domain: 'mirror.example.net', category_id: cats.Assets.id, enabled: true, priority: 60 })
 
-  const proxy = await ensure('/api/v1/proxy-profiles', { name: 'Lab gateway', kind: 'http', endpoint: MOCK })
+  // The demo hosts (files.example.org …) exist only behind the mock: without `resolves_names` the
+  // service resolves them itself first (RD-1320-07) and every demo download fails.
+  const proxy = await ensure('/api/v1/proxy-profiles', { name: 'Lab gateway', kind: 'http', endpoint: MOCK, resolves_names: true })
   await ensure('/api/v1/proxy-profiles', { name: 'Travel SOCKS tunnel', kind: 'socks5', endpoint: 'socks5://10.8.0.1:1080' })
   await patchSettings({ global_proxy_profile_id: proxy.id })
 
