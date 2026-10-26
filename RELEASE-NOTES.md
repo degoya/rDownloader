@@ -12,9 +12,13 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.38.0
+## 1.39.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.38.0
+
+- An MCP client connecting without a token now fails with a plain "not found" answer instead of a confusing "Unexpected token" error.
 
 ## 1.37.0
 

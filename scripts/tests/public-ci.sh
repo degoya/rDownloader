@@ -47,6 +47,9 @@ echo "$*" >> "$FAKE/gh.calls"
 case "$1 $2" in
     "auth status") exit 0 ;;
     "workflow run") exit 0 ;;
+    # The finished green runs on a branch, `<id> <path> <head sha>`, from $FAKE/api-runs.
+    "api repos/owner/repo/actions/runs"*) cat "$FAKE/api-runs" 2> /dev/null || true ;;
+    "api "*) exit 1 ;;
     "run list")
         [[ -z "${RD_PUBLIC_CI_CLOCK:-}" ]] \
             || echo $(( $(cat "$RD_PUBLIC_CI_CLOCK") + 1 )) > "$RD_PUBLIC_CI_CLOCK"
@@ -314,6 +317,49 @@ public_ci integration/1.4-w4 --platforms windows
 expect_status "a run that appeared before the confirmation decides: red" 1
 expect_output "naming it" "completed failure web https://example.invalid/runs/10"
 rm -f "$FAKE/view-10"
+
+# --- a green run an interrupted run left on the branch, same tree: adopted, not run again --------
+# The stub export commits nothing, so every export carries the tree of the public main.
+MAIN_SHA="$(git -C "$RD_PUBLIC_DIR" rev-parse main)"
+printf '%s\n' "20 .github/workflows/ci.yml $MAIN_SHA" "21 .github/workflows/e2e.yml $MAIN_SHA" > "$FAKE/api-runs"
+printf '%s\n' "completed success https://example.invalid/jobs/201 rust (ubuntu-24.04)" \
+    "completed success https://example.invalid/jobs/202 rust (windows-2025)" \
+    "completed skipped https://example.invalid/jobs/203 rust (macos-15)" > "$FAKE/jobs-20"
+echo "22 completed success https://example.invalid/runs/22 CI" > "$FAKE/runs"
+public_ci integration/1.4-w4 --release-workflows
+expect_status "Linux, Windows and E2E green on the branch: green" 0
+expect_output "naming the run it relies on" \
+    "ubuntu-24.04: green already on ci/integration-1.4-w4 for this content (run 20); recorded, not run again"
+expect_true "macOS alone is dispatched, without the once-per-run jobs" \
+    'grep -q "platforms=\[\"macos-15\"\] -f jobs=\[\]$" "$FAKE/gh.calls"'
+expect_true "E2E is not dispatched again" '! grep -q "^workflow run e2e.yml" "$FAKE/gh.calls"'
+expect_true "Recovery is" 'grep -q "^workflow run recovery.yml" "$FAKE/gh.calls"'
+expect_true "the adopted greens are recorded" \
+    'grep -q "^windows-2025 " "$RECORD" && grep -q "^e2e.yml " "$RECORD" && grep -q "^macos-15 " "$RECORD"'
+
+printf '%s\n' "31 .github/workflows/recovery.yml $MAIN_SHA" "32 .github/workflows/self-update.yml $MAIN_SHA" \
+    "33 .github/workflows/installers.yml $MAIN_SHA" >> "$FAKE/api-runs"
+echo "completed success https://example.invalid/jobs/204 rust (macos-15)" >> "$FAKE/jobs-20"
+public_ci integration/1.4-w4 --release-workflows
+expect_status "everything green on the branch: green" 0
+expect_true "nothing is dispatched" '! grep -q "^workflow run" "$FAKE/gh.calls"'
+expect_true "the public branch is deleted" '! remote_has ci/integration-1.4-w4'
+expect "every image and workflow recorded" "7" "$(wc -l < "$RECORD")"
+
+echo other > "$RD_PUBLIC_DIR/other"
+git -C "$RD_PUBLIC_DIR" add other
+git -C "$RD_PUBLIC_DIR" commit -qm other
+echo "20 .github/workflows/ci.yml $(git -C "$RD_PUBLIC_DIR" rev-parse HEAD) " > "$FAKE/api-runs"
+git -C "$RD_PUBLIC_DIR" reset -q --hard HEAD~1
+public_ci integration/1.4-w4 --platforms linux
+expect_status "a green run on another tree" 0
+expect_true "counts for nothing" 'grep -q "^workflow run ci.yml .*ubuntu-24.04" "$FAKE/gh.calls"'
+
+printf '%s\n' "20 .github/workflows/ci.yml $MAIN_SHA" > "$FAKE/api-runs"
+RD_PUBLIC_CI_ADOPT=0 public_ci integration/1.4-w4 --platforms linux
+expect_status "with adoption switched off" 0
+expect_true "the platform runs again" 'grep -q "^workflow run ci.yml .*ubuntu-24.04" "$FAKE/gh.calls"'
+rm -f "$FAKE/api-runs" "$FAKE/jobs-20"
 
 # --- never a run --------------------------------------------------------------------------------
 rm -f "$FAKE/runs"

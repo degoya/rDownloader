@@ -5,6 +5,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.38.0] - 2026-10-26
+
+### Fixed
+
+- **An MCP client without a token fails with a `404` instead of a JSON parse error.**
+  `mcp-remote` against `http://127.0.0.1:8710/mcp` ended with "Unexpected token '<'": after the
+  `401` from `/mcp` it looks for OAuth metadata under `/.well-known/…` and skips a location only on
+  a `404`, but the web interface's fallback answered every unknown path with the shell and a `200`.
+  `.well-known/` now joins the paths that must exist (`MUST_EXIST_PREFIXES` in
+  `crates/rd-api/src/static_assets.rs`), and the fallback serves the shell only to `GET` and
+  `HEAD`; any other method on an unknown path — the client registration at `POST /register` next
+  — is a JSON `404` with the code `web.route_not_found`.
+- **`public-ci` adopts a green run an aborted chain left behind.** A restart during the release
+  chain's wait ended it after GitHub's run on `ci/1.37.0` was green but before the step recorded
+  it; the resume exported the same tree as a new commit and ran every platform and release
+  workflow a second hour. The step, and `scripts/public-ci.sh`, now look for finished green runs on
+  the branch whose commit carries the exported tree, record what they checked — a runner image by
+  its green `rust (<image>)` job, a release workflow by its file — and dispatch only the rest
+  (`rd_public_ci_adopt` in `scripts/lib/public-ci.sh`); `RD_PUBLIC_CI_ADOPT=0` turns it off.
+
 ## [1.37.0] - 2026-10-25
 
 ### Changed

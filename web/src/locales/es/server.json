@@ -1330,7 +1330,8 @@
     "proxy.tunnel_refused": "El proxy rechazó la conexión a la dirección comprobada con el estado {status}. Un proxy que solo permite CONNECT al puerto 443 rechaza los demás puertos; 407 significa que pide un inicio de sesión.",
     "proxy.name_unresolved": "{host} no se pudo resolver en este equipo, así que el proxy no pudo recibir una dirección comprobada. rDownloader resuelve y comprueba él mismo cada dirección antes de consultar al proxy. En un perfil de proxy, «El proxy resuelve los nombres» deja que el proxy resuelva el nombre; el proxy del entorno no tiene ese interruptor.",
     "settings.retry_middle_attempts_too_high": "La etapa intermedia de los reintentos admite como máximo {max} intentos",
-    "settings.retry_long_wait_invalid": "La espera larga entre reintentos debe estar entre {min} y {max} minutos"
+    "settings.retry_long_wait_invalid": "La espera larga entre reintentos debe estar entre {min} y {max} minutos",
+    "web.route_not_found": "Nada en esta dirección responde a esta solicitud"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

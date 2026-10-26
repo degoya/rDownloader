@@ -14,6 +14,8 @@
 #   RD_PUBLIC_CI_TIMEOUT  seconds to wait for a run to appear at all (900)
 #   RD_PUBLIC_CI_CEILING  seconds after which a run that is still going is given up (21600)
 #   RD_PUBLIC_CI_POLL     seconds between two looks (60); each look asks for the runs and their jobs
+#   RD_PUBLIC_CI_ADOPT    1 (default): a finished green run on the branch whose commit carries the
+#                         same public tree counts and is recorded instead of run again; 0 runs it
 #   RD_PUBLIC_CI_CLOCK    tests only: a file whose number is the clock both limits are read on, in
 #                         place of bash's SECONDS; the tests' stand-in gh moves it (RD-1300-02)
 #
@@ -159,6 +161,64 @@ rd_public_ci_dispatch() {
 rd_public_ci_dispatch_workflow() {
     echo "starting $2 on $1"
     gh workflow run "$2" --repo "$PUBLIC_REPO" --ref "$1"
+}
+
+# The tree of public commit $1: from the local clone, or from GitHub when the clone lost it.
+rd_public_ci_commit_tree() {
+    git -C "$PUBLIC_DIR" rev-parse --verify --quiet "$1^{tree}" 2> /dev/null \
+        || gh api "repos/$PUBLIC_REPO/git/commits/$1" --jq .tree.sha 2> /dev/null < /dev/null
+}
+
+# Which of $3... (runner images, release workflow file names) a finished green run on branch $1
+# already checked, on a commit carrying public tree $2: "<item> <run id>" per line. A chain that
+# ends after GitHub finished but before the step recorded it — 1.37.0, a restart during the wait —
+# leaves such runs on ci/<version>; the re-export is a new commit of the same tree, and until this
+# function every platform and workflow ran a second hour on it. An image counts when a green job
+# of a green ci.yml run names it, like `rust (macos-15)`.
+rd_public_ci_adoptable() {
+    local branch="$1" public_tree="$2" id path sha item jobs
+    shift 2
+    local -A covered=()
+    while read -r id path sha; do
+        [[ -n "$sha" && "$(rd_public_ci_commit_tree "$sha")" == "$public_tree" ]] || continue
+        path="${path##*/}"
+        path="${path%%@*}"
+        if [[ "$path" != ci.yml ]]; then
+            covered[$path]="$id"
+            continue
+        fi
+        jobs="$(gh run view "$id" --repo "$PUBLIC_REPO" --json jobs \
+            --jq '.jobs[] | "\(.status) \(if (.conclusion // "") == "" then "-" else .conclusion end) \(.url) \(.name)"' \
+            2> /dev/null < /dev/null | awk '$2 == "success"')" || continue
+        for item in "$@"; do
+            ! grep -qF "($item)" <<< "$jobs" || covered[$item]="$id"
+        done
+    done < <(gh api "repos/$PUBLIC_REPO/actions/runs?branch=$branch&event=workflow_dispatch&status=success&per_page=100" \
+        --jq '.workflow_runs[] | "\(.id) \(.path) \(.head_sha)"' 2> /dev/null < /dev/null)
+    for item in "$@"; do
+        [[ -z "${covered[$item]:-}" ]] || echo "$item ${covered[$item]}"
+    done
+}
+
+# Records for tree $2 of checkout $1 what rd_public_ci_adoptable finds on branch $3 for public
+# tree $4 among $5..., and leaves the rest, in order, in the array RD_PUBLIC_CI_LEFT.
+rd_public_ci_adopt() {
+    local root="$1" tree="$2" branch="$3" public_tree="$4" item id
+    shift 4
+    local -A adopted=()
+    RD_PUBLIC_CI_LEFT=("$@")
+    [[ "${RD_PUBLIC_CI_ADOPT:-1}" != 0 && $# -gt 0 ]] || return 0
+    while read -r item id; do
+        [[ -n "$item" ]] || continue
+        echo "  $item: green already on $branch for this content (run $id); recorded, not run again"
+        adopted[$item]=1
+    done < <(rd_public_ci_adoptable "$branch" "$public_tree" "$@")
+    [[ ${#adopted[@]} -gt 0 ]] || return 0
+    rd_record_ci "$root" "$tree" "${!adopted[@]}" || return 1
+    RD_PUBLIC_CI_LEFT=()
+    for item in "$@"; do
+        [[ -n "${adopted[$item]:-}" ]] || RD_PUBLIC_CI_LEFT+=("$item")
+    done
 }
 
 # The jobs of run $1 that changed since the last look, one line each, and every job that failed

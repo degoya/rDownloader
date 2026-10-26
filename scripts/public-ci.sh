@@ -89,14 +89,27 @@ if [[ ${#missing[@]} -eq 0 ]]; then
     rd_public_ci_log_green "$branch" "$commit" "${checked[*]}" " already; nothing was run"
     exit 0
 fi
-platforms_json=""
-if [[ ${#RD_PUBLIC_CI_MISSING[@]} -gt 0 ]]; then
-    platforms_json="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[*]}")")"
-fi
 
 rd_public_ci_gh_ready
 scripts/export-public.sh "$version" --ref "$commit" --branch "$public_branch" --skip-push-ci
 sha="$(git -C "$PUBLIC_DIR" rev-parse "refs/heads/$public_branch")"
+# What an earlier run that ended during the wait left green on the branch counts (rd_public_ci_adopt).
+public_tree="$(git -C "$PUBLIC_DIR" rev-parse "$sha^{tree}")"
+rd_public_ci_adopt "$ROOT" "$tree" "$public_branch" "$public_tree" \
+    ${RD_PUBLIC_CI_MISSING[@]+"${RD_PUBLIC_CI_MISSING[@]}"}
+RD_PUBLIC_CI_MISSING=(${RD_PUBLIC_CI_LEFT[@]+"${RD_PUBLIC_CI_LEFT[@]}"})
+rd_public_ci_adopt "$ROOT" "$tree" "$public_branch" "$public_tree" ${workflows[@]+"${workflows[@]}"}
+workflows=(${RD_PUBLIC_CI_LEFT[@]+"${RD_PUBLIC_CI_LEFT[@]}"})
+missing=(${RD_PUBLIC_CI_MISSING[@]+"${RD_PUBLIC_CI_MISSING[@]}"} ${workflows[@]+"${workflows[@]}"})
+if [[ ${#missing[@]} -eq 0 ]]; then
+    rd_public_ci_delete "$public_branch"
+    rd_public_ci_log_green "$branch" "$commit" "${checked[*]}" " already; nothing was run"
+    exit 0
+fi
+platforms_json=""
+if [[ ${#RD_PUBLIC_CI_MISSING[@]} -gt 0 ]]; then
+    platforms_json="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[*]}")")"
+fi
 if [[ -n "$platforms_json" ]]; then
     rd_public_ci_dispatch "$public_branch" "$platforms_json" "$(rd_public_ci_once_jobs "$ROOT" "$tree")"
 fi

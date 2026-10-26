@@ -1,6 +1,6 @@
 use axum::{
     body::Body,
-    http::{Uri, header},
+    http::{Method, Uri, header},
     response::{IntoResponse, Response},
 };
 use rust_embed::RustEmbed;
@@ -18,7 +18,11 @@ struct WebAssets;
 const MUST_EXIST: &[&str] = &["manifest.webmanifest", "sw.js"];
 
 /// Prefixes with the same rule, for the same reason.
-const MUST_EXIST_PREFIXES: &[&str] = &["icons/", "assets/"];
+///
+/// `.well-known/` is asked for by programs, not browsers: an MCP client that gets a `401` from
+/// `/mcp` looks for OAuth metadata there and skips a location only on a `404`. The shell with a
+/// `200` was parsed as JSON and ended the connection with "Unexpected token '<'".
+const MUST_EXIST_PREFIXES: &[&str] = &["icons/", "assets/", ".well-known/"];
 
 /// Serves the built web application, rewritten for the configured mount point.
 ///
@@ -42,15 +46,28 @@ const MUST_EXIST_PREFIXES: &[&str] = &["icons/", "assets/"];
 /// records `OriginalUri` before it runs, so under a base it still reads `/downloads/assets/…`:
 /// every file missed and was answered with the shell as `text/html`, and the browser refused
 /// the module script — a blank page (RD-1240-33).
+///
+/// Only `GET` and `HEAD` are answered with the interface: a page is never posted to, and an
+/// unknown path asked for with another method is a client looking for an endpoint — the OAuth
+/// client registration at `POST /register` an MCP client tries after the metadata — that must
+/// see a `404` rather than an HTML page with a `200`.
 pub(crate) async fn serve(
     axum::extract::State(state): axum::extract::State<crate::AppState>,
+    method: Method,
     uri: Uri,
 ) -> Response {
     let base = state.proxy.read().await.base_path().to_owned();
-    serve_with_base(&uri, &base)
+    serve_with_base(&method, &uri, &base)
 }
 
-fn serve_with_base(uri: &Uri, base: &str) -> Response {
+fn serve_with_base(method: &Method, uri: &Uri, base: &str) -> Response {
+    if method != Method::GET && method != Method::HEAD {
+        return crate::ApiError::not_found(
+            "web.route_not_found",
+            "Nothing at this address answers this request",
+        )
+        .into_response();
+    }
     let requested = uri.path().trim_start_matches('/');
     let requested_asset = WebAssets::get(requested);
     if requested_asset.is_none() && must_exist(requested) {
@@ -127,7 +144,7 @@ fn must_exist(path: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use axum::http::header;
+    use axum::http::{Method, StatusCode, header};
 
     use super::{WebAssets, serve_with_base};
 
@@ -141,7 +158,7 @@ mod tests {
             "/icons/icon-192.png",
             "/assets/does-not-exist.js",
         ] {
-            let response = serve_with_base(&path.parse().expect("URI"), "");
+            let response = serve_with_base(&Method::GET, &path.parse().expect("URI"), "");
             let content_type = response
                 .headers()
                 .get(header::CONTENT_TYPE)
@@ -160,7 +177,7 @@ mod tests {
     #[tokio::test]
     async fn the_shell_carries_the_content_security_policy() {
         let policy = |path: &str, base: &str| {
-            serve_with_base(&path.parse().expect("URI"), base)
+            serve_with_base(&Method::GET, &path.parse().expect("URI"), base)
                 .headers()
                 .get(header::CONTENT_SECURITY_POLICY)
                 .and_then(|value| value.to_str().ok())
@@ -179,7 +196,7 @@ mod tests {
     #[tokio::test]
     async fn the_shell_is_revalidated_and_hashed_assets_are_immutable() {
         let cache_control = |path: &str| {
-            serve_with_base(&path.parse().expect("URI"), "")
+            serve_with_base(&Method::GET, &path.parse().expect("URI"), "")
                 .headers()
                 .get(header::CACHE_CONTROL)
                 .and_then(|value| value.to_str().ok())
@@ -199,9 +216,34 @@ mod tests {
         assert_eq!(cache_control("/favicon.svg"), None);
     }
 
+    /// What an MCP client asks for after a `401` from `/mcp`: the OAuth metadata, then the
+    /// client registration. Each must be a JSON `404`, never the shell with a `200`, which the
+    /// client parsed as JSON and failed on with "Unexpected token '<'".
+    #[tokio::test]
+    async fn oauth_discovery_and_non_read_requests_get_a_json_404() {
+        for (method, path) in [
+            (Method::GET, "/.well-known/oauth-protected-resource/mcp"),
+            (Method::GET, "/.well-known/oauth-authorization-server"),
+            (Method::GET, "/.well-known/openid-configuration"),
+            (Method::POST, "/register"),
+            (Method::POST, "/routing"),
+            (Method::PUT, "/"),
+        ] {
+            let response = serve_with_base(&method, &path.parse().expect("URI"), "");
+            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{method} {path}");
+            assert_eq!(
+                response.headers().get(header::CONTENT_TYPE),
+                Some(&"application/json".parse().expect("content type")),
+                "{method} {path}"
+            );
+        }
+        let head = serve_with_base(&Method::HEAD, &"/routing".parse().expect("URI"), "");
+        assert_eq!(head.status(), StatusCode::OK);
+    }
+
     #[tokio::test]
     async fn spa_routes_are_served_as_html() {
-        let response = serve_with_base(&"/routing".parse().expect("URI"), "");
+        let response = serve_with_base(&Method::GET, &"/routing".parse().expect("URI"), "");
         assert_eq!(
             response.headers().get(header::CONTENT_TYPE),
             Some(&"text/html".parse().expect("content type"))

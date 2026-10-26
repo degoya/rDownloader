@@ -250,7 +250,7 @@ step_push() {
 # cover the candidate the same way the Linux and Windows greens do (Self-update included: it raises
 # the tree's own version, whichever that is), so as a rule none of them is dispatched here.
 step_public_ci() {
-    local branch="ci/$VERSION" sha tree platforms="" workflow
+    local branch="ci/$VERSION" sha tree public_tree platforms="" workflow
     local -a images workflows
     # run_step calls a step without errexit, so every command that matters is checked here.
     tree="$(git rev-parse 'HEAD^{tree}')" || return 1
@@ -264,13 +264,25 @@ step_public_ci() {
         echo "every platform and release workflow is green on record for this content; the public CI is not run again"
         return 0
     fi
-    if [[ ${#RD_PUBLIC_CI_MISSING[@]} -gt 0 ]]; then
-        platforms="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[*]}")")" || return 1
-    fi
     rd_public_ci_gh_ready || return 1
     scripts/export-public.sh "$VERSION" --ref HEAD --branch "$branch" --skip-push-ci || return 1
     sha="$(git -C "$PUBLIC_DIR" rev-parse "refs/heads/$branch")" || return 1
+    public_tree="$(git -C "$PUBLIC_DIR" rev-parse "$sha^{tree}")" || return 1
     rd_public_ci_prune_stale "$branch"
+    # What a chain that ended during the wait left green on the branch counts (rd_public_ci_adopt).
+    rd_public_ci_adopt "$ROOT" "$tree" "$branch" "$public_tree" \
+        ${RD_PUBLIC_CI_MISSING[@]+"${RD_PUBLIC_CI_MISSING[@]}"} || return 1
+    RD_PUBLIC_CI_MISSING=(${RD_PUBLIC_CI_LEFT[@]+"${RD_PUBLIC_CI_LEFT[@]}"})
+    rd_public_ci_adopt "$ROOT" "$tree" "$branch" "$public_tree" ${workflows[@]+"${workflows[@]}"} || return 1
+    workflows=(${RD_PUBLIC_CI_LEFT[@]+"${RD_PUBLIC_CI_LEFT[@]}"})
+    if [[ ${#RD_PUBLIC_CI_MISSING[@]} -eq 0 && ${#workflows[@]} -eq 0 ]]; then
+        echo "every platform and release workflow is green for this content; the public CI is not run again"
+        rd_public_ci_delete "$branch"
+        return
+    fi
+    if [[ ${#RD_PUBLIC_CI_MISSING[@]} -gt 0 ]]; then
+        platforms="$(rd_public_ci_platforms "$(IFS=,; echo "${RD_PUBLIC_CI_MISSING[*]}")")" || return 1
+    fi
     if [[ -n "$platforms" ]]; then
         rd_public_ci_dispatch "$branch" "$platforms" "$(rd_public_ci_once_jobs "$ROOT" "$tree")" || return 1
     fi
