@@ -26,10 +26,13 @@ rd-core = { path = "../rd-core" }
 rd-files = { path = "../rd-files" }
 # The agent's own update (RD-1210-03): the service's signed manifest, check and install.
 rd-update = { path = "../rd-update" }
+# The link page's secret and its comparison (RD-1390-02).
+rand.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+subtle.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 tower-http.workspace = true

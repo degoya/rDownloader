@@ -158,7 +158,6 @@ pub(crate) const HOSTERS: &[&str] = &[
     "mycloudz.cc",
     "myfiles.onl",
     "myqloud.org",
-    "nikaplayer.com",
     "niramirus.com",
     "nowplay.to",
     "obligao.com",

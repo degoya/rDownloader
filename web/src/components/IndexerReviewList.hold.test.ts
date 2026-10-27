@@ -21,7 +21,7 @@ import common from '@/locales/en/common.json'
 import linkgrabber from '@/locales/en/linkgrabber.json'
 import subscriptions from '@/locales/en/subscriptions.json'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
-import { mountComponent, passthrough, uiStubs } from '@/test/mount'
+import { mountComponent, passthrough, settle, uiStubs } from '@/test/mount'
 
 import IndexerReviewList from './IndexerReviewList.vue'
 
@@ -91,6 +91,11 @@ beforeEach(() => {
   vi.mocked(api.PUT).mockImplementation((async (_path: string, options: {
     params: { path: { id: string } }, body: { state: SubscriptionItem['state'], until?: string }
   }) => {
+    if (_path === '/api/v1/subscriptions/items/{id}') {
+      const found = Object.values(items).flat().find(item => item.id === options.params.path.id)
+      if (found) found.state = options.body.state
+      return { data: found }
+    }
     const until = options.body.until
     const chosen = pending(options.params.path.id).filter(item => !until || item.discovered_at <= until)
     for (const found of chosen) found.state = options.body.state
@@ -199,6 +204,33 @@ describe('IndexerReviewList: the open drawer holds what arrives', () => {
     expect(useSubscriptionsStore().watermarks['sub-1']).toEqual({ until: EARLIER, count: 60 })
   })
 
+  // Owner, 2026-10-27: deciding the last rows one by one left an open, empty group under "+N new".
+  it('draws the held hits when single decisions empty the open list', async () => {
+    await openGroup()
+    await arrives('sub-1', hit('item-5', 'Deep Ocean S01E03', LATER))
+    for (const title of ['Deep Ocean S01E01', 'Deep Ocean S01E02']) {
+      await fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss' })[0] as HTMLElement)
+      await waitFor(() => expect(screen.queryByText(title)).toBeNull())
+    }
+
+    await waitFor(() => expect(screen.getByText('Deep Ocean S01E03')).toBeTruthy())
+    expect(screen.queryByTestId('indexer-review-held')).toBeNull()
+  })
+
+  it('folds a group that ran out of hits, so its "all" decides them when it comes back', async () => {
+    await openGroup()
+    await fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss all' })[0] as HTMLElement)
+    await waitFor(() => expect(screen.queryByText('Weekly documentaries')).toBeNull())
+    await waitFor(() => expect(useStoreItems('sub-1')).toEqual([]))
+    await settle()
+    items['sub-1']?.unshift(hit('item-5', 'Deep Ocean S01E03', LATER))
+    subscriptionEvent?.({ data: JSON.stringify({ payload: {} }) } as MessageEvent<string>)
+    await waitFor(() => expect(screen.getByText('Weekly documentaries')).toBeTruthy())
+    await fireEvent.click(screen.getByRole('button', { name: 'Dismiss all' }))
+
+    await waitFor(() => expect(pending('sub-1')).toEqual([]))
+    expect(untilSent(1)).toBe(LATER)
+  })
 })
 
 function untilSent(call: number): string | undefined {

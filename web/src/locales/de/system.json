@@ -51,7 +51,10 @@
     "queue_control": "Darf die Warteschlange steuern",
     "queue_control_help": "Erlaubt „Start all“, „Pause all“ und „Add all from LinkGrabber“ im Tray-Menü des Agenten – sonst nichts. Ohne diese Wahl übergibt der Agent nur Links.",
     "server_update": "Darf Server-Updates installieren",
-    "server_update_help": "Erlaubt „Install server update“ im Tray-Menü des Agenten: Er installiert das angebotene Update von rDownloader, und der Dienst startet neu. Ohne diese Wahl öffnet der Eintrag die Update-Seite im Browser. Dieselbe Wahl erlaubt „Restart server“ im Tray-Menü, das rDownloader neu startet."
+    "server_update_help": "Erlaubt „Install server update“ im Tray-Menü des Agenten: Er installiert das angebotene Update von rDownloader, und der Dienst startet neu. Ohne diese Wahl öffnet der Eintrag die Update-Seite im Browser. Dieselbe Wahl erlaubt „Restart server“ im Tray-Menü, das rDownloader neu startet.",
+    "copy_service": "Server-Adresse kopieren",
+    "tray_hint": "Oder wähle im Tray-Menü des Agenten „Link capture agent“ und füge dort Adresse und Token ein.",
+    "loopback_hint": "Diese Adresse gilt nur auf diesem Computer. Auf einem anderen nimmst du stattdessen die Netzwerkadresse dieses Computers, z. B. http://192.168.x.y:{port}."
   },
   "agents": {
     "eyebrow": "Gekoppelte Verbindungen",

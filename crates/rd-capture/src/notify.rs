@@ -48,6 +48,13 @@ mod locale;
 #[path = "notify_text.rs"]
 mod text;
 
+/// The link page's words (RD-1390-02), every `link_*` sentence of the agent's catalogue in the
+/// desktop's language, and that language's tag for the page's `lang`.
+pub(crate) fn link_page_texts() -> (&'static str, std::collections::BTreeMap<String, String>) {
+    let lang = locale::current();
+    (text::tag(lang), text::with_prefix(lang, "link_"))
+}
+
 /// How long intakes are collected before one toast reports them.
 ///
 /// Long enough that a burst of submissions is one notification rather than a wall of them,

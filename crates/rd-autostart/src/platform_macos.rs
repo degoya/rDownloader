@@ -22,6 +22,11 @@ pub(super) fn remove(target: Target) -> Result<()> {
     Ok(())
 }
 
+/// Whether the launch agent `install` writes is there; launchd starts it at the next login.
+pub(super) fn is_registered(target: Target) -> bool {
+    launch_agents_directory().is_ok_and(|directory| directory.join(plist_name(target)).is_file())
+}
+
 fn launch_agents_directory() -> Result<std::path::PathBuf> {
     BaseDirs::new()
         .map(|paths| paths.home_dir().join("Library/LaunchAgents"))

@@ -5,7 +5,9 @@
 # writes one SHA256SUMS per release over its own files only. Then the workflows' push triggers,
 # read from .github/workflows/*.yml: the release tag `vX.Y.Z` starts release.yml but neither
 # installers.yml nor self-update.yml (owner, 2026-10-04), and a push of the plugin release's tag
-# `plugins-vX.Y.Z` starts no workflow at all.
+# `plugins-vX.Y.Z` starts no workflow at all. The capture agent's four installers (RD-1390-04)
+# stay in the application release and in its SHA256SUMS, and `agent-stage` copies what the agent's
+# archive holds.
 #
 #   scripts/tests/release-assets.sh
 set -euo pipefail
@@ -27,6 +29,8 @@ download="$SCRATCH/release-assets"
 mkdir -p "$download"
 for file in rdownloader-linux-x86_64.tar.gz rdownloader-windows-x86_64.zip \
     rdownloader-windows-x86_64.msi rdownloader_1.9.1_amd64.deb rdownloader-chrome.zip \
+    rdownloader-capture-windows-x86_64.msi rdownloader-capture-windows-x86_64-de.msi \
+    rdownloader-capture-windows-x86_64-es.msi rdownloader-capture-windows-x86_64-fr.msi \
     rdownloader-plugin-index.json \
     rdownloader-linux-x86_64.unpacked.tar rdownloader-windows-x86_64.unpacked.zip rd-pack \
     web-dist.tar 'degoya~rDownloader~ABC123.dockerbuild' ddownload-0.3.1.rdplug http-1.0.0.rdplug; do
@@ -39,7 +43,7 @@ expect_status "split" 0
 expect "the plugin release holds the plugins only" \
     "ddownload-0.3.1.rdplug http-1.0.0.rdplug" "$(listing "$plugins")"
 expect "the application release keeps the index and drops the intermediates and the build record" \
-    "rdownloader-chrome.zip rdownloader-linux-x86_64.tar.gz rdownloader-plugin-index.json rdownloader-windows-x86_64.msi rdownloader-windows-x86_64.zip rdownloader_1.9.1_amd64.deb" \
+    "rdownloader-capture-windows-x86_64-de.msi rdownloader-capture-windows-x86_64-es.msi rdownloader-capture-windows-x86_64-fr.msi rdownloader-capture-windows-x86_64.msi rdownloader-chrome.zip rdownloader-linux-x86_64.tar.gz rdownloader-plugin-index.json rdownloader-windows-x86_64.msi rdownloader-windows-x86_64.zip rdownloader_1.9.1_amd64.deb" \
     "$(listing "$download")"
 
 echo sbom > "$download/rdownloader.spdx.json"
@@ -51,6 +55,9 @@ expect "the application's SHA256SUMS names no plugin and covers the SBOM" \
     "0 1" "$(grep -c 'rdplug' "$download/SHA256SUMS" || true) $(grep -c 'rdownloader.spdx.json' "$download/SHA256SUMS")"
 expect "the plugin index is in the application's SHA256SUMS" \
     "1" "$(grep -c 'rdownloader-plugin-index.json' "$download/SHA256SUMS")"
+expect "the capture agent's four installers are in the application's SHA256SUMS" \
+    "./rdownloader-capture-windows-x86_64-de.msi ./rdownloader-capture-windows-x86_64-es.msi ./rdownloader-capture-windows-x86_64-fr.msi ./rdownloader-capture-windows-x86_64.msi" \
+    "$(awk '{ print $2 }' "$download/SHA256SUMS" | grep -F 'capture' | paste -sd' ')"
 run_status bash -c "cd '$download' && sha256sum --check --quiet SHA256SUMS && cd '$plugins' && sha256sum --check --quiet SHA256SUMS"
 expect_status "both verify with sha256sum --check" 0
 echo signature > "$plugins/SHA256SUMS.sigstore.json"
@@ -68,17 +75,18 @@ run_status assets_of split "$empty"
 expect_status "split without its second directory" 2
 
 # `agent` (RD-1210-03): the capture agent's own archive beside each application archive, with
-# the agent and what it runs with, never the service or the plugins.
+# the agent and what it runs with — start-capture and stop-capture call start-rdownloader and
+# stop-rdownloader (RD-1390-04) — never the service or the plugins.
 agent_assets="$SCRATCH/agent-assets"
 stage="$SCRATCH/stage"
 mkdir -p "$agent_assets" "$stage/unix/plugins" "$stage/windows/plugins"
 for file in rdownloader rdownloader-capture start-capture.sh stop-capture.sh start-rdownloader.sh \
-    VERSION.txt LICENSE README.md plugins/http-1.0.0.rdplug; do
+    stop-rdownloader.sh VERSION.txt LICENSE README.md plugins/http-1.0.0.rdplug; do
     echo "$file" > "$stage/unix/$file"
 done
 chmod +x "$stage/unix/rdownloader-capture"
 for file in rdownloader.exe rdownloader-capture.exe start-capture.bat stop-capture.bat \
-    VERSION.txt LICENSE README.md plugins/http-1.0.0.rdplug; do
+    start-rdownloader.bat stop-rdownloader.bat VERSION.txt LICENSE README.md plugins/http-1.0.0.rdplug; do
     echo "$file" > "$stage/windows/$file"
 done
 tar --create --gzip --file "$agent_assets/rdownloader-linux-x86_64.tar.gz" --directory "$stage/unix" .
@@ -90,12 +98,12 @@ expect "one agent archive per application archive, none for the extension" \
     "rdownloader-capture-linux-x86_64.tar.gz rdownloader-capture-windows-x86_64.zip rdownloader-chrome.zip rdownloader-linux-x86_64.tar.gz rdownloader-windows-x86_64.zip" \
     "$(listing "$agent_assets")"
 expect "the Linux agent archive holds the agent and what it runs with" \
-    "LICENSE README.md VERSION.txt rdownloader-capture start-capture.sh stop-capture.sh" \
+    "LICENSE README.md VERSION.txt rdownloader-capture start-capture.sh start-rdownloader.sh stop-capture.sh stop-rdownloader.sh" \
     "$(tar --list --gzip --file "$agent_assets/rdownloader-capture-linux-x86_64.tar.gz" | sort | paste -sd' ')"
 expect "the agent keeps its executable bit" "1" \
     "$(tar --list --verbose --gzip --file "$agent_assets/rdownloader-capture-linux-x86_64.tar.gz" | grep -c '^-rwx.* rdownloader-capture$')"
 expect "the Windows agent archive holds the agent and its scripts" \
-    "LICENSE README.md VERSION.txt rdownloader-capture.exe start-capture.bat stop-capture.bat" \
+    "LICENSE README.md VERSION.txt rdownloader-capture.exe start-capture.bat start-rdownloader.bat stop-capture.bat stop-rdownloader.bat" \
     "$(unzip -Z1 "$agent_assets/rdownloader-capture-windows-x86_64.zip" | sort | paste -sd' ')"
 first="$(sha256sum < "$agent_assets/rdownloader-capture-linux-x86_64.tar.gz")"
 run_status assets_of agent "$agent_assets"
@@ -110,6 +118,17 @@ expect_status "an application archive without the agent" 1
 expect_output "naming which" "carries no rdownloader-capture"
 run_status assets_of agent "$SCRATCH/plugin-assets"
 expect_status "a directory without an application archive" 1
+# `agent-stage` (RD-1390-04): the same files, unpacked, for the capture agent's MSI.
+run_status assets_of agent-stage "$stage/windows" "$SCRATCH/agent-stage"
+expect_status "agent-stage" 0
+expect "agent-stage copies what the Windows agent archive holds" \
+    "$(unzip -Z1 "$agent_assets/rdownloader-capture-windows-x86_64.zip" | sort | paste -sd' ')" \
+    "$(listing "$SCRATCH/agent-stage")"
+run_status assets_of agent-stage "$stage/bare" "$SCRATCH/agent-stage-bare"
+expect_status "agent-stage without the agent" 1
+expect_output "naming why" "carries no rdownloader-capture"
+run_status assets_of agent-stage "$stage/windows"
+expect_status "agent-stage without its second directory" 2
 
 # The push filters of one workflow as `<key><TAB><pattern>` lines (`push<TAB>` for a bare push),
 # read from its `on:` block: keys at four spaces under `  push:`, values inline (`["a", "b"]`)

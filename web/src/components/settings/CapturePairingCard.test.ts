@@ -1,8 +1,9 @@
 /**
  * Pairing a capture agent with or without queue control (RD-1100-06) and the server update
  * (RD-1240-25): each right is asked for explicitly, and only the desktop agent is offered them.
+ * After pairing, the card names the server address and the tray's link route (RD-1390-05).
  */
-import { fireEvent, screen } from '@testing-library/vue'
+import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClientMock, confirmMock, toastMock } from '@/test/mocks'
 
@@ -69,5 +70,27 @@ describe('CapturePairingCard', () => {
     const sent = await pair(container) as { body: { queue_control: boolean, server_update: boolean } }
     expect(sent.body.queue_control).toBe(false)
     expect(sent.body.server_update).toBe(false)
+  })
+
+  it('shows the server address to copy', async () => {
+    const { container } = renderCard()
+    await pair(container)
+    const field = await screen.findByRole('textbox', { name: system.pairing.copy_service })
+    expect((field as HTMLInputElement).value).toBe(window.location.origin)
+  })
+
+  it('names the tray route', async () => {
+    const { container } = renderCard()
+    expect(screen.queryByText(system.pairing.tray_hint)).toBeNull()
+    await pair(container)
+    await waitFor(() => expect(screen.getByText(system.pairing.tray_hint)).toBeTruthy())
+  })
+
+  it('warns that a loopback address works on this computer only', async () => {
+    // The test document is served from localhost, the case the hint is for.
+    expect(window.location.hostname).toBe('localhost')
+    const { container } = renderCard()
+    await pair(container)
+    expect(await screen.findByTestId('pairing-loopback-hint')).toBeTruthy()
   })
 })

@@ -96,8 +96,9 @@ impl AgentSetup {
 
     /// What the person does about `version`; `None` beside the service, which does it.
     ///
-    /// Only the portable archive installs itself: the agent ships no installer of its own, and
-    /// a package manager's install is that manager's to change.
+    /// Only the portable archive installs itself: the agent's own Windows installer (RD-1390-04)
+    /// is replaced by downloading its newer one, and a package manager's install is that
+    /// manager's to change.
     #[must_use]
     pub fn action(self, version: &str) -> Option<UpdateAction> {
         let Self::Alone(kind) = self else {

@@ -32,6 +32,17 @@ ignore = [
   # signatures — public key operations on public data, nothing secret to leak. Remove once
   # webauthn-rs and openidconnect move to elliptic-curve 0.14.
   { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5.5 via elliptic-curve 0.13 under webauthn-rs and openidconnect, which only verify signatures; no patched 0.5 release exists." },
+  # zstd 0.13.3 / zstd-safe 7.3.0 (RUSTSEC-2026-0391, -0398, -0403): fixed only in zstd 0.14.3
+  # and zstd-safe 8.2.0, and the one consumer, wasmtime-internal-cache (49 and 50 alike), requires
+  # zstd ^0.13 with `default-features = false`. None of the three paths is taken: the cache only
+  # calls `zstd::encode_all`/`decode_all`, a fresh context per call, so nothing is left on a
+  # reused one (0391); `seekable` (0398) and `legacy` (0403) are features nothing enables; and
+  # rd-plugin-host checks every cache entry's SHA-256 before the engine reads it
+  # (compile_cache.rs). zstd-sys's own advisory (RUSTSEC-2026-0410) is fixed by 2.1.2 in the lock
+  # file. Remove once wasmtime moves to zstd 0.14 (RD-1390-06).
+  { id = "RUSTSEC-2026-0391", reason = "zstd 0.13 only via wasmtime's cache, which calls encode_all/decode_all with a fresh context each time; wasmtime 50 still requires zstd 0.13." },
+  { id = "RUSTSEC-2026-0398", reason = "zstd-safe 7 via wasmtime's cache without the seekable feature, so Seekable::decompress is not compiled; no patched 7.x release exists." },
+  { id = "RUSTSEC-2026-0403", reason = "zstd-safe 7 via wasmtime's cache with default features off, so legacy frame decoding is not compiled; no patched 7.x release exists." },
 
   # proc-macro-error below, under the archived GTK3 bindings, is a graph artifact rather than a
   # real dependency: nothing here ever compiles it. (The nine GTK3 advisories themselves no

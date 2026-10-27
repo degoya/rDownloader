@@ -121,10 +121,11 @@ pub fn remove(target: Target) -> Result<()> {
     platform::remove(target)
 }
 
-/// Whether `target` has its `Run` entry for the next login. The updater asks before it takes a
-/// failed MSI update back (RD-180-02): removing the newer package removes the entry too, and the
-/// reinstalled previous one only gets it back when it is registered again.
-#[cfg(windows)]
+/// Whether `target` is registered to start at the next login: its `Run` entry on Windows, its
+/// launch agent on macOS, its enabled systemd user unit on Linux. The updater asks before it takes
+/// a failed MSI update back (RD-180-02): removing the newer package removes the entry too, and the
+/// reinstalled previous one only gets it back when it is registered again. The capture agent's
+/// "Start at login" ticks itself by it (RD-1390-03).
 #[must_use]
 pub fn is_registered(target: Target) -> bool {
     platform::is_registered(target)
@@ -179,5 +180,9 @@ mod platform {
 
     pub(super) fn remove(_target: Target) -> Result<()> {
         bail!("autostart is not supported on this operating system")
+    }
+
+    pub(super) fn is_registered(_target: Target) -> bool {
+        false
     }
 }

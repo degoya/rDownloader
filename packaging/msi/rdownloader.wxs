@@ -34,6 +34,37 @@
     <MajorUpgrade AllowSameVersionUpgrades="yes"
                   DowngradeErrorMessage="!(loc.DowngradeError)" />
     <MediaTemplate EmbedCab="yes" />
+    <!-- The capture agent's own installer (RD-1390-04, rdownloader-capture.wxs), in any version
+         and language: this package holds the same agent, so it removes that one. Its removal keeps
+         the agent's autostart and integrations, as any upgrade does; they name its folder, so this
+         package registers each one it finds again for its own (the Capture* searches below). -->
+    <Upgrade Id="E5C1D7D8-244F-404A-BF98-99885C6D21AD">
+      <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" Property="CAPTUREPRODUCTFOUND" />
+    </Upgrade>
+    <Property Id="CAPTUREAUTOSTARTREG" Secure="yes">
+      <RegistrySearch Id="CaptureAutostartSearch" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                      Name="rDownloader Capture" Type="raw" />
+    </Property>
+    <Property Id="CAPTUREASSOCIATIONREG" Secure="yes">
+      <RegistrySearch Id="CaptureAssociationSearch" Root="HKCU" Key="Software\Classes\Applications\rdownloader-capture.exe"
+                      Name="FriendlyAppName" Type="raw" />
+    </Property>
+    <Property Id="CAPTUREDROPSHORTCUT" Secure="yes">
+      <DirectorySearch Id="CaptureDesktopSearch" Path="[DesktopFolder]" Depth="0">
+        <FileSearch Id="CaptureDropShortcutSearch" Name="Add to rDownloader.lnk" />
+      </DirectorySearch>
+    </Property>
+    <Property Id="CAPTURESENDTO" Secure="yes">
+      <DirectorySearch Id="CaptureSendToFolderSearch" Path="[SendToFolder]" Depth="0">
+        <FileSearch Id="CaptureSendToSearch" Name="rDownloader.lnk" />
+      </DirectorySearch>
+    </Property>
+    <SetProperty Id="ASSOCIATION" Value="1" After="AppSearch" Sequence="execute"
+                 Condition="CAPTUREPRODUCTFOUND AND CAPTUREASSOCIATIONREG" />
+    <SetProperty Id="DROPSHORTCUT" Value="1" After="AppSearch" Sequence="execute"
+                 Condition="CAPTUREPRODUCTFOUND AND CAPTUREDROPSHORTCUT" />
+    <SetProperty Id="SENDTO" Value="1" After="AppSearch" Sequence="execute"
+                 Condition="CAPTUREPRODUCTFOUND AND CAPTURESENDTO" />
 
     <Icon Id="rdownloader.ico" SourceFile="$(var.Icon)" />
     <Property Id="ARPPRODUCTICON" Value="rdownloader.ico" />
@@ -122,6 +153,9 @@
     <SetProperty Id="AutostartInstall" Value="&quot;[INSTALLFOLDER]rdownloader.exe&quot; autostart install"
                  Before="AutostartInstall" Sequence="execute" />
     <CustomAction Id="AutostartInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="CaptureAutostartInstall" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; autostart install"
+                 Before="CaptureAutostartInstall" Sequence="execute" />
+    <CustomAction Id="CaptureAutostartInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
     <SetProperty Id="AssociationInstall" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; association install"
                  Before="AssociationInstall" Sequence="execute" />
     <CustomAction Id="AssociationInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
@@ -151,7 +185,8 @@
       <Custom Action="DropShortcutRemove" After="AssociationRemove" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="SendToRemove" After="DropShortcutRemove" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
       <Custom Action="AutostartInstall" After="InstallFiles" Condition="AUTOSTART=&quot;1&quot; AND NOT REMOVE" />
-      <Custom Action="AssociationInstall" After="AutostartInstall" Condition="ASSOCIATION=&quot;1&quot; AND NOT REMOVE" />
+      <Custom Action="CaptureAutostartInstall" After="AutostartInstall" Condition="CAPTUREPRODUCTFOUND AND CAPTUREAUTOSTARTREG AND NOT REMOVE" />
+      <Custom Action="AssociationInstall" After="CaptureAutostartInstall" Condition="ASSOCIATION=&quot;1&quot; AND NOT REMOVE" />
       <Custom Action="DropShortcutInstall" After="AssociationInstall" Condition="DROPSHORTCUT=&quot;1&quot; AND NOT REMOVE" />
       <Custom Action="SendToInstall" After="DropShortcutInstall" Condition="SENDTO=&quot;1&quot; AND NOT REMOVE" />
     </InstallExecuteSequence>

@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-00000000010d"
 name = "XFileSharing (generic)"
-version = "0.1.16"
+version = "0.1.17"
 
 # ---------------------------------------------------------------------------------------------
 # The domain list holds clones that were checked, and grows from there (RD-098-01).
@@ -67,7 +67,7 @@ match_domains = [
   "lulustream.com", "luluvdoo.com", "luluvid.com", "media.cm", "medixiru.com", "mega4up.com",
   "mega4up.org", "mega4upload.com", "mega4upload.net", "miravd.com", "miravid.club",
   "modsbase.com", "moflix-stream.click", "moondl.com", "mp4plus.org", "mp4upload.com",
-  "mwdy.cc", "mwdy.org", "mycloudz.cc", "myfiles.onl", "myqloud.org", "nikaplayer.com",
+  "mwdy.cc", "mwdy.org", "mycloudz.cc", "myfiles.onl", "myqloud.org",
   "niramirus.com", "nowplay.to", "obligao.com", "okprime.site", "phun.imagetwist.com",
   "playerwish.com", "playnixes.com", "playrecord.biz", "pubg-file.si", "qtyfiles.com",
   "rapidcloud.cc", "rarlink.com", "recordplay.biz", "redirect.codes", "rutood.com",
@@ -137,7 +137,7 @@ download_domains = [
   "moflix-stream.click", "*.moflix-stream.click", "moondl.com", "*.moondl.com", "mp4plus.org",
   "*.mp4plus.org", "mp4upload.com", "*.mp4upload.com", "mwdy.cc", "*.mwdy.cc", "mwdy.org",
   "*.mwdy.org", "mycloudz.cc", "*.mycloudz.cc", "myfiles.onl", "*.myfiles.onl", "myqloud.org",
-  "*.myqloud.org", "nikaplayer.com", "*.nikaplayer.com", "niramirus.com", "*.niramirus.com",
+  "*.myqloud.org", "niramirus.com", "*.niramirus.com",
   "nowplay.to", "*.nowplay.to", "obligao.com", "*.obligao.com", "okprime.site",
   "*.okprime.site", "phun.imagetwist.com", "*.phun.imagetwist.com", "playerwish.com",
   "*.playerwish.com", "playnixes.com", "*.playnixes.com", "playrecord.biz", "*.playrecord.biz",
@@ -233,7 +233,7 @@ domains = [
   "moflix-stream.click", "*.moflix-stream.click", "moondl.com", "*.moondl.com", "mp4plus.org",
   "*.mp4plus.org", "mp4upload.com", "*.mp4upload.com", "mwdy.cc", "*.mwdy.cc", "mwdy.org",
   "*.mwdy.org", "mycloudz.cc", "*.mycloudz.cc", "myfiles.onl", "*.myfiles.onl", "myqloud.org",
-  "*.myqloud.org", "nikaplayer.com", "*.nikaplayer.com", "niramirus.com", "*.niramirus.com",
+  "*.myqloud.org", "niramirus.com", "*.niramirus.com",
   "nowplay.to", "*.nowplay.to", "obligao.com", "*.obligao.com", "okprime.site",
   "*.okprime.site", "phun.imagetwist.com", "*.phun.imagetwist.com", "playerwish.com",
   "*.playerwish.com", "playnixes.com", "*.playnixes.com", "playrecord.biz", "*.playrecord.biz",

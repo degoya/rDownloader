@@ -226,8 +226,8 @@ jobs:
           path: installers/*
           if-no-files-found: error
 
-  # RD-180-05: the Windows installer, from the finished zip, so it holds exactly its files. WiX
-  # needs Windows; WiX 5 because 6 and later ask for their maintenance-fee EULA.
+  # RD-180-05: the Windows installers, from the finished zip, so they hold exactly its files (the
+  # capture agent's, RD-1390-04, its agent files). WiX 5: later ones want a maintenance-fee EULA.
   msi:
     needs: packages
     runs-on: windows-2025
@@ -240,18 +240,18 @@ jobs:
           path: packages
       - name: Install WiX
         uses: ./.github/actions/install-wix
-      - name: Unpack the release zip
-        shell: pwsh
-        run: Expand-Archive -Path packages/rdownloader-windows-x86_64.zip -DestinationPath stage
       # One per language of the interface (RD-1120-20); the English one keeps the plain name the
-      # update manifest and the package channels read.
+      # update manifest and the package channels read. The capture agent's alike (RD-1390-04).
       - name: Build the MSIs
         shell: bash
         run: |
           set -euo pipefail
-          scripts/package-msi.sh stage installers/rdownloader-windows-x86_64.msi en
-          for language in de es fr; do
-            scripts/package-msi.sh stage "installers/rdownloader-windows-x86_64-${language}.msi" "${language}"
+          pwsh -NoProfile -Command 'Expand-Archive -Path packages/rdownloader-windows-x86_64.zip -DestinationPath stage'
+          scripts/release-assets.sh agent-stage stage capture-stage
+          for language in en de es fr; do
+            suffix="$([[ "${language}" == en ]] || echo "-${language}")"
+            scripts/package-msi.sh stage "installers/rdownloader-windows-x86_64${suffix}.msi" "${language}"
+            scripts/package-msi.sh --capture capture-stage "installers/rdownloader-capture-windows-x86_64${suffix}.msi" "${language}"
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

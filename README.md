@@ -46,7 +46,7 @@ installable Vue web interface, for Windows, macOS, Linux and Docker.
 
 ## Install
 
-Download the archive for your platform from [rdownloader.net/download](https://rdownloader.net/download/) or [GitHub Releases](https://github.com/degoya/rDownloader/releases), run `start-rdownloader`, and open <http://127.0.0.1:8710> for the setup wizard. Windows also has a per-user installer, `rdownloader-windows-x86_64.msi` — in German, Spanish and French as `-de.msi`, `-es.msi` and `-fr.msi` — on the same release page; Linux has deb and rpm packages for x86-64 and arm64, with a menu entry that opens the interface. Linux binaries need glibc 2.39 or newer; use Docker on older systems. What runs where, and how each platform, package and tool is tested: the [support matrix](https://github.com/degoya/rDownloader/wiki/support-matrix).
+Download the archive for your platform from [rdownloader.net/download](https://rdownloader.net/download/) or [GitHub Releases](https://github.com/degoya/rDownloader/releases), run `start-rdownloader`, and open <http://127.0.0.1:8710> for the setup wizard. Windows also has a per-user installer, `rdownloader-windows-x86_64.msi` — in German, Spanish and French as `-de.msi`, `-es.msi` and `-fr.msi` — on the same release page, and `rdownloader-capture-windows-x86_64.msi` for the capture agent alone, beside a server that runs elsewhere; Linux has deb and rpm packages for x86-64 and arm64, with a menu entry that opens the interface. Linux binaries need glibc 2.39 or newer; use Docker on older systems. What runs where, and how each platform, package and tool is tested: the [support matrix](https://github.com/degoya/rDownloader/wiki/support-matrix).
 
 ```bash
 # macOS and Linux (Homebrew)

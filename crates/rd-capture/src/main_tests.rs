@@ -1,12 +1,6 @@
-//! The agent's two ordinary exit codes, told apart from a failure (`main.rs`).
+//! The agent's ordinary exit code, told apart from a failure (`main.rs`), and `link`.
 
-use super::{NotPaired, PortBusy, config, report};
-
-#[test]
-fn an_unpaired_agent_reports_its_own_exit_code() {
-    let error = anyhow::Error::new(NotPaired);
-    assert_eq!(report(&error), config::EXIT_NOT_PAIRED);
-}
+use super::{PortBusy, commands, config, link_phase, report};
 
 #[test]
 fn a_taken_click_n_load_port_reports_its_own_exit_code() {
@@ -17,12 +11,10 @@ fn a_taken_click_n_load_port_reports_its_own_exit_code() {
 }
 
 #[test]
-fn the_two_ordinary_states_do_not_share_a_code_with_a_real_failure() {
+fn the_ordinary_state_does_not_share_a_code_with_a_real_failure() {
     // The launchers tell these apart by number alone, so a collision would silently turn
     // "already running" back into "could not be started".
-    assert_ne!(config::EXIT_NOT_PAIRED, config::EXIT_PORT_BUSY);
     assert_eq!(report(&anyhow::anyhow!("disk on fire")), 1);
-    assert_ne!(config::EXIT_NOT_PAIRED, 1);
     assert_ne!(config::EXIT_PORT_BUSY, 1);
 }
 
@@ -49,4 +41,41 @@ fn a_taken_port_names_the_addresses_it_tried() {
         busy.to_string(),
         "Click'n'Load could not bind any of 127.0.0.1:9666, [::1]:9666"
     );
+}
+
+/// A fresh directory of this test's own, so nothing reaches the real configuration.
+fn scratch(name: &str) -> std::path::PathBuf {
+    let directory =
+        std::env::temp_dir().join(format!("rd-capture-main-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&directory);
+    std::fs::create_dir_all(&directory).expect("create the scratch directory");
+    directory
+}
+
+/// RD-1390-02: without a running agent there is no page, and `link` says what to do, ending on 1.
+#[test]
+fn link_without_a_running_agent_says_so() {
+    let directory = scratch("link-none");
+    let error = commands::running_page(&directory).expect_err("no agent runs");
+    assert_eq!(
+        error.to_string(),
+        "The agent is not running; start it first (rdownloader-capture run)"
+    );
+    assert_eq!(report(&error), 1);
+    std::fs::remove_dir_all(&directory).expect("clean up");
+}
+
+/// `link --print` prints what the running agent wrote to `link.key`.
+#[test]
+fn link_print_prints_the_page_url() {
+    let directory = scratch("link-print");
+    let page = "http://127.0.0.1:9666/link/0123456789abcdef";
+    std::fs::write(
+        directory.join(link_phase::files::LINK_KEY_FILE),
+        format!("{page}\n"),
+    )
+    .expect("write link.key");
+    let found = commands::running_page(&directory).expect("an agent runs");
+    assert_eq!(found.as_str(), page);
+    std::fs::remove_dir_all(&directory).expect("clean up");
 }

@@ -88,20 +88,26 @@ struct CnlState {
     pace: std::sync::Arc<Pace>,
 }
 
+/// Serves `router` on one Click'n'Load address until `cancellation` fires: Click'n'Load's routes
+/// with the link page's once the agent is linked, the link page's alone before (RD-1390-02).
 pub(crate) async fn serve(
     address: SocketAddr,
     listener: tokio::net::TcpListener,
-    client: CaptureClient,
+    router: Router,
     cancellation: CancellationToken,
 ) -> Result<()> {
-    let state = CnlState {
-        client,
-        pace: std::sync::Arc::clone(&pace::SHARED),
-    };
-    axum::serve(listener, router(state))
+    axum::serve(listener, router)
         .with_graceful_shutdown(cancellation.cancelled_owned())
         .await
         .with_context(|| format!("Click'n'Load listener on {address} stopped"))
+}
+
+/// Click'n'Load's routes, handing over with `client`.
+pub(crate) fn routes(client: CaptureClient) -> Router {
+    router(CnlState {
+        client,
+        pace: std::sync::Arc::clone(&pace::SHARED),
+    })
 }
 
 /// The router, built apart from the listener so the routing rules are testable on any host.

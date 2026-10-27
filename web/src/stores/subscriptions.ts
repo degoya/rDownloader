@@ -243,11 +243,12 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
   }
 
   async function setItemState(id: string, subscriptionId: string, state: SubscriptionItemState): Promise<void> {
-    if (await putItemState(id, state)) {
-      noteDecided(subscriptionId, [id])
-      await rereadItems(subscriptionId)
-    }
+    // The counts first: a list the decision empties is drawn again, and the "new" it then shows
+    // is read against them.
+    const decided = await putItemState(id, state)
+    if (decided) noteDecided(subscriptionId, [id])
     await loadReviewSummary()
+    if (decided) await rereadItems(subscriptionId)
   }
 
   /**
@@ -277,8 +278,8 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
     if (mark) {
       watermarks.value = { ...watermarks.value, [subscriptionId]: { ...mark, count: response.data.failed } }
     }
-    await rereadItems(subscriptionId)
     await loadReviewSummary()
+    await rereadItems(subscriptionId)
     return response.data
   }
 

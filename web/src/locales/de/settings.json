@@ -1215,7 +1215,9 @@
       "add_all_from_linkgrabber_paused": "Alles aus dem LinkGrabber pausiert hinzufügen",
       "install_update": "Update des Agenten installieren",
       "restart_server": "Server neu starten",
-      "about": "Über rDownloader"
+      "about": "Über rDownloader",
+      "link": "Capture Agent verknüpfen",
+      "autostart": "Beim Anmelden starten"
     },
     "report": {
       "title_unavailable": "Kürzel nicht verfügbar",

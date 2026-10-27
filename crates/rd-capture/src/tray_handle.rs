@@ -12,15 +12,17 @@ use tray_icon::{
 
 use crate::{
     activity::{QueueEntries, QueueMenu},
+    autostart_toggle::{self, START_AT_LOGIN},
     self_update::UpdateMenu,
     server_update,
     tray_menu::{MenuEntry, title_line},
-    tray_state::{GameModeEntry, Surface},
+    tray_state::{GameModeEntry, LinkEntry, Surface},
 };
 
-/// Where the queue entries go: after the title, the two status lines, "Open rDownloader" with
-/// "About rDownloader" and the separator below each, so before the clipboard entries and "Quit".
-const QUEUE_POSITION: usize = 8;
+/// Where the queue entries go: after the title, the two status lines with "Link capture agent"
+/// (RD-1390-02), "Open rDownloader" with "About rDownloader" and the separator below each, so
+/// before the clipboard entries and "Quit".
+const QUEUE_POSITION: usize = 9;
 
 /// The live tray icon together with its actionable menu entries.
 pub(super) struct TrayHandle {
@@ -32,6 +34,8 @@ pub(super) struct TrayHandle {
     pub(super) status_item: MenuItem,
     /// The server's line under the agent's, with its version and state (RD-1240-06).
     pub(super) server_item: MenuItem,
+    /// "Link capture agent" or "Change link…" (RD-1390-02), under the two lines; always enabled.
+    link_item: MenuItem,
     pub(super) open_item: MenuItem,
     /// "About rDownloader" (RD-1260-08): greyed out with "Open rDownloader", whose address it
     /// opens a page of.
@@ -59,6 +63,9 @@ pub(super) struct TrayHandle {
     /// "Pause while gaming" (RD-1240-23), after the clipboard entries; its label, check mark and
     /// whether it can be chosen are `tray_state`'s.
     game_mode: CheckMenuItem,
+    /// "Start at login" (RD-1390-03), after "Pause while gaming": ticked by the registration, in
+    /// the menu only while the agent is installed without the service.
+    autostart: CheckMenuItem,
     /// "Install server update X" (RD-1240-25), "Restart server" while a restart is pending
     /// (RD-1240-32), "Install update to X" (RD-1210-03), each while there is one, "Install updates
     /// automatically" while the agent is installed without the service (RD-1240-27), and the
@@ -195,6 +202,7 @@ impl TrayHandle {
             MenuEntry::Title => self.title_item.id(),
             MenuEntry::StatusLine => self.status_item.id(),
             MenuEntry::ServerLine => self.server_item.id(),
+            MenuEntry::Link => self.link_item.id(),
             MenuEntry::Open => self.open_item.id(),
             MenuEntry::About => self.about_item.id(),
             MenuEntry::StartAll => self.start.id(),
@@ -207,6 +215,7 @@ impl TrayHandle {
             MenuEntry::ClipboardWatch => self.clipboard_watch.id(),
             MenuEntry::SendClipboard => self.send_clipboard.id(),
             MenuEntry::GameMode => self.game_mode.id(),
+            MenuEntry::Autostart => self.autostart.id(),
             MenuEntry::ServerUpdate => self.server_update.id(),
             MenuEntry::RestartServer => self.restart_server.id(),
             MenuEntry::Update => self.update.id(),
@@ -227,6 +236,25 @@ impl TrayHandle {
         self.game_mode.set_text(entry.label);
         self.game_mode.set_enabled(entry.enabled());
         self.game_mode.set_checked(entry.checked);
+    }
+
+    /// Ticks "Start at login" as the registration is after a switch, also after a click: the
+    /// click only asks, and a switch that failed leaves the old tick (RD-1390-03).
+    pub(super) fn show_autostart(&self, registered: bool) {
+        self.autostart.set_checked(registered);
+    }
+
+    /// The tick of "Start at login" as the click left it: what the person wants.
+    pub(super) fn autostart_ticked(&self) -> bool {
+        self.autostart.is_checked()
+    }
+
+    /// Relabels the link entry and greys out the clipboard entries while there is no link, since
+    /// they need a service (RD-1390-02).
+    pub(super) fn show_link(&self, entry: LinkEntry) {
+        self.link_item.set_text(entry.label);
+        self.clipboard_watch.set_enabled(entry.linked);
+        self.send_clipboard.set_enabled(entry.linked);
     }
 
     /// Writes every entry's shortcut beside it (RD-1180-03).
@@ -256,6 +284,8 @@ impl TrayHandle {
                 CaptureCommand::InstallUpdate => self.update.set_accelerator(accelerator),
                 CaptureCommand::RestartServer => self.restart_server.set_accelerator(accelerator),
                 CaptureCommand::About => self.about_item.set_accelerator(accelerator),
+                CaptureCommand::Link => self.link_item.set_accelerator(accelerator),
+                CaptureCommand::Autostart => self.autostart.set_accelerator(accelerator),
             };
             if let Err(error) = written {
                 tracing::debug!(%error, ?command, "the menu could not show a shortcut");
@@ -266,7 +296,8 @@ impl TrayHandle {
 
 impl TrayHandle {
     /// Builds the icon and its menu as the state describes them at this moment; `logo` is the
-    /// title line's, `None` when it could not be made.
+    /// title line's, `None` when it could not be made. "Start at login" is the system's to
+    /// describe: its registration, read once here and after each switch (RD-1390-03).
     pub(super) fn build(icon: Icon, logo: Option<MenuIcon>, surface: &Surface) -> Result<Self> {
         let menu = Menu::new();
         let title_item = IconMenuItem::new(title_line(), MenuEntry::Title.clickable(), logo, None);
@@ -283,13 +314,14 @@ impl TrayHandle {
             MenuEntry::ServerLine.clickable(),
             None,
         );
+        let link_item = MenuItem::new(surface.link.label, true, None);
         let clipboard_watch = CheckMenuItem::new(
             "Pause clipboard watching",
-            true,
+            surface.link.linked,
             surface.clipboard_paused,
             None,
         );
-        let send_clipboard = MenuItem::new("Hand over clipboard now", true, None);
+        let send_clipboard = MenuItem::new("Hand over clipboard now", surface.link.linked, None);
         let game_mode = CheckMenuItem::new(
             surface.game_mode.label,
             surface.game_mode.enabled(),
@@ -300,6 +332,7 @@ impl TrayHandle {
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&status_item)?;
         menu.append(&server_item)?;
+        menu.append(&link_item)?;
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&open)?;
         menu.append(&about_item)?;
@@ -307,6 +340,18 @@ impl TrayHandle {
         menu.append(&clipboard_watch)?;
         menu.append(&send_clipboard)?;
         menu.append(&game_mode)?;
+        // Hidden beside the service, for the whole run: how the agent is installed does not
+        // change while it runs.
+        let start_at_login = autostart_toggle::current();
+        let autostart = CheckMenuItem::new(
+            START_AT_LOGIN,
+            true,
+            start_at_login.unwrap_or_default(),
+            None,
+        );
+        if start_at_login.is_some() {
+            menu.append(&autostart)?;
+        }
         menu.append(&PredefinedMenuItem::separator())?;
         menu.append(&quit)?;
         let tray = TrayIconBuilder::new()
@@ -319,6 +364,7 @@ impl TrayHandle {
             title_item,
             status_item,
             server_item,
+            link_item,
             open_item: open,
             about_item,
             menu,
@@ -339,6 +385,7 @@ impl TrayHandle {
             clipboard_watch,
             send_clipboard,
             game_mode,
+            autostart,
             server_update: MenuItem::new("Install server update", true, None),
             restart_server: MenuItem::new("Restart server", true, None),
             update: MenuItem::new("Install update", true, None),

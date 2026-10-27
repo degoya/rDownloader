@@ -276,6 +276,12 @@ async fn run_headless(
                         Some(page) => open_in_browser(&page),
                         None => tracing::warn!("the About page has no address"),
                     },
+                    // The agent's own page, which needs no service (RD-1390-02).
+                    Action::OpenLinkPage => crate::link_phase::open_link_page(),
+                    // The agent's own login entry, without a tray to tick (RD-1390-03).
+                    Action::ToggleAutostart => {
+                        tokio::spawn(crate::autostart_toggle::requested(None));
+                    }
                     Action::Quit => cancellation.cancel(),
                     // As the tray's entry: nothing to switch while nothing is set up. Queue
                     // control is the service's to refuse, which the settings task logs.

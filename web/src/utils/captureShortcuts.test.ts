@@ -68,10 +68,12 @@ describe('captureShortcuts', () => {
       'add_all_from_linkgrabber_paused',
       'install_update',
       'restart_server',
-      'about'
+      'about',
+      'link',
+      'autostart'
     ])
-    expect(new Set(CAPTURE_COMMANDS).size).toBe(16)
-    expect(CAPTURE_COMMANDS).toHaveLength(16)
+    expect(new Set(CAPTURE_COMMANDS).size).toBe(18)
+    expect(CAPTURE_COMMANDS).toHaveLength(18)
   })
 
   it('guesses the platform of a browser whose agent has not reported yet', () => {

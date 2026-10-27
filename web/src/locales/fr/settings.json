@@ -1215,7 +1215,9 @@
       "add_all_from_linkgrabber_paused": "Tout ajouter depuis le LinkGrabber en pause",
       "install_update": "Installer la mise à jour de l'agent",
       "restart_server": "Redémarrer le serveur",
-      "about": "À propos de rDownloader"
+      "about": "À propos de rDownloader",
+      "link": "Associer l'agent de capture",
+      "autostart": "Démarrer à l'ouverture de session"
     },
     "report": {
       "title_unavailable": "Raccourcis indisponibles",

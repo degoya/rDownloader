@@ -124,21 +124,17 @@ fn discard_fallback_token(directory: &std::path::Path) -> Result<()> {
     }
 }
 
-/// Exit code for "started correctly, but there is nothing to connect to yet".
-///
-/// Distinct from a failure so a launcher can say "not paired yet" instead of "could not be
-/// started": on a fresh install the agent cannot run, because pairing happens in the web
-/// interface after the server is up, and reporting that as a crash sends people looking for a
-/// fault that is not there.
-pub(crate) const EXIT_NOT_PAIRED: u8 = 10;
-
 /// Exit code for "the Click'n'Load port is already taken".
 ///
-/// Same reasoning as [`EXIT_NOT_PAIRED`], for the other state that is not a fault: nothing but
-/// a capture agent binds 9666, so a busy port means a Click'n'Load listener is already there —
-/// a second agent from autostart, or JDownloader. Reporting that as a failed start sends people
-/// to the logs for a crash that never happened. An agent of the same account that still holds
-/// the single-instance lock after the wait ends the start with this code too (RD-1200-03).
+/// Distinct from a failure so a launcher can say "already running" instead of "could not be
+/// started", because it is a state, not a fault: nothing but a capture agent binds 9666, so a
+/// busy port means a Click'n'Load listener is already there — a second agent from autostart,
+/// or JDownloader. Reporting that as a failed start sends people to the logs for a crash that
+/// never happened. An agent of the same account that still holds the single-instance lock after the
+/// wait ends the start with this code too (RD-1200-03).
+///
+/// The other such code, 10 for "not paired yet", is gone: an agent without a token runs
+/// unlinked and offers its link page instead of ending (RD-1390-02).
 pub(crate) const EXIT_PORT_BUSY: u8 = 11;
 
 /// Whether a capture token is available at all, without reading one out of the keyring twice.
@@ -218,9 +214,6 @@ pub(crate) fn default_service() -> Url {
 /// Unlike [`load`] this never touches the keyring: the tray only needs the host
 /// for its status line, and a second lookup would risk a second macOS Keychain
 /// prompt on top of the one the agent itself triggers.
-#[cfg(any(windows, target_os = "macos", test))]
-// Compiled on every host so `stored_service_in` below is tested here; only the tray calls it,
-// and the tray does not exist on Linux.
 #[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
 pub(crate) fn stored_service(explicit: Option<Url>) -> Option<Url> {
     let directory = config_directory().ok()?;
@@ -231,9 +224,8 @@ pub(crate) fn stored_service(explicit: Option<Url>) -> Option<Url> {
 ///
 /// An address that cannot be used is `None` with a log line, not a value passed on: the tray
 /// hands this straight to `open::that_detached`, which is the operating system's "open whatever
-/// this is" (RD-109-05).
-#[cfg(any(windows, target_os = "macos", test))]
-fn stored_service_in(directory: &std::path::Path, explicit: Option<Url>) -> Option<Url> {
+/// this is" (RD-109-05). The link page starts with it too (RD-1390-02).
+pub(crate) fn stored_service_in(directory: &std::path::Path, explicit: Option<Url>) -> Option<Url> {
     let read = || -> Result<Option<Url>> {
         match explicit {
             Some(explicit) => Ok(Some(checked_service(explicit)?)),

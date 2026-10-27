@@ -70,13 +70,6 @@ start_process() {
         local code=0
         wait "${pid}" 2>/dev/null || code=$?
         rm -f "${pid_file}"
-        # 10 means the capture agent has nothing to connect to yet, which is what a fresh
-        # install looks like: pairing happens in the web interface once the server is up.
-        if [ "${code}" -eq 10 ]; then
-            echo "${binary} is not paired yet. Open the web interface, go to Settings >" \
-                 "Desktop client, and run the command it shows. Then start this again."
-            return 0
-        fi
         # 11 means a Click'n'Load listener already holds port 9666. Nothing but a capture
         # agent binds it, so there is already one running -- a second copy from autostart,
         # or JDownloader. Not a failed start.

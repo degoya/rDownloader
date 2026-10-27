@@ -140,6 +140,9 @@ fn the_release_files_are_classified_by_name() {
         "rdownloader-chrome.zip",
         "rdownloader-firefox.zip",
         "rdownloader-capture-1.8.0-x86_64.msi",
+        // The capture agent's own installers (RD-1390-04): no application update.
+        "rdownloader-capture-windows-x86_64.msi",
+        "rdownloader-capture-windows-x86_64-de.msi",
         "rdownloader-plugin-index.json",
         "SHA256SUMS",
         "rdownloader.spdx.json",
@@ -176,6 +179,9 @@ fn the_agent_archives_are_classified_apart() {
     for other in [
         "rdownloader-linux-x86_64.tar.gz",
         "rdownloader-capture-1.8.0-x86_64.msi",
+        // The capture agent's own installers (RD-1390-04) are not its archives.
+        "rdownloader-capture-windows-x86_64.msi",
+        "rdownloader-capture-windows-x86_64-de.msi",
         "rdownloader-capture-linux-riscv64.tar.gz",
         "rdownloader-capture.tar.gz",
     ] {

@@ -6,13 +6,14 @@ use anyhow::{Context, Result};
 use crate::{
     agent_settings,
     cli::{
-        ConfigureArgs, ConnectionArgs, HandleArgs, IntegrationArgs, IntegrationCommand, OpenArgs,
+        ConfigureArgs, ConnectionArgs, HandleArgs, IntegrationArgs, IntegrationCommand, LinkArgs,
+        OpenArgs,
     },
     client::{CaptureClient, ForeignListener, ServiceRefusal},
     clipboard::{self, HandOver},
     config, desktop_shortcut,
     hand_over::{self, FileKind},
-    os_integration, scheme,
+    link_phase, os_integration, scheme,
 };
 
 pub(crate) fn configure(args: ConfigureArgs) -> Result<()> {
@@ -23,6 +24,30 @@ pub(crate) fn configure(args: ConfigureArgs) -> Result<()> {
     config::save(&args.service, &token, args.allow_insecure_service)?;
     println!("Capture connection stored securely: {}", args.service);
     Ok(())
+}
+
+/// `link` (RD-1390-02): opens the running agent's link page, or prints its address.
+pub(crate) fn link(args: LinkArgs) -> Result<()> {
+    let directory = config::config_directory()?;
+    let page = running_page(&directory)?;
+    // Through `link.html`: the address carries the secret, and a browser's command line is
+    // readable by every local account.
+    if !args.print {
+        match link_phase::open_redirect(&directory) {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                tracing::warn!(%error, "could not open the browser; open the address below yourself");
+            }
+        }
+    }
+    println!("{page}");
+    Ok(())
+}
+
+/// The page of the agent that runs, or what to do when none does.
+pub(crate) fn running_page(directory: &std::path::Path) -> Result<url::Url> {
+    link_phase::page_of_running_agent(directory)
+        .context("The agent is not running; start it first (rdownloader-capture run)")
 }
 
 /// Takes the capture token off standard input.
@@ -273,16 +298,8 @@ pub(crate) fn shortcut(args: IntegrationArgs, place: desktop_shortcut::Place) ->
 pub(crate) fn autostart(args: IntegrationArgs) -> Result<()> {
     match args.command {
         IntegrationCommand::Install => {
-            // `is_paired`, not `load`: this only has to know whether there is anything to
-            // connect with, and `load` reads the keyring for it -- which is a second macOS
-            // Keychain prompt on top of the agent's own, for an answer it does not need
-            // (RD-109-04).
-            if !config::is_paired(None) {
-                anyhow::bail!(
-                    "capture agent is not configured; run \
-                     `rdownloader-capture configure --token-stdin` first"
-                );
-            }
+            // Not tied to a pairing (RD-1390-03): an unlinked agent starts and offers its link
+            // page (RD-1390-02), so the MSI's AUTOSTART=1 registers it on a fresh install.
             let executable = std::env::current_exe().context("locate capture executable")?;
             rd_autostart::install(rd_autostart::Target::Capture, &executable)?;
             println!("rDownloader capture autostart installed for the next login.");

@@ -10,6 +10,7 @@ import DataState from '@/components/DataState.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { serviceUrl } from '@/basePath'
 import { formatDay } from '@/utils/format'
+import { isLoopbackHost } from '@/utils/loopbackHost'
 import { expiresInDays, tokenExpired, tokenExpiryItems, tokenExpiryLabel } from '@/utils/tokenExpiry'
 import FormActions from '@/components/FormActions.vue'
 import FormListLayout from '@/components/FormListLayout.vue'
@@ -50,6 +51,10 @@ const pairing = ref(false)
 const revokingId = ref<string | null>(null)
 
 const serverOrigin = serviceUrl()
+// Opened as localhost or 127.0.0.1, the copied address works on this computer only; another one
+// needs this computer's network address, which the browser cannot know (RD-1390-05).
+const loopbackOrigin = isLoopbackHost(window.location.hostname)
+const originPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80')
 const captureCommand = computed(() => bearer.value
   ? `rdownloader-capture configure --service "${serverOrigin}" --token "${bearer.value}"`
   : '')
@@ -157,7 +162,10 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
       <UAlert v-if="bearer" class="mt-3" color="warning" :title="t('system.pairing.copy_hint')">
         <template #description>
           <template v-if="!props.extension">
-            <CopyField class="mt-1" :value="captureCommand" :label="t('system.pairing.copy_command')" @copied="commandCopied" />
+            <CopyField class="mt-1" :value="serverOrigin" :label="t('system.pairing.copy_service')" />
+            <p v-if="loopbackOrigin" class="mt-1 text-xs leading-5 text-warning" data-testid="pairing-loopback-hint">{{ t('system.pairing.loopback_hint', { port: originPort }) }}</p>
+            <p class="mt-2 mb-3 text-xs leading-5 text-muted">{{ t('system.pairing.tray_hint') }}</p>
+            <CopyField :value="captureCommand" :label="t('system.pairing.copy_command')" @copied="commandCopied" />
             <p class="mt-2 font-mono text-2xs leading-5 text-muted">{{ t('system.pairing.afterwards') }}<br>rdownloader-capture autostart install<br>rdownloader-capture association install</p>
             <USeparator class="my-3" :ui="{ border: 'border-warning/30' }" />
           </template>

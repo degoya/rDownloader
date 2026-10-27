@@ -1,11 +1,13 @@
-//! One run of the agent, in the order it happens: the connection, the background tasks, the
-//! Click'n'Load listeners, and the end -- a shutdown, a failed listener or the hand-over to an
-//! updated program. Split from `main.rs` into named steps (RD-1280-08); the headless path and
-//! the tray both enter through [`run`].
+//! The linked phase of a run, in the order it happens: the connection, the background tasks, the
+//! Click'n'Load listeners, and the end -- a shutdown, a failed listener or a new link; the
+//! hand-over to an updated program is watched across both phases by `link_phase::run_phases`. Split from `main.rs` into named steps (RD-1280-08); the
+//! headless path and the tray both enter through `link_phase::run`, which starts this phase
+//! once the agent has a token and again after every new link (RD-1390-02).
 
 use std::net::SocketAddr;
 
 use anyhow::{Context, Result};
+use axum::Router;
 use tokio::{net::TcpListener, task::JoinSet};
 use tokio_util::sync::CancellationToken;
 
@@ -13,27 +15,28 @@ use crate::{
     ActivitySink, DesktopSinks, PortBusy, activity,
     cli::RunArgs,
     client::CaptureClient,
-    clipboard, cnl, config, controls, game_mode, hotkeys, notify, relaunch, self_update,
-    server_update,
+    clipboard, cnl,
+    config::Connection,
+    controls, game_mode, hotkeys, notify, self_update, server_update,
     supervision::{
         AgentNotice, NoticeSink, bind_click_n_load, join_addresses, supervised, wind_down,
     },
 };
 
-/// Runs the agent until `cancellation` fires, a Click'n'Load listener fails or an updated
-/// program takes over.
-pub(crate) async fn run(
+/// Runs the linked agent until `cancellation` fires, a Click'n'Load listener fails or an updated
+/// program takes over. The listeners carry Click'n'Load and `link_router`, the link page, so the
+/// link can be changed while the agent runs (RD-1390-02).
+pub(crate) async fn run_linked(
     args: RunArgs,
+    connection: Connection,
     cancellation: CancellationToken,
     desktop: Option<DesktopSinks>,
+    link_router: Router,
 ) -> Result<()> {
-    require_loopback(&args.cnl_listen)?;
-    let connection = config::load(args.connection.service, args.connection.token)?;
     // For the Linux shortcut listener, which opens the web interface itself, and for the server
     // update's page (RD-1240-25).
     let service = connection.service.clone();
     let client = CaptureClient::new(connection.service, connection.token)?;
-    cancel_on_shutdown_signal(&cancellation);
     let notice = desktop.as_ref().map(|desktop| desktop.notice.clone());
     // Every background task is held rather than spawned and forgotten, so its end is read
     // (RD-109-07) and so the error path below can give it a moment to stop.
@@ -58,11 +61,12 @@ pub(crate) async fn run(
         &cancellation,
     )
     .await?;
-    serve(listeners, &client, &cancellation, &mut background).await
+    let router = cnl::routes(client).merge(link_router);
+    serve(listeners, router, &cancellation, &mut background).await
 }
 
 /// Click'n'Load is reachable from the local browser only, never from the network.
-fn require_loopback(listen: &[SocketAddr]) -> Result<()> {
+pub(crate) fn require_loopback(listen: &[SocketAddr]) -> Result<()> {
     if listen.is_empty() || listen.iter().any(|address| !address.ip().is_loopback()) {
         anyhow::bail!("Click'n'Load requires at least one loopback address");
     }
@@ -70,7 +74,7 @@ fn require_loopback(listen: &[SocketAddr]) -> Result<()> {
 }
 
 /// Ends the run on Ctrl-C or, on Unix, `SIGTERM`.
-fn cancel_on_shutdown_signal(cancellation: &CancellationToken) {
+pub(crate) fn cancel_on_shutdown_signal(cancellation: &CancellationToken) {
     let signal = cancellation.clone();
     tokio::spawn(async move {
         wait_for_shutdown_signal().await;
@@ -244,7 +248,7 @@ fn spawn_transfer_poll(
 
 /// Binds the Click'n'Load addresses. Not one of them ends the run as [`PortBusy`]; some of them
 /// is reported, in the log and to the tray.
-async fn bind_listeners(
+pub(crate) async fn bind_listeners(
     listen: Vec<SocketAddr>,
     notice: Option<&NoticeSink>,
     background: &mut JoinSet<()>,
@@ -282,28 +286,22 @@ async fn bind_listeners(
     Ok(bindings.listeners)
 }
 
-/// Serves Click'n'Load until the run ends, then continues as the updated program when one
-/// replaced this one.
+/// Serves Click'n'Load until the phase ends. Whether an updated program replaced this one is
+/// `link_phase::run_phases`'s to watch, across both phases (RD-1390-02).
 async fn serve(
     listeners: Vec<(SocketAddr, TcpListener)>,
-    client: &CaptureClient,
+    router: Router,
     cancellation: &CancellationToken,
     background: &mut JoinSet<()>,
 ) -> Result<()> {
     // The listeners are up: the proof an updater of the agent's own waits for (RD-1210-03).
     self_update::started();
-    // After a self-update the agent continues as the new program (RD-190-07); nothing to watch
-    // when the system does not say which file this process runs from.
-    let program = std::env::current_exe().ok();
-    let replacement = program
-        .clone()
-        .map(|program| tokio::spawn(relaunch::watch(program, cancellation.clone())));
     let mut servers = JoinSet::new();
     for (address, listener) in listeners {
         servers.spawn(cnl::serve(
             address,
             listener,
-            client.clone(),
+            router.clone(),
             cancellation.clone(),
         ));
     }
@@ -322,16 +320,8 @@ async fn serve(
         }
     }
     wind_down(background, &mut servers).await;
-    // The listeners are closed by now, so the new program gets the Click'n'Load port.
     cancellation.cancel();
-    let replaced = match replacement {
-        Some(watch) => watch.await.unwrap_or(false),
-        None => false,
-    };
-    match program {
-        Some(program) if replaced => Err(anyhow::Error::new(relaunch::Replaced { program })),
-        _ => Ok(()),
-    }
+    Ok(())
 }
 
 async fn wait_for_shutdown_signal() {

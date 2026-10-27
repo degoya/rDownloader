@@ -23,6 +23,9 @@ pub(crate) enum MenuEntry {
     StatusLine,
     /// The server's line under it (RD-1240-06).
     ServerLine,
+    /// "Link capture agent", "Change link…" once linked (RD-1390-02): one place under the two
+    /// lines, its label following the link.
+    Link,
     Open,
     /// "About rDownloader": the app's About page in the browser (RD-1260-08).
     About,
@@ -38,6 +41,9 @@ pub(crate) enum MenuEntry {
     ClipboardWatch,
     SendClipboard,
     GameMode,
+    /// "Start at login" (RD-1390-03), ticked while the agent is registered; hidden beside the
+    /// service.
+    Autostart,
     ServerUpdate,
     /// "Restart server", while a restart is pending (RD-1240-32).
     RestartServer,
@@ -49,10 +55,11 @@ pub(crate) enum MenuEntry {
 
 impl MenuEntry {
     /// Every entry, in the order of the menu.
-    pub(crate) const ALL: [Self; 20] = [
+    pub(crate) const ALL: [Self; 22] = [
         Self::Title,
         Self::StatusLine,
         Self::ServerLine,
+        Self::Link,
         Self::Open,
         Self::About,
         Self::StartAll,
@@ -65,6 +72,7 @@ impl MenuEntry {
         Self::ClipboardWatch,
         Self::SendClipboard,
         Self::GameMode,
+        Self::Autostart,
         Self::ServerUpdate,
         Self::RestartServer,
         Self::Update,
@@ -78,7 +86,8 @@ impl MenuEntry {
     pub(crate) fn clickable(self) -> bool {
         match self {
             Self::Title | Self::StatusLine | Self::ServerLine | Self::PairHint => false,
-            Self::Open
+            Self::Link
+            | Self::Open
             | Self::About
             | Self::StartAll
             | Self::PauseAll
@@ -89,6 +98,7 @@ impl MenuEntry {
             | Self::ClipboardWatch
             | Self::SendClipboard
             | Self::GameMode
+            | Self::Autostart
             | Self::ServerUpdate
             | Self::RestartServer
             | Self::Update
@@ -104,6 +114,7 @@ impl MenuEntry {
     pub(crate) fn command(self) -> Option<CaptureCommand> {
         Some(match self {
             Self::Title | Self::StatusLine | Self::ServerLine | Self::PairHint => return None,
+            Self::Link => CaptureCommand::Link,
             Self::Open => CaptureCommand::Open,
             Self::About => CaptureCommand::About,
             Self::StartAll => CaptureCommand::StartAll,
@@ -115,6 +126,7 @@ impl MenuEntry {
             Self::ClipboardWatch => CaptureCommand::ClipboardWatch,
             Self::SendClipboard => CaptureCommand::SendClipboard,
             Self::GameMode => CaptureCommand::GameMode,
+            Self::Autostart => CaptureCommand::Autostart,
             Self::ServerUpdate => CaptureCommand::InstallServerUpdate,
             Self::RestartServer => CaptureCommand::RestartServer,
             Self::Update => CaptureCommand::InstallUpdate,

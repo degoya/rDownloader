@@ -25,11 +25,18 @@
 #
 # Writes the capture agent's own archive beside every application archive in <assets>
 # (RD-1210-03): `rdownloader-capture-<platform>-<arch>.<tar.gz|zip>` from
-# `rdownloader-<platform>-<arch>.<tar.gz|zip>`, holding the agent, its start and stop scripts,
-# the macOS helper app, VERSION.txt, LICENSE and README.md — what an agent installed without the
-# service runs from and updates itself from. Run after `split` and before `sums`, so SHA256SUMS,
+# `rdownloader-<platform>-<arch>.<tar.gz|zip>`, holding the agent, its start and stop scripts
+# with the `start-rdownloader`/`stop-rdownloader` ones they call (RD-1390-04), the macOS helper
+# app, VERSION.txt, LICENSE and README.md — what an agent installed without the service runs from
+# and updates itself from. Run after `split` and before `sums`, so SHA256SUMS,
 # its Sigstore signature and the update manifest's `agent_artifacts` cover them like every other
 # asset. Exit 1 when <assets> holds no application archive, or one without the agent.
+#
+#   scripts/release-assets.sh agent-stage <unpacked-archive> <directory>
+#
+# Copies what the agent's archive takes from the unpacked application archive <unpacked-archive>
+# into <directory>, the stage the capture agent's MSI is built from on a Windows runner that has
+# no `zip` (RD-1390-04): the same files `agent` packs. Exit 1 without the agent.
 #
 #   scripts/release-assets.sh fetch-plugins <repository> <directory>
 #
@@ -43,6 +50,7 @@ usage() {
     echo "usage: scripts/release-assets.sh split <assets> <plugins>" >&2
     echo "       scripts/release-assets.sh sums <directory>..." >&2
     echo "       scripts/release-assets.sh agent <assets>" >&2
+    echo "       scripts/release-assets.sh agent-stage <unpacked-archive> <directory>" >&2
     echo "       scripts/release-assets.sh fetch-plugins <repository> <directory>" >&2
     exit 2
 }
@@ -78,13 +86,42 @@ sums() {
     done
 }
 
-# What the agent's archive takes from the application's, where the archive has it.
+# What the agent's archive takes from the application's, where the archive has it. The
+# start-capture and stop-capture scripts call start-rdownloader and stop-rdownloader with
+# `capture`, which need nothing but the agent.
 AGENT_ENTRIES=(rdownloader-capture rdownloader-capture.exe start-capture.sh stop-capture.sh
     start-capture.bat stop-capture.bat start-capture.command stop-capture.command
+    start-rdownloader.sh stop-rdownloader.sh start-rdownloader.bat stop-rdownloader.bat
+    start-rdownloader.command stop-rdownloader.command
     "rDownloader Capture.app" VERSION.txt LICENSE README.md)
 
+# The entries of AGENT_ENTRIES the unpacked archive $1 has, one per line; exit 1 without the agent.
+agent_entries_in() {
+    local unpacked="$1" name="$2" entry
+    if [[ ! -f "$unpacked/rdownloader-capture" && ! -f "$unpacked/rdownloader-capture.exe" ]]; then
+        echo "release-assets: $name carries no rdownloader-capture" >&2
+        return 1
+    fi
+    for entry in "${AGENT_ENTRIES[@]}"; do
+        if [[ -e "$unpacked/$entry" ]]; then
+            printf '%s\n' "$entry"
+        fi
+    done
+}
+
+agent_stage() {
+    local unpacked="$1" directory="$2" listed entry
+    [[ -d "$unpacked" ]] || { echo "release-assets: $unpacked is not a directory" >&2; exit 2; }
+    listed="$(agent_entries_in "$unpacked" "$unpacked")" || exit 1
+    mkdir -p "$directory"
+    while IFS= read -r entry; do
+        cp -R "$unpacked/$entry" "$directory/"
+    done <<< "$listed"
+    echo "release-assets: $(wc -l <<< "$listed") agent file(s) from $unpacked in $directory"
+}
+
 agent() {
-    local assets="$1" archive name stem extension work out entry count=0
+    local assets="$1" archive name stem extension work out listed count=0
     local -a entries
     [[ -d "$assets" ]] || { echo "release-assets: $assets is not a directory" >&2; exit 2; }
     assets="$(cd "$assets" && pwd)"
@@ -103,17 +140,11 @@ agent() {
         else
             unzip -q "$archive" -d "$work"
         fi
-        entries=()
-        for entry in "${AGENT_ENTRIES[@]}"; do
-            if [[ -e "$work/$entry" ]]; then
-                entries+=("$entry")
-            fi
-        done
-        if [[ ! -f "$work/rdownloader-capture" && ! -f "$work/rdownloader-capture.exe" ]]; then
-            echo "release-assets: $name carries no rdownloader-capture" >&2
+        if ! listed="$(agent_entries_in "$work" "$name")"; then
             rm -rf "$work"
             exit 1
         fi
+        mapfile -t entries <<< "$listed"
         out="$assets/rdownloader-capture-${stem#rdownloader-}.$extension"
         rm -f "$out"
         if [[ "$extension" == tar.gz ]]; then
@@ -157,6 +188,10 @@ case "${1:-}" in
     agent)
         [[ $# -eq 2 ]] || usage
         agent "$2"
+        ;;
+    agent-stage)
+        [[ $# -eq 3 ]] || usage
+        agent_stage "$2" "$3"
         ;;
     fetch-plugins)
         [[ $# -eq 3 ]] || usage

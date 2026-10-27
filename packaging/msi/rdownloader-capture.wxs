@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The capture agent's own Windows installer (RD-1390-04), WiX 5, for a PC whose rDownloader server
+  runs elsewhere. Built by scripts/package-msi.sh with its capture switch from the unpacked
+  rdownloader-capture-windows-x86_64.zip, which also writes license.rtf; one MSI per language, the
+  strings below from capture-<culture>.wxl beside this file, as rdownloader.wxs does.
+
+  Per user, without UAC: the agent goes to %LOCALAPPDATA%\Programs\rDownloader Capture, its Start
+  menu folder is "rDownloader Capture". The install-kind marker `msi` sends its logs to
+  %LOCALAPPDATA%\rDownloader and makes its update a download (AgentSetup::Alone(InstallKind::Msi)).
+
+    msiexec /i rdownloader-capture-windows-x86_64.msi /qn [AUTOSTART=1] [ASSOCIATION=1] [DROPSHORTCUT=1] [SENDTO=1]
+    msiexec /x rdownloader-capture-windows-x86_64.msi /qn
+
+  The finish page's checkbox, "start at login" and on by default, appears only on a first install;
+  Finish then starts the agent. An upgrade leaves the autostart as it is, also when the tray turned
+  it off, and Finish starts the agent only when its `Run` value is there (CAPTUREAUTOSTARTREG).
+
+  The full product (rdownloader.wxs) holds the same agent and shares its `Run` value and
+  integrations, so the two never stand side by side: this package refuses to install beside it
+  (FULLPRODUCTFOUND), and the full product's Upgrade table removes this one and takes over what it
+  registered.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="rDownloader Capture"
+           Manufacturer="DEGOYA.digital"
+           Version="$(var.Version)"
+           UpgradeCode="E5C1D7D8-244F-404A-BF98-99885C6D21AD"
+           Scope="perUser"
+           Language="!(loc.ProductLanguage)"
+           InstallerVersion="500"
+           Compressed="yes">
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="!(loc.DowngradeError)" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- The full product, in any version and language: its UpgradeCode in rdownloader.wxs. -->
+    <Upgrade Id="3346ED88-7297-43CC-9BA2-0478E5E2D851">
+      <UpgradeVersion Minimum="0.0.0" IncludeMinimum="yes" OnlyDetect="yes" Property="FULLPRODUCTFOUND" />
+    </Upgrade>
+    <Launch Condition="Installed OR NOT FULLPRODUCTFOUND" Message="!(loc.FullProductPresent)" />
+
+    <!-- The agent's autostart entry as rd-autostart writes it, read before an upgrade touches it. -->
+    <Property Id="CAPTUREAUTOSTARTREG" Secure="yes">
+      <RegistrySearch Id="CaptureAutostartSearch" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                      Name="rDownloader Capture" Type="raw" />
+    </Property>
+
+    <Icon Id="rdownloader.ico" SourceFile="$(var.Icon)" />
+    <Property Id="ARPPRODUCTICON" Value="rdownloader.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://rdownloader.net" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+    <!-- AUTOSTART=1 registers the agent for the next login, for an unattended install; the three
+         integrations as in rdownloader.wxs, each off unless set to 1. -->
+    <Property Id="AUTOSTART" Secure="yes" />
+    <Property Id="ASSOCIATION" Secure="yes" />
+    <Property Id="DROPSHORTCUT" Secure="yes" />
+    <Property Id="SENDTO" Secure="yes" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+    <!-- The checkbox is checked until the person clears it, and shown only when its text is set:
+         on a first install, never on an upgrade. -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <SetProperty Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.AutostartCheckbox)"
+                 After="FindRelatedProducts" Sequence="ui" Condition="NOT Installed AND NOT WIX_UPGRADE_DETECTED" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="LocalProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="rDownloader Capture" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="MenuFolder" Name="rDownloader Capture" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="rDownloader Capture" Level="1">
+      <ComponentGroupRef Id="Program" />
+      <ComponentRef Id="StartMenu" />
+    </Feature>
+
+    <!-- Key paths under a key of its own, apart from the full product's Software\rDownloader. -->
+    <ComponentGroup Id="Program" Directory="INSTALLFOLDER">
+      <Component Id="Program" Guid="7CDBF430-6161-4DDE-AF5E-0D333CF57AA7">
+        <RegistryValue Root="HKCU" Key="Software\rDownloader Capture\Installer" Name="Program" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+        <File Id="rdownloader_capture.exe" Source="$(var.Stage)\rdownloader-capture.exe" />
+        <File Id="start_capture.bat" Source="$(var.Stage)\start-capture.bat" />
+        <File Id="stop_capture.bat" Source="$(var.Stage)\stop-capture.bat" />
+        <File Id="start_rdownloader.bat" Source="$(var.Stage)\start-rdownloader.bat" />
+        <File Id="stop_rdownloader.bat" Source="$(var.Stage)\stop-rdownloader.bat" />
+        <File Id="README.md" Source="$(var.Stage)\README.md" />
+        <File Id="LICENSE" Source="$(var.Stage)\LICENSE" />
+        <File Id="VERSION.txt" Source="$(var.Stage)\VERSION.txt" />
+        <File Id="install_kind" Name="install-kind" Source="$(var.InstallKind)" />
+        <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />
+        <RemoveFolder Id="RemoveLocalProgramsFolder" Directory="LocalProgramsFolder" On="uninstall" />
+      </Component>
+    </ComponentGroup>
+
+    <Component Id="StartMenu" Directory="MenuFolder" Guid="47576269-403D-4C0A-A1F1-EE4051737E55">
+      <RegistryValue Root="HKCU" Key="Software\rDownloader Capture\Installer" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+      <Shortcut Id="CaptureShortcut" Name="rDownloader Capture" Description="!(loc.CaptureShortcutDescription)"
+                Target="[INSTALLFOLDER]start-capture.bat" WorkingDirectory="INSTALLFOLDER" Icon="rdownloader.ico" Show="minimized" />
+      <Shortcut Id="StopShortcut" Name="!(loc.StopShortcutName)" Description="!(loc.StopShortcutDescription)"
+                Target="[INSTALLFOLDER]stop-capture.bat" WorkingDirectory="INSTALLFOLDER" Icon="rdownloader.ico" Show="minimized" />
+      <RemoveFolder Id="RemoveMenuFolder" On="uninstall" />
+    </Component>
+
+    <!-- The agent's own commands, hidden through the util extension's quiet exec, as in
+         rdownloader.wxs; none of them may fail the installation. -->
+    <SetProperty Id="StopRunning" Value="&quot;[System64Folder]cmd.exe&quot; /c &quot;&quot;[INSTALLFOLDER]stop-capture.bat&quot;&quot;"
+                 Before="StopRunning" Sequence="execute" />
+    <CustomAction Id="StopRunning" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="AutostartRemove" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; autostart remove"
+                 Before="AutostartRemove" Sequence="execute" />
+    <CustomAction Id="AutostartRemove" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="AssociationRemove" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; association remove"
+                 Before="AssociationRemove" Sequence="execute" />
+    <CustomAction Id="AssociationRemove" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="DropShortcutRemove" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; drop-shortcut remove"
+                 Before="DropShortcutRemove" Sequence="execute" />
+    <CustomAction Id="DropShortcutRemove" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="SendToRemove" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; send-to remove"
+                 Before="SendToRemove" Sequence="execute" />
+    <CustomAction Id="SendToRemove" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="AutostartInstall" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; autostart install"
+                 Before="AutostartInstall" Sequence="execute" />
+    <CustomAction Id="AutostartInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="AssociationInstall" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; association install"
+                 Before="AssociationInstall" Sequence="execute" />
+    <CustomAction Id="AssociationInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="DropShortcutInstall" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; drop-shortcut install"
+                 Before="DropShortcutInstall" Sequence="execute" />
+    <CustomAction Id="DropShortcutInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <SetProperty Id="SendToInstall" Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; send-to install"
+                 Before="SendToInstall" Sequence="execute" />
+    <CustomAction Id="SendToInstall" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <!-- Before an upgrade checks for files in use: the agent of the version it replaces. -->
+    <SetProperty Id="WixQuietExecCmdLine" Value="&quot;[System64Folder]cmd.exe&quot; /c &quot;&quot;[INSTALLFOLDER]stop-capture.bat&quot;&quot;"
+                 Before="StopBeforeUpgrade" Sequence="execute" />
+    <CustomAction Id="StopBeforeUpgrade" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="immediate" Return="ignore" />
+    <!-- The finish page, immediate, from the UI: the checkbox's autostart, then the agent through
+         its Start menu entry, which starts it hidden in a minimized window. A shell launch, not a
+         quiet exec: the agent outlives the installer, and a quiet exec waits for its output pipe. -->
+    <CustomAction Id="AutostartFromDialog" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="immediate" Return="ignore" />
+    <CustomAction Id="LaunchAgent" BinaryRef="Wix4UtilCA_X64" DllEntry="WixShellExec" Execute="immediate" Return="ignore" />
+
+    <InstallExecuteSequence>
+      <!-- As in rdownloader.wxs: stop first, keep the autostart and the integrations through an
+           upgrade, which names the same path, and take them away on an uninstall only. The full
+           product replacing this package is an upgrade too: it registers them again for its own
+           folder. The data folder is never named. -->
+      <Custom Action="StopBeforeUpgrade" Before="InstallValidate" Condition="WIX_UPGRADE_DETECTED" />
+      <Custom Action="StopRunning" Before="RemoveFiles" Condition="REMOVE=&quot;ALL&quot;" />
+      <Custom Action="AutostartRemove" After="StopRunning" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="AssociationRemove" After="AutostartRemove" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="DropShortcutRemove" After="AssociationRemove" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="SendToRemove" After="DropShortcutRemove" Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="AutostartInstall" After="InstallFiles" Condition="AUTOSTART=&quot;1&quot; AND NOT REMOVE" />
+      <Custom Action="AssociationInstall" After="AutostartInstall" Condition="ASSOCIATION=&quot;1&quot; AND NOT REMOVE" />
+      <Custom Action="DropShortcutInstall" After="AssociationInstall" Condition="DROPSHORTCUT=&quot;1&quot; AND NOT REMOVE" />
+      <Custom Action="SendToInstall" After="DropShortcutInstall" Condition="SENDTO=&quot;1&quot; AND NOT REMOVE" />
+    </InstallExecuteSequence>
+
+    <UI>
+      <ui:WixUI Id="WixUI_Minimal" />
+      <!-- The autostart only where the checkbox was shown and left checked. -->
+      <Publish Dialog="ExitDialog" Control="Finish" Event="[WixQuietExecCmdLine]"
+               Value="&quot;[INSTALLFOLDER]rdownloader-capture.exe&quot; autostart install" Order="1"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT AND WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="AutostartFromDialog" Order="2"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT AND WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+      <!-- The agent: always after a first install, after an upgrade only when it starts at login. -->
+      <Publish Dialog="ExitDialog" Control="Finish" Event="[WixShellExecTarget]"
+               Value="[MenuFolder]rDownloader Capture.lnk" Order="3"
+               Condition="NOT Installed AND (NOT WIX_UPGRADE_DETECTED OR CAPTUREAUTOSTARTREG)" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchAgent" Order="4"
+               Condition="NOT Installed AND (NOT WIX_UPGRADE_DETECTED OR CAPTUREAUTOSTARTREG)" />
+    </UI>
+  </Package>
+</Wix>

@@ -1,6 +1,6 @@
 //! What the tray's menu and the system-wide shortcuts ask of the running agent (RD-1100-06,
 //! RD-1180-01, RD-1180-03, RD-1240-23, RD-1240-25, RD-1240-27, RD-1240-24, RD-1240-32,
-//! RD-1260-08), and the tasks that carry it out.
+//! RD-1260-08, RD-1390-02, RD-1390-03), and the tasks that carry it out.
 //!
 //! Every tray command is a [`CaptureCommand`], whether it came from a click or a key press, and
 //! [`action`] is the one place that says what each one does. The tray and, on Linux, the
@@ -95,6 +95,11 @@ pub(crate) enum Action {
     InstallUpdate,
     /// Restart the service for what waits for the next start (RD-1240-32).
     RestartServer,
+    /// Open the agent's own link page in the browser (RD-1390-02); it needs no service, so it
+    /// works while the agent is not linked.
+    OpenLinkPage,
+    /// Switch the agent's start at login (RD-1390-03), which needs no service either.
+    ToggleAutostart,
     /// End the agent.
     Quit,
 }
@@ -121,12 +126,15 @@ pub(crate) fn action(command: CaptureCommand) -> Action {
         CaptureCommand::InstallUpdate => Action::InstallUpdate,
         CaptureCommand::RestartServer => Action::RestartServer,
         CaptureCommand::About => Action::About,
+        CaptureCommand::Link => Action::OpenLinkPage,
+        CaptureCommand::Autostart => Action::ToggleAutostart,
     }
 }
 
 impl Controls {
-    /// Passes the agent's part of an action to its task. `Open`, `About` and `Quit` are the
-    /// caller's: the tray opens and quits on its own event loop. A task that has stopped is a log line.
+    /// Passes the agent's part of an action to its task. `Open`, `About`, `OpenLinkPage`,
+    /// `ToggleAutostart` and `Quit` are the caller's: the tray opens, switches and quits on its own
+    /// event loop. A task that has stopped is a log line.
     pub(crate) fn pass(&self, action: Action) {
         let sent = match action {
             Action::Queue(request) => self.queue.send(request).is_ok(),
@@ -146,7 +154,11 @@ impl Controls {
                 .send(self_update::Request::ToggleAutoInstall)
                 .is_ok(),
             Action::InstallUpdate => self.self_update.send(self_update::Request::Install).is_ok(),
-            Action::Open | Action::About | Action::Quit => true,
+            Action::Open
+            | Action::About
+            | Action::OpenLinkPage
+            | Action::ToggleAutostart
+            | Action::Quit => true,
         };
         if !sent {
             tracing::warn!(
@@ -275,6 +287,8 @@ mod tests {
         assert_eq!(action(CaptureCommand::InstallUpdate), Action::InstallUpdate);
         assert_eq!(action(CaptureCommand::RestartServer), Action::RestartServer);
         assert_eq!(action(CaptureCommand::About), Action::About);
+        assert_eq!(action(CaptureCommand::Link), Action::OpenLinkPage);
+        assert_eq!(action(CaptureCommand::Autostart), Action::ToggleAutostart);
     }
 
     #[test]

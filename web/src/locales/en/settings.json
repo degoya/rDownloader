@@ -1215,7 +1215,9 @@
       "add_all_from_linkgrabber_paused": "Add all from LinkGrabber paused",
       "install_update": "Install agent update",
       "restart_server": "Restart server",
-      "about": "About rDownloader"
+      "about": "About rDownloader",
+      "link": "Link capture agent",
+      "autostart": "Start at login"
     },
     "report": {
       "title_unavailable": "Shortcuts unavailable",

@@ -127,8 +127,9 @@ fn cmd_or_ctrl_is_ctrl_on_a_pc_and_cmd_on_a_mac() {
 ///
 /// Quit has none, and neither have "Pause while gaming" (RD-1240-23), "Install server update"
 /// (RD-1240-25), "Install updates automatically" (RD-1240-27), the two LinkGrabber entries,
-/// "Install update" (RD-1240-24), "Restart server" (RD-1240-32) and "About rDownloader"
-/// (RD-1260-08): they can be assigned, but a new tray function takes no combination nobody chose.
+/// "Install update" (RD-1240-24), "Restart server" (RD-1240-32), "About rDownloader"
+/// (RD-1260-08), "Link capture agent" (RD-1390-02) and "Start at login" (RD-1390-03): they can be
+/// assigned, but a new tray function takes no combination nobody chose.
 #[test]
 fn the_defaults_pass_their_own_rules_and_quit_and_the_later_commands_have_none() {
     let defaults = CaptureShortcuts::default();
@@ -143,6 +144,8 @@ fn the_defaults_pass_their_own_rules_and_quit_and_the_later_commands_have_none()
         CaptureCommand::InstallUpdate,
         CaptureCommand::RestartServer,
         CaptureCommand::About,
+        CaptureCommand::Link,
+        CaptureCommand::Autostart,
     ];
     for command in CaptureCommand::ALL {
         assert_eq!(
@@ -340,4 +343,46 @@ fn the_about_entry_can_be_given_a_shortcut() {
     shortcuts.set(CaptureCommand::About, Some("cmdorctrl+alt+y".to_owned()));
     let accepted = shortcuts.validated().expect("valid");
     assert_eq!(accepted.get(CaptureCommand::About), Some("CmdOrCtrl+Alt+Y"));
+}
+
+/// "Link capture agent" (RD-1390-02) is a command of its own with its stable name, has no default
+/// and takes a shortcut like every other.
+#[test]
+fn link_has_no_default_shortcut() {
+    assert_eq!(CaptureShortcuts::default().link, None);
+    assert_eq!(CaptureCommand::Link.as_str(), "link");
+    assert_eq!(
+        serde_json::to_value(CaptureCommand::Link).expect("serialize"),
+        serde_json::json!("link")
+    );
+    let stored: CaptureShortcuts = serde_json::from_str("{}").expect("reads");
+    assert_eq!(stored.get(CaptureCommand::Link), None);
+    let mut shortcuts = CaptureShortcuts::default();
+    shortcuts.set(CaptureCommand::Link, Some("cmdorctrl+alt+y".to_owned()));
+    let accepted = shortcuts.validated().expect("valid");
+    assert_eq!(accepted.get(CaptureCommand::Link), Some("CmdOrCtrl+Alt+Y"));
+}
+
+/// "Start at login" (RD-1390-03) is a command of its own with its stable name, has no default and
+/// takes a shortcut like every other.
+#[test]
+fn autostart_has_no_default_shortcut() {
+    assert_eq!(CaptureShortcuts::default().autostart, None);
+    assert_eq!(CaptureCommand::Autostart.as_str(), "autostart");
+    assert_eq!(
+        serde_json::to_value(CaptureCommand::Autostart).expect("serialize"),
+        serde_json::json!("autostart")
+    );
+    let stored: CaptureShortcuts = serde_json::from_str("{}").expect("reads");
+    assert_eq!(stored.get(CaptureCommand::Autostart), None);
+    let mut shortcuts = CaptureShortcuts::default();
+    shortcuts.set(
+        CaptureCommand::Autostart,
+        Some("cmdorctrl+alt+y".to_owned()),
+    );
+    let accepted = shortcuts.validated().expect("valid");
+    assert_eq!(
+        accepted.get(CaptureCommand::Autostart),
+        Some("CmdOrCtrl+Alt+Y")
+    );
 }

@@ -1,8 +1,8 @@
 # The desktop capture agent (Click'n'Load, clipboard, .nzb files) as a systemd user unit: the one
 # source for the deb, rpm and AUR packages (RD-180-05, RD-180-08, RD-1110-07). It needs a
-# graphical session and a paired server:
-#   rdownloader-capture configure --token-stdin   (the command Settings > Desktop client shows)
+# graphical session; without a link it runs and waits on its link page (RD-1390-02):
 #   systemctl --user enable --now rdownloader-capture
+#   rdownloader-capture link   (opens the page; or configure --token-stdin, as Settings > Desktop shows)
 [Unit]
 Description=rDownloader Capture
 Documentation=https://rdownloader.net
@@ -14,9 +14,8 @@ Type=simple
 ExecStart=/usr/lib/rdownloader/rdownloader-capture run
 Restart=on-failure
 RestartSec=5
-# 10: not paired yet, 11: another Click'n'Load listener holds port 9666. Neither goes away by
-# starting again.
-RestartPreventExitStatus=10 11
+# 11: another Click'n'Load listener holds port 9666, which does not go away by starting again.
+RestartPreventExitStatus=11
 # Hardening that holds for a user unit without a namespace of its own (audit K5). AF_UNIX is
 # the session: D-Bus, the display server, the tray. AF_INET/AF_INET6 reach the service and
 # hold the Click'n'Load port; AF_NETLINK serves the address lookup.

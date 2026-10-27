@@ -22,13 +22,13 @@ use tray_icon::{
 use url::Url;
 
 use crate::{
-    DesktopSinks,
     activity::Activity,
     agent_settings::SettingsRequest,
     cli::RunArgs,
     config,
     controls::{self, Action, Controls},
     hotkeys::{self, Hotkeys},
+    link_phase::{self, LinkStatus},
     self_update::UpdateMenu,
     server_update,
     status::ServerStatus,
@@ -36,12 +36,18 @@ use crate::{
     tray_state::{IconKind, TrayState, Update},
 };
 
+#[path = "tray_autostart.rs"]
+mod autostart;
 #[path = "tray_handle.rs"]
 mod handle;
 #[path = "tray_health.rs"]
 mod health;
+#[path = "tray_link.rs"]
+mod link;
 #[path = "tray_marks.rs"]
 mod marks;
+#[path = "tray_sinks.rs"]
+mod sinks;
 
 use handle::TrayHandle;
 use health::spawn_health_poll;
@@ -74,6 +80,10 @@ enum UserEvent {
     SelfUpdate(UpdateMenu),
     /// The service's update entry or its install changed (RD-1240-25).
     ServerUpdate(server_update::View),
+    /// The agent is linked, linked anew, or not linked (RD-1390-02).
+    Link(LinkStatus),
+    /// Whether the agent starts at login after "Start at login" was chosen (RD-1390-03).
+    Autostart(bool),
 }
 
 /// A prepared, not yet running event loop.
@@ -130,42 +140,25 @@ impl Tray {
         let runtime = crate::runtime()?;
         let cancellation = CancellationToken::new();
         let agent_cancellation = cancellation.clone();
-        let activity_proxy = proxy.clone();
-        let notice_proxy = proxy.clone();
-        let settings_proxy = proxy.clone();
-        let update_proxy = proxy.clone();
-        let server_update_proxy = proxy.clone();
         // The menu and the shortcuts name a command, the agent carries it out: the agent holds
         // the token.
         let (controls, inbox) = controls::channels();
+        let (link_sender, link_status) = tokio::sync::watch::channel(LinkStatus::Unlinked);
+        let desktop = sinks::desktop(&proxy, inbox, link_sender);
+        link::forward(&runtime, link_status, proxy.clone());
+        let agent_proxy = proxy.clone();
         runtime.spawn(async move {
-            let desktop = DesktopSinks {
-                activity: std::sync::Arc::new(move |activity: Activity| {
-                    let _ = activity_proxy.send_event(UserEvent::Transfers(activity));
-                }),
-                notice: std::sync::Arc::new(move |notice: AgentNotice| {
-                    let _ = notice_proxy.send_event(UserEvent::Notice(notice));
-                }),
-                settings: std::sync::Arc::new(move |settings: CaptureAgentSettings| {
-                    let _ = settings_proxy.send_event(UserEvent::Settings(Box::new(settings)));
-                }),
-                inbox,
-                update: std::sync::Arc::new(move |menu: UpdateMenu| {
-                    let _ = update_proxy.send_event(UserEvent::SelfUpdate(menu));
-                }),
-                server_update: std::sync::Arc::new(move |view: server_update::View| {
-                    let _ = server_update_proxy.send_event(UserEvent::ServerUpdate(view));
-                }),
-            };
             let result = crate::run(args, agent_cancellation, Some(desktop)).await;
-            let _ = proxy.send_event(UserEvent::AgentExited(result.err()));
+            let _ = agent_proxy.send_event(UserEvent::AgentExited(result.err()));
         });
         // Polls the unauthenticated health endpoint, so the tray reflects the service whether
-        // or not the agent is paired.
+        // or not the agent is linked; a link to another service moves it (RD-1390-02).
+        let health = CancellationToken::new();
         spawn_health_poll(
             &runtime,
             service.clone().unwrap_or_else(config::default_service),
             health_proxy,
+            health.clone(),
         );
         let mut agent = Agent {
             marks,
@@ -179,6 +172,8 @@ impl Tray {
             quit_deadline: None,
             update_menu: UpdateMenu::default(),
             server_view: server_update::View::default(),
+            proxy,
+            health,
             _runtime: runtime,
         };
 
@@ -196,6 +191,8 @@ impl Tray {
                 Event::UserEvent(UserEvent::Hotkey(id)) => agent.on_hotkey(id),
                 Event::UserEvent(UserEvent::SelfUpdate(menu)) => agent.on_self_update(menu),
                 Event::UserEvent(UserEvent::ServerUpdate(view)) => agent.on_server_update(view),
+                Event::UserEvent(UserEvent::Link(status)) => agent.on_link(&status),
+                Event::UserEvent(UserEvent::Autostart(on)) => agent.on_autostart(on),
                 _ => {}
             }
             // Checked on every iteration rather than only on `ResumeTimeReached`:
@@ -232,6 +229,10 @@ struct Agent {
     /// arrived and for writing all of them whenever one changes.
     update_menu: UpdateMenu,
     server_view: server_update::View,
+    /// For the health poll a new link starts (RD-1390-02).
+    proxy: tao::event_loop::EventLoopProxy<UserEvent>,
+    /// Ends the health poll of the address the agent no longer talks to.
+    health: CancellationToken,
     // Owned by the event loop so the agent's tasks keep running: dropping the
     // runtime would abort them.
     _runtime: tokio::runtime::Runtime,
@@ -359,6 +360,9 @@ impl Agent {
         if let Some(entry) = update.game_mode {
             tray.show_game_mode(entry);
         }
+        if let Some(entry) = update.link {
+            tray.show_link(entry);
+        }
     }
 
     /// The icon handle for a mark the state named.
@@ -395,10 +399,11 @@ impl Agent {
         let Some(command) = self.tray.as_ref().and_then(|tray| tray.command(id)) else {
             return;
         };
-        // The click ticked a check entry already; the agent's settings decide, and the update
-        // that follows them sets it again.
+        // The click ticked a check entry already; the agent's settings decide and set it again.
+        // "Start at login" takes the new tick as what is wanted (RD-1390-03).
         if let Some(tray) = self.tray.as_ref() {
             match command {
+                CaptureCommand::Autostart => return self.click_autostart(tray.autostart_ticked()),
                 CaptureCommand::ClipboardWatch => {
                     tray.show_clipboard_paused(self.state.surface().clipboard_paused);
                 }
@@ -441,10 +446,17 @@ impl Agent {
                 let reason = self.state.surface().game_mode.refused.unwrap_or_default();
                 tracing::info!(reason, "not switching game mode");
             }
+            // The agent's own page and its login entry need no service (RD-1390-02, RD-1390-03).
+            Action::OpenLinkPage => link_phase::open_link_page(),
+            Action::ToggleAutostart => self.switch_autostart(),
             Action::Quit => {
                 tracing::info!("shutting down on tray request");
                 self.cancellation.cancel();
                 self.quit_deadline = Some(Instant::now() + QUIT_GRACE);
+            }
+            // Greyed out while there is no link; a shortcut obeys the same rule (RD-1390-02).
+            action if !self.state.surface().link.linked => {
+                tracing::info!(?action, "not linked; nothing to send the request to");
             }
             action => {
                 tracing::info!(?action, "request from the tray");
@@ -472,8 +484,8 @@ impl Agent {
     /// Ends the process the way `main` does: the agent's account of the error, if any, on
     /// stderr, and the exit code that goes with it.
     ///
-    /// Goes through `crate::conclude` rather than ending on 1, so that "not paired yet" and
-    /// "another Click'n'Load listener has the port" reach a launcher from the tray path too, and
+    /// Goes through `crate::conclude` rather than ending on 1, so that "another Click'n'Load
+    /// listener has the port" reaches a launcher from the tray path too, and
     /// an agent whose program was replaced continues as the new one (RD-190-07).
     fn finish(&mut self, error: Option<anyhow::Error>) -> ! {
         // The icon lingers in the notification area unless it is dropped before

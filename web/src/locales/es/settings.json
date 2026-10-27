@@ -1215,7 +1215,9 @@
       "add_all_from_linkgrabber_paused": "Añadir todo desde el LinkGrabber en pausa",
       "install_update": "Instalar la actualización del agente",
       "restart_server": "Reiniciar el servidor",
-      "about": "Acerca de rDownloader"
+      "about": "Acerca de rDownloader",
+      "link": "Vincular el agente de captura",
+      "autostart": "Iniciar al iniciar sesión"
     },
     "report": {
       "title_unavailable": "Atajos no disponibles",

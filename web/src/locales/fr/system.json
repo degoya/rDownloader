@@ -51,7 +51,10 @@
     "queue_control": "Peut piloter la file",
     "queue_control_help": "Autorise « Start all », « Pause all » et « Add all from LinkGrabber » dans le menu de la zone de notification de l'agent, rien de plus. Sans ce choix, l'agent ne transmet que des liens.",
     "server_update": "Peut installer les mises à jour du serveur",
-    "server_update_help": "Autorise « Install server update » dans le menu de la zone de notification de l'agent : il installe la mise à jour proposée de rDownloader, puis le service redémarre. Sans ce choix, l'entrée ouvre la page des mises à jour dans le navigateur. Le même choix autorise « Restart server » dans le menu de la zone de notification, qui redémarre rDownloader."
+    "server_update_help": "Autorise « Install server update » dans le menu de la zone de notification de l'agent : il installe la mise à jour proposée de rDownloader, puis le service redémarre. Sans ce choix, l'entrée ouvre la page des mises à jour dans le navigateur. Le même choix autorise « Restart server » dans le menu de la zone de notification, qui redémarre rDownloader.",
+    "copy_service": "Copier l'adresse du serveur",
+    "tray_hint": "Ou choisissez « Link capture agent » dans le menu de la zone de notification de l'agent et collez-y l'adresse et le jeton.",
+    "loopback_hint": "Cette adresse ne fonctionne que sur cet ordinateur. Sur un autre ordinateur, utilisez plutôt l'adresse réseau de cet ordinateur, par ex. http://192.168.x.y:{port}."
   },
   "agents": {
     "eyebrow": "Connexions appairées",

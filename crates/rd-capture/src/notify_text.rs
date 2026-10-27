@@ -7,7 +7,10 @@
 //! (`web/src/locales/languages.json`), from `crates/rd-capture/locales/<language>.json`, compiled
 //! in: the desktop's language as [`super::locale::current`] reads it, English for any other.
 
-use std::{collections::HashMap, sync::OnceLock};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::OnceLock,
+};
 
 use super::{Intake, locale::Lang};
 
@@ -44,6 +47,28 @@ fn say(lang: Lang, key: &str, values: &[(&str, String)]) -> String {
         .fold(template.to_owned(), |text, (name, value)| {
             text.replace(&format!("{{{name}}}"), value)
         })
+}
+
+/// Every sentence whose key starts with `prefix`, in `lang`, English where `lang` lacks one: the
+/// link page's words (RD-1390-02), which the page fills in itself.
+pub(super) fn with_prefix(lang: Lang, prefix: &str) -> BTreeMap<String, String> {
+    let mut texts: BTreeMap<String, String> = BTreeMap::new();
+    for source in [catalogue(Lang::En), catalogue(lang)] {
+        for (key, text) in source.iter().filter(|(key, _)| key.starts_with(prefix)) {
+            texts.insert(key.clone(), text.clone());
+        }
+    }
+    texts
+}
+
+/// The language's tag, for a page's `lang` attribute.
+pub(super) fn tag(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "en",
+        Lang::De => "de",
+        Lang::Es => "es",
+        Lang::Fr => "fr",
+    }
 }
 
 /// The toast for everything one window brought, or for what quiet hours held back.
@@ -166,6 +191,15 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// The link page gets its own sentences and no toast's (RD-1390-02).
+    #[test]
+    fn the_link_page_gets_only_its_own_sentences() {
+        let texts = super::with_prefix(Lang::De, "link_");
+        assert_eq!(texts["link_connect"], "Verbinden");
+        assert!(texts.keys().all(|key| key.starts_with("link_")));
+        assert!(!texts.contains_key("held"));
     }
 
     /// RD-1270-05: the toast is said in the desktop's language, not in English for everyone.

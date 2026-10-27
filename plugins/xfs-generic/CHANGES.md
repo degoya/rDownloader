@@ -1,5 +1,9 @@
 # Changes
 
+## 0.1.17
+
+The dead host nikaplayer.com is no longer offered.
+
 ## 0.1.16
 
 Supports uploadhub.pics, where uploadhub.ws links now lead; the retired address uploadhub.dad is gone.

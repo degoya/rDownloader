@@ -92,10 +92,18 @@ const LINUX_LINKED: &[(&str, &str)] = &[
         "workspace crate, headless: the signed update manifest, the verified download and the \
          portable switch of the agent's own update (RD-1210-03)",
     ),
+    (
+        "rand",
+        "the link page's secret (RD-1390-02): the operating system's random source, no toolkit",
+    ),
     ("reqwest", "HTTP client"),
     ("serde", "serialization"),
     ("serde_json", "serialization"),
     ("sha2", "hashing"),
+    (
+        "subtle",
+        "the link page's secret compared in constant time (RD-1390-02); pure Rust",
+    ),
     ("tokio", "runtime"),
     ("tokio-util", "runtime helpers"),
     ("tower-http", "HTTP middleware"),

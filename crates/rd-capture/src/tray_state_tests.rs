@@ -85,6 +85,9 @@ pub(super) fn apply(surface: &mut Surface, update: &Update) {
     if let Some(entry) = update.game_mode {
         surface.game_mode = entry;
     }
+    if let Some(entry) = update.link {
+        surface.link = entry;
+    }
 }
 
 fn clipboard_paused(paused: bool) -> CaptureAgentSettings {

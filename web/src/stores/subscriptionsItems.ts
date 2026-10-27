@@ -198,6 +198,9 @@ export function useSubscriptionItems() {
         complete: offset === 0 && collected.length < wanted,
         decided: decidedHere.get(id) ?? new Set()
       })
+      // Nothing left on screen to hold still (owner, 2026-10-27): a list emptied by decisions is
+      // drawn as it is now, or the open group stays empty under its "+N new".
+      if (!merged.items.length && shown.length) return loadItems(id, state, 1, 1)
       // The total the slider reads up to is the one on screen, or it would wait for the held hits.
       const total = Math.max(0, latest.total - merged.held.length)
       itemPages.value = { ...itemPages.value, [id]: { ...latest, total } }

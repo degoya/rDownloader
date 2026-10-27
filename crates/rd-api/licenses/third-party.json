@@ -672,7 +672,7 @@
     {"name": "zopfli", "version": "0.8.3", "license": "Apache-2.0"},
     {"name": "zstd", "version": "0.13.3", "license": "MIT"},
     {"name": "zstd-safe", "version": "7.3.0", "license": "BSD-3-Clause"},
-    {"name": "zstd-sys", "version": "2.1.0+zstd.1.5.7", "license": "BSD-3-Clause"},
+    {"name": "zstd-sys", "version": "2.1.2+zstd.1.5.7", "license": "BSD-3-Clause"},
     {"name": "zvariant", "version": "5.15.0", "license": "MIT"},
     {"name": "zvariant_utils", "version": "4.2.0", "license": "MIT"}
   ],

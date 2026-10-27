@@ -51,7 +51,10 @@
     "queue_control": "May control the queue",
     "queue_control_help": "Allows “Start all”, “Pause all” and “Add all from LinkGrabber” in the agent's tray menu – nothing more. Without it the agent only hands links in.",
     "server_update": "May install server updates",
-    "server_update_help": "Allows “Install server update” in the agent's tray menu: it installs rDownloader's offered update, and the service restarts. Without it the entry opens the update page in the browser. The same right allows “Restart server” in the tray menu, which restarts rDownloader."
+    "server_update_help": "Allows “Install server update” in the agent's tray menu: it installs rDownloader's offered update, and the service restarts. Without it the entry opens the update page in the browser. The same right allows “Restart server” in the tray menu, which restarts rDownloader.",
+    "copy_service": "Copy server address",
+    "tray_hint": "Or choose “Link capture agent” in the agent's tray menu and paste the address and token there.",
+    "loopback_hint": "This address only works on this computer. On another computer, use this computer's network address instead, e.g. http://192.168.x.y:{port}."
   },
   "agents": {
     "eyebrow": "Paired connections",

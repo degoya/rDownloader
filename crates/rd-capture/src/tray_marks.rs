@@ -47,7 +47,8 @@ impl Marks {
         match kind {
             IconKind::Idle => self.idle.clone(),
             IconKind::Busy => self.busy.clone(),
-            IconKind::PausedIdle => self.paused_idle.clone(),
+            // Not linked yet (RD-1390-02): the quiet greyed mark, not an error.
+            IconKind::PausedIdle | IconKind::Unlinked => self.paused_idle.clone(),
             IconKind::PausedBusy => self.paused_busy.clone(),
         }
     }

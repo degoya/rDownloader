@@ -5,6 +5,87 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.39.0] - 2026-10-27
+
+### Added
+
+- **A Windows installer for the capture agent alone (RD-1390-04).**
+  `rdownloader-capture-windows-x86_64.msi` (and `-de`, `-es`, `-fr.msi`) installs only the agent,
+  per user, into `%LOCALAPPDATA%\Programs\rDownloader Capture`, for a PC whose server runs
+  elsewhere. Its finish page offers "Start the capture agent at login" (on by default, first
+  install only) and starts the agent; an upgrade leaves the autostart as it is and starts the agent
+  only when it is registered. Silent switches `AUTOSTART`, `ASSOCIATION`, `DROPSHORTCUT`, `SENDTO`
+  as in the full MSI. It refuses to install beside the full product, whose MSI removes it and
+  registers its autostart and integrations again for its own agent
+  (`packaging/msi/rdownloader-capture.wxs`, `scripts/package-msi.sh --capture`, `release.yml`,
+  `installers.yml`).
+
+- **The pairing card points at the tray, and the agent alone is on the website (RD-1390-05).**
+  After pairing, Settings → Clients & API → Desktop shows the server address to copy and the hint
+  to paste address and token into the agent's tray entry “Link capture agent”
+  (`system.pairing.copy_service`, `system.pairing.tray_hint`); the `configure` command stays. The
+  website's download page has a “Capture agent only” section (Windows installer and ZIP, macOS and
+  Linux archives, Homebrew), and the wiki's capture agent page begins with “Capture agent on
+  another computer”.
+
+- **Link the capture agent without a shell (RD-1390-02).** An agent without a token no longer
+  ends with exit code 10: it runs unlinked, says "Not linked" in the tray and serves only its
+  link page on the Click'n'Load port, at `/link/<secret>` (32 random bytes per process, compared
+  in constant time); the page opens by itself once per installation (marker `link-page-shown`,
+  `run --no-link-page` keeps it shut), and the tray's "Link capture agent" / "Change link…"
+  (`CaptureCommand::Link`, a shortcut field without a default) and `rdownloader-capture link
+  [--print]` (reads `link.key`) open it again — through a `0600` `link.html` that forwards to the
+  page, so the secret never stands on a browser's command line. The page takes the server address and the token,
+  asks the service for the agent's settings with that token and stores through `config::save`
+  only after it answered; a remote `http` address needs the ticked "Connect unencrypted", which
+  stays ticked for that address, and the tray's server line then says "(unencrypted)". It refuses
+  a foreign `Host` or a wrong secret with a bare `404` and a `POST` from another `Origin` with
+  `403`, sends `no-store`, `no-referrer` and a strict CSP, has no CORS and never answers with the
+  token; each refusal is a stable `link_*` code worded in de/en/es/fr. A new link switches
+  address and token in the running agent (`link_phase.rs`); the launchers and the systemd unit
+  no longer handle exit code 10.
+
+- **"Start at login" in the capture agent's tray (RD-1390-03).** A check entry after "Pause while
+  gaming", ticked by the real registration (`rd_autostart::is_registered`, now on Windows, macOS
+  and Linux, read again every 30 s on the health poll), brings it to the tick a click left (the
+  shortcut flips it) with the `install`/`remove` of `rdownloader-capture autostart` on the agent's
+  runtime, off the event loop, and does nothing when it already is so; a failed switch keeps the
+  old tick, logs the error and says it in a notification. Hidden beside the service (`AgentSetup::WithService`), where its
+  shortcut switches nothing. `CaptureCommand::Autostart` takes a shortcut without a default (the
+  settings page, the Linux agent's shortcuts and the MCP tool descriptions name it).
+  `rdownloader-capture autostart install` no longer refuses an agent that is not linked yet: it
+  starts unlinked now (RD-1390-02), and the capture MSI's `AUTOSTART=1` runs it on a fresh
+  install, where the refusal, ignored by the custom action, left no autostart (Installers run on
+  `ci/integration-1.39-w1`).
+
+### Changed
+
+- **Plugin versions.** The versions this release raises: `xfs-generic` 0.1.17.
+
+### Fixed
+
+- **The dead host `nikaplayer.com` leaves `xfs-generic` (RD-1390-01).** It had no DNS record
+  before 1.38.0 and measured `NXDOMAIN` again on 2026-10-27 (system resolver and 1.1.1.1); it is
+  gone from the manifest's domain lists and network grant and from the plugin's host list. No
+  successor: nothing resolves that could redirect to one. `xfs-generic` 0.1.17
+- **The capture agent's own archives start and stop it (RD-1390-04).** Their `start-capture` and
+  `stop-capture` scripts call `start-rdownloader`/`stop-rdownloader capture`, which the archives
+  of RD-1210-03 left out; `scripts/release-assets.sh agent` now packs them, and `agent-stage`
+  copies the same files for the installer's build.
+
+- **An open indexer group no longer stays empty under its "+N new".** Deciding the last rows of
+  an open group one by one left it open and empty, with the hits that arrived meanwhile held
+  behind "+N new" until it was folded; the 2026-10-22 fix covered only "Queue all" and "Dismiss
+  all". A re-read under the drawer's hold that leaves no row on screen now draws the list as it is
+  (`readItems` in `web/src/stores/subscriptionsItems.ts`), and a single decision reads the counts
+  before the list, so the "new" chip does not flash. A group that ran out of hits stayed in the
+  drawer's open set, so when hits came back it reappeared folded with a watermark nobody saw and
+  its "Dismiss all" sent nothing; the summary watcher in `IndexerReviewList.vue` now drops it.
+
+### Security
+
+- zstd-sys 2.1.2 (RUSTSEC-2026-0410). The zstd 0.13 / zstd-safe 7 advisories RUSTSEC-2026-0391, -0398 and -0403 are acknowledged in `deny.toml`: they reach the build only through Wasmtime's compile cache, which takes none of the three paths, and no Wasmtime release requires a patched zstd yet (RD-1390-06).
+
 ## [1.38.0] - 2026-10-26
 
 ### Fixed

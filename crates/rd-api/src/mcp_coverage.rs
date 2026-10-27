@@ -875,7 +875,12 @@ pub(crate) static COVERAGE: &[Capability] = &[
          installing it is the agent's own decision, never a tool's. The service's update the \
          tray offers (RD-1240-25) is the offer get_update_status shows; installing it stays a \
          person's click, in the interface or in a tray paired with capture:server_update, for \
-         the reasons \"Installing an update\" gives.",
+         the reasons \"Installing an update\" gives. The agent's link page (RD-1390-02) is \
+         local to the agent, on its Click'n'Load port, and comes before any token, so no tool \
+         can reach it; its tray entry \"Link capture agent\" is the command link, whose \
+         shortcut update_capture_agent_settings sets. \"Start at login\" (RD-1390-03) \
+         switches the agent's own login entry on the person's desktop, which no tool reaches \
+         either; its command autostart takes a shortcut the same way.",
     ),
     omitted(
         "Controlling one download by its own route",

@@ -105,9 +105,15 @@ impl std::fmt::Display for Replaced {
 
 impl std::error::Error for Replaced {}
 
-/// Looks at `program` every [`CHECK_INTERVAL`] until it was replaced — then cancels the agent and
-/// returns `true` — or until the agent ends otherwise.
-pub(crate) async fn watch(program: PathBuf, cancellation: CancellationToken) -> bool {
+/// Looks at `program` every `every` — [`CHECK_INTERVAL`] in the agent — until it was replaced —
+/// then cancels the agent and returns `true` — or until the agent ends otherwise. The file as it is
+/// when this starts is the baseline; the agent starts it once per run, before its first phase, so
+/// an update while it is not linked counts as much as one while it is (RD-1390-02).
+pub(crate) async fn watch(
+    program: PathBuf,
+    cancellation: CancellationToken,
+    every: Duration,
+) -> bool {
     let Some(started) = Fingerprint::of(&program) else {
         tracing::warn!(
             program = %program.display(),
@@ -119,7 +125,7 @@ pub(crate) async fn watch(program: PathBuf, cancellation: CancellationToken) -> 
     loop {
         tokio::select! {
             () = cancellation.cancelled() => return false,
-            () = tokio::time::sleep(CHECK_INTERVAL) => {}
+            () = tokio::time::sleep(every) => {}
         }
         if watch.observe(Fingerprint::of(&program)) {
             tracing::info!(

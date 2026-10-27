@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The capture agent's installer strings in French (RD-1390-04). -->
+<WixLocalization Culture="fr-FR" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="ProductLanguage" Value="1036" />
+  <String Id="DowngradeError" Value="Une version plus récente de rDownloader Capture est déjà installée. Désinstallez-la d’abord ; vos réglages sont conservés." />
+  <String Id="FullProductPresent" Value="rDownloader est installé et contient déjà l’agent de bureau." />
+  <String Id="AutostartCheckbox" Value="Démarrer l’agent de bureau à l’ouverture de session" />
+  <String Id="CaptureShortcutDescription" Value="Démarre l’agent de bureau" />
+  <String Id="StopShortcutName" Value="Arrêter rDownloader Capture" />
+  <String Id="StopShortcutDescription" Value="Arrête l’agent de bureau" />
+</WixLocalization>

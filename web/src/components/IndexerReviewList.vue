@@ -143,6 +143,13 @@ watch(open, isOpen => {
 // follow the counts, so their "all" is what their badge says.
 watch(() => subscriptions.reviewSummary, () => {
   if (!open.value || !shownGroups.value) return
+  // A group that ran out of hits left the drawer and comes back folded: it is no longer open,
+  // or it would hold a watermark nobody sees and its "all" would send none.
+  const left = [...openGroups.value].filter(id => !pendingOf(id))
+  if (left.length) {
+    for (const id of left) subscriptions.hideItems(id)
+    openGroups.value = new Set([...openGroups.value].filter(id => pendingOf(id)))
+  }
   const added = liveGroups.value.filter(subscription => !shownGroups.value?.has(subscription.id))
   if (added.length) shownGroups.value = new Set([...shownGroups.value, ...added.map(subscription => subscription.id)])
   subscriptions.takeSummaryWatermarks(openGroups.value)

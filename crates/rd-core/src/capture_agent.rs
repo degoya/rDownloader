@@ -64,13 +64,20 @@ pub enum CaptureCommand {
     /// "About rDownloader" (RD-1260-08): the connected app's Settings > About rDownloader page
     /// in the browser, under the same rule as "Open rDownloader".
     About,
+    /// "Link capture agent", "Change link…" once linked (RD-1390-02): the agent's own link page
+    /// in the browser, where a server address and a token pair it without a shell.
+    Link,
+    /// "Start at login" (RD-1390-03): the agent's own login entry switched on or off, where it is
+    /// installed without the service; beside the service the entry is hidden.
+    Autostart,
 }
 
 impl CaptureCommand {
     /// Every command, in the order the settings list them: the tray menu's order up to "Quit",
     /// then the entries that became shortcut-capable with RD-1240-24, "Restart server"
-    /// (RD-1240-32) and "About rDownloader" (RD-1260-08).
-    pub const ALL: [Self; 16] = [
+    /// (RD-1240-32), "About rDownloader" (RD-1260-08), "Link capture agent" (RD-1390-02) and
+    /// "Start at login" (RD-1390-03).
+    pub const ALL: [Self; 18] = [
         Self::Open,
         Self::StartAll,
         Self::PauseAll,
@@ -87,6 +94,8 @@ impl CaptureCommand {
         Self::InstallUpdate,
         Self::RestartServer,
         Self::About,
+        Self::Link,
+        Self::Autostart,
     ];
 
     /// The stable name, as the settings document and the API spell it.
@@ -109,6 +118,8 @@ impl CaptureCommand {
             Self::InstallUpdate => "install_update",
             Self::RestartServer => "restart_server",
             Self::About => "about",
+            Self::Link => "link",
+            Self::Autostart => "autostart",
         }
     }
 }
@@ -159,6 +170,12 @@ pub struct CaptureShortcuts {
     /// No default either (RD-1260-08), for the same reason.
     #[serde(default)]
     pub about: Option<String>,
+    /// No default either (RD-1390-02), for the same reason.
+    #[serde(default)]
+    pub link: Option<String>,
+    /// No default either (RD-1390-03), for the same reason.
+    #[serde(default)]
+    pub autostart: Option<String>,
 }
 
 // The defaults (owner, 2026-10-07: Ctrl+Alt+<letter> on Windows and Linux, Cmd+Option+<letter> on
@@ -206,6 +223,8 @@ impl Default for CaptureShortcuts {
             install_update: None,
             restart_server: None,
             about: None,
+            link: None,
+            autostart: None,
         }
     }
 }
@@ -240,6 +259,8 @@ impl CaptureShortcuts {
             CaptureCommand::InstallUpdate => &self.install_update,
             CaptureCommand::RestartServer => &self.restart_server,
             CaptureCommand::About => &self.about,
+            CaptureCommand::Link => &self.link,
+            CaptureCommand::Autostart => &self.autostart,
         }
     }
 
@@ -263,6 +284,8 @@ impl CaptureShortcuts {
             CaptureCommand::InstallUpdate => &mut self.install_update,
             CaptureCommand::RestartServer => &mut self.restart_server,
             CaptureCommand::About => &mut self.about,
+            CaptureCommand::Link => &mut self.link,
+            CaptureCommand::Autostart => &mut self.autostart,
         }
     }
 

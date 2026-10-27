@@ -51,7 +51,10 @@
     "queue_control": "Puede controlar la cola",
     "queue_control_help": "Permite «Start all», «Pause all» y «Add all from LinkGrabber» en el menú de la bandeja del agente, nada más. Sin esta opción el agente solo entrega enlaces.",
     "server_update": "Puede instalar actualizaciones del servidor",
-    "server_update_help": "Permite «Install server update» en el menú de la bandeja del agente: instala la actualización ofrecida de rDownloader y el servicio se reinicia. Sin esta opción, la entrada abre la página de actualizaciones en el navegador. La misma opción permite «Restart server» en el menú de la bandeja, que reinicia rDownloader."
+    "server_update_help": "Permite «Install server update» en el menú de la bandeja del agente: instala la actualización ofrecida de rDownloader y el servicio se reinicia. Sin esta opción, la entrada abre la página de actualizaciones en el navegador. La misma opción permite «Restart server» en el menú de la bandeja, que reinicia rDownloader.",
+    "copy_service": "Copiar dirección del servidor",
+    "tray_hint": "O elige «Link capture agent» en el menú de la bandeja del agente y pega allí la dirección y el token.",
+    "loopback_hint": "Esta dirección solo funciona en este equipo. En otro equipo, usa en su lugar la dirección de red de este equipo, p. ej. http://192.168.x.y:{port}."
   },
   "agents": {
     "eyebrow": "Conexiones emparejadas",

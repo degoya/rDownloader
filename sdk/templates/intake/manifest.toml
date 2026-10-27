@@ -23,7 +23,7 @@ claims = []
 description = "Turns {{PLUGIN_NAME}} pages and lists into LinkGrabber candidates."
 author = "Your name"
 license = "MIT"
-min_app_version = "1.38.0"
+min_app_version = "1.39.0"
 
 [limits]
 memory_bytes = 33554432

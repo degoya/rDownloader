@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The capture agent's installer strings in English (RD-1390-04); every capture-*.wxl names the
+     same ids as rdownloader-capture.wxs asks for. -->
+<WixLocalization Culture="en-US" Codepage="1252" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="ProductLanguage" Value="1033" />
+  <String Id="DowngradeError" Value="A newer version of rDownloader Capture is already installed. Uninstall it first; your settings stay." />
+  <String Id="FullProductPresent" Value="rDownloader is installed and already contains the capture agent." />
+  <String Id="AutostartCheckbox" Value="Start the capture agent at login" />
+  <String Id="CaptureShortcutDescription" Value="Starts the desktop capture agent" />
+  <String Id="StopShortcutName" Value="Stop rDownloader Capture" />
+  <String Id="StopShortcutDescription" Value="Stops the desktop capture agent" />
+</WixLocalization>

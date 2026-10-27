@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.38.0"
+    "version": "1.39.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -23838,7 +23838,9 @@
           "add_all_from_linkgrabber_paused",
           "install_update",
           "restart_server",
-          "about"
+          "about",
+          "link",
+          "autostart"
         ]
       },
       "CaptureCookiesRequest": {
@@ -24438,6 +24440,13 @@
             ],
             "description": "No default either (RD-1240-27), for the same reason."
           },
+          "autostart": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "No default either (RD-1390-03), for the same reason."
+          },
           "clipboard_watch": {
             "type": [
               "string",
@@ -24463,6 +24472,13 @@
               "string",
               "null"
             ]
+          },
+          "link": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "No default either (RD-1390-02), for the same reason."
           },
           "open": {
             "type": [

@@ -12,9 +12,18 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.39.0
+## 1.40.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.39.0
+
+- The capture agent has its own Windows installer, for a PC whose server runs elsewhere; it can start the agent at login.
+- A capture agent that is not linked yet starts anyway and opens a page where you enter the server address and token, no command line needed.
+- The capture agent's tray menu has a "Start at login" switch.
+- After pairing, the settings show the server address to copy and where to paste it in the agent; the website offers the capture agent on its own.
+- The start and stop scripts in the capture agent's own archives work again.
+- An open indexer group in the review drawer now shows newly found hits once its last rows are decided, instead of staying empty.
 
 ## 1.38.0
 

@@ -43,6 +43,17 @@ pub(super) fn remove(target: Target) -> Result<()> {
     Ok(())
 }
 
+/// Whether the unit is enabled: `systemctl --user enable` links it into its target's `.wants`
+/// directory, and `remove` takes that link away.
+pub(super) fn is_registered(target: Target) -> bool {
+    unit_directory().is_ok_and(|directory| {
+        directory
+            .join(format!("{}.wants", target.wanted_by()))
+            .join(unit_name(target))
+            .exists()
+    })
+}
+
 fn unit_directory() -> Result<std::path::PathBuf> {
     BaseDirs::new()
         .map(|paths| paths.config_dir().join("systemd/user"))

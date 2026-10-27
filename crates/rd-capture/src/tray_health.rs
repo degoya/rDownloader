@@ -2,6 +2,7 @@
 
 use std::time::Instant;
 
+use tokio_util::sync::CancellationToken;
 use url::Url;
 
 use super::UserEvent;
@@ -19,10 +20,14 @@ use crate::status::{HEALTH_INTERVAL, HealthProbe, HealthWatch, ServerStatus, hea
 /// is tested on every host; which version an answer names is `client::health_version`, tested
 /// the same way (RD-1240-06). This function is only the part that cannot exist without an event
 /// loop to send the result to.
+///
+/// It polls one address until `cancellation` fires: a new link to another service ends it and
+/// starts one for the new address (RD-1390-02).
 pub(super) fn spawn_health_poll(
     runtime: &tokio::runtime::Runtime,
     service: Url,
     proxy: tao::event_loop::EventLoopProxy<UserEvent>,
+    cancellation: CancellationToken,
 ) {
     runtime.spawn(async move {
         let Ok(health) = service.join("api/v1/health") else {
@@ -46,6 +51,7 @@ pub(super) fn spawn_health_poll(
         };
         let started = Instant::now();
         let mut watch = HealthWatch::default();
+        let mut readings: u32 = 0;
         loop {
             // The status is the whole of what the rule reads; a transport failure has no status
             // at all, and that absence is what "silence" means one line further down.
@@ -60,9 +66,17 @@ pub(super) fn spawn_health_poll(
                 _ => None,
             };
             let status = watch.observe(probe, started.elapsed());
+            // A reading of an address the agent has left behind is not the server's state.
+            if cancellation.is_cancelled() {
+                return;
+            }
             // Sending on every tick is fine: the agent ignores a reading it already holds.
             let _ = proxy.send_event(UserEvent::Server(status, version));
-            tokio::time::sleep(HEALTH_INTERVAL).await;
+            super::autostart::refresh(&proxy, &mut readings).await;
+            tokio::select! {
+                () = cancellation.cancelled() => return,
+                () = tokio::time::sleep(HEALTH_INTERVAL) => {}
+            }
         }
     });
 }

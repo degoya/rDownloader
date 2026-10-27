@@ -8794,7 +8794,7 @@ export interface components {
          * @description One command of the agent's tray menu, each of which a shortcut can trigger.
          * @enum {string}
          */
-        CaptureCommand: "open" | "start_all" | "pause_all" | "pause_half_hour" | "pause_hour" | "clipboard_watch" | "send_clipboard" | "game_mode" | "install_server_update" | "auto_install" | "quit" | "add_all_from_linkgrabber" | "add_all_from_linkgrabber_paused" | "install_update" | "restart_server" | "about";
+        CaptureCommand: "open" | "start_all" | "pause_all" | "pause_half_hour" | "pause_hour" | "clipboard_watch" | "send_clipboard" | "game_mode" | "install_server_update" | "auto_install" | "quit" | "add_all_from_linkgrabber" | "add_all_from_linkgrabber_paused" | "install_update" | "restart_server" | "about" | "link" | "autostart";
         /** @description Cookies handed over by a capture client for one approved domain. */
         CaptureCookiesRequest: {
             cookies: string;
@@ -9070,6 +9070,8 @@ export interface components {
             add_all_from_linkgrabber_paused?: string | null;
             /** @description No default either (RD-1240-27), for the same reason. */
             auto_install?: string | null;
+            /** @description No default either (RD-1390-03), for the same reason. */
+            autostart?: string | null;
             clipboard_watch?: string | null;
             /**
              * @description No default (owner, 2026-10-10): a tray function added after the defaults were chosen gets
@@ -9079,6 +9081,8 @@ export interface components {
             /** @description No default either (RD-1240-25), for the same reason. */
             install_server_update?: string | null;
             install_update?: string | null;
+            /** @description No default either (RD-1390-02), for the same reason. */
+            link?: string | null;
             open?: string | null;
             pause_all?: string | null;
             pause_half_hour?: string | null;

@@ -13,6 +13,8 @@ name: Installers
 #   both for x86_64 on ubuntu-24.04 and for aarch64 on ubuntu-24.04-arm, each natively (RD-190-12)
 #   MSI on Windows Server 2025: msiexec /qn per user, AUTOSTART=1, a second build as the upgrade,
 #     a German build installed and removed (RD-1120-20)
+#   the capture agent's MSI (RD-1390-04): AUTOSTART=1 and without, the switches, the uninstall, an
+#     upgrade that keeps a removed autostart removed, the full MSI refused by it and replacing it
 #   macOS: `rdownloader-capture scheme install|remove` against Launch Services, the helper app
 #     built as release.yml builds it
 #
@@ -268,13 +270,16 @@ jobs:
         uses: ./.github/actions/install-wix
       # Two builds of one version: each gets a product code of its own, so the second installs as
       # the major upgrade of the first, as a release does over the one before it.
-      - name: Build the MSI twice, and once in German
+      - name: Build the MSI twice, and once in German; the capture agent's twice
         shell: bash
         run: |
           set -euo pipefail
           scripts/package-msi.sh stage installers/first/rdownloader-windows-x86_64.msi
           scripts/package-msi.sh stage installers/second/rdownloader-windows-x86_64.msi
           scripts/package-msi.sh stage installers/de/rdownloader-windows-x86_64-de.msi de
+          scripts/release-assets.sh agent-stage stage capture-stage
+          scripts/package-msi.sh --capture capture-stage installers/capture-first/rdownloader-capture-windows-x86_64.msi
+          scripts/package-msi.sh --capture capture-stage installers/capture-second/rdownloader-capture-windows-x86_64.msi
       - name: Install, upgrade with AUTOSTART=1, uninstall, keep the data
         shell: pwsh
         run: |
@@ -349,6 +354,97 @@ jobs:
           if (-not (Test-Path "$menu\rDownloader beenden.lnk")) { throw "the German MSI has no entry 'rDownloader beenden'" }
           Msi '/x installers\de\rdownloader-windows-x86_64-de.msi' de-remove.log
           if (Test-Path $menu) { throw "the German uninstall left the Start menu folder behind" }
+      # RD-1390-04: the capture agent's own MSI, after the full product's step left only its data.
+      - name: The capture agent's MSI - autostart, switches, upgrade, uninstall, the full MSI beside it
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $capture = Join-Path $env:LOCALAPPDATA 'Programs\rDownloader Capture'
+          $program = Join-Path $env:LOCALAPPDATA 'Programs\rDownloader'
+          $db = Join-Path $env:LOCALAPPDATA 'rDownloader\data\rdownloader.sqlite3'
+          $menu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\rDownloader Capture'
+          $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          $wrapper = Join-Path $env:APPDATA 'rDownloader\rDownloader\config\autostart\rdownloader-capture.cmd'
+          $classes = 'HKCU:\Software\Classes'
+          $offered = "$classes\Applications\rdownloader-capture.exe"
+          $desktopLink = Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) 'Add to rDownloader.lnk'
+          $sendToLink = Join-Path ([Environment]::GetFolderPath('SendTo')) 'rDownloader.lnk'
+          $first = 'installers\capture-first\rdownloader-capture-windows-x86_64.msi'
+          $second = 'installers\capture-second\rdownloader-capture-windows-x86_64.msi'
+          function Msi($arguments, $log) {
+            $process = Start-Process msiexec.exe -ArgumentList "$arguments /qn /l*v $log" -Wait -PassThru
+            if ($process.ExitCode -ne 0) { Get-Content $log -Tail 80; throw "msiexec $arguments exited with $($process.ExitCode)" }
+          }
+          function Autostart { (Get-ItemProperty $run -Name 'rDownloader Capture' -ErrorAction SilentlyContinue).'rDownloader Capture' }
+          function Installed { Test-Path "$capture\rdownloader-capture.exe" }
+          if (-not (Test-Path $db)) { throw "the full product's step left no database to keep" }
+          # A silent install with every switch: the agent, its marker, its menu, its autostart.
+          Msi "/i $first AUTOSTART=1 ASSOCIATION=1 DROPSHORTCUT=1 SENDTO=1" capture-first.log
+          if (Test-Path "$capture\rdownloader.exe") { throw "the capture MSI installed the service" }
+          if ((Get-Content "$capture\install-kind").Trim() -ne 'msi') { throw "install-kind is not msi" }
+          & "$capture\rdownloader-capture.exe" --version
+          if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture.exe --version failed" }
+          foreach ($entry in 'rDownloader Capture', 'Stop rDownloader Capture') {
+            if (-not (Test-Path "$menu\$entry.lnk")) { throw "no Start menu entry $entry" }
+          }
+          if (-not (Autostart)) { throw "AUTOSTART=1 registered no autostart" }
+          foreach ($entry in $offered, $desktopLink, $sendToLink) {
+            if (-not (Test-Path -LiteralPath $entry)) { throw "the switches left $entry out" }
+          }
+          # The uninstall takes the autostart and the integrations, never the data.
+          Msi "/x $first" capture-remove.log
+          if (Installed) { throw "the uninstall left the agent behind" }
+          if (Test-Path $menu) { throw "the uninstall left the Start menu folder behind" }
+          if (Autostart) { throw "the uninstall left the autostart entry behind" }
+          foreach ($left in $offered, $desktopLink, $sendToLink) {
+            if (Test-Path -LiteralPath $left) { throw "the uninstall left $left behind" }
+          }
+          if (-not (Test-Path $db)) { throw "the capture uninstall took the data with it" }
+          # Without AUTOSTART=1 no autostart; with it, then switched off, an upgrade keeps it off
+          # and starts no agent.
+          Msi "/i $first" capture-plain.log
+          if (Autostart) { throw "an install without AUTOSTART=1 registered the autostart" }
+          Msi "/x $first" capture-plain-remove.log
+          Msi "/i $first AUTOSTART=1" capture-autostart.log
+          & "$capture\rdownloader-capture.exe" autostart remove
+          if ($LASTEXITCODE -ne 0 -or (Autostart)) { throw "autostart remove did not remove the entry" }
+          # Under /qn there is no finish page: its launch after an upgrade (only with the autostart
+          # registered) is checked live, not here. The two shortcuts are for the takeover below.
+          Msi "/i $second DROPSHORTCUT=1 SENDTO=1" capture-upgrade.log
+          if (-not (Installed)) { throw "the upgrade left no agent" }
+          if (Autostart) { throw "the upgrade registered the autostart that was switched off" }
+          if (Get-Process rdownloader-capture -ErrorAction SilentlyContinue) { throw "the upgrade started the agent" }
+          foreach ($link in $desktopLink, $sendToLink) {
+            if (-not (Test-Path -LiteralPath $link)) { throw "the upgrade's switches left $link out" }
+          }
+          # Beside the full product the capture MSI refuses, and the full MSI replaces it, taking its
+          # autostart, association, drop shortcut and Send to entry over for its own folder.
+          foreach ($integration in 'autostart', 'association') {
+            & "$capture\rdownloader-capture.exe" $integration install
+            if ($LASTEXITCODE -ne 0) { throw "$integration install failed" }
+          }
+          Msi '/i installers\first\rdownloader-windows-x86_64.msi' full-over-capture.log
+          if (Installed) { throw "the full MSI left the capture MSI's agent behind" }
+          if (Get-ItemProperty 'HKCU:\Software\rDownloader Capture\Installer' -Name Program -ErrorAction SilentlyContinue) { throw "the full MSI left the capture MSI installed" }
+          if (-not (Autostart)) { throw "the full MSI dropped the agent's autostart" }
+          if (-not ((Get-Content $wrapper -Raw) -like "*$program\rdownloader-capture.exe*")) { Get-Content $wrapper; throw "the agent's autostart does not name the full product's agent" }
+          $open = (Get-Item "$offered\shell\open\command").GetValue('')
+          if (-not ($open -like "*$program\rdownloader-capture.exe*")) { throw "the association names $open, not the full product's agent" }
+          $shell = New-Object -ComObject WScript.Shell
+          foreach ($link in $desktopLink, $sendToLink) {
+            if (-not (Test-Path -LiteralPath $link)) { throw "the full MSI dropped $link" }
+            $target = $shell.CreateShortcut($link).TargetPath
+            if ($target -ne "$program\rdownloader-capture.exe") { throw "$link names $target, not the full product's agent" }
+          }
+          $process = Start-Process msiexec.exe -ArgumentList "/i $second /qn /l*v capture-beside-full.log" -Wait -PassThru
+          if ($process.ExitCode -eq 0) { throw "the capture MSI installed beside the full product" }
+          if (-not (Select-String -Path capture-beside-full.log -Pattern 'already contains the capture agent' -Quiet)) { Get-Content capture-beside-full.log -Tail 40; throw "the refusal does not say why" }
+          if (Installed) { throw "the refused capture MSI left files behind" }
+          Msi '/x installers\first\rdownloader-windows-x86_64.msi' full-remove.log
+          if (Autostart) { throw "the full uninstall left the agent's autostart behind" }
+          foreach ($left in $offered, $desktopLink, $sendToLink) {
+            if (Test-Path -LiteralPath $left) { throw "the full uninstall left $left behind" }
+          }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:

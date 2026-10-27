@@ -84,13 +84,6 @@ rem the first, which then died on the Click'n'Load port and looked like a broken
   "if ($null -eq $process) { $process = $candidates | Where-Object { $null -eq (Test-SamePath $_ $exe) } | Select-Object -First 1 };" ^
   "if ($null -eq $process) { $process = Start-Process -FilePath $exe -ArgumentList $env:RD_START_ARG -WorkingDirectory $env:RD_START_CWD -WindowStyle Hidden -RedirectStandardOutput $env:RD_START_OUT -RedirectStandardError $env:RD_START_ERR -PassThru; Start-Sleep -Seconds 1; if ($process.HasExited) { exit $process.ExitCode } };" ^
   "[IO.File]::WriteAllText($env:RD_START_PID, [string]$process.Id)"
-rem 10 means the capture agent has nothing to connect to yet, which is what a fresh install
-rem looks like: pairing happens in the web interface once the server is up. Not a failure.
-if errorlevel 10 if not errorlevel 11 (
-    echo %~1 is not paired yet. Open the web interface, go to Settings ^> Desktop client,
-    echo and run the command it shows. Then start this again.
-    exit /b 0
-)
 rem 11 means a Click'n'Load listener already holds the port. Nothing but a capture agent binds
 rem it, so this is "there is already one" rather than a fault.
 if errorlevel 11 if not errorlevel 12 (

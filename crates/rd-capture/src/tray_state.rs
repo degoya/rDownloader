@@ -26,6 +26,9 @@
 //! While the service installs an update the server line says so instead of its version and state
 //! (RD-1240-25): the service goes away while it restarts, and "not reachable" would be the wrong
 //! story.
+//!
+//! The link (RD-1390-02) is decided in `tray_state_link.rs`: an unlinked agent says "Not linked",
+//! greys out everything that needs a service and offers "Link capture agent".
 
 use rd_core::{CaptureAgentSettings, CaptureGameMode, CaptureShortcuts};
 use url::Url;
@@ -51,6 +54,8 @@ pub(crate) enum IconKind {
     Busy,
     PausedIdle,
     PausedBusy,
+    /// Not linked yet (RD-1390-02): quiet, not an error; drawn as the greyed idle mark.
+    Unlinked,
 }
 
 /// Everything the surface shows, as the state wants it now: what a tray built at this moment is
@@ -74,6 +79,9 @@ pub(crate) struct Surface {
     pub accelerators: CaptureShortcuts,
     /// "Pause while gaming" (RD-1240-23).
     pub game_mode: GameModeEntry,
+    /// "Link capture agent" or "Change link…", and whether the entries that need a service can
+    /// be chosen (RD-1390-02).
+    pub link: LinkEntry,
 }
 
 /// "Pause while gaming": its label, its check mark and why it cannot be chosen, if it cannot
@@ -139,6 +147,8 @@ pub(crate) struct Update {
     pub accelerators: Option<CaptureShortcuts>,
     /// Named only on a change, from the settings or the queue reading.
     pub game_mode: Option<GameModeEntry>,
+    /// Named only on a change of the link (RD-1390-02).
+    pub link: Option<LinkEntry>,
 }
 
 impl Update {
@@ -177,6 +187,10 @@ pub(crate) struct TrayState {
     tooltip: String,
     /// What the service has the agent set to; the defaults until the first reading.
     settings: CaptureAgentSettings,
+    /// The agent said it has no link (RD-1390-02); until it says anything, it counts as linked.
+    unlinked: bool,
+    /// Linked over plain `http` to another machine: the server line says so.
+    insecure: bool,
 }
 
 /// The tooltip a freshly built tray carries, before anything has been read.
@@ -202,6 +216,8 @@ impl TrayState {
             server_restart: false,
             tooltip: initial_tooltip(),
             settings: CaptureAgentSettings::default(),
+            unlinked: false,
+            insecure: false,
         }
     }
 
@@ -209,7 +225,7 @@ impl TrayState {
     pub(crate) fn surface(&self) -> Surface {
         Surface {
             icon: self.icon(),
-            open_enabled: open_enabled(self.server),
+            open_enabled: self.open_enabled(),
             queue: self.queue,
             status_line: self.status_line(),
             server_line: self.server_line(),
@@ -217,6 +233,7 @@ impl TrayState {
             clipboard_paused: self.settings.clipboard_paused,
             accelerators: self.settings.shortcuts.clone(),
             game_mode: self.game_mode(),
+            link: self.link_entry(),
         }
     }
 
@@ -242,9 +259,12 @@ impl TrayState {
         }
         self.server = status;
         self.server_version = version;
-        self.status = status_label(self.configured.as_ref(), status);
+        // Unlinked, the tooltip names no service (RD-1390-02).
+        if !self.unlinked {
+            self.status = status_label(self.configured.as_ref(), status);
+        }
         Update {
-            open_enabled: Some(open_enabled(status)),
+            open_enabled: Some(self.open_enabled()),
             server_line: Some(self.server_line()),
             ..Update::default()
         }
@@ -348,6 +368,9 @@ impl TrayState {
     }
 
     fn icon(&self) -> IconKind {
+        if self.unlinked {
+            return IconKind::Unlinked;
+        }
         match (self.settings.clipboard_paused, self.busy) {
             (false, false) => IconKind::Idle,
             (false, true) => IconKind::Busy,
@@ -367,13 +390,14 @@ impl TrayState {
 
     /// The server's status item under it (RD-1240-06), or the update it installs (RD-1240-25).
     fn server_line(&self) -> String {
-        match &self.server_update {
+        let line = match &self.server_update {
             Some(target) => server_updating_label(target),
             None if self.server_restart => {
                 server_restart_label(self.server, self.server_version.as_deref())
             }
             None => server_label(self.server, self.server_version.as_deref()),
-        }
+        };
+        self.with_transport(line)
     }
 
     /// The tooltip: the one line naming the agent, the server's state and the details, cut to
@@ -399,10 +423,10 @@ impl TrayState {
 /// rest of the menu (RD-092-05).
 pub(crate) const CLIPBOARD_PAUSED: &str = "capture paused";
 
-/// "Open rDownloader" can be chosen exactly while the service answers.
-fn open_enabled(server: ServerStatus) -> bool {
-    server == ServerStatus::Running
-}
+#[path = "tray_state_link.rs"]
+mod link;
+
+pub(crate) use link::LinkEntry;
 
 #[cfg(test)]
 #[path = "tray_state_tests.rs"]
@@ -415,3 +439,7 @@ mod server_tests;
 #[cfg(test)]
 #[path = "tray_state_game_mode_tests.rs"]
 mod game_mode_tests;
+
+#[cfg(test)]
+#[path = "tray_state_link_tests.rs"]
+mod link_tests;

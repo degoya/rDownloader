@@ -11,6 +11,13 @@
 # Usage:
 #   scripts/package-msi.sh <unpacked-zip-dir> <out.msi> [en|de|es|fr]
 #   scripts/package-msi.sh --sources-only <unpacked-zip-dir> <out-dir> [en|de|es|fr]   # no wix
+#   scripts/package-msi.sh [--sources-only] --capture <unpacked-capture-zip-dir> <out> [en|de|es|fr]
+#
+# --capture (RD-1390-04) builds the capture agent's own installer from packaging/msi/
+# rdownloader-capture.wxs and its capture-<culture>.wxl instead, out of the unpacked
+# rdownloader-capture-windows-x86_64.zip (`scripts/release-assets.sh agent`, or `agent-stage`
+# over the unpacked application zip): the agent, its scripts and the marker, no service, no
+# plugins. The release publishes it as rdownloader-capture-windows-x86_64[-<language>].msi.
 #
 # The language (default en) picks the culture of WiX's dialogs and the .wxl of the installer's
 # own strings beside rdownloader.wxs (RD-1120-20): one MSI per language of the interface. The
@@ -23,11 +30,19 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 sources_only=0
-if [[ "${1:-}" == --sources-only ]]; then
-    sources_only=1
+capture=0
+while [[ "${1:-}" == --* ]]; do
+    case "$1" in
+        --sources-only) sources_only=1 ;;
+        --capture) capture=1 ;;
+        *)
+            echo "unknown option $1" >&2
+            exit 2
+            ;;
+    esac
     shift
-fi
-usage="usage: scripts/package-msi.sh [--sources-only] <unpacked-zip-dir> <out.msi|out-dir> [en|de|es|fr]"
+done
+usage="usage: scripts/package-msi.sh [--sources-only] [--capture] <unpacked-zip-dir> <out.msi|out-dir> [en|de|es|fr]"
 stage="${1:?$usage}"
 out="${2:?$usage}"
 language="${3:-en}"
@@ -48,14 +63,30 @@ winpath() {
     if command -v cygpath > /dev/null; then cygpath -w "$1"; else printf '%s' "$1"; fi
 }
 
+# The files the WiX source names: the application zip's layout, or the capture agent's zip,
+# which carries the agent with its scripts (start-capture.bat calls start-rdownloader.bat).
 # shellcheck source=lib/archive-layout.sh
 source "$ROOT/scripts/lib/archive-layout.sh"
+if [[ "$capture" -eq 1 ]]; then
+    zip_name=rdownloader-capture-windows-x86_64.zip
+    product=rdownloader-capture
+    entries="$(printf '%s\n' LICENSE README.md VERSION.txt rdownloader-capture.exe \
+        start-capture.bat start-rdownloader.bat stop-capture.bat stop-rdownloader.bat)"
+else
+    zip_name=rdownloader-windows-x86_64.zip
+    product=rdownloader
+    entries="$(rd_archive_entries windows)"
+fi
 while IFS= read -r entry; do
     if [[ ! -f "$stage/$entry" ]]; then
-        echo "$stage has no $entry; unpack rdownloader-windows-x86_64.zip there" >&2
+        echo "$stage has no $entry; unpack $zip_name there" >&2
         exit 1
     fi
-done < <(rd_archive_entries windows)
+done <<< "$entries"
+if [[ "$capture" -eq 1 && -e "$stage/rdownloader.exe" ]]; then
+    echo "$stage holds rdownloader.exe; the capture installer takes the agent's zip, not the application's" >&2
+    exit 1
+fi
 if [[ -f "$stage/UNVERIFIED.txt" ]]; then
     echo "$stage is an unverified package (UNVERIFIED.txt); no installer is built from it" >&2
     exit 1
@@ -77,20 +108,23 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 # The bundled plugins, one component with every package: the set changes from release to
-# release, and a major upgrade removes the old one before the new one is laid down.
+# release, and a major upgrade removes the old one before the new one is laid down. The capture
+# agent's installer carries none.
 plugins=()
-for package in "$stage"/plugins/*.rdplug; do
-    [[ -f "$package" ]] || continue
-    name="$(basename "$package")"
-    if [[ ! "$name" =~ ^[a-z0-9][a-z0-9._-]*\.rdplug$ ]]; then
-        echo "unexpected plugin file name: $name" >&2
+if [[ "$capture" -eq 0 ]]; then
+    for package in "$stage"/plugins/*.rdplug; do
+        [[ -f "$package" ]] || continue
+        name="$(basename "$package")"
+        if [[ ! "$name" =~ ^[a-z0-9][a-z0-9._-]*\.rdplug$ ]]; then
+            echo "unexpected plugin file name: $name" >&2
+            exit 1
+        fi
+        plugins+=("$name")
+    done
+    if [[ "${#plugins[@]}" -eq 0 ]]; then
+        echo "$stage/plugins holds no .rdplug; the installer would start without a hoster" >&2
         exit 1
     fi
-    plugins+=("$name")
-done
-if [[ "${#plugins[@]}" -eq 0 ]]; then
-    echo "$stage/plugins holds no .rdplug; the installer would start without a hoster" >&2
-    exit 1
 fi
 {
     echo '<?xml version="1.0" encoding="utf-8"?>'
@@ -124,19 +158,26 @@ printf 'msi\n' > "$work/install-kind"
 
 arguments=(build -arch x64
     -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext
-    -culture "$culture" -loc "$(winpath "$ROOT/packaging/msi/$culture.wxl")"
+    -culture "$culture"
     -d "Version=$msi_version"
     -d "Stage=$(winpath "$stage")"
     -d "InstallKind=$(winpath "$work/install-kind")"
     -d "LicenseRtf=$(winpath "$work/license.rtf")"
-    -d "Icon=$(winpath "$ROOT/resources/rdownloader.ico")"
-    "$(winpath "$ROOT/packaging/msi/rdownloader.wxs")" "$(winpath "$work/plugins.wxs")")
+    -d "Icon=$(winpath "$ROOT/resources/rdownloader.ico")")
+if [[ "$capture" -eq 1 ]]; then
+    arguments+=(-loc "$(winpath "$ROOT/packaging/msi/capture-$culture.wxl")"
+        "$(winpath "$ROOT/packaging/msi/rdownloader-capture.wxs")")
+else
+    arguments+=(-loc "$(winpath "$ROOT/packaging/msi/$culture.wxl")"
+        "$(winpath "$ROOT/packaging/msi/rdownloader.wxs")" "$(winpath "$work/plugins.wxs")")
+fi
 
 if [[ "$sources_only" -eq 1 ]]; then
     mkdir -p "$out"
-    cp "$work/plugins.wxs" "$work/license.rtf" "$work/install-kind" "$out/"
+    cp "$work/license.rtf" "$work/install-kind" "$out/"
+    [[ "$capture" -eq 1 ]] || cp "$work/plugins.wxs" "$out/"
     printf '%s\n' "${arguments[@]}" > "$out/wix-arguments.txt"
-    echo "    sources in $out (rdownloader $version, MSI $msi_version $culture, ${#plugins[@]} plugins)"
+    echo "    sources in $out ($product $version, MSI $msi_version $culture, ${#plugins[@]} plugins)"
     exit 0
 fi
 
@@ -147,4 +188,4 @@ fi
 mkdir -p "$(dirname "$out")"
 rm -f "$out"
 wix "${arguments[@]}" -o "$(winpath "$out")"
-echo "    $out (rdownloader $version, MSI $msi_version $culture, ${#plugins[@]} plugins)"
+echo "    $out ($product $version, MSI $msi_version $culture, ${#plugins[@]} plugins)"

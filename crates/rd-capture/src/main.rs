@@ -5,6 +5,7 @@
 mod activity;
 mod agent_run;
 mod agent_settings;
+mod autostart_toggle;
 mod cli;
 mod client;
 mod clipboard;
@@ -22,6 +23,9 @@ mod hotkeys;
 #[cfg(any(windows, target_os = "macos", test))]
 mod icon;
 mod instance;
+// The link page on the Click'n'Load port (RD-1390-02) and the two phases of a run around it.
+mod link_page;
+mod link_phase;
 mod linkgrabber;
 mod notify;
 #[cfg(test)]
@@ -61,9 +65,9 @@ use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
 use crate::{
-    agent_run::run,
     cli::{Cli, Command, RunArgs},
     desktop_shortcut::Place,
+    link_phase::{LinkStatus, run},
     supervision::NoticeSink,
 };
 
@@ -94,24 +98,18 @@ pub(crate) fn conclude(error: &anyhow::Error) -> u8 {
 /// Prints the agent's account of a failure and returns the code to end the process on.
 ///
 /// Shared with the tray path on purpose. On Windows the agent runs under the tray's event loop,
-/// where every failure used to end on 1 — so the two codes below, which exist precisely so a
-/// launcher can tell "nothing to do yet" and "already running" apart from "crashed", were
-/// unreachable on the one platform whose launcher reads them.
+/// where every failure used to end on 1 — so the code below, which exists precisely so a
+/// launcher can tell "already running" apart from "crashed", was unreachable on the one platform
+/// whose launcher reads it. An agent without a token does not end any more; it runs unlinked
+/// (RD-1390-02).
 pub(crate) fn report(error: &anyhow::Error) -> u8 {
-    // Both of these are ordinary states, not faults, so they say what to do instead of
-    // printing an error chain.
-    if error.is::<NotPaired>() {
-        eprintln!(
-            "rdownloader-capture is not paired yet. Open the web interface, go to \
-             Settings > Desktop client, and run the command it shows."
-        );
-        return config::EXIT_NOT_PAIRED;
-    }
+    // An ordinary state, not a fault, so it says what to do instead of printing an error chain.
     if let Some(busy) = error.downcast_ref::<PortBusy>() {
         eprintln!(
             "{busy}. Another Click'n'Load listener already has the port — a second \
              rdownloader-capture (check your autostart) or JDownloader. This agent is not \
-             needed while that one is running."
+             needed while that one is running; `rdownloader-capture link` opens the link page \
+             of the one that runs."
         );
         return config::EXIT_PORT_BUSY;
     }
@@ -126,18 +124,6 @@ pub(crate) fn report(error: &anyhow::Error) -> u8 {
     eprintln!("Error: {error:?}");
     1
 }
-
-/// Marker for "the agent has nothing to connect to yet", carried by the error chain.
-#[derive(Debug)]
-struct NotPaired;
-
-impl std::fmt::Display for NotPaired {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("capture token missing")
-    }
-}
-
-impl std::error::Error for NotPaired {}
 
 /// Marker for "every Click'n'Load address was already taken", carried by the error chain.
 ///
@@ -170,6 +156,7 @@ fn dispatch() -> Result<()> {
         Some(Command::Open(args)) => runtime()?.block_on(commands::open(args)),
         Some(Command::Handle(args)) => runtime()?.block_on(commands::handle(args)),
         Some(Command::Configure(args)) => commands::configure(args),
+        Some(Command::Link(args)) => commands::link(args),
         Some(Command::Association(args)) => {
             commands::integration(args, os_integration::Kind::Association)
         }
@@ -186,11 +173,8 @@ fn dispatch() -> Result<()> {
     }
 }
 
-/// Runs the agent, or reports that there is nothing to connect to yet.
+/// Runs the agent, linked or not: without a token it waits for a link on its page (RD-1390-02).
 fn guarded_run(args: RunArgs) -> Result<()> {
-    if !config::is_paired(args.connection.token.as_deref()) {
-        return Err(anyhow::Error::new(NotPaired));
-    }
     // Held until the process ends; the tray path never returns from `run_agent`.
     let _instance = instance::acquire(&config::config_directory()?, instance::RELAUNCH_WAIT)?;
     // An update of the agent's own that a stop interrupted ends here (RD-1210-03).
@@ -256,6 +240,25 @@ pub(crate) struct DesktopSinks {
     pub update: self_update::OfferSink,
     /// The tray's entry for the service's update and its server line (RD-1240-25).
     pub server_update: server_update::ViewSink,
+    /// Whether the agent is linked, and with what, for the tray's lines and its "Link capture
+    /// agent" entry (RD-1390-02).
+    pub link: tokio::sync::watch::Sender<LinkStatus>,
+}
+
+impl DesktopSinks {
+    /// The same sinks with another inbox: what one linked phase is handed, while the tray's own
+    /// inbox stays with the run and is relayed to it (RD-1390-02).
+    pub(crate) fn with_inbox(&self, inbox: controls::Inbox) -> Self {
+        Self {
+            activity: self.activity.clone(),
+            notice: self.notice.clone(),
+            settings: self.settings.clone(),
+            inbox,
+            update: self.update.clone(),
+            server_update: self.server_update.clone(),
+            link: self.link.clone(),
+        }
+    }
 }
 
 #[cfg(test)]
