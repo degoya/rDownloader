@@ -362,13 +362,22 @@ fn single(
 
 /// A video's title, or for a placeholder title the first line of its text, else its uploader.
 /// Facebook answers a signed-in request (cookies) with the title "Video" for every post (owner
-/// report, 2026-10-22); signed out it names the post.
+/// report, 2026-10-22), since 2026-10-28 with the site's name "Facebook"; signed out it names
+/// the post. A title that is only the extractor's name is taken as such a placeholder.
 fn media_title(metadata: &Metadata) -> String {
     fn named(value: Option<&str>) -> Option<&str> {
         value.map(str::trim).filter(|value| !value.is_empty())
     }
+    let site = metadata
+        .extractor
+        .as_deref()
+        .and_then(|extractor| extractor.split(':').next());
+    let placeholder = |title: &str| {
+        title.eq_ignore_ascii_case("video")
+            || site.is_some_and(|site| title.eq_ignore_ascii_case(site))
+    };
     let title = named(metadata.title.as_deref());
-    if let Some(title) = title.filter(|title| !title.eq_ignore_ascii_case("video")) {
+    if let Some(title) = title.filter(|title| !placeholder(title)) {
         return title.to_owned();
     }
     let first_line = metadata

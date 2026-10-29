@@ -16,6 +16,10 @@ user notices says only: Maintenance release: internal changes only, no change in
 
 <!-- draft: the notes of the version in the making -->
 
+## 1.39.1
+
+- Facebook videos fetched with your cookies are named after the post again instead of "Facebook".
+
 ## 1.39.0
 
 - The capture agent has its own Windows installer, for a PC whose server runs elsewhere; it can start the agent at login.

@@ -21,7 +21,7 @@ env:
   # (`scripts/set-version.sh` writes it). Bump it when you build against a newer contract; the
   # version must be one that supports the `api_version` in your manifest, or conformance refuses
   # the package.
-  RDOWNLOADER_VERSION: 1.39.0
+  RDOWNLOADER_VERSION: 1.39.1
 
 jobs:
   plugin:
@@ -39,10 +39,10 @@ jobs:
         with:
           toolchain: stable
           targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       # Makes the component of the core module cargo builds, and reads its import section (see
       # "Reject accidental WASI imports" below). The version rDownloader's own plugins are made with.
-      - uses: taiki-e/install-action@1168f6810a3cb30a3514bf5756a3b7f0422c6df8 # v2.87.28
+      - uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
         with:
           tool: wasm-tools@1.261.0
 

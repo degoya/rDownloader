@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.39.1] - 2026-10-29
+
+### Fixed
+
+- **A Facebook video signed in with cookies is no longer named `Facebook.mp4`.** Since
+  2026-10-28 a cookie session gets the site's name "Facebook" as every post's title instead of
+  "Video" (yt-dlp 2026.08.19; signed out the same reel carries its text), so the placeholder rule
+  of 1.36 no longer caught it. A title that is only the extractor's name now counts as a
+  placeholder too, and the file is named after the post's text, else its uploader (`media_title`
+  in `crates/rd-media/src/probe.rs`).
+
+### Changed
+
+- **GitHub Actions updated (Dependabot #23).** `Swatinem/rust-cache` 2.9.3,
+  `taiki-e/install-action` 2.87.30 and `actions/setup-python` 7.1.0, pinned by commit SHA; the
+  SDK's `sdk/ci/plugin.yml` carries the same pins.
+
 ## [1.39.0] - 2026-10-27
 
 ### Added

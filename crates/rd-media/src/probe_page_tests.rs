@@ -20,8 +20,8 @@ fn a_page_address_that_is_no_web_page_falls_back_to_the_probed_link() {
     assert_eq!(page.as_str(), "http://example.test/page");
 }
 
-/// A signed-in Facebook probe names every post "Video"; the post's text, else its uploader,
-/// names the file instead.
+/// A signed-in Facebook probe names every post "Video" or "Facebook"; the post's text, else its
+/// uploader, names the file instead.
 #[test]
 fn a_placeholder_title_gives_way_to_the_post_text_or_the_uploader() {
     let probed: url::Url = "https://www.facebook.com/reel/1".parse().expect("url");
@@ -39,6 +39,13 @@ fn a_placeholder_title_gives_way_to_the_post_text_or_the_uploader() {
     assert_eq!(
         title(serde_json::json!({ "title": "Video", "uploader": "Hylian Tree" })),
         "Hylian Tree"
+    );
+    // Since 2026-10-28 the signed-in placeholder is the site's own name.
+    assert_eq!(
+        title(serde_json::json!({
+            "title": "Facebook", "extractor": "facebook", "uploader": "Ramona Schulze"
+        })),
+        "Ramona Schulze"
     );
     assert_eq!(title(serde_json::json!({ "title": "Video" })), "Video");
     assert_eq!(title(serde_json::json!({})), "media");
