@@ -2,7 +2,7 @@
 
 > Status: September 2, 2026 · Project version `0.4.0`, including the current
 > `Unreleased` changes. This document describes the system implemented in the repository.
-> Planned features are not described here; [`ROADMAP.md`](ROADMAP.md) summarises them.
+> Planned features are not described here.
 
 ## Purpose and Design Goals
 

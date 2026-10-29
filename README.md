@@ -10,8 +10,7 @@
   <a href="https://rdownloader.net/download/">Download</a> ·
   <a href="https://rdownloader.net">Website</a> ·
   <a href="https://github.com/degoya/rDownloader/wiki">Handbook</a> ·
-  <a href="CHANGELOG.md">Changelog</a> ·
-  <a href="ROADMAP.md">Roadmap</a>
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 <p align="center">
