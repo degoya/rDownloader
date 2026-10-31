@@ -223,7 +223,7 @@ jobs:
       # `sqlite-unbundled` build this replaced, and `prepare --check` needs no more).
       - name: Install SQLx CLI
         if: runner.os == 'Linux'
-        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
         with:
           tool: sqlx-cli@0.9.0
       - name: Check SQLx offline metadata
