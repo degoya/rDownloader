@@ -210,7 +210,7 @@ futures-util = "0.3"
 fs4 = { version = "1.1", default-features = false }
 # System-wide shortcuts for the capture agent's tray commands (RD-1180-03); the same family as
 # `tray-icon`. Linux registers under X11 only, through x11rb, which `arboard` links already.
-global-hotkey = "0.8"
+global-hotkey = "0.9"
 governor = "0.10"
 hex = "0.4"
 hmac = "0.13"
@@ -235,7 +235,7 @@ keyring = "4.1.6"
 librqbit = { version = "9", default-features = false, features = ["rust-tls", "disable-upload"] }
 # XZ decompression for the managed-tool archives (RD-102-04). Pure Rust and decoder-only:
 # unpacking bytes fetched from a release host is exactly the place not to link liblzma.
-lzma-rust2 = { version = "0.21", default-features = false, features = ["std", "xz"] }
+lzma-rust2 = { version = "0.24", default-features = false, features = ["std", "xz"] }
 md-5 = "0.11"
 mime_guess = "2"
 # Interface enumeration for torrent binding; librqbit links the same crate for UPnP.
@@ -288,15 +288,15 @@ rustls = "0.23"
 # custom CA (RD-1240-08); already in the tree beneath rustls-platform-verifier on Linux.
 rustls-native-certs = "0.8"
 rustls-platform-verifier = "0.7"
-rust-par2 = "0.1.3"
-russh = "0.63"
+rust-par2 = "0.2.0"
+russh = "0.65"
 russh-sftp = "3"
 secrecy = { version = "0.10", features = ["serde"] }
 security-framework = "3.7.0"
 subtle = "2.6"
 zeroize = "1.9"
 semver = "1"
-sevenz-rust2 = "0.23"
+sevenz-rust2 = "0.24"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_path_to_error = "0.1.20"
@@ -329,7 +329,7 @@ uuid = { version = "1", features = ["serde", "v7"] }
 wasmparser = "0.258"
 # `cache` keeps compiled plugins on disk between starts and `parallel-compilation` spreads the
 # compile a cache miss still costs over the cores (RD-130-06; `rd-plugin-host/src/compile_cache.rs`).
-wasmtime = { version = "49.0.1", default-features = false, features = ["anyhow", "async", "cache", "component-model", "component-model-async", "cranelift", "parallel-compilation", "runtime", "std"] }
+wasmtime = { version = "50.0.0", default-features = false, features = ["anyhow", "async", "cache", "component-model", "component-model-async", "cranelift", "parallel-compilation", "runtime", "std"] }
 webauthn-rs = "0.6.1-dev"
 # Test-only: a software authenticator, so the passkey ceremonies can be driven end to end
 # rather than mocked. Pinned to the same line as webauthn-rs so the two share their
@@ -342,12 +342,12 @@ winapi-util = "0.1.11"
 # Windows only: the display language of the capture agent's intake toast (RD-1270-05), read from
 # the user's registry hive through a safe API. Already in the tree as `embed-resource`'s build
 # dependency, so it adds no crate.
-winreg = "0.55"
-wit-bindgen = "0.62"
+winreg = "0.56"
+wit-bindgen = "0.63"
 # The capture agent's concealment mark under Wayland and X11 (RD-1200-03): the protocol clients
 # `arboard` reads the text with, asked for the `x-kde-passwordManagerHint` it does not read.
 wl-clipboard-rs = "0.9.4"
-x11rb = "0.13"
+x11rb = "0.14"
 zip = { version = "9", default-features = false, features = ["deflate", "aes-crypto"] }
 
 [workspace.lints.rust]
