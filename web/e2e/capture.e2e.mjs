@@ -88,8 +88,14 @@ function captureOk(args, input) {
 /** Whether the login entry `autostart install` writes is in place, per operating system. */
 function autostartRegistered() {
   if (process.platform === 'win32') {
+    // The test reads the key with reg.exe; the agent itself writes it through the registry API.
+    // Its value starts the agent directly, no script host between (RD-1400-07).
     const query = spawnSync('reg.exe', ['query', RUN_KEY, '/v', 'rDownloader Capture'], { encoding: 'utf8' })
-    return query.status === 0 && query.stdout.includes('wscript.exe')
+    return (
+      query.status === 0 &&
+      query.stdout.includes('rdownloader-capture.exe" run --autostart') &&
+      !/wscript|\.vbs|\.cmd/i.test(query.stdout)
+    )
   }
   if (process.platform === 'darwin') {
     const plist = join(homedir(), 'Library', 'LaunchAgents', 'org.rdownloader.capture.plist')

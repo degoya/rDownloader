@@ -16,6 +16,11 @@ user notices says only: Maintenance release: internal changes only, no change in
 
 <!-- draft: the notes of the version in the making -->
 
+## 1.40.1
+
+- On Windows the capture agent starts at login as itself, opens no window and runs no PowerShell or script helpers, so Microsoft Defender has less reason to quarantine it.
+- The wiki explains what to do if Microsoft Defender quarantines rDownloader anyway: how to check the file, restore it and report the false positive.
+
 ## 1.40.0
 
 - A failed package can be reset completely: every file it wrote is deleted and it starts again from the beginning, keeping the name, folder and password you chose.

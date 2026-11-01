@@ -53,7 +53,7 @@ pub use part_file::{PartFile, existing_bytes, part_path};
 pub use persistence::{PathPersistence, PersistenceProbe};
 pub use private_dir::{
     create_private_dir_all, private_dir_exposure, protect_private_dir, restrict_to_owner,
-    sid_from_whoami, unix_exposure, windows_exposure,
+    unix_exposure, windows_exposure,
 };
 pub use protected::{ProtectedDirectory, protected_collision};
 pub use sort_name::{

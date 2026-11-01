@@ -5,6 +5,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.40.1] - 2026-11-01
+
+### Added
+
+- **Microsoft Defender scans the Windows files in CI and before every release (RD-1400-07).**
+  `scripts/defender-scan.ps1` updates the signatures, prints the engine, signature and protection
+  state, proves itself on an EICAR test file and scans each file with `MpCmdRun -Scan -ScanType 3
+  -DisableRemediation` (exclusions ignored, nothing quarantined), one line per file; exit 0
+  clean, 1 a threat, 3 no trustworthy scan, `-Report` never fails. `ci.yml`'s Windows `rust` leg
+  scans the executables it built (failing) and, report only, the Windows zips and MSIs of v1.38.0,
+  v1.39.1 and v1.40.0; `release.yml`'s `msi` job scans the Windows zip, both executables and every
+  MSI, and a threat stops `publish`. The wiki FAQ explains a quarantine.
+
+### Changed
+
+- **Dependencies current before 1.40.1.** Semver-compatible updates: `crc32fast` 1.5.4, `zip`
+  9.2.1, `zstd` 0.13.4 with `zstd-safe` 7.4.0 (the three RUSTSEC ignores of RD-1390-06 still
+  match, Wasmtime's cache stays on zstd 0.13), `@iconify-json/lucide` 1.2.150. `cargo deny check
+  -D unmatched-skip -D unnecessary-skip` green.
+
+### Fixed
+
+- **The Windows autostart no longer looks like malware persistence (RD-1400-07).** Microsoft
+  Defender quarantined a tester's `rdownloader-capture.exe` as `Trojan:Win32/Bearfoos.A!ml`, its
+  machine-learning heuristic. The `Run` value under `HKCU` is now written through the registry API
+  (`winreg`, no `reg.exe` child, also for the agent's file association and URL scheme) and
+  starts `rdownloader-capture.exe` directly, quoted: `run --autostart`, which moves into the
+  working folder and writes `logs\rdownloader-capture.log`/`.err.log` itself, and for the
+  service `start-service`, with which the agent starts `rdownloader.exe serve` without a window
+  and its logs and ends. No `wscript.exe`, VBScript or hidden `.cmd` any more; `autostart remove`
+  deletes the old wrappers. The service's `autostart install` refuses without the agent beside
+  it (every Windows package has both). `rdownloader-capture.exe` is now a GUI-subsystem program
+  and opens no console window, at login nor from a file association; typed into a terminal it
+  joins that console (`AttachConsole` through `winsafe`) when its output is not redirected, but
+  `cmd` and PowerShell no longer wait for it: `start /wait` or `| Out-Host` keeps the exit code.
+  `rdownloader.exe` stays a console program.
+
+- **No more hidden PowerShell, `whoami`, `icacls` or `rundll32` children on Windows
+  (RD-1400-07).** Microsoft Defender quarantined `rdownloader-capture.exe` as
+  `Trojan:Win32/Bearfoos.A!ml`, a machine-learning verdict on a program that among other things
+  started hidden script interpreters. The game mode's look at the desktop
+  (`SHQueryUserNotificationState` and a ToolHelp process list, no longer a PowerShell running
+  beside the agent), the drop-target shortcuts (`IShellLinkW` instead of `WScript.Shell`), the
+  service's wake lock (`SetThreadExecutionState` on a thread of its own per inhibition) and
+  standby (`SetSuspendState`), and the data directory's access list (the token's SID and the DACL
+  in SDDL instead of `whoami`, `icacls` and `Get-Acl`) are now calls in the process through the
+  new crate `rd-win32`, the only crate allowed `unsafe` code; the repo lint
+  `unsafe_only_in_win32` refuses `unsafe` and `allow(unsafe_code)` everywhere else under
+  `crates/`. `rd_files::sid_from_whoami` is gone.
+
 ## [1.40.0] - 2026-11-01
 
 ### Added

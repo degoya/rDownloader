@@ -1,5 +1,9 @@
 //! Cross-platform desktop capture bridge for CNL, clipboard and NZB files.
 
+// A tray program: on Windows no console window opens with it, at login or from Explorer
+// (RD-1400-07). Started from a terminal it joins that terminal's console (`startup`). The test
+// harness stays a console program, so `cargo test` prints where it was started.
+#![cfg_attr(all(windows, not(test)), windows_subsystem = "windows")]
 #![warn(unreachable_pub)]
 
 mod activity;
@@ -40,6 +44,7 @@ mod server_update;
 mod platform_gate;
 mod scheme;
 mod sse;
+mod startup;
 // The rules the tray shows are ordinary Rust and are tested on every host; only the tray that
 // draws them is platform-bound. The module therefore carries the tray's own gate plus `test`.
 #[cfg(any(windows, target_os = "macos", test))]
@@ -62,7 +67,6 @@ use std::net::SocketAddr;
 use anyhow::{Context, Result};
 use clap::Parser;
 use tokio_util::sync::CancellationToken;
-use tracing_subscriber::EnvFilter;
 
 use crate::{
     cli::{Cli, Command, RunArgs},
@@ -74,12 +78,11 @@ use crate::{
 // `main` is deliberately synchronous: the tray needs a platform UI event loop on
 // the main thread, so the tokio runtime is created explicitly per subcommand.
 fn main() -> std::process::ExitCode {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .init();
-    match dispatch() {
+    // Before clap, which prints `--help` and its own errors.
+    startup::attach_parent_console();
+    let cli = Cli::parse();
+    startup::init_logging(matches!(&cli.command, Some(Command::Run(args)) if args.autostart));
+    match dispatch(cli) {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => std::process::ExitCode::from(conclude(&error)),
     }
@@ -95,7 +98,8 @@ pub(crate) fn conclude(error: &anyhow::Error) -> u8 {
     report(error)
 }
 
-/// Prints the agent's account of a failure and returns the code to end the process on.
+/// Prints the agent's account of a failure — into the error log too when its autostart entry
+/// started it ([`startup::error_line`]) — and returns the code to end the process on.
 ///
 /// Shared with the tray path on purpose. On Windows the agent runs under the tray's event loop,
 /// where every failure used to end on 1 — so the code below, which exists precisely so a
@@ -105,23 +109,23 @@ pub(crate) fn conclude(error: &anyhow::Error) -> u8 {
 pub(crate) fn report(error: &anyhow::Error) -> u8 {
     // An ordinary state, not a fault, so it says what to do instead of printing an error chain.
     if let Some(busy) = error.downcast_ref::<PortBusy>() {
-        eprintln!(
+        startup::error_line(&format!(
             "{busy}. Another Click'n'Load listener already has the port — a second \
              rdownloader-capture (check your autostart) or JDownloader. This agent is not \
              needed while that one is running; `rdownloader-capture link` opens the link page \
              of the one that runs."
-        );
+        ));
         return config::EXIT_PORT_BUSY;
     }
     // The other "already running", told apart by the lock rather than the port (RD-1200-03).
     if error.is::<instance::AlreadyRunning>() {
-        eprintln!(
+        startup::error_line(&format!(
             "{}. This agent is not needed while that one is running.",
             instance::AlreadyRunning
-        );
+        ));
         return config::EXIT_PORT_BUSY;
     }
-    eprintln!("Error: {error:?}");
+    startup::error_line(&format!("Error: {error:?}"));
     1
 }
 
@@ -149,8 +153,8 @@ impl std::fmt::Display for PortBusy {
 
 impl std::error::Error for PortBusy {}
 
-fn dispatch() -> Result<()> {
-    match Cli::parse().command {
+fn dispatch(cli: Cli) -> Result<()> {
+    match cli.command {
         Some(Command::Run(args)) => guarded_run(args),
         None => guarded_run(cli::default_run_args()),
         Some(Command::Open(args)) => runtime()?.block_on(commands::open(args)),
@@ -164,6 +168,7 @@ fn dispatch() -> Result<()> {
         Some(Command::DropShortcut(args)) => commands::shortcut(args, Place::Desktop),
         Some(Command::SendTo(args)) => commands::shortcut(args, Place::SendTo),
         Some(Command::Autostart(args)) => commands::autostart(args),
+        Some(Command::StartService) => commands::start_service(),
         Some(Command::Pause(args)) => runtime()?.block_on(commands::clipboard_watch(args, true)),
         Some(Command::Resume(args)) => runtime()?.block_on(commands::clipboard_watch(args, false)),
         Some(Command::Status(args)) => runtime()?.block_on(commands::status(args)),

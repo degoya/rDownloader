@@ -9,7 +9,7 @@ use super::{Agent, UserEvent};
 use crate::autostart_toggle;
 
 /// Every how many health readings the registration is read again: half a minute at the poll's
-/// five seconds, rather than a `reg.exe` on every tick.
+/// five seconds, rather than a registry read or `systemctl` on every tick.
 const REFRESH_EVERY: u32 = 6;
 
 impl Agent {

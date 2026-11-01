@@ -39,10 +39,22 @@ function Test-LauncherArgs {
     exit 0
 }
 
+# The PE header's Subsystem field: 2 a GUI program (no console window), 3 a console program.
+function Get-Subsystem([string]$path) {
+    $bytes = [IO.File]::ReadAllBytes((Resolve-Path $path))
+    [BitConverter]::ToUInt16($bytes, [BitConverter]::ToInt32($bytes, 0x3C) + 0x5C)
+}
+
 function Test-Executables {
     cargo build --locked -p rdownloader -p rd-capture
     & target/debug/rdownloader.exe --version
-    & target/debug/rdownloader-capture.exe --version
+    if ($LASTEXITCODE -ne 0) { throw "rdownloader.exe --version failed" }
+    # The agent is a GUI-subsystem program (RD-1400-07): PowerShell waits for one, and passes
+    # its exit code on, only when its output goes into a pipeline.
+    $version = & target/debug/rdownloader-capture.exe --version | Out-String
+    if ($LASTEXITCODE -ne 0 -or $version -notmatch 'rdownloader-capture') { throw "rdownloader-capture.exe --version: $version" }
+    if ((Get-Subsystem target/debug/rdownloader-capture.exe) -ne 2) { throw "rdownloader-capture.exe is not a GUI-subsystem program" }
+    if ((Get-Subsystem target/debug/rdownloader.exe) -ne 3) { throw "rdownloader.exe is not a console program" }
 }
 
 function Test-PortableLauncher {
@@ -125,26 +137,27 @@ function Test-ScoopInstall {
         $versionDir = "$env:USERPROFILE\scoop\apps\rdownloader\$appVersion"
         $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
         # `autostart install` wants a paired agent; pairing stores the token and asks nobody.
-        '0123456789abcdef0123456789abcdef' | & "$versionDir\rdownloader-capture.exe" configure --token-stdin
+        # `| Out-Host` after every agent command: the agent is a GUI-subsystem program
+        # (RD-1400-07), which PowerShell waits for only when its output goes into a pipeline.
+        '0123456789abcdef0123456789abcdef' | & "$versionDir\rdownloader-capture.exe" configure --token-stdin | Out-Host
         if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture configure failed" }
-        foreach ($entry in @(@('rdownloader.exe', 'rDownloader Service'), @('rdownloader-capture.exe', 'rDownloader Capture'))) {
-            $exe, $name = $entry
-            & "$versionDir\$exe" autostart install
+        # Both Run values start the agent directly, through Scoop's junction (RD-1400-07): the
+        # service's entry has it start the service without a window. No script host, no wrapper.
+        foreach ($entry in @(@('rdownloader.exe', 'rDownloader Service', 'start-service'), @('rdownloader-capture.exe', 'rDownloader Capture', 'run --autostart'))) {
+            $exe, $name, $arguments = $entry
+            & "$versionDir\$exe" autostart install | Out-Host
             if ($LASTEXITCODE -ne 0) { throw "$exe autostart install failed" }
-            # The Run value starts a VBScript wrapper; the executable is in the .cmd beside it.
             $value = (Get-ItemProperty $runKey).$name
-            if (-not ($value -match '"([^"]+\.vbs)"')) { throw "unexpected Run value ${name}: $value" }
-            $wrapper = Get-Content ([IO.Path]::ChangeExtension($Matches[1], '.cmd')) -Raw
-            if ($wrapper -notlike "*\apps\rdownloader\current\$exe*") { throw "$exe autostart registered a versioned path: $wrapper" }
-            & "$versionDir\$exe" autostart remove
+            if ($value -notlike ('"*\apps\rdownloader\current\rdownloader-capture.exe" ' + $arguments)) { throw "unexpected Run value ${name}: $value" }
+            & "$versionDir\$exe" autostart remove | Out-Host
             if ($LASTEXITCODE -ne 0) { throw "$exe autostart remove failed" }
             if ($null -ne (Get-ItemProperty $runKey).$name) { throw "$exe autostart remove left the Run value" }
         }
-        & "$versionDir\rdownloader-capture.exe" scheme install
+        & "$versionDir\rdownloader-capture.exe" scheme install | Out-Host
         if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture scheme install failed" }
         $handler = (Get-ItemProperty 'HKCU:\Software\Classes\rdownloader\shell\open\command').'(default)'
         if ($handler -notlike '*\apps\rdownloader\current\rdownloader-capture.exe*') { throw "the URL handler registered a versioned path: $handler" }
-        & "$versionDir\rdownloader-capture.exe" scheme remove
+        & "$versionDir\rdownloader-capture.exe" scheme remove | Out-Host
         if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture scheme remove failed" }
         scoop uninstall rdownloader
         if ($LASTEXITCODE -ne 0) { throw "scoop uninstall failed" }

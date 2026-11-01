@@ -17,6 +17,10 @@ tokio.workspace = true
 tracing.workspace = true
 utoipa.workspace = true
 
+# Standby and the wake lock, called in this process (RD-1400-07, `src/windows.rs`).
+[target.'cfg(windows)'.dependencies]
+rd-win32 = { path = "../rd-win32" }
+
 [dev-dependencies]
 serde_json.workspace = true
 

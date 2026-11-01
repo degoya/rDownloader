@@ -293,10 +293,14 @@ jobs:
             $process = Start-Process msiexec.exe -ArgumentList "$arguments /qn /l*v $log" -Wait -PassThru
             if ($process.ExitCode -ne 0) { Get-Content $log -Tail 80; throw "msiexec $arguments exited with $($process.ExitCode)" }
           }
-          function Serve {
+          function Serve([switch]$ByAutostart) {
             $env:RDOWNLOADER_NO_PAUSE = '1'
-            & "$program\start-rdownloader.bat" server
-            if ($LASTEXITCODE -ne 0) { throw "start-rdownloader.bat failed" }
+            # -ByAutostart: what the service's Run value starts (RD-1400-07), the agent, which starts the
+            # service without a window. Not piped: the service would inherit the pipe and hold the step
+            # open; WaitForExit waits for the agent alone, which ends once the service is started.
+            if ($ByAutostart) { $p = Start-Process "$program\rdownloader-capture.exe" start-service -PassThru; $null = $p.Handle; $p.WaitForExit(); $code = $p.ExitCode }
+            else { & "$program\start-rdownloader.bat" server; $code = $LASTEXITCODE }
+            if ($code -ne 0) { throw "the service's start failed (exit $code)" }
             $healthy = $false
             for ($i = 0; $i -lt 300; $i++) {
               try { Invoke-RestMethod http://127.0.0.1:8710/api/v1/health | Out-Null; $healthy = $true; break } catch { Start-Sleep -Seconds 1 }
@@ -329,6 +333,8 @@ jobs:
           $autostart = (Get-ItemProperty $run -Name 'rDownloader Service' -ErrorAction SilentlyContinue).'rDownloader Service'
           if (-not $autostart) { throw "AUTOSTART=1 registered no autostart" }
           Write-Host "autostart: $autostart"
+          # The agent itself, quoted, no script host or wrapper between (RD-1400-07).
+          if ($autostart -notlike '"*\Programs\rDownloader\rdownloader-capture.exe" start-service') { throw "the service's autostart does not start it through the agent: $autostart" }
           # The three switches: the association with its verb and Open with entry, the drop
           # shortcut and Send to; the other program's default for .dlc is still its own.
           if (-not (Test-Path $verb)) { throw "ASSOCIATION=1 registered no 'Import into rDownloader' for .dlc" }
@@ -336,7 +342,7 @@ jobs:
           if ((Get-Item "$classes\.dlc").GetValue('') -ne 'Other.Container') { throw "the association took the .dlc default of another program" }
           if (-not (Test-Path $desktopLink)) { throw "DROPSHORTCUT=1 put no shortcut on the desktop" }
           if (-not (Test-Path $sendToLink)) { throw "SENDTO=1 put no entry in Send to" }
-          Serve
+          Serve -ByAutostart
           if ((Get-Content "$home_\data\installers-marker") -ne 'installers msi') { throw "the data marker did not survive the upgrade" }
           Msi '/x installers\second\rdownloader-windows-x86_64.msi' remove.log
           if (Test-Path "$program\rdownloader.exe") { throw "the uninstall left the program behind" }
@@ -364,7 +370,6 @@ jobs:
           $db = Join-Path $env:LOCALAPPDATA 'rDownloader\data\rdownloader.sqlite3'
           $menu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\rDownloader Capture'
           $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-          $wrapper = Join-Path $env:APPDATA 'rDownloader\rDownloader\config\autostart\rdownloader-capture.cmd'
           $classes = 'HKCU:\Software\Classes'
           $offered = "$classes\Applications\rdownloader-capture.exe"
           $desktopLink = Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) 'Add to rDownloader.lnk'
@@ -382,12 +387,14 @@ jobs:
           Msi "/i $first AUTOSTART=1 ASSOCIATION=1 DROPSHORTCUT=1 SENDTO=1" capture-first.log
           if (Test-Path "$capture\rdownloader.exe") { throw "the capture MSI installed the service" }
           if ((Get-Content "$capture\install-kind").Trim() -ne 'msi') { throw "install-kind is not msi" }
-          & "$capture\rdownloader-capture.exe" --version
+          # `| Out-Host`: PowerShell waits for the GUI-subsystem agent only in a pipeline (RD-1400-07).
+          & "$capture\rdownloader-capture.exe" --version | Out-Host
           if ($LASTEXITCODE -ne 0) { throw "rdownloader-capture.exe --version failed" }
           foreach ($entry in 'rDownloader Capture', 'Stop rDownloader Capture') {
             if (-not (Test-Path "$menu\$entry.lnk")) { throw "no Start menu entry $entry" }
           }
           if (-not (Autostart)) { throw "AUTOSTART=1 registered no autostart" }
+          if ((Autostart) -notlike "`"$capture\rdownloader-capture.exe`" run --autostart") { throw "the Run value does not start the agent directly: $(Autostart)" }
           foreach ($entry in $offered, $desktopLink, $sendToLink) {
             if (-not (Test-Path -LiteralPath $entry)) { throw "the switches left $entry out" }
           }
@@ -406,7 +413,7 @@ jobs:
           if (Autostart) { throw "an install without AUTOSTART=1 registered the autostart" }
           Msi "/x $first" capture-plain-remove.log
           Msi "/i $first AUTOSTART=1" capture-autostart.log
-          & "$capture\rdownloader-capture.exe" autostart remove
+          & "$capture\rdownloader-capture.exe" autostart remove | Out-Host
           if ($LASTEXITCODE -ne 0 -or (Autostart)) { throw "autostart remove did not remove the entry" }
           # Under /qn there is no finish page: its launch after an upgrade (only with the autostart
           # registered) is checked live, not here. The two shortcuts are for the takeover below.
@@ -420,14 +427,14 @@ jobs:
           # Beside the full product the capture MSI refuses, and the full MSI replaces it, taking its
           # autostart, association, drop shortcut and Send to entry over for its own folder.
           foreach ($integration in 'autostart', 'association') {
-            & "$capture\rdownloader-capture.exe" $integration install
+            & "$capture\rdownloader-capture.exe" $integration install | Out-Host
             if ($LASTEXITCODE -ne 0) { throw "$integration install failed" }
           }
           Msi '/i installers\first\rdownloader-windows-x86_64.msi' full-over-capture.log
           if (Installed) { throw "the full MSI left the capture MSI's agent behind" }
           if (Get-ItemProperty 'HKCU:\Software\rDownloader Capture\Installer' -Name Program -ErrorAction SilentlyContinue) { throw "the full MSI left the capture MSI installed" }
           if (-not (Autostart)) { throw "the full MSI dropped the agent's autostart" }
-          if (-not ((Get-Content $wrapper -Raw) -like "*$program\rdownloader-capture.exe*")) { Get-Content $wrapper; throw "the agent's autostart does not name the full product's agent" }
+          if ((Autostart) -notlike "`"$program\rdownloader-capture.exe`" run --autostart") { throw "the agent's autostart does not name the full product's agent: $(Autostart)" }
           $open = (Get-Item "$offered\shell\open\command").GetValue('')
           if (-not ($open -like "*$program\rdownloader-capture.exe*")) { throw "the association names $open, not the full product's agent" }
           $shell = New-Object -ComObject WScript.Shell

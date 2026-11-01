@@ -1,8 +1,8 @@
-//! Windows adapter. Standby and shutdown go through the shipped system tools; battery and
-//! metered state would need WinRT, so they are reported as unavailable rather than guessed.
+//! Windows adapter. Standby and the wake lock are calls in this process through `rd-win32`,
+//! shutdown is the system's `shutdown.exe`; battery and metered state would need WinRT, so they
+//! are reported as unavailable rather than guessed.
 
 use async_trait::async_trait;
-use rd_files::NoConsoleWindow as _;
 
 use crate::adapter::{Inhibition, PowerAdapter, PowerCapabilities, PowerState, run};
 
@@ -26,48 +26,24 @@ impl PowerAdapter for WindowsAdapter {
         PowerState::default()
     }
 
+    /// `SetSuspendState` in this process: `shutdown /h` hibernates, and `rundll32` cannot pass
+    /// the call its arguments. The call returns after the wake-up, so it blocks a thread of its
+    /// own rather than a worker of the runtime.
     async fn standby(&self) -> anyhow::Result<()> {
-        // `shutdown /h` hibernates; suspend-to-RAM is only reachable through powrprof.
-        run("rundll32.exe", &["powrprof.dll,SetSuspendState", "0,1,0"])
-            .await
-            .map(|_| ())
+        Ok(tokio::task::spawn_blocking(rd_win32::suspend).await??)
     }
 
     async fn shutdown(&self) -> anyhow::Result<()> {
         run("shutdown.exe", &["/s", "/t", "0"]).await.map(|_| ())
     }
 
-    /// Holds `SetThreadExecutionState` in a helper process.
-    ///
-    /// The flag is tracked per thread and cleared when that thread ends, so it has to be held
-    /// by something that stays alive. A helper is used rather than a foreign call from this
-    /// process for two reasons: the workspace denies `unsafe_code`, and a thread inside an
-    /// async runtime is a poor owner for thread-affine state. The helper blocks on a pipe this
-    /// process owns, so the flag is released when it is killed and equally if the service dies
-    /// without killing it.
+    /// Holds `SetThreadExecutionState` on a thread of its own for as long as the inhibition
+    /// lives ([`rd_win32::ExecutionStateHold`]); the flag is per thread, and a worker of the async
+    /// runtime is no owner for it. In this process, not in a PowerShell child (RD-1400-07): the
+    /// flag ends with the service, killed or not.
     async fn inhibit(&self, display: bool) -> anyhow::Result<Inhibition> {
-        // ES_CONTINUOUS | ES_SYSTEM_REQUIRED, plus ES_DISPLAY_REQUIRED when the screen is
-        // wanted too.
-        let flags: u32 = if display {
-            0x8000_0000 | 0x0000_0001 | 0x0000_0002
-        } else {
-            0x8000_0000 | 0x0000_0001
-        };
-        let script = format!(
-            "$api = Add-Type -MemberDefinition '[DllImport(\"kernel32.dll\")] \
-             public static extern uint SetThreadExecutionState(uint esFlags);' \
-             -Name Power -Namespace RDownloader -PassThru; \
-             [void]$api::SetThreadExecutionState({flags}); \
-             [void][Console]::In.ReadLine()"
-        );
-        let child = tokio::process::Command::new("powershell.exe")
-            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .kill_on_drop(true)
-            .no_console_window()
-            .spawn()?;
-        Ok(Inhibition::holding(child))
+        Ok(Inhibition::holding(rd_win32::ExecutionStateHold::start(
+            display,
+        )?))
     }
 }

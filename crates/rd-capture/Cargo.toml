@@ -61,6 +61,11 @@ tray-icon.workspace = true
 clipboard-win.workspace = true
 # The display language the intake toast speaks (RD-1270-05, `src/locale.rs`).
 winreg.workspace = true
+# Joins the terminal's console when started from one (RD-1400-07, `src/startup.rs`).
+winsafe.workspace = true
+# The game mode's look at the desktop and the drop-target shortcuts, in this process instead of
+# PowerShell children (RD-1400-07, `src/game_mode/detect.rs`, `src/desktop_shortcut.rs`).
+rd-win32 = { path = "../rd-win32" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2.workspace = true

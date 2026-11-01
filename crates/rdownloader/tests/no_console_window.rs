@@ -202,8 +202,10 @@ fn no_spawn_opens_a_console_window() {
                 .map(|line| format!("{}:{line}", relative.display())),
         );
     }
+    // A floor against a scan that silently finds nothing; RD-1400-07 moved the PowerShell,
+    // reg.exe and whoami children into the process and left 25.
     assert!(
-        spawns >= 30,
+        spawns >= 20,
         "expected to find the workspace's spawn sites, found {spawns}"
     );
     assert!(

@@ -315,3 +315,15 @@ fn link_parses_and_the_page_can_be_kept_from_opening() {
     assert!(run_args(&["rdownloader-capture", "run", "--no-link-page"]).no_link_page);
     assert!(!super::default_run_args().no_link_page);
 }
+
+/// The Windows `Run` entries start exactly these (RD-1400-07); `rd-autostart` writes them, so the
+/// two have to keep agreeing.
+#[test]
+fn the_autostart_entries_arguments_parse() {
+    assert!(run_args(&["rdownloader-capture", "run", rd_autostart::AUTOSTART_FLAG]).autostart);
+    assert!(!run_args(&["rdownloader-capture", "run"]).autostart);
+    assert!(!super::default_run_args().autostart);
+    let cli = Cli::try_parse_from(["rdownloader-capture", rd_autostart::START_SERVICE_COMMAND])
+        .expect("the service entry's command");
+    assert!(matches!(cli.command, Some(Command::StartService)));
+}

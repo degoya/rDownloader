@@ -1,5 +1,6 @@
 //! The process, file and registry helpers the autostart registration and the capture agent's
-//! OS integration (`rd-capture`) both need.
+//! OS integration (`rd-capture`) both need. The registry is written through its API (`winreg`),
+//! never through a `reg.exe` child (RD-1400-07).
 //!
 //! The capture agent already depends on this crate, yet carried its own copies of `reg_add`
 //! and `run` (audit 1.9.1, INTAKE-13); two copies of the code that writes `HKCU` drift apart
@@ -9,8 +10,6 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
-#[cfg(windows)]
-use rd_files::NoConsoleWindow as _;
 
 /// Runs `command` to its end; fails, naming `operation`, when it cannot start or exits
 /// unsuccessfully.
@@ -39,79 +38,113 @@ pub fn remove_file_if_present(path: &Path) -> Result<()> {
     }
 }
 
-/// Writes a `REG_SZ` value with `reg.exe`: the value `name`, or the key's default value for
-/// `None`, created along with the key when either is missing.
-///
-/// # Errors
-///
-/// When `reg.exe` cannot be started or refuses the write.
-#[cfg(windows)]
-pub fn reg_add(key: &str, name: Option<&str>, value: &str) -> Result<()> {
-    let mut command = Command::new("reg.exe");
-    command.no_console_window().args(["add", key]);
-    if let Some(name) = name {
-        command.args(["/v", name]);
-    } else {
-        command.arg("/ve");
-    }
-    command.args(["/t", "REG_SZ", "/d", value, "/f"]);
-    run(&mut command, "write Windows registry")
+/// The path below `HKEY_CURRENT_USER` that `key` names, which is written `HKCU\…` or
+/// `HKEY_CURRENT_USER\…`; every key rDownloader writes is the user's own, so any other hive is
+/// refused. Not gated on Windows, so it is tested on every host.
+#[cfg(any(windows, test))]
+fn user_subkey(key: &str) -> Result<&str> {
+    ["HKCU\\", "HKEY_CURRENT_USER\\"]
+        .iter()
+        .find_map(|hive| {
+            key.get(..hive.len())
+                .filter(|prefix| prefix.eq_ignore_ascii_case(hive))
+                .map(|_| &key[hive.len()..])
+        })
+        .filter(|path| !path.is_empty())
+        .with_context(|| format!("not a key below HKEY_CURRENT_USER: {key}"))
 }
 
-/// Deletes the value `name` under `key`; a value that is not there counts as deleted.
+/// Writes a `REG_SZ` value through the registry API: the value `name`, or the key's default
+/// value for `None`, created along with the key when either is missing. No `reg.exe` child: a
+/// program that writes the registry through another one is what a malware heuristic looks for
+/// (RD-1400-07).
 ///
 /// # Errors
 ///
-/// When `reg.exe` cannot be started or the value exists and cannot be deleted.
+/// When the key is not the user's or the registry refuses the write.
+#[cfg(windows)]
+pub fn reg_add(key: &str, name: Option<&str>, value: &str) -> Result<()> {
+    let (opened, _) = winreg::HKCU
+        .create_subkey(user_subkey(key)?)
+        .with_context(|| format!("open Windows registry key {key}"))?;
+    opened
+        .set_value(name.unwrap_or(""), &value)
+        .with_context(|| format!("write Windows registry value under {key}"))
+}
+
+/// Deletes the value `name` under `key`; a value or key that is not there counts as deleted.
+///
+/// # Errors
+///
+/// When the key is not the user's, or the value exists and cannot be deleted.
 #[cfg(windows)]
 pub fn reg_delete_value_if_present(key: &str, name: &str) -> Result<()> {
-    let present = reg_query(&[key, "/v", name]).context("query Windows registry")?;
-    if !present {
-        return Ok(());
+    let opened = match winreg::HKCU
+        .open_subkey_with_flags(user_subkey(key)?, winreg::enums::KEY_SET_VALUE)
+    {
+        Ok(opened) => opened,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(error).with_context(|| format!("open Windows registry key {key}"));
+        }
+    };
+    match opened.delete_value(name) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+            Err(error).with_context(|| format!("remove Windows registry value {name} under {key}"))
+        }
+        _ => Ok(()),
     }
-    run(
-        Command::new("reg.exe")
-            .no_console_window()
-            .args(["delete", key, "/v", name, "/f"]),
-        "remove Windows registry value",
-    )
 }
 
 /// Deletes `key` with everything under it; a key that is not there counts as deleted.
 ///
 /// # Errors
 ///
-/// When `reg.exe` cannot be started or the key exists and cannot be deleted.
+/// When the key is not the user's, or it exists and cannot be deleted.
 #[cfg(windows)]
 pub fn reg_delete_key_if_present(key: &str) -> Result<()> {
-    let present = reg_query(&[key]).with_context(|| format!("query Windows registry key {key}"))?;
-    if !present {
-        return Ok(());
+    match winreg::HKCU.delete_subkey_all(user_subkey(key)?) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+            Err(error).with_context(|| format!("remove Windows registry key {key}"))
+        }
+        _ => Ok(()),
     }
-    run(
-        Command::new("reg.exe")
-            .no_console_window()
-            .args(["delete", key, "/f"]),
-        "remove Windows registry key",
-    )
 }
 
-/// Whether `reg.exe query` finds what `arguments` ask for, without showing its output.
+/// Whether the value `name` exists under `key`; a key that cannot be read counts as absent.
 #[cfg(windows)]
-fn reg_query(arguments: &[&str]) -> std::io::Result<bool> {
-    Command::new("reg.exe")
-        .no_console_window()
-        .arg("query")
-        .args(arguments)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map(|status| status.success())
+#[must_use]
+pub fn reg_value_exists(key: &str, name: &str) -> bool {
+    user_subkey(key)
+        .ok()
+        .and_then(|path| winreg::HKCU.open_subkey(path).ok())
+        .is_some_and(|opened| opened.get_raw_value(name).is_ok())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{remove_file_if_present, run};
+    use super::{remove_file_if_present, run, user_subkey};
+
+    #[test]
+    fn only_keys_of_the_current_user_are_written() {
+        assert_eq!(
+            user_subkey(r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run").expect("HKCU"),
+            r"Software\Microsoft\Windows\CurrentVersion\Run"
+        );
+        assert_eq!(
+            user_subkey(r"hkey_current_user\Software\Classes\.nzb").expect("long form"),
+            r"Software\Classes\.nzb"
+        );
+        for refused in [
+            r"HKLM\Software\Classes",
+            "HKCU",
+            r"HKCU\",
+            r"Software\Classes",
+            "HKCU/x",
+        ] {
+            assert!(user_subkey(refused).is_err(), "accepted {refused:?}");
+        }
+    }
 
     #[test]
     fn removing_a_missing_file_is_not_an_error() {

@@ -27,6 +27,11 @@ tracing.workspace = true
 unicode-normalization.workspace = true
 uuid.workspace = true
 
+# The data directory's access list and the account's SID, read and set in this process
+# (RD-1400-07, `src/private_dir.rs`).
+[target.'cfg(windows)'.dependencies]
+rd-win32 = { path = "../rd-win32" }
+
 [dev-dependencies]
 tempfile.workspace = true
 

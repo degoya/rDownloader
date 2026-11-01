@@ -57,6 +57,7 @@ members = [
   "crates/rd-update",
   "crates/rd-usenet",
   "crates/rd-webdav",
+  "crates/rd-win32",
   "crates/rdownloader",
   "plugins/alldebrid",
   "plugins/alldebrid-auth",
@@ -164,7 +165,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.40.0"
+version = "1.40.1"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.99"
@@ -340,10 +341,18 @@ webauthn-authenticator-rs = { version = "0.6.1-dev", features = ["softtoken"] }
 # Windows only: the link count of an unpacked file (RD-190-05), through `GetFileInformationByHandle`
 # behind a safe call. Already in the tree through `walkdir`/`same-file`, so it adds no crate.
 winapi-util = "0.1.11"
+# Windows only, and only in `rd-win32` (RD-1400-07): the system calls the service and the capture
+# agent make in their own process instead of through PowerShell. Already in the tree through `tao`,
+# `librqbit` and `pageant` at this version, so it adds no crate; the features are `rd-win32`'s.
+windows = "0.62.2"
 # Windows only: the display language of the capture agent's intake toast (RD-1270-05), read from
 # the user's registry hive through a safe API. Already in the tree as `embed-resource`'s build
 # dependency, so it adds no crate.
 winreg = "0.56"
+# Windows only: the capture agent, a GUI-subsystem program, joins the console of the terminal it
+# was started from (`AttachConsole`, RD-1400-07) through a safe binding, so no `unsafe` outside
+# `rd-win32`. MIT, no dependencies of its own; only the `kernel` part.
+winsafe = { version = "0.0.29", default-features = false, features = ["kernel"] }
 wit-bindgen = "0.63"
 # The capture agent's concealment mark under Wayland and X11 (RD-1200-03): the protocol clients
 # `arboard` reads the text with, asked for the `x-kde-passwordManagerHint` it does not read.
@@ -353,6 +362,8 @@ x11rb = "0.13"
 zip = { version = "9", default-features = false, features = ["deflate", "aes-crypto"] }
 
 [workspace.lints.rust]
+# `rd-win32` alone allows it at its root (owner, 2026-11-01, RD-1400-07); the repo lint
+# `unsafe_only_in_win32` refuses `unsafe` and `allow(unsafe_code)` in every other host crate.
 unsafe_code = "deny"
 
 [workspace.lints.clippy]

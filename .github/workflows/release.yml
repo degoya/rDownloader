@@ -134,8 +134,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          & "target/${{ matrix.target }}/release/rdownloader.exe" --version
-          & "target/${{ matrix.target }}/release/rdownloader-capture.exe" --version
+          & "target/${{ matrix.target }}/release/rdownloader.exe" --version; if ($LASTEXITCODE) { throw "rdownloader.exe --version failed" }
+          & "target/${{ matrix.target }}/release/rdownloader-capture.exe" --version | Out-Host; if ($LASTEXITCODE) { throw "rdownloader-capture.exe (GUI subsystem: piped to be waited for) --version failed" }
       - name: Build macOS NZB helper app
         if: runner.os == 'macOS'
         shell: bash
@@ -253,6 +253,10 @@ jobs:
             scripts/package-msi.sh stage "installers/rdownloader-windows-x86_64${suffix}.msi" "${language}"
             scripts/package-msi.sh --capture capture-stage "installers/rdownloader-capture-windows-x86_64${suffix}.msi" "${language}"
           done
+      # RD-1400-07: a Defender threat in an .exe or .msi stops the release; `publish` needs this job.
+      - name: Defender scan of every Windows executable and installer
+        shell: pwsh
+        run: ./scripts/defender-scan.ps1 -SelfTest -EnableCloud packages/rdownloader-windows-x86_64.zip stage installers
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-msi
@@ -324,11 +328,9 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         shell: bash
         run: scripts/release-publish.sh update-manifest
-      # The plugin release first, so the index the application release brings never names a file
-      # that is not there yet. Never `latest` — that stays the application release, where the
-      # stable update manifest and the plugin index are found — and a pre-release with a beta.
-      # The action creates the tag `plugins-vX.Y.Z` on this commit with the run's token, which
-      # starts no workflow, and release.yml's tag pattern does not match it either.
+      # The plugin release first, so the application release's index never names a missing file;
+      # never `latest` (the application release keeps it), a pre-release with a beta. Its tag
+      # `plugins-vX.Y.Z` comes from the run's token, which starts no workflow.
       # RD-1150-02: the application release's text starts with the version's points for users.
       - name: Write the releases' texts
         id: plugin-release
@@ -346,8 +348,7 @@ jobs:
           prerelease: ${{ contains(github.ref_name, '-') }}
           make_latest: false
           files: plugin-assets/*
-      # A vX.Y.Z-beta.N tag is a pre-release: GitHub's `latest` then stays on the newest plain
-      # release, which is where the stable update manifest and the plugin index are found.
+      # A beta tag is a pre-release, so `latest` (stable update manifest, plugin index) stays put.
       - name: Publish GitHub release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:

@@ -99,7 +99,7 @@ pub(crate) async fn requested(wanted: Option<bool>) -> Option<bool> {
     Some(tick)
 }
 
-/// The blocking half of [`requested`]: `reg.exe`, `systemctl` and the files they write. Returns
+/// The blocking half of [`requested`]: the registry, `systemctl` and the files they write. Returns
 /// the registration before the switch and the switch's outcome.
 fn switch(wanted: Option<bool>) -> Option<(bool, Result<bool>)> {
     let registered = current()?;

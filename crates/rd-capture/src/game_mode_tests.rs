@@ -5,7 +5,7 @@ use rd_core::{CaptureGameMode, GameModeAction};
 
 use super::{
     Guard, Held, Seen, Step, Trigger,
-    detect::{parse_ps, parse_windows_line},
+    detect::{parse_ps, windows_seen},
     trigger,
 };
 
@@ -187,27 +187,38 @@ fn a_failed_call_is_made_again() {
     assert_eq!(guard.step(false, GameModeAction::Pause, now), release);
 }
 
-/// The Windows helper's line: the notification state, then the process names.
+/// A Windows look: the notification state, and the executables as a ToolHelp snapshot names them.
 #[test]
-fn the_windows_helper_line_reads() {
-    let seen = parse_windows_line("3\tSystem|explorer|cs2|Game\r\n").expect("a line");
+fn a_windows_look_reads_the_state_and_the_executables() {
+    let seen = windows_seen(
+        3,
+        [
+            "[System Process]",
+            "System",
+            "explorer.exe",
+            "cs2.exe",
+            "Game.EXE",
+        ]
+        .into_iter(),
+    );
     assert!(seen.full_screen, "Direct3D full screen");
-    assert!(seen.processes.contains("cs2"));
+    assert!(seen.processes.contains("cs2"), "without .exe");
     assert!(seen.processes.contains("game"), "compared lower case");
+    assert!(seen.processes.contains("explorer"));
     for (state, full) in [
+        (0, false),
         (1, false),
         (2, true),
+        (3, true),
         (4, true),
         (5, false),
         (6, false),
         (7, false),
     ] {
-        let seen = parse_windows_line(&format!("{state}\t")).expect("a line");
+        let seen = windows_seen(state, std::iter::empty());
         assert_eq!(seen.full_screen, full, "state {state}");
         assert!(seen.processes.is_empty());
     }
-    assert_eq!(parse_windows_line("Add-Type failed"), None);
-    assert_eq!(parse_windows_line("x\tgame"), None);
 }
 
 #[test]

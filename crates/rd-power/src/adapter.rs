@@ -38,15 +38,15 @@ pub struct PowerState {
 /// Anything whose `Drop` ends an inhibition.
 ///
 /// Blanket-implemented, so an adapter hands over whatever it happens to hold — a helper
-/// process on every real platform, a counter in a test — without this module knowing what.
+/// process, a thread on Windows, a counter in a test — without this module knowing what.
 pub trait Held: Send + Sync + std::fmt::Debug {}
 impl<T: Send + Sync + std::fmt::Debug> Held for T {}
 
 /// Holds a platform sleep inhibition for exactly as long as it is alive.
 ///
-/// Every real adapter holds a helper process spawned with `kill_on_drop`, whose death releases
-/// the inhibition. That also covers the service being killed outright, which a flag set inside
-/// this process would not.
+/// Linux and macOS hold a helper process spawned with `kill_on_drop`, whose death releases the
+/// inhibition, also when the service is killed outright. Windows holds a thread of this process
+/// (`rd_win32::ExecutionStateHold`): its flag is per thread and ends with the process.
 #[derive(Debug)]
 pub struct Inhibition {
     /// Never read: the value is held, not talked to, and releasing is its `Drop`.

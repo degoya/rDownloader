@@ -8,10 +8,17 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 
 mod installed;
+mod launch;
+// The `Run` value's command line: written on Windows, tested everywhere.
+#[cfg(any(windows, test))]
+mod run_value;
 pub mod shell;
 mod stable_path;
 
 pub use installed::{INSTALL_KIND_FILE, install_kind, installed_home};
+pub use launch::{
+    AUTOSTART_FLAG, AutostartLogs, START_SERVICE_COMMAND, enter_autostart, start_beside,
+};
 pub use stable_path::stable_executable_path;
 
 /// One independently installable rDownloader background process.
@@ -129,28 +136,6 @@ pub fn remove(target: Target) -> Result<()> {
 #[must_use]
 pub fn is_registered(target: Target) -> bool {
     platform::is_registered(target)
-}
-
-/// The text of a Windows autostart wrapper path, refused when it carries a control character.
-///
-/// A line break in the path would close the `shell.Run` line of the generated VBScript and turn
-/// everything after it into a statement of its own, and the registry value is a command line
-/// that `wscript.exe` is handed verbatim. The path is derived from the install location today,
-/// so nothing reaches this from outside — but the systemd renderer rejects the same characters
-/// and the property-list renderer rejects `\0`, and a renderer that trusts its input is the one
-/// that stops being safe when somebody changes where the wrapper lives.
-///
-/// Ungated so it compiles and is tested on every platform; only the renderers that use it are
-/// Windows-only.
-#[cfg(any(windows, test))]
-fn windows_wrapper_path(path: &Path) -> Result<&str> {
-    let value = path
-        .to_str()
-        .context("autostart wrapper path is not Unicode")?;
-    if value.contains(['\n', '\r', '\0']) {
-        bail!("autostart path cannot be represented in a Windows autostart wrapper");
-    }
-    Ok(value)
 }
 
 #[cfg(test)]

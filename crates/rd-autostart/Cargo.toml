@@ -10,6 +10,11 @@ anyhow.workspace = true
 directories.workspace = true
 rd-files = { path = "../rd-files" }
 
+# The `Run` value and the capture agent's registry entries, through the API rather than a
+# `reg.exe` child (RD-1400-07).
+[target.'cfg(windows)'.dependencies]
+winreg.workspace = true
+
 [dev-dependencies]
 tempfile.workspace = true
 

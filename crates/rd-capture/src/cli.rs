@@ -45,6 +45,10 @@ pub(crate) enum Command {
     SendTo(IntegrationArgs),
     /// Installs or removes per-user capture-agent autostart.
     Autostart(IntegrationArgs),
+    /// Starts the rDownloader service from this folder in the background, without a window,
+    /// its output appended to logs/rdownloader.log, and ends: what the service's Windows
+    /// autostart runs (RD-1400-07).
+    StartService,
     /// Pauses clipboard watching. Click'n'Load, the browser extension and rdownloader:// links
     /// stay on; what is copied while paused is not delivered later.
     Pause(ConnectionArgs),
@@ -132,6 +136,11 @@ pub(crate) struct RunArgs {
     /// tray's "Link capture agent" and `link` still open it (RD-1390-02).
     #[arg(long)]
     pub(crate) no_link_page: bool,
+    /// Started by the agent's own autostart entry: moves into its working folder and writes its
+    /// output to logs/rdownloader-capture.log and .err.log, as the wrapper script the entry used
+    /// to start did (RD-1400-07).
+    #[arg(long, hide = true)]
+    pub(crate) autostart: bool,
 }
 
 #[derive(Args)]
@@ -191,6 +200,7 @@ pub(crate) fn default_run_args() -> RunArgs {
         no_notifications: false,
         no_tray: false,
         no_link_page: false,
+        autostart: false,
     }
 }
 

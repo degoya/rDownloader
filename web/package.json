@@ -1,6 +1,6 @@
 {
   "name": "rdownloader-web",
-  "version": "1.40.0",
+  "version": "1.40.1",
   "author": "Alexander Herling / DEGOYA.digital",
   "license": "GPL-3.0-or-later",
   "private": true,
@@ -35,7 +35,7 @@
     "vue-router": "^5.4.0"
   },
   "devDependencies": {
-    "@iconify-json/lucide": "^1.2.149",
+    "@iconify-json/lucide": "^1.2.150",
     "@nuxt/icon": "^2.6.2",
     "@testing-library/vue": "^8.1.0",
     "@types/node": "^24.19.2",

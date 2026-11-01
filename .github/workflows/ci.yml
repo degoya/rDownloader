@@ -217,6 +217,21 @@ jobs:
         run: cargo nextest run --no-fail-fast -p rd-object-storage --no-default-features
       - name: Platform smoke tests
         uses: ./.github/actions/platform-smoke
+      # RD-1400-07: Microsoft Defender over the debug executables the smoke tests just built
+      # (failing), then, report only, over the Windows zips and MSIs of the releases before it.
+      # The image switches real-time, behaviour and cloud protection off; scripts/defender-scan.ps1
+      # prints that state, turns the cloud on for this throwaway runner and proves itself on EICAR.
+      - name: Defender scan of this build's executables
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/defender-scan.ps1 -SelfTest -EnableCloud target/debug/rdownloader.exe target/debug/rdownloader-capture.exe
+      - name: Defender scan of the last releases (report only)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/defender-scan.ps1 -Report -SkipUpdate -Release v1.38.0,v1.39.1,v1.40.0
       # A prebuilt binary instead of a source build in every run. install-action has no manifest
       # of its own for sqlx-cli and hands it to cargo-binstall, which takes
       # the signed build from cargo-quickinstall (default features: a superset of the

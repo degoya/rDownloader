@@ -312,6 +312,14 @@ pub(crate) fn autostart(args: IntegrationArgs) -> Result<()> {
     Ok(())
 }
 
+/// `start-service` (RD-1400-07): the service beside this program, started in the background
+/// without a window and with its logs, for the service's Windows autostart entry; the agent ends
+/// right after.
+pub(crate) fn start_service() -> Result<()> {
+    let executable = std::env::current_exe().context("locate capture executable")?;
+    rd_autostart::start_beside(rd_autostart::Target::Server, &executable)
+}
+
 #[cfg(test)]
 mod tests {
     use super::read_at_most;

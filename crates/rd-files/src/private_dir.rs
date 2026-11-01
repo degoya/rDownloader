@@ -9,18 +9,14 @@
 //! to `C:\<folder>` inherits "Authenticated Users: Modify" from the drive's root, so the start
 //! gives the data directory an access list of its own ([`protect_private_dir`]): the account
 //! the service runs as, `SYSTEM` and the Administrators, each with full control, inheritance
-//! from above cut. Without `unsafe` code, through the system's own `icacls` and a PowerShell
-//! `Get-Acl` that reads the list back in SDDL — account names are translated per system
-//! language, SIDs are not.
+//! from above cut. The account's SID and the access list are read and written in SDDL through
+//! `rd-win32`, in this process (RD-1400-07; before, `whoami`, `icacls` and a PowerShell `Get-Acl`
+//! were started for it) — account names are translated per system language, SIDs are not.
 //!
 //! [`private_dir_exposure`] is the question `rdownloader doctor` asks on every platform.
 
-use std::ffi::OsString;
 use std::io;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-
-use crate::NoConsoleWindow as _;
+use std::path::Path;
 
 /// Well-known accounts that stand for other people, as SDDL names them (alias or SID) and as a
 /// report names them.
@@ -92,24 +88,9 @@ pub fn protect_private_dir(path: &Path) -> io::Result<()> {
     if !cfg!(windows) || private_dir_exposure(path)?.is_none() {
         return Ok(());
     }
-    let user = format!("*{}", current_user_sid()?);
-    let full = |account: &str| format!("{account}:(OI)(CI)F");
-    run(Command::new(system_program(r"icacls.exe"))
-        .no_console_window()
-        .arg(path)
-        .args(["/inheritance:r", "/grant:r"])
-        .args([full(&user), full("*S-1-5-18"), full("*S-1-5-32-544")]))?;
-    // Explicit entries survive `/inheritance:r`; those of the broad groups go as well.
-    run(Command::new(system_program(r"icacls.exe"))
-        .no_console_window()
-        .arg(path)
-        .arg("/remove:g")
-        .args(
-            BROAD_ACCOUNTS
-                .iter()
-                .filter(|(_, sid, _)| !sid.is_empty())
-                .map(|(_, sid, _)| format!("*{sid}")),
-        ))?;
+    // The list is replaced whole, so explicit entries of the broad groups go with the inherited.
+    #[cfg(windows)]
+    rd_win32::set_protected_dacl(path, &private_sddl(&rd_win32::current_user_sid()?))?;
     match private_dir_exposure(path)? {
         None => Ok(()),
         Some(why) => Err(io::Error::other(why)),
@@ -129,14 +110,16 @@ pub fn private_dir_exposure(path: &Path) -> io::Result<Option<String>> {
         let mode = std::fs::metadata(path)?.permissions().mode();
         Ok(unix_exposure(mode))
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     {
-        if !cfg!(windows) {
-            return Ok(None);
-        }
-        let user = current_user_sid()?;
-        let sddl = access_list_sddl(path)?;
+        let user = rd_win32::current_user_sid()?;
+        let sddl = rd_win32::dacl_sddl(path)?;
         Ok(windows_exposure(&sddl, &user))
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = path;
+        Ok(None)
     }
 }
 
@@ -213,79 +196,12 @@ pub fn windows_exposure(sddl: &str, user: &str) -> Option<String> {
     })
 }
 
-/// The SID in the output of `whoami /user /fo csv /nh`: `"machine\name","S-1-5-21-..."`.
-#[must_use]
-pub fn sid_from_whoami(output: &str) -> Option<String> {
-    let sid = output.trim().rsplit(',').next()?.trim().trim_matches('"');
-    (sid.starts_with("S-1-")
-        && sid
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || byte == b'-' || byte == b'S'))
-    .then(|| sid.to_owned())
-}
-
-fn current_user_sid() -> io::Result<String> {
-    let output = Command::new(system_program("whoami.exe"))
-        .no_console_window()
-        .args(["/user", "/fo", "csv", "/nh"])
-        .stdin(Stdio::null())
-        .output()?;
-    if !output.status.success() {
-        return Err(io::Error::other("whoami could not name the account"));
-    }
-    sid_from_whoami(&String::from_utf8_lossy(&output.stdout))
-        .ok_or_else(|| io::Error::other("whoami named no SID"))
-}
-
-/// The access list of `path` in SDDL. The path goes through the environment, so no quoting of
-/// it can end up as PowerShell code.
-#[cfg(not(unix))]
-fn access_list_sddl(path: &Path) -> io::Result<String> {
-    let output = Command::new(system_program(r"WindowsPowerShell\v1.0\powershell.exe"))
-        .no_console_window()
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            "$ErrorActionPreference = 'Stop'; (Get-Acl -LiteralPath $env:RD_PRIVATE_DIR).Sddl",
-        ])
-        .env("RD_PRIVATE_DIR", path)
-        .stdin(Stdio::null())
-        .output()?;
-    let sddl = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-    if !output.status.success() || sddl.is_empty() {
-        return Err(io::Error::other(format!(
-            "the access list of {} could not be read",
-            path.display()
-        )));
-    }
-    Ok(sddl)
-}
-
-fn run(command: &mut Command) -> io::Result<()> {
-    let status = command
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(io::Error::other(format!("icacls ended with {status}")))
-    }
-}
-
-/// A program of the Windows directory's `System32`, by its full path: never looked up by name,
-/// which starts in the folder of the running executable.
-fn system_program(relative: &str) -> PathBuf {
-    windows_directory(std::env::var_os("SystemRoot"))
-        .join("System32")
-        .join(relative)
-}
-
-fn windows_directory(root: Option<OsString>) -> PathBuf {
-    root.filter(|root| !root.is_empty())
-        .map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from)
+/// The access list [`protect_private_dir`] gives a folder, in SDDL: `user`, `SYSTEM` and the
+/// Administrators with full control, inherited by every file and folder below (`OICI`),
+/// protected (`P`) from what lies above.
+#[cfg_attr(not(any(windows, test)), allow(dead_code))]
+fn private_sddl(user: &str) -> String {
+    format!("D:P(A;OICI;FA;;;{user})(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)")
 }
 
 #[cfg(test)]
@@ -344,22 +260,19 @@ mod tests {
     }
 
     #[test]
-    fn the_sid_is_read_from_whoami_whatever_the_account_is_called() {
-        assert_eq!(
-            sid_from_whoami("\"desktop-7\\j\u{fc}rgen m\u{fc}ller\",\"S-1-5-21-1-2-3-1001\"\r\n")
-                .as_deref(),
-            Some("S-1-5-21-1-2-3-1001")
+    fn the_list_protect_gives_lets_only_the_account_system_and_the_administrators_in() {
+        let list = private_sddl(USER);
+        assert!(list.starts_with("D:P("), "protected from above: {list}");
+        assert_eq!(windows_exposure(&list, USER), None);
+        assert!(
+            windows_exposure(&list, "S-1-5-21-1-2-3-1002").is_some(),
+            "another account would not own it"
         );
-        assert_eq!(sid_from_whoami("Access is denied."), None);
-        assert_eq!(sid_from_whoami(""), None);
-    }
-
-    #[test]
-    fn system_programs_are_named_by_their_full_path() {
-        let root = windows_directory(Some(r"D:\Win".into()));
-        assert!(root.join("System32").starts_with(r"D:\Win"));
-        for unknown in [None, Some(OsString::new())] {
-            assert_eq!(windows_directory(unknown), PathBuf::from(r"C:\Windows"));
+        for entry in list.split('(').skip(1) {
+            assert!(
+                entry.starts_with("A;OICI;FA;;;"),
+                "inherited below: {entry}"
+            );
         }
     }
 
