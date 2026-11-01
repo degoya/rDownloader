@@ -91,6 +91,8 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('general.auto_retry', 'general', 'settings.auto_retry.label', { descriptionKey: 'settings.auto_retry.description' }),
   field('general.account_traffic', 'general', 'settings.account_traffic.label', { descriptionKey: 'settings.account_traffic.description', terms: ['Traffic', 'DDownload'] }),
   field('general.auto_remove', 'general', 'settings.auto_remove.label', { descriptionKey: 'settings.auto_remove.description' }),
+  field('general.clear_failed_delete_files', 'general', 'settings.clear_failed_delete_files.label', { descriptionKey: 'settings.clear_failed_delete_files.description' }),
+  field('general.package_reset_delete_extracted', 'general', 'settings.package_reset_delete_extracted.label', { descriptionKey: 'settings.package_reset_delete_extracted.description' }),
   field('general.sha256', 'general', 'settings.sha256.label', { descriptionKey: 'settings.sha256.description', terms: ['SHA-256'] }),
   // Interface
   card('interface.appearance', 'interface', 'settings.appearance.title', { tab: 'browser', descriptionKey: 'settings.appearance.description' }),

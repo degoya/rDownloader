@@ -1,5 +1,9 @@
 # Changes
 
+## 0.1.18
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.1.17
 
 The dead host nikaplayer.com is no longer offered.

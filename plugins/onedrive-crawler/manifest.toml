@@ -1,7 +1,7 @@
 plugin_type = "crawler"
 id = "019d0000-0000-7000-8000-000000000115"
 name = "OneDrive folders"
-version = "0.1.14"
+version = "0.1.15"
 
 # Microsoft Graph and nothing else. The listing lives here, and the account's access token may
 # be sent to `graph.microsoft.com` and to no other address.

@@ -5,7 +5,7 @@ plugin_type = "enricher"
 # never loaded (RD-098-03).
 id = "019d0000-0000-7000-8000-00000000010e"
 name = "SponsorBlock"
-version = "0.9.13"
+version = "0.9.14"
 
 # The one address this plugin reaches. It sends a video id and nothing else — no account, no
 # cookies, nothing that identifies the person asking.

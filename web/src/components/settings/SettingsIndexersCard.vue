@@ -263,7 +263,7 @@ async function remove(indexer: Indexer): Promise<void> {
           <article v-for="indexer in indexers" :key="indexer.id" class="min-w-0 p-4" :class="editingRowClass(editingId === indexer.id)" data-testid="indexer-row">
             <div class="flex flex-wrap items-start gap-4">
               <div class="min-w-0 flex-1 basis-40">
-                <div class="flex items-center gap-2"><UChip standalone color="success" :show="indexer.enabled" class="w-2" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ indexer.name }}</h4></div>
+                <div class="flex items-center gap-2"><UChip standalone inset color="success" :show="indexer.enabled" class="w-2" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ indexer.name }}</h4></div>
                 <p class="mt-1 truncate font-mono text-xs text-muted">{{ indexer.url }}</p>
                 <p class="mt-2 text-xs text-muted">{{ indexer.categories?.length ? indexer.categories.join(', ') : t('usenet.indexers.categories_all') }}</p>
               </div>

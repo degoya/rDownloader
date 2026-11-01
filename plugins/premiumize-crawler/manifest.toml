@@ -1,7 +1,7 @@
 plugin_type = "crawler"
 id = "019d0000-0000-7000-8000-00000000010f"
 name = "Premiumize folders"
-version = "0.1.14"
+version = "0.1.15"
 
 # The provider's own API, and nothing else. `folder/list` and `item/details` live here, and
 # the account's API key may be sent to `www.premiumize.me` and to no other address.

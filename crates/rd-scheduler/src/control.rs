@@ -10,10 +10,13 @@ mod batches;
 mod relocate;
 #[path = "control_removal.rs"]
 mod removal;
+#[path = "control_reset_package.rs"]
+mod reset_package;
 
 #[cfg(test)]
 use removal::discard_scratch_files;
 pub(crate) use removal::remove_part_file;
+pub use reset_package::PackageNotFailed;
 
 /// How long a removal, reset or discard waits for a worker whose row is already finished to
 /// let go of it (RD-1120-18).

@@ -383,7 +383,7 @@ function proxyName(id: string | null | undefined): string {
                 />
               </div>
               <div class="min-w-0 flex-1 basis-40">
-                <div class="flex items-center gap-2"><UChip standalone color="success" :show="server.enabled" class="w-2" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ server.name }}</h4></div>
+                <div class="flex items-center gap-2"><UChip standalone inset color="success" :show="server.enabled" class="w-2" /><h4 class="truncate text-sm font-semibold text-highlighted">{{ server.name }}</h4></div>
                 <p class="mt-1 truncate font-mono text-xs text-muted">{{ server.host }}:{{ server.port }}</p>
                 <p class="mt-2 text-xs text-muted">{{ t('usenet.summary.connections', { count: server.max_connections }, server.max_connections) }}<span v-if="busyOf(server.id)" class="text-primary" :title="t('usenet.chain.busy_title')" data-testid="server-busy"> · {{ t('usenet.chain.busy', { count: busyOf(server.id) }, busyOf(server.id)) }}</span> · {{ proxyName(server.proxy_profile_id) }} · {{ t('usenet.chain.priority', { priority: server.priority }) }}</p>
               </div>

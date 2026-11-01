@@ -1,7 +1,7 @@
 plugin_type = "oauth"
 id = "019d0000-0000-7000-8000-000000000113"
 name = "Real-Debrid sign-in"
-version = "0.2.11"
+version = "0.2.12"
 
 # Device code and nothing else. Real-Debrid's open-source flow has no redirect entrance, so
 # naming `redirect` here would only earn a refusal — and because the host reads this before it

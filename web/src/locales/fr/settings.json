@@ -1393,5 +1393,13 @@
   "retry_long_wait": {
     "label": "Longue attente entre les tentatives",
     "description": "Minutes qu’un téléchargement attend entre ses tentatives suivantes ; les fichiers après lui avancent entre-temps (1–1440)."
+  },
+  "clear_failed_delete_files": {
+    "label": "Supprimer les paquets en échec avec leurs fichiers",
+    "description": "« Supprimer les paquets en échec + fichiers » efface du disque tous les fichiers de ces paquets, terminés compris. Désactivé : seulement ce qui n'a pas abouti."
+  },
+  "package_reset_delete_extracted": {
+    "label": "Supprimer les fichiers extraits lors d’une réinitialisation",
+    "description": "« Réinitialiser entièrement le paquet » supprime aussi ce que l’extraction de ce paquet a produit. Désactivé : les fichiers extraits restent et seuls les téléchargements sont supprimés."
   }
 }

@@ -1393,5 +1393,13 @@
   "retry_long_wait": {
     "label": "Espera larga entre reintentos",
     "description": "Minutos que una descarga espera entre sus reintentos posteriores; mientras tanto avanzan los archivos siguientes (1–1440)."
+  },
+  "clear_failed_delete_files": {
+    "label": "Eliminar paquetes fallidos con sus archivos",
+    "description": "«Eliminar paquetes fallidos + archivos» borra del disco todos los archivos de esos paquetes, también los terminados. Desactivado: solo lo que no terminó."
+  },
+  "package_reset_delete_extracted": {
+    "label": "Eliminar lo extraído al restablecer un paquete",
+    "description": "«Restablecer el paquete por completo» también elimina lo que creó la extracción de ese paquete. Desactivado: los resultados extraídos se conservan y solo se descartan las descargas."
   }
 }

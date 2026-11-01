@@ -1,7 +1,7 @@
 plugin_type = "remote-job"
 id = "019d0000-0000-7000-8000-000000000181"
 name = "Seedr transfers"
-version = "0.1.15"
+version = "0.1.16"
 
 [capabilities]
 # The account password, the same slot the resolver sibling reads. It is read back here only

@@ -1,7 +1,7 @@
 plugin_type = "crawler"
 id = "019d0000-0000-7000-8000-000000000131"
 name = "PEEPLink entries"
-version = "0.1.15"
+version = "0.1.16"
 
 # The two domains the service still answers on, measured on 2026-09-21 (RD-110-17). The alias
 # `alfalink.info` that `robots.txt` still names is NOT here:

@@ -1,7 +1,7 @@
 plugin_type = "intake"
 id = "019d0000-0000-7000-8000-000000000101"
 name = "Metalink"
-version = "0.10.10"
+version = "0.10.11"
 
 # Nothing granted. The parser reads the text it is handed and answers; a metalink carries
 # every address it needs, so there is nothing to fetch and no reason to reach the network.

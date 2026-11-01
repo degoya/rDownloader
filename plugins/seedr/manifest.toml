@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-000000000180"
 name = "Seedr"
-version = "0.1.16"
+version = "0.1.17"
 # The canonical per-file API address the remote-job sibling emits, and the bare domain a person
 # may paste instead. Never `*`: Seedr serves its own storage and unrestricts nobody else's
 # links, so this is a hoster and not a multihoster.

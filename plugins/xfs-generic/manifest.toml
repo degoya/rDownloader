@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-00000000010d"
 name = "XFileSharing (generic)"
-version = "0.1.17"
+version = "0.1.18"
 
 # ---------------------------------------------------------------------------------------------
 # The domain list holds clones that were checked, and grows from there (RD-098-01).

@@ -1,7 +1,7 @@
 plugin_type = "auth"
 id = "019d0000-0000-7000-8000-000000000134"
 name = "MEGA sign-in"
-version = "0.1.16"
+version = "0.1.17"
 
 # The command endpoint, and nothing else. This list is also what bounds the key-derivation
 # grant below: a plugin may compute over a credential only when everything it can reach is a

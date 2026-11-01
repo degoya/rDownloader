@@ -4,7 +4,7 @@ plugin_type = "enricher"
 # highest version per id and says nothing about the one it dropped (RD-098-03).
 id = "019d0000-0000-7000-8000-00000000011a"
 name = "Film and series metadata"
-version = "0.1.13"
+version = "0.1.14"
 
 # The one address this plugin reaches. Cinemeta is keyless by design — there is no account and
 # no token to expand here, because an enricher is instantiated without one — so what leaves the

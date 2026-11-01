@@ -107,7 +107,7 @@
 ^crates/rd-api(-[a-z]+)?/src/log_level_handlers(\.rs$|/)                                      log_level diagnostics mcp scope_matrix
 # The LinkFilter rules (RD-1240-09, RD-1310-01).
 ^crates/rd-api(-[a-z]+)?/src/link_filter_[a-z_]+(\.rs$|/)                                     area_backup mcp
-^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)(\.rs$|/)                        api_tokens audit auto_remove bulk_filter bulk_pause category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets download_list address_rule usenet_connections
+^crates/rd-api(-[a-z]+)?/src/(download_handlers|routes/queue)(\.rs$|/)                        api_tokens audit auto_remove bulk_filter bulk_pause category_move_and_reset clear_list compat_qbittorrent data_reset media_manifest metrics mirrors reorder replay_restart subscriptions torrent source_sets download_list address_rule usenet_connections package_reset
 ^crates/rd-api(-[a-z]+)?/src/download_sources(\.rs$|/)                                        source_sets scope_matrix mcp
 ^crates/rd-api(-[a-z]+)?/src/hotfolder_service(\.rs$|/)                                       hotfolder_poll
 ^crates/rd-api(-[a-z]+)?/src/(media_dto|media_handlers|routes/media)(\.rs$|/)                 media_cookie_profile media_manifest indexer_search torznab_search
@@ -119,7 +119,7 @@
 # Signing in through an identity provider (RD-190-15).
 ^crates/rd-api(-[a-z]+)?/src/(oidc_handlers|oidc_settings_handlers|oidc_client|password_login_handlers)(\.rs$|/)   oidc auth step_up
 ^crates/rd-authn/src/(oidc|oidc_token|oidc_testing)(\.rs$|/)                                   + oidc
-^crates/rd-api(-[a-z]+)?/src/(package_clear|package_handlers)(\.rs$|/)                        auto_remove category_move_and_reset clear_list reorder download_list package_start_after package_download_window
+^crates/rd-api(-[a-z]+)?/src/(package_clear|package_handlers)(\.rs$|/)                        auto_remove category_move_and_reset clear_list reorder download_list package_start_after package_download_window package_reset
 ^crates/rd-api(-[a-z]+)?/src/passkey_handlers(\.rs$|/)                                        passkeys step_up
 # Every door under the sign-in limiter side by side, and the password change's session (RD-1120-19).
 ^crates/rd-api(-[a-z]+)?/src/(login_handlers|password_handlers|step_up|passkey_handlers|oidc_handlers|qbittorrent/mod)(\.rs$|/)   + sign_in_doors

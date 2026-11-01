@@ -101,6 +101,23 @@ impl Writer {
             PackagesCommand::SetPackageExtraction { id, result, reply } => {
                 send(reply, self.set_package_extraction(id, result).await);
             }
+            PackagesCommand::RecordPackageOutputs { id, paths, reply } => {
+                let result = crate::package_outputs_store::record(
+                    &mut self.connection,
+                    id,
+                    &paths,
+                    chrono::Utc::now(),
+                )
+                .await;
+                send(reply, result);
+            }
+            PackagesCommand::ResetPackage {
+                id,
+                forget_outputs,
+                reply,
+            } => {
+                send(reply, self.reset_package(id, forget_outputs).await);
+            }
             PackagesCommand::SetPackageSpeedLimit {
                 id,
                 bytes_per_second,

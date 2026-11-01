@@ -250,3 +250,75 @@ async fn removing_all_stopped_packages_still_spares_the_running_one() {
     );
     assert!(part.exists(), "its data is untouched");
 }
+
+/// A package whose files all finished and whose post-processing failed, as a corrupt Usenet set
+/// ends; answers the finished volume's path.
+async fn finished_in_failed_package(harness: &common::Harness) -> std::path::PathBuf {
+    let (volume, folder) = queued(harness, "Corrupt", "set.part01.rar").await;
+    walk(
+        harness,
+        volume,
+        &[
+            DownloadState::Resolving,
+            DownloadState::Downloading,
+            DownloadState::Verifying,
+        ],
+    )
+    .await;
+    let package_id = harness
+        .database
+        .get_download(volume)
+        .await
+        .expect("read")
+        .expect("the volume")
+        .package_id;
+    // Settled before the file completes, for the reason `running_and_finished` gives.
+    harness
+        .database
+        .set_package_state(package_id, rd_core::PackageState::Failed, None, None, None)
+        .await
+        .expect("package failed");
+    walk(harness, volume, &[DownloadState::Completed]).await;
+    std::fs::create_dir_all(&folder).expect("folder");
+    let payload = folder.join("set.part01.rar");
+    std::fs::write(&payload, b"volume").expect("payload");
+    payload
+}
+
+/// The report: "Remove failed packages + files" took a corrupt Usenet set out of the list and
+/// left its RAR volumes on disk. By default every file of the package goes now.
+#[tokio::test]
+async fn removing_the_failed_packages_deletes_their_finished_files_too() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::parked_harness(directory.path()).await;
+    let payload = finished_in_failed_package(&harness).await;
+
+    let (status, body) = clear(&harness, json!({ "scope": "failed" })).await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["removed"], 1, "{body}");
+    assert!(
+        !payload.exists(),
+        "the finished volume is deleted with its package"
+    );
+}
+
+/// With `clear_failed_delete_files` off a finished file stays where it is.
+#[tokio::test]
+async fn the_setting_keeps_the_finished_files_of_failed_packages() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::parked_harness(directory.path()).await;
+    let payload = finished_in_failed_package(&harness).await;
+    let (_, mut settings) = common::get_json(&harness.router, "/api/v1/settings").await;
+    settings["clear_failed_delete_files"] = json!(false);
+    // Writing the document re-applies its login switch; the harness set only the flag.
+    settings["admin_login_disabled"] = json!(true);
+    let (status, body) = common::put_json(&harness.router, "/api/v1/settings", settings).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+
+    let (status, body) = clear(&harness, json!({ "scope": "failed" })).await;
+
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["removed"], 1, "{body}");
+    assert!(payload.exists(), "only what did not finish is deleted");
+}

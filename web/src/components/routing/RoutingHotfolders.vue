@@ -256,7 +256,7 @@ async function remove(folder: HotFolder): Promise<void> {
         <div class="space-y-2">
           <div v-for="folder in hotfolders" :key="folder.id" class="bg-default p-3" :class="editingRowClass(editingId === folder.id)">
             <div class="flex items-center gap-3">
-              <UChip standalone color="success" :show="folder.enabled" class="w-2" />
+              <UChip standalone inset color="success" :show="folder.enabled" class="w-2" />
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-highlighted">{{ folder.name }}</p>
                 <p class="truncate font-mono text-2xs text-muted">{{ folder.path }}</p>

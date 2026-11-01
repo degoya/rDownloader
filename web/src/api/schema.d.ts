@@ -4498,6 +4498,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/packages/{id}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reset_package"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/packages/{id}/speed-limit": {
         parameters: {
             query?: never;
@@ -13198,7 +13214,9 @@ export interface components {
             /**
              * @description Also deletes what the unfinished files of the removed packages had written outside
              *     staging: tool fragments beside the target and an unfinished torrent's data. Incomplete
-             *     staging files go with every removal; finished files always stay.
+             *     staging files go with every removal; finished files stay. `failed` ignores it: that
+             *     scope deletes every file of its packages, the finished ones too, while the setting
+             *     `clear_failed_delete_files` is on (the default), and the unfinished ones otherwise.
              */
             delete_partial?: boolean;
             scope: components["schemas"]["PackageClearScope"];
@@ -15657,6 +15675,12 @@ export interface components {
              */
             cleanup_extensions: string[];
             /**
+             * @description "Remove failed packages" also deletes every file of those packages from disk, the
+             *     finished ones included; off deletes only what did not finish.
+             * @default true
+             */
+            clear_failed_delete_files: boolean;
+            /**
              * @description What runs once the queue and post-processing have drained.
              * @default none
              */
@@ -16099,6 +16123,12 @@ export interface components {
              *     }
              */
             package_name_rules: components["schemas"]["PackageNameRules"];
+            /**
+             * @description "Reset the package completely" also deletes what unpacking that package created; off
+             *     keeps the unpacked results and discards only the downloads (RD-1390-07).
+             * @default true
+             */
+            package_reset_delete_extracted: boolean;
             /**
              * @description Absolute path of the password list (one per line); empty = `passwords.txt` next to the database.
              * @default null
@@ -29500,6 +29530,46 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    reset_package: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["PackageId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };

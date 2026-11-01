@@ -140,7 +140,8 @@ search_indexers searches the Newznab and Torznab indexers defined in the web UI 
 chosen hits into the LinkGrabber, an NZB as an NZB import and a torrent as a package. \
 The queue is ordered with reorder_downloads and reorder_packages, renamed \
 with rename_download, update_package and rename_package_folder, tidied with \
-clear_finished_packages and unpacked with extract_packages. pause_queue pauses the whole \
+clear_finished_packages and unpacked with extract_packages; reset_package starts a failed \
+package over from nothing, its files deleted. pause_queue pauses the whole \
 queue for a while and resumes it by itself (resume_queue ends it early); set_stop_mark \
 pauses it once one download or package is done (clear_stop_mark removes the mark); \
 switch_bandwidth_profile puts one of list_bandwidth_profiles in front of the schedule \

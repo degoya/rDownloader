@@ -1,7 +1,7 @@
 plugin_type = "intake"
 id = "019d0000-0000-7000-8000-000000000102"
 name = "Crawljob"
-version = "0.9.13"
+version = "0.9.14"
 
 # Nothing granted. A crawljob carries its links; there is nothing to fetch.
 [capabilities]

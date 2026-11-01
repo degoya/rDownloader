@@ -76,7 +76,7 @@ pub use bandwidth::{BandwidthService, BandwidthStatus};
 pub use block::BlockReason;
 pub use connections::{LiveConnections, ServerConnections};
 pub use content_index::ContentIndexCheck;
-pub use control::NzbDropped;
+pub use control::{NzbDropped, PackageNotFailed};
 pub use enqueue::{FileSpec, PackageSpec, ReplaySpec, SecretFragmentSpec};
 pub use holds::HoldSource;
 pub use queue_pause::{PauseReason, QueuePause, pausable};

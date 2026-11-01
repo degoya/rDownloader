@@ -26,21 +26,36 @@ pub(crate) async fn reset_download_file(
 /// (RD-120-68). The torrent is located first because its info hash is stored on the row.
 /// The payload stays on disk, as for every other kind of download.
 pub(crate) async fn remove_download(state: &AppState, id: DownloadId) -> anyhow::Result<()> {
-    remove_download_discarding(state, id, false).await
+    remove_download_discarding(state, id, Discard::Nothing).await
 }
 
-/// [`remove_download`], and with `discard_partial` the data an unfinished file wrote outside
-/// staging goes first: tool fragments beside the target, an unfinished torrent's files
-/// (RD-180-21). Data first, row last — a crash in between leaves a row that knows less data,
-/// never data that no row knows. The caller decides what counts as unfinished.
+/// What a removal deletes from disk besides the staging file, which always goes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Discard {
+    /// The data stays where it is.
+    Nothing,
+    /// What an unfinished file wrote outside staging: tool fragments beside the target, an
+    /// unfinished torrent's files (RD-180-21).
+    Unfinished,
+    /// That, and the finished payload in the package folder.
+    All,
+}
+
+/// [`remove_download`], and the data `discard` names goes first. Data first, row last — a
+/// crash in between leaves a row that knows less data, never data that no row knows. The
+/// caller decides what counts as unfinished.
 async fn remove_download_discarding(
     state: &AppState,
     id: DownloadId,
-    discard_partial: bool,
+    discard: Discard,
 ) -> anyhow::Result<()> {
     let torrent = state.torrent.locate(id).await;
-    if discard_partial {
-        state.scheduler.discard_partial(id).await?;
+    match discard {
+        Discard::Nothing => {}
+        Discard::Unfinished => state.scheduler.discard_partial(id).await?,
+        Discard::All => state.scheduler.discard_all(id).await?,
+    }
+    if discard != Discard::Nothing {
         state.torrent.discard_located(torrent.clone()).await;
     }
     state.scheduler.remove(id).await?;
@@ -54,24 +69,21 @@ pub(super) const CANCEL_WAIT_STEP: std::time::Duration = std::time::Duration::fr
 
 /// Cancels an active file first and waits briefly for its token to clear before removal.
 ///
-/// `discard_partial` as in [`remove_download_discarding`].
+/// `discard` as in [`remove_download_discarding`].
 pub(crate) async fn remove_with_cancel(
     state: &AppState,
     id: DownloadId,
-    discard_partial: bool,
+    discard: Discard,
 ) -> anyhow::Result<()> {
     if cancel_if_running(state, id).await? {
         for _ in 0..CANCEL_WAIT_ROUNDS {
             tokio::time::sleep(CANCEL_WAIT_STEP).await;
-            if remove_download_discarding(state, id, discard_partial)
-                .await
-                .is_ok()
-            {
+            if remove_download_discarding(state, id, discard).await.is_ok() {
                 return Ok(());
             }
         }
     }
-    remove_download_discarding(state, id, discard_partial).await
+    remove_download_discarding(state, id, discard).await
 }
 
 /// Cancels the file when something works on it; answers whether it did.

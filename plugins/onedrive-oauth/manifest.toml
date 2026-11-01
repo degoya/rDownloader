@@ -1,7 +1,7 @@
 plugin_type = "oauth"
 id = "019d0000-0000-7000-8000-000000000116"
 name = "Microsoft sign-in"
-version = "0.1.14"
+version = "0.1.15"
 
 # Both ways in, because Microsoft offers both (RD-106-01). The browser redirect is first, so it
 # is what a sign-in takes where a browser can reach this application; the device code is what

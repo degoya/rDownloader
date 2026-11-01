@@ -5,6 +5,103 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.40.0] - 2026-11-01
+
+### Added
+
+- **A failed package can be reset completely (RD-1390-07).** *Reset the package completely* in
+  the package menu (a failed or blocked file, or failed post-processing) deletes everything the
+  package demonstrably put on disk - partial and finished files, its Usenet files' assembled
+  output, what its unpack created (recorded per package in the new table `package_outputs`,
+  migration 0149) and the emptied folder - and queues every file again from zero with the
+  package's unpack result and steps cleared; what the LinkGrabber chose stays. A file somebody
+  else keeps in the same folder is never touched. Refused before anything goes while a file runs
+  (`package.reset_running`), during post-processing, when nothing failed
+  (`package.reset_not_failed`) and for a Usenet file without its NZB. The setting
+  `package_reset_delete_extracted` (on by default) keeps the unpacked results when off.
+  `POST /api/v1/packages/{id}/reset`, MCP tool `reset_package`; crash point
+  `scheduler.before_package_reset_rows` (`crates/rd-scheduler/src/control_reset_package.rs`,
+  `crates/rd-extract/src/unpack_record.rs`).
+
+### Changed
+
+- **Rust 1.99.1 and fresh container base images** (Dependabot #25, taken over here): the
+  toolchain pin moves to 1.99.1 in `rust-toolchain.toml` and every copy `scripts/tool-versions.sh
+  --check` holds (the component cache keys, the documentation), and `docker/Dockerfile` takes the
+  rebuilt digests of `rust:1.99.1-bookworm`, `node:24-bookworm-slim` and `debian:trixie-slim`.
+  Dependabot #26 (npm-compatible) was already covered by the update above.
+- **Dependencies brought current before the release.** `cargo update` moved 163 crates within
+  their semver ranges, among them webauthn-rs 0.6.2 on crypto-glue 0.2, openidconnect 4.1,
+  aws-lc-rs 1.19 and cranelift 0.136.5; the web dependencies moved within theirs (Nuxt UI 4.12,
+  Vue 3.5.44, Vite 8.3.5, Vitest 5.0.5), oxlint's exact pin to 1.90.0 with no new finding.
+  `winreg` follows embed-resource to 0.56. `deny.toml` loses the 38 duplicate skips and the
+  crypto-bigint 0.5 advisory (RUSTSEC-2026-0387) the move made stale, gains `rand_chacha:0.9`
+  (governor, librqbit-utp; webauthn-rs is on 0.10), and names openidconnect as what still holds
+  the previous RustCrypto generation. The crate majors follow in the next two entries;
+  TypeScript 7, `@types/node` 26 and VueUse 15 stay, as `.github/dependabot.yml` keeps them.
+
+- **The small crate majors taken.** russh 0.65 (the client side unchanged; the SFTP test server's
+  `auth_publickey` takes a `VerifiedPublicKey`), sevenz-rust2 0.24.2 (hardening of the 7z reader,
+  no API change), rust-par2 0.2 (a recovery packet whose MD5 does not match is now dropped
+  instead of fed into the repair) and global-hotkey 0.9 (keyboard-types 0.8, which drops the
+  `keyboard-types:0.7` skip; the Super modifier is `META` inside, the accepted spellings stay).
+  lzma-rust2 moves to 0.23, the version sevenz-rust2 links, not the newest 0.24; x11rb stays on
+  0.13 with arboard and global-hotkey rather than taking 0.14. Both would otherwise be built
+  twice, so `.github/dependabot.yml` ignores them like wasmparser.
+
+- **GitHub Actions updated (Dependabot #24).** `taiki-e/install-action` 2.88.0 and
+  `docker/login-action` 4.7.0, pinned by commit SHA; the SDK's `sdk/ci/plugin.yml` carries the
+  same pin.
+
+- **Wasmtime 50 and wit-bindgen 0.63.** The plugin host moves to wasmtime 50.0.1 (cranelift
+  0.137; the 50.0.1 security fixes included) and the plugin crates and every `sdk/templates/*`
+  scaffold to wit-bindgen 0.63; wasmparser follows wasmtime to 0.261 (RD-150-21). The WIT, the
+  host code, fuel, epoch, memory and table limits, the compile cache and the engine's default
+  features stay as they were; wasm-tools stays at 1.261.0. `deny.toml`'s wasm-tools skips move
+  from 0.258 to 0.261 (the plugins' build carries 0.262). The zstd advisories stay acknowledged:
+  wasmtime 50.0.1's cache still requires zstd 0.13 (RD-1390-06).
+
+- **Plugin versions.** The versions this release raises: `metadata-enricher` 0.1.14; `box-crawler`,
+  `box-oauth`, `directory-index-crawler`, `dropbox-crawler`, `dropbox-oauth`,
+  `google-drive-crawler`, `google-drive-oauth`, `hitfile`, `offcloud-cloud`, `onedrive-crawler`,
+  `onedrive-oauth`, `pcloud-crawler`, `pixeldrain-crawler`, `premiumize-crawler`, `putio-oauth`,
+  `torbox-auth` and `turbobit` 0.1.15; `box`, `dropbox`, `google-drive`, `mediafire`,
+  `mediafire-crawler`, `mega`, `mega-crawler`, `nextcloud-crawler`, `offcloud`, `onedrive`,
+  `pcloud`, `pcloud-oauth`, `peeplink-crawler` and `seedr-jobs` 0.1.16; `krakenfiles`, `mega-auth`,
+  `pixeldrain`, `putio`, `putio-transfers`, `seedr` and `torbox` 0.1.17; `xfs-generic` 0.1.18;
+  `emby-notifier`, `jellyfin-notifier` and `plex-notifier` 0.2.3; `realdebrid-auth` 0.2.12;
+  `realdebrid-torrents` 0.2.13; `premiumize-transfers`, `realdebrid` and `torbox-jobs` 0.2.14;
+  `alldebrid`, `debridlink`, `keep2share`, `linksnappy`, `nitroflare` and `rapidgator` 0.7.18;
+  `onefichier` 0.7.19; `premiumize` 0.7.20; `filejoker` 0.7.21; `crawljob-intake` and
+  `sponsorblock-enricher` 0.9.14; `alldebrid-auth`, `debridlink-auth`, `discord-notifier`,
+  `premiumize-auth`, `sha256-postprocess` and `webdav-storage` 0.9.15; `md5-postprocess` and
+  `telegram-notifier` 0.9.16; `rename-postprocess` 0.9.17; `katfile` 0.9.21; `ntfy-notifier` 0.10.9;
+  `metalink-intake` 0.10.11; `ddownload` 0.10.25.
+
+### Fixed
+
+- **"Remove failed packages + files" deletes the files.** It removed the packages from the list
+  and left their data on disk: the browser never asked for the files (`delete_partial` went only
+  with "Clear the entire list"), and even with it a removal kept every finished file, so a
+  corrupt Usenet set left its single RAR volumes behind. The `failed` scope now decides on the
+  server: with the new setting `clear_failed_delete_files` (on by default, Settings → Queue &
+  retries) every file of those packages goes, the finished ones included (`Discard::All`,
+  `Scheduler::discard_all`); off, what did not finish. The confirmation, `get_settings` and
+  `clear_finished_packages` say so (`crates/rd-api-queue/src/package_clear.rs`,
+  `crates/rd-scheduler/src/control_removal.rs`).
+
+- **The sidebar's connection dot sits on its pulse again (RD-1390-08).** `UChip standalone`
+  drops only `absolute`; the default `top-right` position kept its translate and put the dot
+  4 px up and right of the pulsing circle. `inset` turns that translate off, connected and lost,
+  open and on the rail (`web/src/components/ControlRoomLayout.vue`). The seven other status dots
+  with the same shift (automations, hotfolders, category rules, indexers, Usenet servers, MCP
+  tokens, paired capture agents) get `inset` too.
+
+- **An FTP server without `REST` is reported as unable to resume again.** suppaftp 12.2 sends
+  `REST` itself right before `RETR`, so the refusal came back from the transfer and a `502` read
+  as `ftp.path_not_found`. `resume_from` now asks `REST 0` first and keeps
+  `ftp.resume_unsupported` for a server that cannot restart, for the queue and for mirror chunks.
+
 ## [1.39.1] - 2026-10-29
 
 ### Fixed

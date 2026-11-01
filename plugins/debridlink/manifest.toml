@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-00000000000a"
 name = "Debrid-Link"
-version = "0.7.17"
+version = "0.7.18"
 match_domains = ["*"]
 download_domains = ["*"]
 max_concurrent_downloads = 3

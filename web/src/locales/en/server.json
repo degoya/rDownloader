@@ -1331,7 +1331,10 @@
     "proxy.name_unresolved": "{host} could not be resolved on this machine, so the proxy could not be given a checked address. rDownloader resolves and checks every address itself before it asks the proxy. For a proxy profile, “Proxy resolves names itself” lets the proxy resolve the name; the proxy from the environment has no such switch.",
     "settings.retry_middle_attempts_too_high": "The middle stage of the retries may have at most {max} attempts",
     "settings.retry_long_wait_invalid": "The long wait between retries must be between {min} and {max} minutes",
-    "web.route_not_found": "Nothing at this address answers this request"
+    "web.route_not_found": "Nothing at this address answers this request",
+    "package.reset": "No package reset | Package reset: {count} file starts again from the beginning | Package reset: {count} files start again from the beginning",
+    "package.reset_not_failed": "Only a failed package can be reset completely",
+    "package.reset_running": "Pause or stop the running files of this package first"
   },
   "capabilities": {
     "media_download": "media downloads",

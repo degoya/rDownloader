@@ -9,7 +9,7 @@ license = "MIT"
 # ships with this scaffold, and wit-bindgen turns it into the types below. That is what makes
 # the plugin buildable without a checkout of the application.
 url = "2"
-wit-bindgen = "0.62"
+wit-bindgen = "0.63"
 
 [lib]
 # `rlib` alongside `cdylib` so `cargo test` builds the scaffold for the host target and runs

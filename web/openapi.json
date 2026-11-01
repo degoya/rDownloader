@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.39.1"
+    "version": "1.40.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -12961,6 +12961,56 @@
           },
           "502": {
             "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/api/v1/packages/{id}/reset": {
+      "post": {
+        "tags": [
+          "downloads"
+        ],
+        "operationId": "reset_package",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PackageId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         }
       }
@@ -34640,7 +34690,7 @@
           },
           "delete_partial": {
             "type": "boolean",
-            "description": "Also deletes what the unfinished files of the removed packages had written outside\nstaging: tool fragments beside the target and an unfinished torrent's data. Incomplete\nstaging files go with every removal; finished files always stay."
+            "description": "Also deletes what the unfinished files of the removed packages had written outside\nstaging: tool fragments beside the target and an unfinished torrent's data. Incomplete\nstaging files go with every removal; finished files stay. `failed` ignores it: that\nscope deletes every file of its packages, the finished ones too, while the setting\n`clear_failed_delete_files` is on (the default), and the unfinished ones otherwise."
           },
           "scope": {
             "$ref": "#/components/schemas/PackageClearScope"
@@ -40856,6 +40906,11 @@
               "nzb"
             ]
           },
+          "clear_failed_delete_files": {
+            "type": "boolean",
+            "description": "\"Remove failed packages\" also deletes every file of those packages from disk, the\nfinished ones included; off deletes only what did not finish.",
+            "default": true
+          },
           "completion_action": {
             "$ref": "#/components/schemas/CompletionAction",
             "description": "What runs once the queue and post-processing have drained.",
@@ -41341,6 +41396,11 @@
               "spaces_to_dots": false,
               "strip_bracket_tags": false
             }
+          },
+          "package_reset_delete_extracted": {
+            "type": "boolean",
+            "description": "\"Reset the package completely\" also deletes what unpacking that package created; off\nkeeps the unpacked results and discards only the downloads (RD-1390-07).",
+            "default": true
           },
           "passwords_file": {
             "type": [

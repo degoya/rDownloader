@@ -14,6 +14,9 @@
 # under .github/readme/ — and export-public.sh refuses a public file that links into it.
 docs/
 
+# The roadmap, the plan in short (owner, 2026-10-29): planning stays internal, like docs/.
+ROADMAP.md
+
 # The working card for coding agents and their configuration.
 AGENTS.md
 CLAUDE.md

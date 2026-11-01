@@ -1,7 +1,7 @@
 plugin_type = "notifier"
 id = "019d0000-0000-7000-8000-000000000104"
 name = "Discord"
-version = "0.9.14"
+version = "0.9.15"
 
 # The only addresses this destination may reach. The token never passes through the plugin:
 # it writes the reference-less secret marker and the host substitutes, on the way out, the one

@@ -1,7 +1,7 @@
 plugin_type = "notifier"
 id = "019d0000-0000-7000-8000-000000000103"
 name = "ntfy"
-version = "0.10.8"
+version = "0.10.9"
 
 # Where this destination may reach. The token never passes through the plugin: it writes the
 # reference-less secret marker and the host substitutes, on the way out, the one secret this

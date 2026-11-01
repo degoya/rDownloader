@@ -1,7 +1,7 @@
 plugin_type = "crawler"
 id = "019d0000-0000-7000-8000-000000000111"
 name = "Google Drive folders"
-version = "0.1.14"
+version = "0.1.15"
 
 # The Drive API and nothing else. `files.list` lives here, and the account's access token may
 # be sent to `www.googleapis.com` and to no other address.

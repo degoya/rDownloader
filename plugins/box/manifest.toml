@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-000000000135"
 name = "Box"
-version = "0.1.15"
+version = "0.1.16"
 # The addresses a person pastes, plus the canonical per-file addresses the sibling crawler
 # emits. `*.app.box.com` is the enterprise subdomain Box gives every enterprise, and it is
 # listed beside the bare host because a `*.` pattern does not cover the host itself. Never `*`:

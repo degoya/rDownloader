@@ -14,6 +14,8 @@ mod fields;
 mod maintenance;
 #[path = "writer_jobs_package.rs"]
 mod package;
+#[path = "writer_jobs_package_reset.rs"]
+mod package_reset;
 #[path = "writer_jobs_state_batch.rs"]
 mod state_batch;
 
@@ -89,62 +91,13 @@ impl Writer {
         let current = crate::models::get_download_from_connection(&mut self.connection, id)
             .await?
             .context(StoreError::not_found("download not found"))?;
-        if current.state.is_working() {
-            bail!(StoreError::wrong_state(
-                "active download must be paused or cancelled before it can be reset"
-            ));
-        }
         // A Usenet file whose package let go of its NZB after it completed
         // (`nzb_store::forget_import_for_package`; the cascade sets `nzb_file_id` to NULL) has
         // no articles left to fetch: queued again it could only fail (DB-15).
-        if current.kind == rd_core::DownloadKind::Usenet && current.nzb_file_id.is_none() {
-            bail!(StoreError::wrong_state(
-                "a usenet download whose NZB was dropped cannot be fetched again"
-            ));
-        }
-        let event = EventEnvelope::new(
-            EventKind::DownloadState,
-            serde_json::json!({
-                "download_id": id,
-                "previous": current.state,
-                "state": DownloadState::Queued,
-                "reset": true,
-            }),
-        );
+        package_reset::refuse_unresettable(&current)?;
+        let event = package_reset::reset_event(&current);
         let mut transaction = self.connection.begin().await?;
-        sqlx::query("DELETE FROM chunks WHERE download_id = ?")
-            .bind(id.to_string())
-            .execute(&mut *transaction)
-            .await?;
-        // The refresh counters go back to zero with everything else: a fresh attempt deserves
-        // the same budget a new download gets, not the remainder of the last one.
-        sqlx::query(
-            "UPDATE downloads SET state = 'queued', committed_bytes = 0, total_bytes = NULL, \
-             etag = NULL, last_modified = NULL, computed_checksum_algorithm = NULL, \
-             computed_checksum_value = NULL, retry_count = 0, next_retry_at = NULL, \
-             last_error_json = NULL, resolver_refresh_count = 0, replay_refresh_count = 0, \
-             limit_waits = 0, auto_retry_rounds = 0, updated_at = ? WHERE id = ?",
-        )
-        .bind(event.occurred_at)
-        .bind(id.to_string())
-        .execute(&mut *transaction)
-        .await?;
-        // Usenet keeps its resume state per segment rather than in `chunks`.
-        sqlx::query(
-            "UPDATE nzb_segments SET state = 'queued', server_attempts = 0, crc32 = NULL \
-             WHERE file_id IN \
-             (SELECT nzb_file_id FROM downloads WHERE id = ? AND nzb_file_id IS NOT NULL)",
-        )
-        .bind(id.to_string())
-        .execute(&mut *transaction)
-        .await?;
-        sqlx::query(
-            "UPDATE nzb_files SET output_path = NULL WHERE id IN \
-             (SELECT nzb_file_id FROM downloads WHERE id = ? AND nzb_file_id IS NOT NULL)",
-        )
-        .bind(id.to_string())
-        .execute(&mut *transaction)
-        .await?;
+        package_reset::reset_row(&mut transaction, &id.to_string(), event.occurred_at).await?;
         // Post-processing ran over data that is about to be fetched again; its steps say
         // nothing about the package any more and are rebuilt when it completes next time.
         crate::postprocess_store::delete_for_owner(

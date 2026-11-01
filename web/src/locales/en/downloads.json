@@ -71,7 +71,7 @@
     "remove_files_description": "Remove {count} files from the download list? Active downloads are cancelled and incomplete files deleted. | Remove {count} file from the download list? Active downloads are cancelled and incomplete files deleted. | Remove {count} files from the download list? Active downloads are cancelled and incomplete files deleted.",
     "clear_title": "Clear download list",
     "clear_completed": "Really remove every package whose files have all finished? A package that is still working is left untouched, and finished files stay in the destination folder.",
-    "clear_failed": "Really remove every finished package that contains a failed file, including its incomplete files? A package that is still working is left untouched.",
+    "clear_failed": "Really remove every finished package that contains a failed file and delete all its files from disk, the finished ones too? A package that is still working is left untouched. Whether finished files are deleted as well is set under Settings → Queue & retries.",
     "clear_all": "Really remove every package that has stopped working, whatever the outcome? A package with running, waiting or seeding files is left untouched, and finished files stay in the destination folder.",
     "clear_label": "Remove packages",
     "remove_download_title": "Remove download",
@@ -152,7 +152,9 @@
     "connections_even": "{connections}: {files} file | {connections}: {files} files at once, {per} each",
     "connections_mixed": "{connections}: {files} files at once ({split})",
     "connections_full": "All {limit} connections the servers allow are busy.",
-    "connections_room": "{busy} of the {limit} connections the servers allow are busy."
+    "connections_room": "{busy} of the {limit} connections the servers allow are busy.",
+    "reset_all": "Reset the package completely",
+    "reset_all_hint": "Delete every file and download it again from the start"
   },
   "transfer": {
     "actions_aria": "File actions",
@@ -540,5 +542,12 @@
     "label_open": "Paused by schedule",
     "title": "The bandwidth profile “{profile}” pauses downloads. Packages that ignore the schedule's pause go on; Settings › Bandwidth switches to another profile.",
     "open_settings": "Switch profile"
+  },
+  "package_reset": {
+    "title": "Reset the package completely?",
+    "description": "“{name}”: {count} file and everything unpacking made of it are deleted from disk. The package then downloads again from the start. Other files in the folder stay. | “{name}”: {count} files and everything unpacking made of them are deleted from disk. The package then downloads again from the start. Other files in the folder stay.",
+    "description_keep": "“{name}”: {count} file is deleted from disk; what unpacking made stays. The package then downloads again from the start. | “{name}”: {count} files are deleted from disk; what unpacking made stays. The package then downloads again from the start.",
+    "confirm": "Reset and delete",
+    "done": "Package reset: {count} file downloads again from the start | Package reset: {count} files download again from the start"
   }
 }

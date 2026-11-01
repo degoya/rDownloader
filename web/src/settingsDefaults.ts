@@ -35,6 +35,8 @@ export function defaultSettings(): RestartSettings {
     auto_remove_finished: false,
     auto_remove_delay_hours: 24,
     auto_remove_keep_failed: true,
+    clear_failed_delete_files: true,
+    package_reset_delete_extracted: true,
     passwords_file: null,
     admin_login_disabled: false,
     aria2_rpc_enabled: false,

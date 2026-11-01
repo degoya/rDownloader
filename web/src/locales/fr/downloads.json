@@ -71,7 +71,7 @@
     "remove_files_description": "Retirer {count} fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés. | Retirer {count} fichier de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés. | Retirer {count} fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés.",
     "clear_title": "Vider la liste de téléchargement",
     "clear_completed": "Vraiment retirer tous les paquets dont les fichiers sont terminés ? Un paquet encore en cours reste intact et les fichiers terminés restent dans le dossier de destination.",
-    "clear_failed": "Vraiment retirer tous les paquets terminés contenant un fichier en échec, y compris leurs fichiers incomplets ? Un paquet encore en cours reste intact.",
+    "clear_failed": "Vraiment retirer tous les paquets terminés contenant un fichier en échec et effacer du disque tous leurs fichiers, terminés compris ? Un paquet encore en cours reste intact. La suppression des fichiers terminés se règle dans Paramètres → File d’attente et reprises.",
     "clear_all": "Vraiment retirer tous les paquets qui ne travaillent plus, quel qu'en soit le résultat ? Un paquet avec des fichiers en cours, en attente ou en seed reste intact et les fichiers terminés restent dans le dossier de destination.",
     "clear_label": "Retirer les paquets",
     "remove_download_title": "Retirer le téléchargement",
@@ -152,7 +152,9 @@
     "connections_even": "{connections} : {files} fichier | {connections} : {files} fichiers en même temps, {per} chacun",
     "connections_mixed": "{connections} : {files} fichiers en même temps ({split})",
     "connections_full": "Les {limit} connexions autorisées par les serveurs sont toutes occupées.",
-    "connections_room": "{busy} des {limit} connexions autorisées par les serveurs sont occupées."
+    "connections_room": "{busy} des {limit} connexions autorisées par les serveurs sont occupées.",
+    "reset_all": "Réinitialiser entièrement le paquet",
+    "reset_all_hint": "Supprimer tous les fichiers et les télécharger à nouveau depuis le début"
   },
   "transfer": {
     "actions_aria": "Actions du fichier",
@@ -540,5 +542,12 @@
     "label_open": "En pause selon le planning",
     "title": "Le profil de bande passante « {profile} » met les téléchargements en pause. Les paquets qui ignorent la pause du planning continuent ; Paramètres › Bande passante permet de passer à un autre profil.",
     "open_settings": "Changer de profil"
+  },
+  "package_reset": {
+    "title": "Réinitialiser entièrement le paquet ?",
+    "description": "« {name} » : {count} fichier et tout ce que l’extraction en a tiré sont supprimés du disque. Le paquet est ensuite téléchargé à nouveau depuis le début. Les autres fichiers du dossier restent. | « {name} » : {count} fichiers et tout ce que l’extraction en a tiré sont supprimés du disque. Le paquet est ensuite téléchargé à nouveau depuis le début. Les autres fichiers du dossier restent.",
+    "description_keep": "« {name} » : {count} fichier est supprimé du disque ; ce que l’extraction a produit reste. Le paquet est ensuite téléchargé à nouveau depuis le début. | « {name} » : {count} fichiers sont supprimés du disque ; ce que l’extraction a produit reste. Le paquet est ensuite téléchargé à nouveau depuis le début.",
+    "confirm": "Réinitialiser et supprimer",
+    "done": "Paquet réinitialisé : {count} fichier est téléchargé à nouveau | Paquet réinitialisé : {count} fichiers sont téléchargés à nouveau"
   }
 }

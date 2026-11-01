@@ -21,7 +21,7 @@ const { t } = useI18n()
 <template>
   <article class="p-4" :class="editingRowClass(props.editing, 'stripe')">
     <div class="flex flex-wrap items-center gap-3">
-      <UChip standalone color="success" :show="props.automation.enabled" class="w-2" />
+      <UChip standalone inset color="success" :show="props.automation.enabled" class="w-2" />
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm font-medium text-highlighted">{{ props.automation.name }}</p>
         <p class="text-xs text-muted">

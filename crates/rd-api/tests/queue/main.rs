@@ -24,6 +24,7 @@ mod history;
 mod package_download_window;
 mod package_export;
 mod package_export_nzb;
+mod package_reset;
 mod package_start_after;
 mod power;
 mod queue_pause;

@@ -257,6 +257,17 @@ impl SchedulerHandle {
     /// between leaves a row that knows less data, never data that no row knows. A finished
     /// payload is not touched, and a job that is still running is refused like a removal is.
     pub async fn discard_partial(&self, id: DownloadId) -> Result<()> {
+        self.discard_data(id, false).await
+    }
+
+    /// [`Self::discard_partial`], and a finished payload in the package folder goes too: the
+    /// removal that was asked to throw a failed package away whole, with the parts that did
+    /// finish (a corrupt Usenet set's single RAR volumes).
+    pub async fn discard_all(&self, id: DownloadId) -> Result<()> {
+        self.discard_data(id, true).await
+    }
+
+    async fn discard_data(&self, id: DownloadId, with_payload: bool) -> Result<()> {
         let current = self
             .database
             .get_download(id)
@@ -269,15 +280,20 @@ impl SchedulerHandle {
         }
         self.while_held(id, REFUSAL, async {
             let packages = self.database.list_packages().await?;
-            self.discard_unfinished(&current, &packages).await?;
+            if let Some(package) = self.discard_unfinished(&current, &packages).await?
+                && with_payload
+            {
+                let payload = Path::new(&package.destination).join(&current.file_name);
+                remove_file_if_present(&payload).await?;
+            }
             anyhow::Ok(())
         })
         .await
     }
 
-    /// The staging file and the tool scratch files of one job, shared by a reset and
-    /// [`Self::discard_partial`]. Answers the package the job writes into, if it has a folder.
-    async fn discard_unfinished<'a>(
+    /// The staging file and the tool scratch files of one job, shared by a reset, a package
+    /// reset and [`Self::discard_partial`]. Answers the package the job writes into, if it has a folder.
+    pub(super) async fn discard_unfinished<'a>(
         &self,
         current: &DownloadFile,
         packages: &'a [rd_core::DownloadPackage],
@@ -367,7 +383,7 @@ async fn remove_usenet_part_file(
     remove_file_if_present(&staging.join(format!("{file_id}.part"))).await
 }
 
-async fn remove_file_if_present(path: &Path) -> Result<()> {
+pub(super) async fn remove_file_if_present(path: &Path) -> Result<()> {
     match tokio::fs::remove_file(path).await {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
@@ -434,7 +450,7 @@ fn file_stem(file_name: &str) -> &str {
 
 /// Drops the staging directory and the package directory once the package's last file is
 /// gone — but only while they are empty, so downloaded data is never touched.
-async fn remove_empty_package_directory(
+pub(super) async fn remove_empty_package_directory(
     destination: &str,
     import_id: Option<rd_core::NzbImportId>,
 ) {

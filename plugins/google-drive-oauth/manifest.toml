@@ -1,7 +1,7 @@
 plugin_type = "oauth"
 id = "019d0000-0000-7000-8000-000000000112"
 name = "Google sign-in"
-version = "0.1.14"
+version = "0.1.15"
 
 # Redirect only. Google's device flow exists, but it is meant for input-constrained devices and
 # refuses the Drive scopes this plugin needs; naming it here would offer a way in that ends in

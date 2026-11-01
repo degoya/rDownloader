@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-00000000011f"
 name = "TorBox"
-version = "0.1.16"
+version = "0.1.17"
 # Deliberately **not** `["*"]`, although TorBox will fetch almost any address. What it does
 # with one is create a web-download job that takes minutes and answers with files, which is a
 # remote job and not a resolve; `plugins/torbox-jobs/` is where that lives. What this plugin

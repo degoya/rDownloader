@@ -1,7 +1,7 @@
 plugin_type = "auth"
 id = "019d0000-0000-7000-8000-000000000122"
 name = "TorBox sign-in"
-version = "0.1.14"
+version = "0.1.15"
 
 [capabilities]
 # The API key the person pasted. This plugin checks it; it never obtains one and never stores

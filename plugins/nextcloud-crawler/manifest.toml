@@ -1,7 +1,7 @@
 plugin_type = "crawler"
 id = "019d0000-0000-7000-8000-00000000011c"
 name = "Nextcloud shares"
-version = "0.1.15"
+version = "0.1.16"
 
 # A Nextcloud is wherever somebody put theirs, so there is no domain that could stand here.
 # The grant that actually applies is narrower than this line: the host builds the store for

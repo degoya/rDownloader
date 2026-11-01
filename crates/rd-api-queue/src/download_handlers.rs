@@ -148,7 +148,7 @@ async fn apply_to_one(
         DownloadBulkAction::Pause => state.scheduler.pause(id).await,
         DownloadBulkAction::Resume => state.scheduler.resume(id).await,
         DownloadBulkAction::Cancel => state.scheduler.cancel(id).await,
-        DownloadBulkAction::Remove => remove_with_cancel(state, id, false).await,
+        DownloadBulkAction::Remove => remove_with_cancel(state, id, Discard::Nothing).await,
         DownloadBulkAction::Reset => reset_download_file(state, id, false).await,
         DownloadBulkAction::ResetDeleteFiles => reset_download_file(state, id, true).await,
     }

@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**117 capabilities, 89 covered by a tool, 28 deliberately out (16 of them on the owner's line of 2026-09-23).** 488 REST operations, 265 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**118 capabilities, 90 covered by a tool, 28 deliberately out (16 of them on the owner's line of 2026-09-23).** 489 REST operations, 266 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -102,6 +102,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Switching a bandwidth profile by hand, and the bandwidth status | Settings > Bandwidth | 4 | `get_bandwidth_status`, `list_bandwidth_profiles`, `return_to_bandwidth_schedule`, `switch_bandwidth_profile` |
 | A package's own speed limit | Downloads > package editor | 2 | `get_package_speed_limit`, `set_package_speed_limit` |
 | A package's "not before" | Downloads > package menu | 1 | `set_package_start_after` |
+| Resetting a failed package completely | Downloads > package menu | 1 | `reset_package` |
 | Finding packages and files by name | Search palette | 1 | `search_queue` |
 | Exporting packages as a link file | Downloads and LinkGrabber, selection bar and package menu | 1 | `export_packages` |
 | Resolving downloads again with the plugin installed now, at once if asked | Downloads, selection bar and package menu | 1 | `reresolve_downloads` |

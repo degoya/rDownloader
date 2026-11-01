@@ -178,7 +178,7 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
     <template #list>
       <div v-if="agents.length" class="divide-y divide-muted border border-muted">
         <div v-for="agent in agents" :key="agent.id" class="flex items-center gap-3 p-3">
-          <UChip standalone :color="tokenExpired(agent.expires_at) ? 'error' : 'success'" />
+          <UChip standalone inset :color="tokenExpired(agent.expires_at) ? 'error' : 'success'" />
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium text-highlighted">{{ agent.label }}</p>
             <p class="font-mono text-2xs text-muted">{{ agent.scopes.join(', ') }}</p>

@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-000000000170"
 name = "Pixeldrain"
-version = "0.1.16"
+version = "0.1.17"
 
 # The two spellings of the one host, measured 2026-09-22 (RD-120-07). No alias is claimed on
 # hearsay: the measurement reached `pixeldrain.com` and nothing else, and a domain claimed here

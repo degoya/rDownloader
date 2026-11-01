@@ -29,6 +29,7 @@ import { useNzbHandOver } from '@/composables/useNzbHandOver'
 import { usePackageExport } from '@/composables/usePackageExport'
 import { useReresolve } from '@/composables/useReresolve'
 import { usePackageOpenState } from '@/composables/usePackageOpenState'
+import { usePackageReset } from '@/composables/usePackageReset'
 import { DEFAULT_THRESHOLD } from '@/composables/useVirtualRows'
 import { useQueueColumns } from '@/composables/useQueueColumns'
 import { filterQueue, QUEUE_FILTERS, useQueueFilter } from '@/composables/useQueueFilter'
@@ -97,6 +98,8 @@ const queueSort = useQueueSort(id => categories.value.find(category => category.
 const { groups, rows, packageDownloads } = useQueueRows(visible, openPackages.isOpen, queueSort.arrange)
 /** Every failed or blocked file of the shown list, or of one package, back to the queue (RD-1190-15). */
 const resetFailed = useResetFailed({ visible, needle })
+/** A failed package reset whole, after its confirmation (RD-1390-07). */
+const packageReset = usePackageReset()
 /**
  * The order a range selection follows: what is on screen, not what is in the store. A package
  * row is a stop of its own, so a range can run from package to package (RD-170-13).
@@ -366,6 +369,7 @@ function accountLabel(id: string | null | undefined): string | null {
                 @copy-path="copyPath"
                 @copy-links="copyPackageLinks"
                 @reset-failed="resetFailed.resetPackage"
+                @reset-package="packageReset.resetPackage"
                 @export="(id: string) => exportPackages({ packageIds: [id] })"
                 @reresolve="(id: string) => reresolve({ packageIds: [id] })"
                 @hand-over="(_id: string, accountId: string) => void nzbHandOver.handOverPackage(row.group.package, accountId)"

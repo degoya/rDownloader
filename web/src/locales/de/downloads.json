@@ -71,7 +71,7 @@
     "remove_files_description": "{count} Dateien aus der Downloadliste entfernen? Aktive Downloads werden abgebrochen, unvollständige Dateien gelöscht. | {count} Datei aus der Downloadliste entfernen? Aktive Downloads werden abgebrochen, unvollständige Dateien gelöscht. | {count} Dateien aus der Downloadliste entfernen? Aktive Downloads werden abgebrochen, unvollständige Dateien gelöscht.",
     "clear_title": "Downloadliste leeren",
     "clear_completed": "Wirklich jedes Paket entfernen, dessen Dateien alle fertig sind? Ein Paket, in dem noch etwas läuft, bleibt unberührt; fertige Dateien bleiben im Zielordner erhalten.",
-    "clear_failed": "Wirklich jedes abgeschlossene Paket mit einer fehlgeschlagenen Datei samt seiner unvollständigen Dateien entfernen? Ein Paket, in dem noch etwas läuft, bleibt unberührt.",
+    "clear_failed": "Wirklich jedes abgeschlossene Paket mit einer fehlgeschlagenen Datei entfernen und alle seine Dateien von der Festplatte löschen, auch die fertigen? Ein Paket, in dem noch etwas läuft, bleibt unberührt. Ob fertige Dateien mitgelöscht werden, stellst du unter Einstellungen → Warteschlange & Wiederholungen ein.",
     "clear_all": "Wirklich jedes Paket entfernen, das nicht mehr arbeitet – gleich mit welchem Ergebnis? Ein Paket mit laufenden, wartenden oder seedenden Dateien bleibt unberührt; fertige Dateien bleiben im Zielordner erhalten.",
     "clear_label": "Pakete entfernen",
     "remove_download_title": "Download entfernen",
@@ -152,7 +152,9 @@
     "connections_even": "{connections}: {files} Datei | {connections}: {files} Dateien gleichzeitig, je {per}",
     "connections_mixed": "{connections}: {files} Dateien gleichzeitig ({split})",
     "connections_full": "Alle {limit} Verbindungen, die die Server erlauben, sind belegt.",
-    "connections_room": "Belegt sind {busy} der {limit} Verbindungen, die die Server erlauben."
+    "connections_room": "Belegt sind {busy} der {limit} Verbindungen, die die Server erlauben.",
+    "reset_all": "Paket komplett zurücksetzen",
+    "reset_all_hint": "Alle Dateien löschen und von vorn laden"
   },
   "transfer": {
     "actions_aria": "Dateiaktionen",
@@ -540,5 +542,12 @@
     "label_open": "Pausiert nach Zeitplan",
     "title": "Das Bandbreitenprofil „{profile}“ pausiert Downloads. Pakete, die die Zeitplan-Pause ignorieren, laden weiter; unter Einstellungen › Bandbreite lässt sich auf ein anderes Profil umschalten.",
     "open_settings": "Profil wechseln"
+  },
+  "package_reset": {
+    "title": "Paket komplett zurücksetzen?",
+    "description": "„{name}“: {count} Datei und alles, was das Entpacken daraus erzeugt hat, werden von der Festplatte gelöscht. Danach lädt das Paket von vorn. Fremde Dateien im Ordner bleiben. | „{name}“: {count} Dateien und alles, was das Entpacken daraus erzeugt hat, werden von der Festplatte gelöscht. Danach lädt das Paket von vorn. Fremde Dateien im Ordner bleiben.",
+    "description_keep": "„{name}“: {count} Datei wird von der Festplatte gelöscht; was das Entpacken erzeugt hat, bleibt liegen. Danach lädt das Paket von vorn. | „{name}“: {count} Dateien werden von der Festplatte gelöscht; was das Entpacken erzeugt hat, bleibt liegen. Danach lädt das Paket von vorn.",
+    "confirm": "Zurücksetzen und löschen",
+    "done": "Paket zurückgesetzt: {count} Datei lädt von vorn | Paket zurückgesetzt: {count} Dateien laden von vorn"
   }
 }

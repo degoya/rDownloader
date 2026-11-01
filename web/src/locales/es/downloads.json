@@ -71,7 +71,7 @@
     "remove_files_description": "¿Quitar {count} archivos de la lista de descargas? Las descargas activas se cancelan y los archivos incompletos se eliminan. | ¿Quitar {count} archivo de la lista de descargas? Las descargas activas se cancelan y los archivos incompletos se eliminan. | ¿Quitar {count} archivos de la lista de descargas? Las descargas activas se cancelan y los archivos incompletos se eliminan.",
     "clear_title": "Vaciar lista de descargas",
     "clear_completed": "¿Quitar realmente todos los paquetes cuyos archivos hayan terminado? Un paquete que siga trabajando queda intacto y los archivos terminados permanecen en la carpeta de destino.",
-    "clear_failed": "¿Quitar realmente todos los paquetes terminados que contengan un archivo fallido, incluidos sus archivos incompletos? Un paquete que siga trabajando queda intacto.",
+    "clear_failed": "¿Quitar realmente todos los paquetes terminados que contengan un archivo fallido y borrar del disco todos sus archivos, también los terminados? Un paquete que siga trabajando queda intacto. Si los archivos terminados se borran también se ajusta en Ajustes → Cola y reintentos.",
     "clear_all": "¿Quitar realmente todos los paquetes que ya no trabajan, sea cual sea el resultado? Un paquete con archivos en curso, en espera o en seeding queda intacto y los archivos terminados permanecen en la carpeta de destino.",
     "clear_label": "Quitar paquetes",
     "remove_download_title": "Quitar descarga",
@@ -152,7 +152,9 @@
     "connections_even": "{connections}: {files} archivo | {connections}: {files} archivos a la vez, {per} cada uno",
     "connections_mixed": "{connections}: {files} archivos a la vez ({split})",
     "connections_full": "Las {limit} conexiones que permiten los servidores están ocupadas.",
-    "connections_room": "Están ocupadas {busy} de las {limit} conexiones que permiten los servidores."
+    "connections_room": "Están ocupadas {busy} de las {limit} conexiones que permiten los servidores.",
+    "reset_all": "Restablecer el paquete por completo",
+    "reset_all_hint": "Eliminar todos los archivos y descargarlos de nuevo desde el principio"
   },
   "transfer": {
     "actions_aria": "Acciones del archivo",
@@ -540,5 +542,12 @@
     "label_open": "Pausado por el horario",
     "title": "El perfil de ancho de banda «{profile}» pausa las descargas. Los paquetes que ignoran la pausa del horario continúan; en Ajustes › Ancho de banda puedes cambiar a otro perfil.",
     "open_settings": "Cambiar perfil"
+  },
+  "package_reset": {
+    "title": "¿Restablecer el paquete por completo?",
+    "description": "«{name}»: {count} archivo y todo lo que la extracción creó a partir de él se eliminan del disco. Después el paquete se descarga de nuevo desde el principio. Los demás archivos de la carpeta se conservan. | «{name}»: {count} archivos y todo lo que la extracción creó a partir de ellos se eliminan del disco. Después el paquete se descarga de nuevo desde el principio. Los demás archivos de la carpeta se conservan.",
+    "description_keep": "«{name}»: {count} archivo se elimina del disco; lo que creó la extracción se conserva. Después el paquete se descarga de nuevo desde el principio. | «{name}»: {count} archivos se eliminan del disco; lo que creó la extracción se conserva. Después el paquete se descarga de nuevo desde el principio.",
+    "confirm": "Restablecer y eliminar",
+    "done": "Paquete restablecido: {count} archivo se descarga de nuevo | Paquete restablecido: {count} archivos se descargan de nuevo"
   }
 }

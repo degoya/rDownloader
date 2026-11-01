@@ -73,6 +73,14 @@ pub struct SettingsResponse {
     /// Keep a finished package that still holds a file which did not complete.
     #[serde(default = "default_auto_remove_keep_failed")]
     pub auto_remove_keep_failed: bool,
+    /// "Remove failed packages" also deletes every file of those packages from disk, the
+    /// finished ones included; off deletes only what did not finish.
+    #[serde(default = "default_clear_failed_delete_files")]
+    pub clear_failed_delete_files: bool,
+    /// "Reset the package completely" also deletes what unpacking that package created; off
+    /// keeps the unpacked results and discards only the downloads (RD-1390-07).
+    #[serde(default = "default_package_reset_delete_extracted")]
+    pub package_reset_delete_extracted: bool,
     /// Absolute path of the password list (one per line); empty = `passwords.txt` next to the database.
     pub passwords_file: Option<String>,
     /// Switches the administrator login off (only sensible on a trusted loopback/LAN setup).

@@ -1393,5 +1393,13 @@
   "retry_long_wait": {
     "label": "Lange Wartezeit zwischen Wiederholungen",
     "description": "Minuten, die ein Download zwischen seinen späteren Wiederholungen wartet; die Dateien danach laufen solange weiter (1–1440)."
+  },
+  "clear_failed_delete_files": {
+    "label": "Fehlgeschlagene Pakete samt Dateien löschen",
+    "description": "„Fehlgeschlagene Pakete + Dateien löschen“ entfernt alle Dateien dieser Pakete von der Festplatte, auch die fertigen. Aus: nur was nicht fertig wurde."
+  },
+  "package_reset_delete_extracted": {
+    "label": "Beim Zurücksetzen Entpacktes löschen",
+    "description": "„Paket komplett zurücksetzen“ löscht auch, was das Entpacken dieses Pakets erzeugt hat. Aus: die entpackten Ergebnisse bleiben liegen, nur die Downloads selbst werden verworfen."
   }
 }

@@ -1113,6 +1113,12 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Downloads > package menu",
         &[any("/api/v1/packages/{id}/start-after")],
     ),
+    // ---- RD-1390-07 ----
+    covered(
+        "Resetting a failed package completely",
+        "Downloads > package menu",
+        &[any("/api/v1/packages/{id}/reset")],
+    ),
     covered(
         "Finding packages and files by name",
         "Search palette",

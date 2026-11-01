@@ -23,10 +23,12 @@ use rd_api_core::list_bounds::{total_header, validate_bulk};
 
 mod download_window;
 mod removal;
+mod reset;
 mod start_after;
 
 pub use download_window::*;
 pub use removal::*;
+pub use reset::*;
 pub use start_after::*;
 
 /// The one place a package name is checked, so the folder rename cannot drift from the label.

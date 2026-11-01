@@ -215,6 +215,11 @@ pub const CRASH_POINTS: &[CrashPoint] = &[
         invariant: "a package whose row already points at the new folder still finds its data and finishes the move",
     },
     CrashPoint {
+        name: "scheduler.before_package_reset_rows",
+        owner: "rd-scheduler",
+        invariant: "a package reset stopped after the package's data was deleted and before its rows were written back keeps every row as it was, knowing less data than it says, and leaves no data that no row knows; the package still reads as failed, the same reset asked again after the next start deletes nothing it should keep and puts every file back to queued",
+    },
+    CrashPoint {
         name: "scheduler.before_promote",
         owner: "rd-scheduler",
         invariant: "a payload already in its final place is adopted by the next pass, never fetched a second time",

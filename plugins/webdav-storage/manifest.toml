@@ -1,7 +1,7 @@
 plugin_type = "storage"
 id = "019d0000-0000-7000-8000-000000000108"
 name = "WebDAV"
-version = "0.9.14"
+version = "0.9.15"
 
 # A WebDAV server is wherever the person put theirs, so the wildcard is the honest
 # declaration: the destination is checked against the stored remote credentials instead, which

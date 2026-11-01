@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-000000000160"
 name = "pCloud"
-version = "0.1.15"
+version = "0.1.16"
 # The addresses a person pastes, plus the canonical per-file addresses the sibling crawler
 # emits. Never `*`: this is a hoster for its own cloud, not a multihoster. Both regions are
 # here because a pCloud address names its installation in its host.

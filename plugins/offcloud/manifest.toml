@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-000000000138"
 name = "Offcloud"
-version = "0.1.15"
+version = "0.1.16"
 match_domains = ["*"]
 download_domains = ["*"]
 # Offcloud states no request budget of its own. Three is the figure the other multihosters

@@ -227,6 +227,7 @@ pub const TOOL_POLICY: &[ToolPolicy] = &[
     tool("requeue_subscription_items", "/api/v1/subscriptions/{id}/items/requeue", Method::POST),
     tool("reresolve_downloads", "/api/v1/downloads/reresolve", Method::POST),
     tool("reset_automation_versions", "/api/v1/automations/{id}/versions/reset", Method::POST),
+    tool("reset_package", "/api/v1/packages/{id}/reset", Method::POST),
     tool("resolve_candidate_torrent", "/api/v1/collector/candidates/{id}/torrent/resolve", Method::POST),
     tool("resolve_page_entries", "/api/v1/collector/picks/{id}/resolve", Method::POST),
     tool("restart_service", "/api/v1/system/restart", Method::POST),

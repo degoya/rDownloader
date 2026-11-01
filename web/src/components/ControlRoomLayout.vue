@@ -250,10 +250,12 @@ const items = computed<NavigationMenuItem[][]>(() => [[
             >
               <!-- The pulse is decoration; what it means is in the label beside it, which is
                    what a screen reader reads. Lost, the dot stops pulsing and turns red, and
-                   the endpoint gives way to the words, which a colour alone would not carry. -->
+                   the endpoint gives way to the words, which a colour alone would not carry.
+                   `inset`: `standalone` alone keeps the top-right translate, which put the
+                   dot 4 px up and right of its pulse (RD-1390-08). -->
               <span class="relative flex size-2 shrink-0" aria-hidden="true">
                 <span v-if="connected" class="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-50" />
-                <UChip standalone :color="connected ? 'success' : 'error'" />
+                <UChip standalone inset :color="connected ? 'success' : 'error'" />
               </span>
               <span class="visually-hidden" role="status">{{ connectionLabel }}</span>
               <span v-if="!collapsed && connected" class="font-mono text-xs text-toned">{{ endpoint }}</span>

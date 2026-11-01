@@ -4,7 +4,7 @@ name = "DDownload"
 # The version must rise with every change, or a running instance keeps the package it
 # already has (`sync_bundled` only installs newer ones). Pinned jobs are unaffected: the
 # older version stays installed.
-version = "0.10.24"
+version = "0.10.25"
 match_domains = ["ddownload.com", "www.ddownload.com"]
 download_domains = ["ddownload.com", "*.ddownload.com", "*.zeuscdn.org"]
 max_concurrent_downloads = 10

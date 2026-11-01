@@ -1393,5 +1393,13 @@
   "retry_long_wait": {
     "label": "Long wait between retries",
     "description": "Minutes a download waits between its later retries; the files after it run in the meantime (1–1440)."
+  },
+  "clear_failed_delete_files": {
+    "label": "Delete failed packages with their files",
+    "description": "“Delete failed packages + files” removes every file of those packages from disk, finished ones included. Off: only what did not finish."
+  },
+  "package_reset_delete_extracted": {
+    "label": "Delete unpacked results on a package reset",
+    "description": "“Reset the package completely” also deletes what unpacking that package made. Off: the unpacked results stay and only the downloads themselves are discarded."
   }
 }

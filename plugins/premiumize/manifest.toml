@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-000000000002"
 name = "Premiumize.me"
-version = "0.7.19"
+version = "0.7.20"
 match_domains = ["*"]
 download_domains = ["*"]
 max_concurrent_downloads = 3

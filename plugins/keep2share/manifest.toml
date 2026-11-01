@@ -4,7 +4,7 @@ name = "Keep2Share"
 # 0.3.0: free (account-less) downloads. The version must rise, or a running instance keeps
 # the installed package (`sync_bundled` only installs newer ones) and never picks the free
 # flow up. Pinned jobs are unaffected: the older version stays installed.
-version = "0.7.17"
+version = "0.7.18"
 # IMPL-VERIFY: every API call
 # (login/geturl/accountinfo/getfilesinfo) targets k2s.cc specifically, regardless of which
 # mirror domain the file link used -- keep2share.cc and api.k2s.cc are never actually

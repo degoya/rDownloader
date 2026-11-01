@@ -58,6 +58,19 @@ pub(crate) enum PackagesCommand {
         result: Option<rd_core::ExtractionResult>,
         reply: Reply<()>,
     },
+    /// Adds entries an unpack created in the package's folder to its record (RD-1390-07).
+    RecordPackageOutputs {
+        id: rd_core::PackageId,
+        paths: Vec<String>,
+        reply: Reply<()>,
+    },
+    /// Every file of the package back to `queued`, the package as the LinkGrabber handed it
+    /// over (RD-1390-07); answers the reset rows.
+    ResetPackage {
+        id: rd_core::PackageId,
+        forget_outputs: bool,
+        reply: Reply<Vec<rd_core::DownloadFile>>,
+    },
     /// Sets or removes (`None`) the package's own download limit (RD-1100-01).
     SetPackageSpeedLimit {
         id: rd_core::PackageId,

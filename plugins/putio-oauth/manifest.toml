@@ -1,7 +1,7 @@
 plugin_type = "oauth"
 id = "019d0000-0000-7000-8000-000000000151"
 name = "Put.io sign-in"
-version = "0.1.14"
+version = "0.1.15"
 
 # Redirect only. Put.io also runs an out-of-band entrance for devices without a browser, but
 # this project could not find it stated in a published specification, and an entrance built

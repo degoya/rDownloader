@@ -4,7 +4,7 @@ name = "KrakenFiles"
 # The version must rise with every change, or a running instance keeps the package it
 # already has (`sync_bundled` only installs newer ones). Pinned jobs are unaffected: the
 # older version stays installed.
-version = "0.1.16"
+version = "0.1.17"
 match_domains = ["krakenfiles.com", "www.krakenfiles.com"]
 # Measured 2026-09-21 (RD-103-08): the file page, `/json/<id>` and the download form's
 # `POST /download/<hash>` all live on the apex domain; the embed player streams from

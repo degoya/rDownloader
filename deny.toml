@@ -15,8 +15,8 @@ ignore = [
   # be taken. Remove once librqbit-utp moves to ringbuf >= 0.5.2.
   { id = "RUSTSEC-2026-0293", reason = "ringbuf only via librqbit-utp with u8 elements, which have no Drop; no patched librqbit-utp exists." },
   # Marvin attack: a timing sidechannel in RSA *private key* operations; no rsa release is
-  # patched (0.9.10 and 0.10.0-rc.18 are both covered). rsa 0.9.10 comes from crypto-glue
-  # (webauthn-rs, passkeys) and openidconnect (RD-190-15), which only *verify* RS256/PS256
+  # patched (0.9.10 and 0.10.0-rc.18 are both covered). rsa 0.9.10 comes from openidconnect
+  # (RD-190-15), which only *verifies* RS256/PS256
   # signatures of attestations and ID tokens — public key operations. russh's default `rsa`
   # feature pulls in rsa 0.10.0-rc.18: verifying an SSH host key is a public key operation as
   # well, and the only private key operation here is signing once per connection with a
@@ -24,16 +24,9 @@ ignore = [
   # useful. Disabling that feature removes the advisory but also drops ssh-rsa and rsa-sha2-*
   # host keys, which are still common on default sshd installations, so the compatibility cost
   # outweighs the exposure.
-  { id = "RUSTSEC-2023-0071", reason = "rsa 0.9.10 via crypto-glue (webauthn-rs) and openidconnect, rsa 0.10 rc via russh; Marvin targets private-key operations, which signature, host key and ID-token verification do not perform. No safe upgrade is available." },
-  # crypto-bigint 0.5.5 (RUSTSEC-2026-0387): secret-dependent branches in operations meant to be
-  # constant-time. Fixed only in 0.7.6, which the 0.7 copy here takes; 0.5 gets no release.
-  # It comes from elliptic-curve 0.13 under the same two consumers as rsa above, crypto-glue
-  # (webauthn-rs, passkeys) and openidconnect (p256/p384), and both only *verify* ECDSA
-  # signatures — public key operations on public data, nothing secret to leak. Remove once
-  # webauthn-rs and openidconnect move to elliptic-curve 0.14.
-  { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5.5 via elliptic-curve 0.13 under webauthn-rs and openidconnect, which only verify signatures; no patched 0.5 release exists." },
+  { id = "RUSTSEC-2023-0071", reason = "rsa 0.9.10 via openidconnect, rsa 0.10 rc via russh; Marvin targets private-key operations, which signature, host key and ID-token verification do not perform. No safe upgrade is available." },
   # zstd 0.13.3 / zstd-safe 7.3.0 (RUSTSEC-2026-0391, -0398, -0403): fixed only in zstd 0.14.3
-  # and zstd-safe 8.2.0, and the one consumer, wasmtime-internal-cache (49 and 50 alike), requires
+  # and zstd-safe 8.2.0, and the one consumer, wasmtime-internal-cache (50.0.1 too), requires
   # zstd ^0.13 with `default-features = false`. None of the three paths is taken: the cache only
   # calls `zstd::encode_all`/`decode_all`, a fresh context per call, so nothing is left on a
   # reused one (0391); `seekable` (0398) and `legacy` (0403) are features nothing enables; and
@@ -98,73 +91,46 @@ allow = [
 multiple-versions = "deny"
 wildcards = "allow"
 skip = [
-  # webauthn-rs 0.6.1-dev (rd-authn): webauthn-rs-core pins crypto-glue ^0.1.15, which carries
-  # the previous RustCrypto generation (digest 0.10, cipher 0.4, elliptic-curve 0.13, rand 0.8);
-  # crypto-glue 0.2 is released. About 45 duplicates leave with it.
-  { crate = "aead:0.5", reason = "crypto-glue 0.1 via aes-gcm 0.10 (webauthn-rs)" },
-  { crate = "aes:0.8", reason = "crypto-glue 0.1, aes-kw 0.2 (webauthn-rs)" },
-  { crate = "aes-gcm:0.10", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "argon2:0.5", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "base16ct:0.2", reason = "crypto-glue 0.1 via elliptic-curve 0.13 (webauthn-rs)" },
-  { crate = "base64:0.21", reason = "webauthn-rs-core and webauthn-rs-proto 0.6.1-dev" },
-  { crate = "blake2:0.10", reason = "crypto-glue 0.1 via argon2 0.5 (webauthn-rs)" },
-  { crate = "block-padding:0.3", reason = "crypto-glue 0.1 via inout 0.1 (webauthn-rs)" },
-  { crate = "cbc:0.1", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "cipher:0.4", reason = "crypto-glue 0.1, aes-kw 0.2 (webauthn-rs)" },
-  { crate = "crypto-bigint:0.5", reason = "crypto-glue 0.1 via elliptic-curve 0.13 (webauthn-rs)" },
-  { crate = "ctr:0.9", reason = "crypto-glue 0.1 via aes-gcm 0.10 (webauthn-rs)" },
-  { crate = "der:0.7", reason = "crypto-glue 0.1, x509-cert 0.2 (webauthn-rs)" },
-  { crate = "ecdsa:0.16", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "elliptic-curve:0.13", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "ff:0.13", reason = "crypto-glue 0.1 via elliptic-curve 0.13 (webauthn-rs)" },
-  { crate = "ghash:0.5", reason = "crypto-glue 0.1 via aes-gcm 0.10 (webauthn-rs)" },
-  { crate = "group:0.13", reason = "crypto-glue 0.1 via elliptic-curve 0.13 (webauthn-rs)" },
-  { crate = "hkdf:0.12", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "hmac:0.12", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "inout:0.1", reason = "crypto-glue 0.1 via cipher 0.4 (webauthn-rs)" },
+  # The previous RustCrypto generation (digest 0.10, rsa 0.9, rand 0.8). webauthn-rs 0.6.2 moved
+  # to crypto-glue 0.2 (2026-11-01) and took about 35 duplicates with it; what stays is held by
+  # openidconnect 4.1 and its oauth2 5 (rd-authn, RD-190-15), argon2 0.5 inside crypto-glue 0.2,
+  # and webauthn-rs-core's own base64 0.21 and nom 7.
+  { crate = "argon2:0.5", reason = "crypto-glue 0.2 (webauthn-rs)" },
+  { crate = "base64:0.21", reason = "webauthn-rs-core and webauthn-rs-proto 0.6.2" },
+  { crate = "blake2:0.10", reason = "argon2 0.5 (crypto-glue 0.2, webauthn-rs)" },
+  { crate = "der:0.7", reason = "pkcs1 0.7, pkcs8 0.10, spki 0.7 via rsa 0.9 (openidconnect)" },
+  { crate = "hmac:0.12", reason = "openidconnect 4.1" },
   { crate = "nom:7", reason = "webauthn-rs-core, x509-parser, der-parser, asn1-rs (webauthn-rs)" },
   { crate = "num-bigint:0.4", reason = "der-parser (webauthn-rs); num 0.4 (secret-service via keyring)" },
-  { crate = "p256:0.13", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "p384:0.13", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "p521:0.13", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "password-hash:0.5", reason = "crypto-glue 0.1 via argon2 0.5 (webauthn-rs)" },
-  { crate = "pbkdf2:0.12", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "pem-rfc7468:0.7", reason = "crypto-glue 0.1, x509-cert 0.2 (webauthn-rs)" },
-  { crate = "pkcs1:0.7", reason = "crypto-glue 0.1 via rsa 0.9 (webauthn-rs)" },
-  { crate = "pkcs5:0.7", reason = "crypto-glue 0.1 via pkcs8 0.10 (webauthn-rs)" },
-  { crate = "pkcs8:0.10", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "polyval:0.6", reason = "crypto-glue 0.1 via aes-gcm 0.10 (webauthn-rs)" },
-  { crate = "primeorder:0.13", reason = "crypto-glue 0.1 via p256/p384/p521 0.13 (webauthn-rs)" },
-  { crate = "rand:0.8", reason = "crypto-glue 0.1, num-bigint-dig (webauthn-rs)" },
-  { crate = "rand_chacha:0.3", reason = "crypto-glue 0.1 via rand 0.8 (webauthn-rs)" },
-  { crate = "rfc6979:0.4", reason = "crypto-glue 0.1 via ecdsa 0.16 (webauthn-rs)" },
-  { crate = "rsa:0.9", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "salsa20:0.10", reason = "crypto-glue 0.1 via scrypt 0.11 (webauthn-rs)" },
-  { crate = "scrypt:0.11", reason = "crypto-glue 0.1 via pkcs5 0.7 (webauthn-rs)" },
-  { crate = "sec1:0.7", reason = "crypto-glue 0.1 (webauthn-rs)" },
-  { crate = "sha1:0.10", reason = "crypto-glue 0.1, x509-cert 0.2 (webauthn-rs)" },
-  { crate = "signature:2", reason = "crypto-glue 0.1, x509-cert 0.2 (webauthn-rs)" },
-  { crate = "spki:0.7", reason = "crypto-glue 0.1, x509-cert 0.2 (webauthn-rs)" },
-  { crate = "universal-hash:0.5", reason = "crypto-glue 0.1 via polyval 0.6 (webauthn-rs)" },
+  { crate = "password-hash:0.5", reason = "argon2 0.5 (crypto-glue 0.2, webauthn-rs)" },
+  { crate = "pem-rfc7468:0.7", reason = "der 0.7 via rsa 0.9 (openidconnect)" },
+  { crate = "pkcs1:0.7", reason = "rsa 0.9 (openidconnect)" },
+  { crate = "pkcs8:0.10", reason = "rsa 0.9 (openidconnect)" },
+  { crate = "rand:0.8", reason = "openidconnect 4.1, oauth2 5, num-bigint-dig" },
+  { crate = "rand_chacha:0.3", reason = "rand 0.8 (openidconnect, oauth2)" },
+  { crate = "rsa:0.9", reason = "openidconnect 4.1" },
+  { crate = "signature:2", reason = "rsa 0.9 (openidconnect)" },
+  { crate = "spki:0.7", reason = "rsa 0.9 (openidconnect)" },
 
-  # The same RustCrypto generation, also held by wasmtime 49 / cranelift 0.136 (sha2 0.10),
-  # sqlx 0.9 (sqlx-core: sha2 0.10) and object_store 0.14 (crc-fast: digest 0.10) besides
-  # crypto-glue 0.1.
-  { crate = "block-buffer:0.10", reason = "digest 0.10: crypto-glue 0.1, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
-  { crate = "const-oid:0.9", reason = "digest 0.10: crypto-glue 0.1, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
-  { crate = "cpufeatures:0.2", reason = "sha2 0.10: crypto-glue 0.1, wasmtime, cranelift, sqlx-core" },
-  { crate = "crypto-common:0.1", reason = "digest 0.10: crypto-glue 0.1, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
-  { crate = "digest:0.10", reason = "crypto-glue 0.1, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
+  # The same generation, also held by wasmtime 50 / cranelift 0.137 (sha2 0.10), sqlx 0.9
+  # (sqlx-core: sha2 0.10) and object_store 0.14 (crc-fast: digest 0.10).
+  { crate = "block-buffer:0.10", reason = "digest 0.10: openidconnect, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
+  { crate = "const-oid:0.9", reason = "digest 0.10, der 0.7, rsa 0.9 (openidconnect)" },
+  { crate = "cpufeatures:0.2", reason = "sha2 0.10: wasmtime, cranelift, sqlx-core, openidconnect; argon2 0.5" },
+  { crate = "crypto-common:0.1", reason = "digest 0.10: openidconnect, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
+  { crate = "digest:0.10", reason = "openidconnect (hmac, rsa, sha2), wasmtime, cranelift, sqlx-core, crc-fast (object_store), blake2" },
   { crate = "generic-array:0.14", reason = "digest 0.10 users as above; generic-array 1 (russh) re-exports it" },
-  { crate = "rand_core:0.6", reason = "crypto-glue 0.1 and the digest 0.10 users as above" },
-  { crate = "sha2:0.10", reason = "crypto-glue 0.1, wasmtime-environ, wasmtime-internal-cache, cranelift-codegen, sqlx-core" },
-  { crate = "base64:0.22", reason = "hyper-util 0.1 (axum, reqwest), sqlx-core, wasmtime-internal-cache, crypto-glue 0.1" },
-  { crate = "getrandom:0.2", reason = "rand_core 0.6 (as above), ring 0.17, redox_users" },
+  { crate = "rand_core:0.6", reason = "rand 0.8 and rsa 0.9 (openidconnect), password-hash 0.5" },
+  { crate = "sha2:0.10", reason = "openidconnect, oauth2, wasmtime-environ, wasmtime-internal-cache, cranelift-codegen, sqlx-core" },
+  { crate = "base64:0.22", reason = "hyper-util 0.1 (axum, reqwest), sqlx-core, wasmtime-internal-cache" },
+  { crate = "getrandom:0.2", reason = "rand_core 0.6 (as above), oauth2 5, ring 0.17, redox_users" },
 
-  # rand 0.9 line: governor 0.10 (rd-limits), librqbit-utp 0.7 (librqbit), webauthn-rs-core.
+  # rand 0.9 line: governor 0.10 (rd-limits), librqbit-utp 0.7 (librqbit); webauthn-rs-core 0.6.2
+  # is on rand_chacha 0.10.
   { crate = "rand:0.9", reason = "governor 0.10, librqbit-utp 0.7, webauthn-rs-core" },
   { crate = "rand_core:0.9", reason = "rand 0.9: governor 0.10, librqbit-utp 0.7, webauthn-rs-core" },
   { crate = "getrandom:0.3", reason = "rand_core 0.9: governor 0.10, librqbit-utp 0.7, webauthn-rs-core" },
+  { crate = "rand_chacha:0.9", reason = "rand 0.9: governor 0.10, librqbit-utp 0.7" },
 
   # librqbit 9.0.1 (rd-torrent).
   { crate = "generic-array:0.12", reason = "size_format 1.0 (librqbit)" },
@@ -186,24 +152,17 @@ skip = [
   { crate = "foldhash:0.1", reason = "hashbrown 0.15 via petgraph 0.8 (arboard)" },
   { crate = "hashbrown:0.16", reason = "gimli 0.33 (wasmtime), sqlx-core and hashlink 0.11 (sqlx), governor 0.10" },
 
-  # wasmtime 49 / cranelift 0.136 (rd-plugin-host).
-  { crate = "itertools:0.14", reason = "wasmtime-internal-cranelift 49" },
-  # openidconnect 4.0 (rd-authn, RD-190-15) verifies EdDSA ID tokens with ed25519-dalek 2 and the
-  # previous RustCrypto line; the service's own Ed25519 (rd-sign) is on 3. They leave with an
-  # openidconnect release on ed25519-dalek 3.
-  { crate = "ed25519-dalek:2", reason = "openidconnect 4.0 (rd-authn)" },
-  { crate = "ed25519:2", reason = "ed25519-dalek 2 via openidconnect 4.0 (rd-authn)" },
-  { crate = "curve25519-dalek:4", reason = "ed25519-dalek 2 via openidconnect 4.0 (rd-authn)" },
-  { crate = "itertools:0.10", reason = "openidconnect 4.0 (rd-authn)" },
-  # The wasm-tools line: wasmtime 49.0.2, the newest release (2026-10-05), is on 0.258, the
-  # wit-bindgen 0.62 proc macro the plugin crates compile with on 0.259 (RD-160-08). The service
-  # ships 0.258 only; 0.259 lives in the plugins' build. They leave when a wasmtime release moves
-  # to 0.259.
-  { crate = "wasmparser:0.258", reason = "wasmtime 49 (rd-plugin-host); wit-bindgen 0.62 uses 0.259" },
-  { crate = "wasm-encoder:0.258", reason = "wasmtime-environ 49; wit-bindgen 0.62 uses 0.259" },
-  { crate = "wasm-metadata:0.258", reason = "wit-component 0.258 (wasmtime 49); wit-bindgen 0.62 uses 0.259" },
-  { crate = "wit-component:0.258", reason = "wasmtime-internal-wit-bindgen 49; wit-bindgen 0.62 uses 0.259" },
-  { crate = "wit-parser:0.258", reason = "wasmtime-internal-wit-bindgen and -component-macro 49; wit-bindgen 0.62 uses 0.259" },
+  # wasmtime 50 / cranelift 0.137 (rd-plugin-host).
+  { crate = "itertools:0.14", reason = "wasmtime-internal-cranelift 50, openidconnect 4.1" },
+  # The wasm-tools line: wasmtime 50.0.1, the newest release (2026-10-29), is on 0.261, the
+  # wit-bindgen 0.63 proc macro the plugin crates compile with on 0.262 (RD-160-08). The service
+  # ships 0.261 only; 0.262 lives in the plugins' build. They leave when a wasmtime release moves
+  # to 0.262.
+  { crate = "wasmparser:0.261", reason = "wasmtime 50 (rd-plugin-host); wit-bindgen 0.63 uses 0.262" },
+  { crate = "wasm-encoder:0.261", reason = "wasmtime-environ 50; wit-bindgen 0.63 uses 0.262" },
+  { crate = "wasm-metadata:0.261", reason = "wit-component 0.261 (wasmtime 50); wit-bindgen 0.63 uses 0.262" },
+  { crate = "wit-component:0.261", reason = "wasmtime-internal-wit-bindgen 50; wit-bindgen 0.63 uses 0.262" },
+  { crate = "wit-parser:0.261", reason = "wasmtime-internal-wit-bindgen and -component-macro 50; wit-bindgen 0.63 uses 0.262" },
 
   # croner 4 (rd-subscription).
   { crate = "darling:0.20", reason = "derive_builder_core 0.20 (croner 4)" },
@@ -232,21 +191,13 @@ skip = [
   { crate = "winnow:0.5", reason = "toml_edit 0.19/0.20 (GTK3 via tao, tray-icon)" },
   { crate = "miniz_oxide:0.8", reason = "png 0.18 (muda via tray-icon, rd-capture's tray icon); flate2 uses 0.9" },
 
-  # global-hotkey 0.8, the newest (rd-capture, RD-1180-03), is still on keyboard-types 0.7 while
-  # muda 0.21 under tray-icon 0.26 moved to 0.8; only the Windows and macOS builds link both.
-  { crate = "keyboard-types:0.7", reason = "global-hotkey 0.8 (rd-capture); muda 0.21 (tray-icon) is on 0.8" },
   # windows-sys: one line per holder.
   { crate = "windows-sys:0.52", reason = "ring 0.17 (rustls-webpki, quinn-proto), dontfrag 1 (librqbit-utp)" },
-  { crate = "windows-sys:0.59", reason = "winreg 0.55 (embed-resource, a build dependency), global-hotkey 0.8 (rd-capture)" },
-  { crate = "windows-sys:0.60", reason = "arboard 3.6 (rd-capture), notify 8.2 (rd-hotfolder)" },
-  { crate = "windows-targets:0.52", reason = "windows-sys 0.52/0.59: ring 0.17, dontfrag 1, winreg 0.55" },
-  { crate = "windows_x86_64_gnu:0.52", reason = "windows-sys 0.52/0.59: ring 0.17, dontfrag 1, winreg 0.55" },
-  { crate = "windows_x86_64_msvc:0.52", reason = "windows-sys 0.52/0.59: ring 0.17, dontfrag 1, winreg 0.55" },
+  { crate = "windows-sys:0.59", reason = "global-hotkey 0.9 (rd-capture)" },
 
   # One holder each.
   { crate = "untrusted:0.7", reason = "aws-lc-rs 1.18 (object_store, librqbit-sha1-wrapper); ring uses 0.9" },
   { crate = "tower-http:0.6", reason = "reqwest 0.13" },
-  { crate = "sha3:0.11", reason = "ml-kem 0.3 (russh 0.63)" },
   { crate = "syn:2", reason = "about 55 proc macros are still on syn 2 (tracing-attributes, pin-project-internal, zerocopy-derive, sqlx-macros, wasmtime-internal-component-macro, …)" },
   { crate = "synstructure:0.13", reason = "yoke-derive, zerofrom-derive (url via icu), asn1-rs-derive (webauthn-rs)" },
 ]

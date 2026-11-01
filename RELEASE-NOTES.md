@@ -12,9 +12,16 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.40.0
+## 1.41.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.40.0
+
+- A failed package can be reset completely: every file it wrote is deleted and it starts again from the beginning, keeping the name, folder and password you chose.
+- "Remove failed packages + files" now deletes all files of those packages from disk, finished parts included; a setting keeps the finished ones.
+- The connection dot in the sidebar and the status dots in the settings sit centred on their glow again.
+- PAR2 repair leaves damaged recovery data out instead of using it.
 
 ## 1.39.1
 

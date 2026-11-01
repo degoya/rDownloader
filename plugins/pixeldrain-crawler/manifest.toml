@@ -1,7 +1,7 @@
 plugin_type = "crawler"
 id = "019d0000-0000-7000-8000-000000000171"
 name = "Pixeldrain lists"
-version = "0.1.14"
+version = "0.1.15"
 
 # One endpoint on the provider's own host: `GET /api/list/{id}`, measured 2026-09-22
 # (RD-120-07). Nothing else is reached -- the file links this answers with are handed back for

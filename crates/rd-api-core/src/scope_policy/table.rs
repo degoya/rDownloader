@@ -605,6 +605,8 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/packages/{id}/postprocess", Method::GET, READ),
     // The NZB behind a package handed to a provider: the import route's cost (RD-191-13).
     entry("/api/v1/packages/{id}/remote-job", Method::POST, SECRETS),
+    // A failed package reset whole (RD-1390-07): a file's reset, for every file of it.
+    entry("/api/v1/packages/{id}/reset", Method::POST, QUEUE),
     // A package's own speed limit (RD-1100-01): read like the package, set like its priority.
     entry("/api/v1/packages/{id}/speed-limit", Method::GET, READ),
     entry("/api/v1/packages/{id}/speed-limit", Method::PUT, QUEUE),

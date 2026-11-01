@@ -190,9 +190,20 @@ impl Connection {
         dispatch!(self, stream => stream.list(path).await)
     }
 
-    /// Sends `REST <offset>`, which the next `RETR` continues from.
+    /// Arms `REST <offset>` for the next `RETR`, after asking whether the server restarts at all.
+    ///
+    /// suppaftp 12.2 sends the `REST` itself, right before the transfer command (RFC 3659
+    /// §5.3), so a refusal would only come back from `RETR`, where a `502` reads like a missing
+    /// file. `REST 0` here asks the question up front: a server without restart support refuses
+    /// it as it refuses every offset, so a refused resume stays an error of this call; the `350`
+    /// leaves nothing behind that the `REST <offset>` before `RETR` does not replace.
     pub(crate) async fn resume_from(&mut self, offset: usize) -> FtpResult<()> {
-        dispatch!(self, stream => stream.resume_transfer(offset).await)
+        dispatch!(self, stream => {
+            stream
+                .custom_command("REST 0", &[suppaftp::Status::RequestFilePending])
+                .await?;
+            stream.resume_transfer(offset).await
+        })
     }
 
     pub(crate) async fn quit(&mut self) -> FtpResult<()> {

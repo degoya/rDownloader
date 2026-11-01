@@ -1,6 +1,7 @@
 //! Removing packages from the queue, with their files or without them.
 
 use super::*;
+use crate::download_handlers::Discard;
 
 /// `?force=true` on a package removal: cancel whatever is still running and remove it anyway.
 #[derive(serde::Deserialize, utoipa::IntoParams)]
@@ -78,16 +79,17 @@ pub async fn remove_packages(
     ids: Vec<PackageId>,
     force: bool,
 ) -> Result<usize, ApiError> {
-    remove_packages_discarding(state, ids, force, false).await
+    remove_packages_discarding(state, ids, force, Discard::Nothing).await
 }
 
-/// [`remove_packages`], and with `discard_partial` every file that had not finished takes what
-/// it wrote outside staging with it (RD-180-21). Finished and seeding files keep their data.
+/// [`remove_packages`], and the files take their data with them as `discard` says: with
+/// `Unfinished` every file that had not finished takes what it wrote outside staging
+/// (RD-180-21), finished and seeding files keep theirs; with `All` every file goes from disk.
 pub(crate) async fn remove_packages_discarding(
     state: &AppState,
     ids: Vec<PackageId>,
     force: bool,
-    discard_partial: bool,
+    discard: Discard,
 ) -> Result<usize, ApiError> {
     let packages = state.database.list_packages().await?;
     let downloads = state.database.list_downloads().await?;
@@ -108,11 +110,14 @@ pub(crate) async fn remove_packages_discarding(
         }
         removed += 1;
         for file in downloads.iter().filter(|file| file.package_id == id) {
-            let discard = discard_partial
-                && !matches!(
-                    file.state,
-                    DownloadState::Completed | DownloadState::Seeding
-                );
+            let finished = matches!(
+                file.state,
+                DownloadState::Completed | DownloadState::Seeding
+            );
+            let discard = match discard {
+                Discard::Unfinished if finished => Discard::Nothing,
+                other => other,
+            };
             if let Err(error) =
                 crate::download_handlers::remove_with_cancel(state, file.id, discard).await
             {

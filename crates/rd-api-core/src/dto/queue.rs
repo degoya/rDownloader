@@ -236,7 +236,8 @@ pub struct PackageDeleteRequest {
 pub enum PackageClearScope {
     /// Packages in which every file succeeded.
     Completed,
-    /// Packages that hold a failed or blocked file and have nothing left to do.
+    /// Packages that hold a failed or blocked file, or whose post-processing failed, and have
+    /// nothing left to do — removed with their files (see `delete_partial`).
     Failed,
     /// Every package that is not working any more, whatever the outcome.
     All,
@@ -252,7 +253,9 @@ pub struct PackageClearRequest {
     pub scope: PackageClearScope,
     /// Also deletes what the unfinished files of the removed packages had written outside
     /// staging: tool fragments beside the target and an unfinished torrent's data. Incomplete
-    /// staging files go with every removal; finished files always stay.
+    /// staging files go with every removal; finished files stay. `failed` ignores it: that
+    /// scope deletes every file of its packages, the finished ones too, while the setting
+    /// `clear_failed_delete_files` is on (the default), and the unfinished ones otherwise.
     #[serde(default)]
     pub delete_partial: bool,
     /// The confirmation `everything` must carry; the server refuses that scope without it.

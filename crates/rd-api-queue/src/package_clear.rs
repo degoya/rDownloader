@@ -18,6 +18,7 @@ use rd_core::{DownloadFile, DownloadPackage, DownloadState, PackageId, PackageSt
 use crate::{
     ApiError, AppState,
     auto_remove_service::{PackageProgress, package_progress},
+    download_handlers::Discard,
     dto::{PackageClearRequest, PackageClearResponse, PackageClearScope, PackageClearSkip},
     package_handlers::remove_packages_discarding,
 };
@@ -38,7 +39,7 @@ pub(crate) fn blocking_code(
 
 /// The one refusal "clear the entire list" keeps: a running pipeline is no transfer the
 /// scheduler could cancel, and removing its rows would leave it rewriting files nobody owns.
-fn postprocess_code(
+pub(crate) fn postprocess_code(
     package: &DownloadPackage,
     pending_extraction: &HashSet<PackageId>,
 ) -> Option<&'static str> {
@@ -195,6 +196,24 @@ async fn stop_members(state: &AppState, downloads: &[DownloadFile], targets: &[P
     }
 }
 
+/// What a clear deletes from disk. "Remove the failed ones" is the menu entry that promises
+/// "+ files": a failed package is cleared to be fetched again or given up, so with
+/// `clear_failed_delete_files` (the default) every file of it goes, the finished ones too — a
+/// corrupt Usenet set used to leave its single RAR volumes behind — and without it what did
+/// not finish. Every other scope deletes unfinished data only when the request asks.
+pub(crate) const fn discard_for(
+    scope: PackageClearScope,
+    delete_partial: bool,
+    failed_delete_files: bool,
+) -> Discard {
+    match scope {
+        PackageClearScope::Failed if failed_delete_files => Discard::All,
+        PackageClearScope::Failed => Discard::Unfinished,
+        _ if delete_partial => Discard::Unfinished,
+        _ => Discard::Nothing,
+    }
+}
+
 #[utoipa::path(post, path = "/api/v1/packages/clear", tag = "downloads", request_body = PackageClearRequest, responses((status = 200, body = PackageClearResponse), (status = 400), (status = 409)))]
 pub async fn clear_packages(
     State(state): State<AppState>,
@@ -234,12 +253,17 @@ pub async fn clear_packages(
         });
     }
     let targets = plan.targets.clone();
+    let discard = discard_for(
+        request.scope,
+        request.delete_partial,
+        crate::settings_store::stored_settings(&state.database)
+            .await?
+            .clear_failed_delete_files,
+    );
     // Without `Everything`, `force = false` on purpose: every target is settled by
     // construction, and the guard in `remove_packages` is the second lock on the one action
     // that can destroy work. `Everything` has said so explicitly, and confirmed it.
-    let removed =
-        remove_packages_discarding(&state, plan.targets, everything, request.delete_partial)
-            .await?;
+    let removed = remove_packages_discarding(&state, plan.targets, everything, discard).await?;
     if everything {
         // One record per package, as `delete_packages` writes them.
         for id in targets {

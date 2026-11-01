@@ -88,6 +88,8 @@ const emit = defineEmits<{
   handOver: [id: string, accountId: string]
   /** Every failed and blocked file of the package back to the queue (RD-1190-15). */
   resetFailed: [id: string]
+  /** The failed package reset whole: every file deleted, downloaded again from the start (RD-1390-07). */
+  resetPackage: [id: string]
   /** The package as a link file; resolved again with the plugin installed now (RD-1210-01). */
   export: [id: string]
   reresolve: [id: string]
@@ -257,6 +259,17 @@ const actions = computed(() => [[
         icon: 'i-lucide-rotate-ccw',
         description: t('downloads.package.reset_failed_hint', { count: stuckCount.value }, stuckCount.value),
         onSelect: () => emit('resetFailed', props.package.id)
+      }]
+    : []),
+  // A failed package — a failed or blocked file, or a failed post-processing — can start over
+  // from nothing (RD-1390-07); the dialog behind it names what goes.
+  ...((stuckCount.value || postprocessFailed.value) && !postprocessing.value
+    ? [{
+        label: t('downloads.package.reset_all'),
+        icon: 'i-lucide-list-restart',
+        color: 'error' as const,
+        description: t('downloads.package.reset_all_hint'),
+        onSelect: () => emit('resetPackage', props.package.id)
       }]
     : []),
   ...stopMarkItems.value,

@@ -3,7 +3,7 @@ id = "019d0000-0000-7000-8000-000000000120"
 name = "Turbobit"
 # The version must rise with every change, or a running instance keeps the package it
 # already has (`sync_bundled` only installs newer ones).
-version = "0.1.14"
+version = "0.1.15"
 # The live hosts measured on 2026-09-21 (RD-103-10, section 1): the main site, its three
 # redirecting subdomains, and the five short domains that answer a file path with a redirect to
 # the main site. Dead domains (`turbobit.online`, `.live`, `.cloud`, `.ru`, …) and the unrelated

@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-000000000150"
 name = "Put.io"
-version = "0.1.16"
+version = "0.1.17"
 # The canonical per-file API address the remote-job sibling emits, plus the address a person
 # copies out of the Put.io web interface. Never `*`: Put.io serves its own storage, it does not
 # unrestrict anybody else's links, so this is a hoster and not a multihoster.

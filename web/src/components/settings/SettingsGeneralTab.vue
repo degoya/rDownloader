@@ -78,6 +78,14 @@ const { t } = useI18n()
         </div>
       </div>
       <USeparator />
+      <UFormField data-settings-anchor="general.clear_failed_delete_files" :label="t('settings.clear_failed_delete_files.label')" :description="t('settings.clear_failed_delete_files.description')" orientation="horizontal">
+        <USwitch v-model="settings.clear_failed_delete_files" data-testid="clear-failed-delete-files" />
+      </UFormField>
+      <USeparator />
+      <UFormField data-settings-anchor="general.package_reset_delete_extracted" :label="t('settings.package_reset_delete_extracted.label')" :description="t('settings.package_reset_delete_extracted.description')" orientation="horizontal">
+        <USwitch v-model="settings.package_reset_delete_extracted" data-testid="package-reset-delete-extracted" />
+      </UFormField>
+      <USeparator />
       <UFormField data-settings-anchor="general.sha256" :label="t('settings.sha256.label')" :description="t('settings.sha256.description')" orientation="horizontal">
         <USwitch v-model="settings.generate_sha256" />
       </UFormField>

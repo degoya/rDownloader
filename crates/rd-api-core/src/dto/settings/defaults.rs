@@ -95,6 +95,8 @@ impl Default for SettingsResponse {
             auto_remove_finished: false,
             auto_remove_delay_hours: default_auto_remove_delay_hours(),
             auto_remove_keep_failed: default_auto_remove_keep_failed(),
+            clear_failed_delete_files: default_clear_failed_delete_files(),
+            package_reset_delete_extracted: default_package_reset_delete_extracted(),
             passwords_file: None,
             admin_login_disabled: false,
             aria2_rpc_enabled: false,
@@ -369,6 +371,17 @@ pub(super) const fn default_otlp_timeout_seconds() -> u32 {
 
 /// Errors are worth looking at, so a package holding one is kept until it is dealt with.
 pub(super) const fn default_auto_remove_keep_failed() -> bool {
+    true
+}
+
+/// A failed package is cleared to be fetched again or given up, so its files go with it.
+pub(super) const fn default_clear_failed_delete_files() -> bool {
+    true
+}
+
+/// A package reset whole starts over as if it came from the LinkGrabber, so what its unpack
+/// created goes with its downloads.
+pub(super) const fn default_package_reset_delete_extracted() -> bool {
     true
 }
 

@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-000000000114"
 name = "OneDrive"
-version = "0.1.15"
+version = "0.1.16"
 # The sharing links a person pastes — OneDrive's short ones, the long personal ones and every
 # SharePoint tenant's — plus the canonical per-item Graph address the sibling crawler emits.
 # Never `*`: this is a hoster for one provider's drives, not a multihoster.

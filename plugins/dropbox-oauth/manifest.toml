@@ -1,7 +1,7 @@
 plugin_type = "oauth"
 id = "019d0000-0000-7000-8000-000000000119"
 name = "Dropbox sign-in"
-version = "0.1.14"
+version = "0.1.15"
 
 # Redirect only. Dropbox has no device flow; authorization code with PKCE against its own
 # authorization page is the whole of what it offers a public client.

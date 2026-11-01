@@ -1,7 +1,7 @@
 plugin_type = "auth"
 id = "019d0000-0000-7000-8000-00000000010a"
 name = "Debrid-Link sign-in"
-version = "0.9.14"
+version = "0.9.15"
 
 # The provider's own API, and nothing else. This list is also what bounds the address the
 # plugin may ask a person to visit: a sign-in page outside it is refused by the host.

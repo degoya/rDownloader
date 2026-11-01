@@ -1331,7 +1331,10 @@
     "proxy.name_unresolved": "{host} no se pudo resolver en este equipo, así que el proxy no pudo recibir una dirección comprobada. rDownloader resuelve y comprueba él mismo cada dirección antes de consultar al proxy. En un perfil de proxy, «El proxy resuelve los nombres» deja que el proxy resuelva el nombre; el proxy del entorno no tiene ese interruptor.",
     "settings.retry_middle_attempts_too_high": "La etapa intermedia de los reintentos admite como máximo {max} intentos",
     "settings.retry_long_wait_invalid": "La espera larga entre reintentos debe estar entre {min} y {max} minutos",
-    "web.route_not_found": "Nada en esta dirección responde a esta solicitud"
+    "web.route_not_found": "Nada en esta dirección responde a esta solicitud",
+    "package.reset": "Ningún paquete restablecido | Paquete restablecido: {count} archivo empieza de nuevo | Paquete restablecido: {count} archivos empiezan de nuevo",
+    "package.reset_not_failed": "Solo un paquete fallido puede restablecerse por completo",
+    "package.reset_running": "Pausa o detén primero los archivos en curso de este paquete"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

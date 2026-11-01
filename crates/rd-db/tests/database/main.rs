@@ -25,6 +25,7 @@ mod nzb_history;
 mod oauth_flows;
 mod object_storage;
 mod package_outcome_events;
+mod package_reset;
 mod plugin_repositories;
 mod remote_jobs;
 mod secret_fragment;

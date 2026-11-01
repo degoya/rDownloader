@@ -1,7 +1,7 @@
 plugin_type = "notifier"
 id = "019d0000-0000-7000-8000-000000000184"
 name = "Emby"
-version = "0.2.2"
+version = "0.2.3"
 
 # The media server is the person's own, so the manifest names no host: `*` is "the server the
 # destination names" (RD-130-15), and the host narrows every delivery to the host of the address

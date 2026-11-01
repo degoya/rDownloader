@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-000000000110"
 name = "Google Drive"
-version = "0.1.15"
+version = "0.1.16"
 # The addresses a person pastes, plus the canonical per-file API address the sibling crawler
 # emits. Never `*`: this is a hoster for its own drive, not a multihoster.
 match_domains = [

@@ -10,7 +10,7 @@
 #
 #   source "$ROOT/scripts/lib/tool-versions.sh"
 #   echo "$RD_NEXTEST_VERSION"
-#   rd_rust_version "$ROOT"          # 1.99.0
+#   rd_rust_version "$ROOT"          # 1.99.1
 #   rd_wasm_tools_pin "$ROOT"        # 1.261.0
 #   rd_node_floor "$ROOT"            # 24.15.0
 

@@ -261,7 +261,7 @@ async function remove(rule: CategoryRule): Promise<void> {
       <template #list>
         <div class="divide-y divide-muted border border-muted">
           <div v-for="rule in rules" :key="rule.id" class="flex items-center gap-3 p-3" :class="editingRowClass(editingId === rule.id, 'stripe')">
-            <UChip standalone color="success" :show="rule.enabled" class="w-2" />
+            <UChip standalone inset color="success" :show="rule.enabled" class="w-2" />
             <span class="numeric w-8 shrink-0 text-xs text-primary">{{ rule.priority }}</span>
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm text-highlighted">{{ rule.name }} <span class="text-muted">→ {{ categoryName(rule.category_id) }}</span></p>

@@ -246,3 +246,16 @@ fn a_blocking_code_always_has_a_refusal_behind_it() {
         assert_eq!(error.code(), code, "{code} must survive into the response");
     }
 }
+
+/// "Remove failed packages + files" deletes every file of them while the setting is on, the
+/// unfinished ones when it is off, and ignores `delete_partial`; the other scopes follow it.
+#[test]
+fn the_failed_scope_deletes_the_files_the_setting_names() {
+    use PackageClearScope::{All, Completed, Everything, Failed};
+    assert_eq!(discard_for(Failed, false, true), Discard::All);
+    assert_eq!(discard_for(Failed, false, false), Discard::Unfinished);
+    for scope in [Completed, All, Everything] {
+        assert_eq!(discard_for(scope, false, true), Discard::Nothing);
+        assert_eq!(discard_for(scope, true, true), Discard::Unfinished);
+    }
+}

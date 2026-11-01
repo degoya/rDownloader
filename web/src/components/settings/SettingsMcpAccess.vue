@@ -328,7 +328,7 @@ function scopeLabel(token: CaptureToken): string {
         <div v-if="tokens.length" class="divide-y divide-muted border border-muted">
           <div v-for="token in tokens" :key="token.id">
             <div class="flex items-center gap-3 p-3">
-              <UChip standalone :color="tokenExpired(token.expires_at) ? 'error' : 'success'" />
+              <UChip standalone inset :color="tokenExpired(token.expires_at) ? 'error' : 'success'" />
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium text-highlighted">{{ token.label }}</p>
                 <p class="text-2xs text-muted">{{ scopeLabel(token) }} · <span class="font-mono">{{ token.scopes.join(', ') }}</span></p>

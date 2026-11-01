@@ -1,7 +1,7 @@
 plugin_type = "crawler"
 id = "019d0000-0000-7000-8000-000000000161"
 name = "pCloud folders"
-version = "0.1.14"
+version = "0.1.15"
 
 # pCloud's two installations and nothing else. `listfolder` and `showpublink` live there, and
 # the account's access token may be sent to them and to no other address.

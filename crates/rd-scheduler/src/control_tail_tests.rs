@@ -103,3 +103,29 @@ async fn a_worker_that_is_still_at_work_is_refused_at_once() {
     );
     assert!(!scheduler.active.lock().await.held.contains_key(&file.id));
 }
+
+/// "Remove failed packages + files": a corrupt Usenet set left its finished RAR volumes on disk,
+/// because a removal only ever discarded what had not finished. `discard_all` takes the
+/// finished payload too; `discard_partial` still leaves it.
+#[tokio::test]
+async fn discarding_all_data_takes_the_finished_payload_too() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let (scheduler, file, destination) = paused_package(temporary.path()).await;
+    worked_to(&scheduler, &file, DownloadState::Completed).await;
+    tokio::fs::create_dir_all(&destination)
+        .await
+        .expect("destination");
+    let payload = destination.join(&file.file_name);
+    tokio::fs::write(&payload, b"volume")
+        .await
+        .expect("payload");
+
+    scheduler
+        .discard_partial(file.id)
+        .await
+        .expect("discard partial");
+    assert!(payload.exists(), "a finished file is not partial data");
+
+    scheduler.discard_all(file.id).await.expect("discard all");
+    assert!(!payload.exists(), "the whole package's data goes");
+}

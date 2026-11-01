@@ -141,6 +141,7 @@ row for a point that does not exist.
 | `scheduler.before_mirror_promoted` | rd-scheduler | a mirror group whose active member has failed before its successor was promoted is given its next mirror by the start that follows, never left waiting for a link that is not coming |
 | `scheduler.before_move_source_removed` | rd-scheduler | a move stopped between its verified copy and the removal of the original ends on the next pass with exactly one copy, at the new place, never a second one beside it |
 | `scheduler.before_package_move` | rd-scheduler | a package whose row already points at the new folder still finds its data and finishes the move |
+| `scheduler.before_package_reset_rows` | rd-scheduler | a package reset stopped after the package's data was deleted and before its rows were written back keeps every row as it was, knowing less data than it says, and leaves no data that no row knows; the package still reads as failed, the same reset asked again after the next start deletes nothing it should keep and puts every file back to queued |
 | `scheduler.before_promote` | rd-scheduler | a payload already in its final place is adopted by the next pass, never fetched a second time |
 | `subscription.after_items_archived` | rd-api-core | release files a poll archived before handing them to the LinkGrabber stay pending in the archive after a restart: the next poll neither hands them over a second time nor loses them, and the review list still offers them |
 | `torrent.after_relocation_commit` | rd-torrent | a torrent move stopped after its package was pointed at the new folder and before the originals were released is finished by the next start: every file is at the new place exactly once, the old folder is left empty, the journal is cleared and a seed seeds again from the new place |
@@ -376,6 +377,16 @@ are already queued, so the group would wait for a link that has already given up
 long as the install lives. Its case therefore asserts the queue-level form of invariant 4:
 the start that follows finds the group with nobody holding it and gives the turn to the next
 mirror, and it does so without the person touching anything.
+
+`scheduler.before_package_reset_rows` is the full reset of a failed package (RD-1390-07,
+`crates/rd-scheduler/src/control_reset_package.rs`). The data goes first - every file's staging,
+scratch and finished data, its Usenet files' assembled outputs and the entries its unpacks
+recorded in `package_outputs` - and the rows last, in one writer transaction. A stop in between
+leaves rows that still say what they had and a folder that no longer holds it: rows that know
+less data, never data that no row knows. The case asserts that nothing else changed - a stranger's
+file in the shared folder stays, the package still reads as failed and keeps its record of what
+its unpacks created - and that the same reset asked again after the restart finishes it: every
+file queued, the package's outcome cleared.
 
 `scheduler.before_auto_retry_requeued` is the automatic retry of failed downloads (RD-191-12).
 A round is two writes, each a single statement: the due time on the failed row, then — once it

@@ -18,6 +18,8 @@ use crate::{
     },
 };
 
+#[path = "unpack_record.rs"]
+mod record;
 #[path = "unpack_target.rs"]
 mod target;
 
@@ -93,6 +95,8 @@ async fn unpack_set(
     if needs_tool && context.rar_tool.is_none() {
         return refuse_without_tool(inner, context, kind, &source).await;
     }
+    // What the folder held before, so the package records only what the set adds (RD-1390-07).
+    let before = record::before(&destination).await;
     // A folder of its own has to exist before the merge can move anything into it. An
     // existing one is kept: a rerun after a crash finishes what the first run began.
     if context.target != UnpackTarget::Package
@@ -123,7 +127,16 @@ async fn unpack_set(
         None,
     )
     .await?;
+    let target = destination.clone();
     let extracted = extract_or_adopt(inner, context, set, destination, kind, &source).await?;
+    if extracted.1.is_ok() {
+        record::store(
+            inner,
+            context.owner,
+            &record::created(&target, &before).await,
+        )
+        .await;
+    }
     transition_volumes(inner, &volume_ids, DownloadState::Completed).await;
     record_result(
         inner,

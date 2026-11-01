@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-00000000000c"
 name = "Real-Debrid"
-version = "0.2.13"
+version = "0.2.14"
 match_domains = ["*"]
 download_domains = ["*"]
 # Real-Debrid's own guidance is two to four parallel connections per generated link, and the

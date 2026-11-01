@@ -1,6 +1,6 @@
 //! MCP tools for handling queued work: order, names, targets, tidying and unpacking
 //! (RD-120-32), a package's own speed limit (RD-1100-01), its "not before" and the search by
-//! name (RD-1240-14).
+//! name (RD-1240-14), and the full reset of a failed package (RD-1390-07).
 //!
 //! RD-120-29 left these out as positions in a list the caller cannot see, as renames a model
 //! would only echo, and as repairs a person makes while watching. `list_downloads` and
@@ -180,7 +180,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Remove finished packages from the download list in one sweep: scope completed (every file succeeded), failed (holds a failed or blocked file and has nothing left to do) or all (nothing is working any more). A package with a running, waiting or seeding member is never touched; the answer lists what was removed and what was skipped, with a code for why. Clearing the entire list with running work is not offered here: delete_packages with force removes chosen packages that are still working."
+        description = "Remove finished packages from the download list in one sweep: scope completed (every file succeeded), failed (holds a failed or blocked file and has nothing left to do; deletes every file of those packages from disk, finished ones included, while the setting clear_failed_delete_files is on, the default, else only what did not finish) or all (nothing is working any more). A package with a running, waiting or seeding member is never touched; the answer lists what was removed and what was skipped, with a code for why. Clearing the entire list with running work is not offered here: delete_packages with force removes chosen packages that are still working."
     )]
     pub async fn clear_finished_packages(
         &self,
@@ -248,6 +248,20 @@ impl RdMcpServer {
                 packages::extract_packages(State(self.state.clone()), Json(request)).await?;
             serde_json::to_value(answer)
                 .map_err(|error| ApiError::bad_request("request.body_invalid", error.to_string()))
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Reset one failed download package completely (id from list_packages; a package with a failed or blocked file, or whose post-processing failed). Deletes everything the package put on disk - partial and finished files, its Usenet files' assembled output and, while the setting package_reset_delete_extracted is on (the default), what its unpack created - then its emptied folder, and queues every file again from zero with errors, attempts and the unpack result cleared, as if it had just come from the LinkGrabber. Name, folder, category, priority, password, auth profile, mirrors and NZB stay. A file somebody else keeps in the same folder is never touched. Refused before anything is deleted with package.reset_running while a file runs or seeds (pause it first), package.postprocess_running while it is post-processed, package.reset_not_failed when nothing failed and download.nzb_dropped when a Usenet file lost its NZB."
+    )]
+    pub async fn reset_package(&self, Parameters(params): Parameters<IdParams>) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let Json(message) =
+                packages::reset_package(State(self.state.clone()), Path(id)).await?;
+            Ok(message)
         }
         .await;
         respond(result)

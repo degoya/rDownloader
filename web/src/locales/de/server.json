@@ -1331,7 +1331,10 @@
     "proxy.name_unresolved": "{host} lässt sich auf diesem Rechner nicht auflösen, deshalb konnte der Proxy keine geprüfte Adresse bekommen. rDownloader löst jede Adresse selbst auf und prüft sie, bevor der Proxy gefragt wird. Bei einem Proxy-Profil lässt „Proxy löst Namen selbst auf“ den Proxy den Namen auflösen; der Proxy aus der Umgebung hat diesen Schalter nicht.",
     "settings.retry_middle_attempts_too_high": "Die mittlere Stufe der Wiederholungen darf höchstens {max} Versuche haben",
     "settings.retry_long_wait_invalid": "Die lange Wartezeit zwischen Wiederholungen muss zwischen {min} und {max} Minuten liegen",
-    "web.route_not_found": "Unter dieser Adresse antwortet nichts auf diese Anfrage"
+    "web.route_not_found": "Unter dieser Adresse antwortet nichts auf diese Anfrage",
+    "package.reset": "Kein Paket zurückgesetzt | Paket zurückgesetzt: {count} Datei startet von vorn | Paket zurückgesetzt: {count} Dateien starten von vorn",
+    "package.reset_not_failed": "Komplett zurücksetzen geht nur bei einem fehlgeschlagenen Paket",
+    "package.reset_running": "Pausiere oder stoppe zuerst die laufenden Dateien dieses Pakets"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

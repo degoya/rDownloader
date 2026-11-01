@@ -1,7 +1,7 @@
 plugin_type = "crawler"
 id = "019d0000-0000-7000-8000-00000000011b"
 name = "Directory index"
-version = "0.1.14"
+version = "0.1.15"
 
 # An open directory listing is any web server at all, so there is no domain that could stand
 # here. The grant that actually applies is narrower than this line: the host builds the store

@@ -96,6 +96,10 @@ pub(crate) fn routes() -> Router<AppState> {
             post(package_handlers::rename_package_folder),
         )
         .route(
+            "/api/v1/packages/{id}/reset",
+            post(package_handlers::reset_package),
+        )
+        .route(
             "/api/v1/packages/{id}/start-after",
             axum::routing::put(package_handlers::set_package_start_after),
         )
@@ -200,6 +204,7 @@ pub(crate) fn routes() -> Router<AppState> {
     package_handlers::extract_package,
     package_handlers::force_extract_package,
     package_handlers::rename_package_folder,
+    package_handlers::reset_package,
     package_handlers::set_package_start_after,
     package_handlers::get_package_download_window,
     package_handlers::set_package_download_window,
