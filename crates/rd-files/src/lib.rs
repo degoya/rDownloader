@@ -36,8 +36,8 @@ pub use capacity::{
 pub use capped_read::read_text_capped;
 pub use checksum::{ComputedChecksum, checksum_range, compute_checksum, has_par2_magic};
 pub use child_process::{
-    CREATE_NO_WINDOW, NoConsoleWindow, RCLONE_VARIABLES, TOOL_VARIABLES, kept_variables, read_tail,
-    restrict_environment,
+    CREATE_NO_WINDOW, NoConsoleWindow, RCLONE_VARIABLES, TOOL_VARIABLES,
+    keep_standard_handles_from_children, kept_variables, read_tail, restrict_environment,
 };
 pub use link::{
     LinkError, LinkSupport, LinkedDuplicate, link_duplicate, probe_link_support, same_file_system,

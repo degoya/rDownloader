@@ -35,10 +35,7 @@ const STORED = {
 }
 
 function mount() {
-  return mountComponent(SettingsIndexersCard, {
-    messages: { usenet },
-    stubs: { UInputTags: { props: ['modelValue'], emits: ['update:modelValue'], template: '<input v-bind="$attrs" :value="(modelValue ?? []).join(\',\')" @input="$emit(\'update:modelValue\', $event.target.value.split(\',\').filter(Boolean))" />' } }
-  })
+  return mountComponent(SettingsIndexersCard, { messages: { usenet } })
 }
 
 describe('SettingsIndexersCard', () => {

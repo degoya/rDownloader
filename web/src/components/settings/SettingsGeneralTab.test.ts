@@ -1,10 +1,10 @@
-import { screen } from '@testing-library/vue'
+import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
 
 import settingsMessages from '@/locales/en/settings.json'
 import { defaultSettings } from '@/settingsDefaults'
 import { axeViolations } from '@/test/axe'
-import { mountComponent, unitOf } from '@/test/mount'
+import { mountComponent, settle, unitOf } from '@/test/mount'
 
 import SettingsGeneralTab from './SettingsGeneralTab.vue'
 
@@ -41,6 +41,36 @@ describe('SettingsGeneralTab automatic retry', () => {
     expect(rounds.value).toBe('0')
     expect(rounds.max).toBe('100')
     expect(screen.getByText('Rounds per download')).toBeTruthy()
+  })
+})
+
+/** RD-1410-01: package by package, a switch beside the simultaneous downloads, off by default. */
+describe('SettingsGeneralTab package by package', () => {
+  it('offers the switch off and names its price', () => {
+    mount()
+
+    expect(screen.getByTestId('sequential-packages-switch').getAttribute('aria-checked')).toBe('false')
+    expect(screen.getByText(settingsMessages.sequential_packages.label)).toBeTruthy()
+    expect(settingsMessages.sequential_packages.description).toMatch(/whole list waits/)
+  })
+
+  it('switches it on in the settings it edits', async () => {
+    const settings: Record<string, unknown> = { ...defaultSettings() }
+    mountComponent(SettingsGeneralTab, {
+      messages: { settings: settingsMessages },
+      props: { modelValue: settings as never }
+    })
+
+    await fireEvent.click(screen.getByRole('switch', { name: settingsMessages.sequential_packages.label }))
+    await settle()
+
+    expect(settings.sequential_packages).toBe(true)
+  })
+
+  it('shows a stored on as on', () => {
+    mount({ sequential_packages: true })
+
+    expect(screen.getByTestId('sequential-packages-switch').getAttribute('aria-checked')).toBe('true')
   })
 })
 
@@ -107,8 +137,8 @@ describe('SettingsGeneralTab after the move by topic', () => {
     mount()
 
     for (const label of [
-      settingsMessages.active_files.label, settingsMessages.chunks.label, settingsMessages.connections_per_host.label,
-      settingsMessages.retries.label, settingsMessages.auto_retry.label,
+      settingsMessages.active_files.label, settingsMessages.sequential_packages.label, settingsMessages.chunks.label,
+      settingsMessages.connections_per_host.label, settingsMessages.retries.label, settingsMessages.auto_retry.label,
       settingsMessages.auto_remove.label, settingsMessages.sha256.label
     ]) {
       expect(screen.getByText(label), label).toBeTruthy()

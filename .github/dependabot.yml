@@ -82,8 +82,8 @@ updates:
       # offer APIs the runtime does not have (RD-160-08).
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
-      # VueUse follows Nuxt UI's own requirement; a newer major alone would ship two copies
-      # (RD-150-21, RD-160-08).
+      # A VueUse major is the owner's decision: 15 was taken ahead of Nuxt UI, which still links
+      # 14, so the bundle carries both until Nuxt UI moves (1.41; RD-150-21, RD-160-08).
       - dependency-name: "@vueuse/core"
         update-types: ["version-update:semver-major"]
     groups:

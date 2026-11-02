@@ -1401,5 +1401,9 @@
   "package_reset_delete_extracted": {
     "label": "Supprimer les fichiers extraits lors d’une réinitialisation",
     "description": "« Réinitialiser entièrement le paquet » supprime aussi ce que l’extraction de ce paquet a produit. Désactivé : les fichiers extraits restent et seuls les téléchargements sont supprimés."
+  },
+  "sequential_packages": {
+    "label": "Paquet par paquet",
+    "description": "Un téléchargement ne démarre que lorsqu'aucun paquet plus haut dans la liste n'a encore de fichier en attente. Le prix : si le premier paquet attend (limite de l'hébergeur ou trafic épuisé), toute la liste attend avec lui. L'activer n'arrête rien de ce qui tourne déjà."
   }
 }

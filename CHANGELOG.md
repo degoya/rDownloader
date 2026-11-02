@@ -5,6 +5,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.41.0] - 2026-11-02
+
+### Added
+
+- **Package by package as a setting, off by default (RD-1410-01).** `sequential_packages` (REST
+  settings document, MCP `get_settings`/`update_settings`, Settings › General beside the
+  simultaneous downloads): on, a file that takes a counted place starts only while no package ahead
+  of its own in the list (priority, then position) still has a waiting file, `queued` or
+  `retry_wait` however long the wait. Running, paused, failed, blocked and finished files hold
+  nothing, nor do packages that are not due or that their window or the schedule's pause holds;
+  recordings and pooled kinds stay as they were. Off, the dispatch pass is RD-1250-07's unchanged.
+  The rule is `rd-scheduler`'s `dispatch_order.rs`, with fixed-clock cases for the rule and the
+  real pass.
+
+### Changed
+
+- **Dependencies current before 1.41.** `cargo update` moved six crates within their ranges
+  (aes 0.9.4, async-compression 0.4.52, cc 1.11.0, compression-codecs 0.4.47, psl 2.1.246, zip
+  9.2.2); `cargo deny check -D unmatched-skip -D unnecessary-skip` green with no stale skip.
+  `deny.toml` drops the three zstd ignores of RD-1390-06 (RUSTSEC-2026-0391, -0398, -0403):
+  zstd 0.13.4 and zstd-safe 7.4.0, in the lock since 1.40.1, are patched backports, so Wasmtime
+  no longer needs zstd 0.14 for a clean advisory check. The
+  web: `@iconify/vue` 5.0.5, `vue-i18n` 11.4.17, oxlint's pin stays the newest 1.90.0. VueUse 15
+  taken by the owner's decision: none of its breaking changes (`templateRef`, the timer options,
+  `useEventSource`, `useIDBKeyval`, `useThrottleFn`'s `trailing`) touches what `web/src` uses,
+  and Nuxt UI keeps its own VueUse 14 beside it. TypeScript 7 stays out (`openapi-typescript`
+  and vue-tsc build on TypeScript 5's JavaScript API), `@types/node` 26 too (the runtime is
+  Node 24). The Rust toolchain 1.99.1 and the three container base images were already current;
+  no Dependabot pull request was open.
+
+- **Plugin versions.** The versions this release raises: `mega` and `mega-crawler` 0.1.17.
+
+### Fixed
+
+- **`start-service` returns at once, and `job-evidence.sh` names why it stops (RD-1410-02).**
+  `rdownloader-capture start-service | Out-Host` waited for as long as the service ran: a Windows
+  child receives every inheritable handle of its parent, and the service held PowerShell's pipe.
+  `rd_autostart::start_beside` now clears the inherit flag of the agent's own standard handles
+  first (`rd_files::keep_standard_handles_from_children`, `SetHandleInformation` in `rd_win32`), and
+  so does `rd_update::install::process::spawn_detached` (`restart-service`, the updater, the
+  agent's self-update); the service still writes `logs/rdownloader.log` and `.err.log`. `scripts/job-evidence.sh` read
+  `check.log`'s summary with three `read`s, and the one that met the end ended the script under
+  `set -e` without a word; each missing line now gets its reason, and a `--full` a recorded green
+  covered, whole or in one half, takes that green's tree as evidence.
+
+- **The web tests stub `UContextMenu`, `UInputTags` and `UColorPicker` (RD-1410-03).** `uiStubs`
+  in `web/src/test/stubs.ts` renders the context menu as its trigger alone, with the attributes
+  handed on as `as-child` does, the tags as one comma-separated input and the colour picker as a
+  mark of its value. `pnpm --dir web test --silent=false` locally: Vue warnings 2 658 → 248,
+  "Failed to resolve component" for the three 2 410 → 0, log 81 MB → 0.7 MB; 2 813 tests pass.
+
+- **The release chain no longer lints the whole workspace again after the version bump
+  (RD-1410-04).** Not, as assumed, a `clippy` green filed under `rust`: `check.sh --full` linted
+  nothing, and the integration gate's `clippy` green never covered the tree before the bump,
+  because the migration baselines (`crates/rd-db/tests/database/`) and the regenerated licence
+  list land after the gate — so 1.38.0 to 1.40.1 ran clippy in full (1 min 40 s to 2 min 08 s).
+  `--full` now lints what changed since the closest `clippy` green, placed per crate as its test
+  reuse does (`rd_lint_full`, `scripts/lib/lint.sh`; for 1.40.0 and 1.40.1 `-p rd-db -p rdownloader
+  --all-targets`), and records `clippy` for the tree, which `step_clippy` then reuses;
+  `scripts/tests/release-clippy-reuse.sh` follows that path.
+
 ## [1.40.1] - 2026-11-01
 
 ### Added

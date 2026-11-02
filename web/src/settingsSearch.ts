@@ -85,6 +85,7 @@ function field(id: string, section: SettingsSectionValue, titleKey: string, extr
 export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   // General
   field('general.active_files', 'general', 'settings.active_files.label', { descriptionKey: 'settings.active_files.description', keywordsKey: `${K}.active_files` }),
+  field('general.sequential_packages', 'general', 'settings.sequential_packages.label', { descriptionKey: 'settings.sequential_packages.description' }),
   field('general.connections_per_host', 'general', 'settings.connections_per_host.label', { descriptionKey: 'settings.connections_per_host.description' }),
   field('general.retries', 'general', 'settings.retries.label', { descriptionKey: 'settings.retries.description' }),
   field('general.retry_stages', 'general', 'settings.retry_middle.label', { descriptionKey: 'settings.retry_middle.description', terms: ['503'] }),

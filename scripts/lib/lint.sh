@@ -146,3 +146,115 @@ rd_check_gate() {
     echo "==> all requested checks passed"
     exit 0
 }
+
+# --- check.sh --full's lint: from the last clippy green to this tree (RD-1410-04) ---------------
+#
+# --full runs no whole-workspace lint; the integration gate records `clippy` for the gate's tree.
+# A release starts from a later tree: release-start.sh wants the migration baselines committed
+# (scripts/migration-baselines.sh, two lines under crates/rd-db/tests/database/), and after a
+# lockfile change integrate.sh regenerates the licence list once the gate is through. The --full
+# on that tree is the one run it gets, and it linted nothing, so no `clippy` green ever covered the
+# tree before the bump, and the release chain's clippy step (rd_prebump_reuse) ran the whole
+# workspace in every release from 1.38.0 to 1.40.1.
+#
+# So --full lints what changed since the closest recorded clippy green: placed as the reuse per
+# crate places it (lib/crate-graph.sh, rd_crate_demands), a member's own targets for its test code,
+# the whole reverse hull of a member whose library changed, and records the `clippy` half for the
+# tree when that passed. A wide path (a manifest, the lock file, rd-core, a build script, ...), a
+# hull that takes in rd-api (whose integration binaries are never linted all at once), or rd-api
+# test code outside tests/<binary>/ leaves it as before: nothing linted, a skip. The limits are the
+# reuse per crate's: features are unified over the selected members, not the workspace.
+
+# Files a Rust source reads as data only (include_str! of text parsed at run time): their content
+# cannot change what clippy says, so the bridge passes them over. The licence list, which
+# integrate.sh writes after the gate.
+RD_LINT_NEUTRAL_FILES=(crates/rd-api/licenses/third-party.json)
+
+# What --full lints for tree $2 of checkout $1, the working directory at that checkout: the
+# recorded clippy green it builds on on the first line, then one `cargo clippy` selection per line
+# (`-p <package>... --all-targets`, `-p rd-api --test <binary>...`). Only the first line when a
+# green covers the tree (rd_full_covering) or what changed is data RD_LINT_NEUTRAL_FILES names;
+# nothing when no green of the newest RD_FULL_CANDIDATES_MAX is within reach.
+rd_lint_bridge_plan() {
+    local checkout="$1" tree="$2" candidate compared=0 covered
+    [[ -n "$tree" ]] || return 0
+    covered="$(rd_full_covering "$checkout" clippy "$tree")"
+    if [[ -n "$covered" ]]; then
+        printf '%s\n' "$covered"
+        return 0
+    fi
+    rd_crate_load_graph
+    while IFS= read -r candidate; do
+        [[ -n "$candidate" ]] || continue
+        [[ "$compared" -lt "$RD_FULL_CANDIDATES_MAX" ]] || return 0
+        compared=$((compared + 1))
+        rd_lint_bridge_from "$checkout" "$candidate" "$tree" && return 0
+    done < <(rd_full_recorded "$checkout" clippy)
+    return 0
+}
+
+# rd_lint_bridge_plan's answer for the clippy green of tree $2 against tree $3 of checkout $1;
+# fails, printing nothing, when that green is out of reach. Needs rd_crate_load_graph.
+rd_lint_bridge_from() {
+    local checkout="$1" green="$2" tree="$3" paths demands kind package path
+    local -a demanded=() hull=() own=() binaries=() selected=()
+    paths="$(git -C "$checkout" diff --no-renames --name-only "$green" "$tree" 2> /dev/null)" || return 1
+    paths="$(rd_paths_read_by clippy <<< "$paths" \
+        | grep -vxF -f <(printf '%s\n' "${RD_LINT_NEUTRAL_FILES[@]}") || true)"
+    if [[ -n "$paths" ]]; then
+        rd_crate_first_wide <<< "$paths"
+        [[ -z "$RD_CRATE_FIRST_WIDE" ]] || return 1
+        demands="$(RD_CRATE_FROM="$green" RD_CRATE_TO="$tree" rd_crate_demands <<< "$paths")"
+        ! grep -q '^wide ' <<< "$demands" || return 1
+        mapfile -t demanded < <(sed -n 's/^hull \([^ ]*\) .*/\1/p' <<< "$demands" | LC_ALL=C sort -u)
+        mapfile -t hull < <(rd_crate_reverse_hull "${demanded[@]+"${demanded[@]}"}")
+        ! printf '%s\n' "${hull[@]+"${hull[@]}"}" | grep -qx rd-api || return 1
+        while read -r kind package path _; do
+            [[ "$kind" == own ]] || continue
+            if [[ "$package" != rd-api ]]; then
+                own+=("$package")
+            elif [[ "$path" =~ ^crates/rd-api/tests/([^/]+)/ && -f "crates/rd-api/tests/${BASH_REMATCH[1]}/main.rs" ]]; then
+                binaries+=("${BASH_REMATCH[1]}")
+            else
+                return 1
+            fi
+        done <<< "$demands"
+    fi
+    printf '%s\n' "$green"
+    mapfile -t selected < <(printf '%s\n' "${hull[@]+"${hull[@]}"}" "${own[@]+"${own[@]}"}" | sed '/^$/d' | LC_ALL=C sort -u)
+    if [[ ${#selected[@]} -gt 0 ]]; then
+        printf -- '-p %s ' "${selected[@]}"
+        echo "--all-targets"
+    fi
+    if [[ ${#binaries[@]} -gt 0 ]]; then
+        mapfile -t binaries < <(printf '%s\n' "${binaries[@]}" | LC_ALL=C sort -u)
+        printf -- '-p rd-api'
+        printf -- ' --test %s' "${binaries[@]}"
+        echo
+    fi
+}
+
+# check.sh --full's lint for tree $1 (above): each selection of rd_lint_bridge_plan a stage, the
+# `clippy` half recorded for the tree when all passed; a skip when no green is within reach. Needs
+# check.sh's ROOT and JOBS, lib/stages.sh, lib/verified.sh, lib/scope.sh and lib/crate-graph.sh,
+# and the working directory at the checkout root.
+rd_lint_full() {
+    local tree="$1" plan green line failed_before=${#failed_stages[@]}
+    local -a lines=() args=()
+    plan="$(rd_lint_bridge_plan "$ROOT" "$tree")"
+    if [[ -z "$plan" ]]; then
+        skip "clippy" "no recorded clippy green is within reach of a lint per crate; scripts/check.sh --gate (integrate.sh) and CI's rust job lint the workspace, --clippy-all here"
+        return 0
+    fi
+    mapfile -t lines <<< "$plan"
+    green="${lines[0]}"
+    for line in "${lines[@]:1}"; do
+        read -ra args <<< "$line"
+        step "clippy on ${args[*]}: what changed since the clippy green of tree ${green:0:12}"
+        attempt env CARGO_BUILD_JOBS="$JOBS" cargo clippy "${args[@]}" --all-features -j "$JOBS" -- -D warnings
+    done
+    [[ ${#failed_stages[@]} -eq "$failed_before" ]] || return 0
+    [[ ${#lines[@]} -gt 1 ]] || echo "==> clippy: the green of tree ${green:0:12} covers this tree; nothing to lint"
+    rd_record_full "$ROOT" clippy "$tree"
+    echo "    recorded the clippy green for tree ${tree:0:12} in $(rd_full_marker "$ROOT")"
+}

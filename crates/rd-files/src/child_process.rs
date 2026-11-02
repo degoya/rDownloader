@@ -146,6 +146,23 @@ impl NoConsoleWindow for std::process::Command {
     }
 }
 
+/// Keeps this process's own standard handles from every program it starts afterwards: on Windows
+/// a child receives each inheritable handle of its parent, not only the standard handles it is
+/// given, so a long-running child held its caller's output pipe open
+/// (`rdownloader-capture start-service | Out-Host` never returned, RD-1410-02). Elsewhere a
+/// no-op: the standard library opens every descriptor close-on-exec, and a child gets only the
+/// three it is given.
+///
+/// # Errors
+///
+/// When Windows refuses to change one of the handles; a caller that only starts a program goes
+/// on without it.
+pub fn keep_standard_handles_from_children() -> std::io::Result<()> {
+    #[cfg(windows)]
+    rd_win32::keep_standard_handles_from_children()?;
+    Ok(())
+}
+
 /// Reads `reader` to its end and keeps the last `limit` bytes of it.
 ///
 /// Everything before is read and dropped rather than left in the pipe, so a chatty program

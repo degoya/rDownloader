@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.40.1"
+    "version": "1.41.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -41635,6 +41635,11 @@
             ],
             "description": "Absolute scripts directory; empty = `scripts` next to the database.",
             "default": null
+          },
+          "sequential_packages": {
+            "type": "boolean",
+            "description": "Package by package (RD-1410-01): a file starts only while no package ahead of its own in\nthe list still has a waiting file, queued or waiting for its retry. Off by default; on, a\nfirst package that waits (a hoster's limit, used-up traffic) holds the whole list.",
+            "default": false
           },
           "session_idle_hours": {
             "type": "integer",

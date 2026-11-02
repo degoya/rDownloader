@@ -23,7 +23,7 @@ import common from '@/locales/en/common.json'
 
 import { uiStubs } from './stubs'
 
-export { fileUpload, listViewStubs, modelInput, openablePopover, passthrough, uiStubs, unitOf } from './stubs'
+export { contextMenu, fileUpload, listViewStubs, modelInput, openablePopover, passthrough, uiStubs, unitOf } from './stubs'
 
 /**
  * An i18n instance over the English catalogues a test names. `common` is always present

@@ -358,9 +358,11 @@ if [[ "$run_rust" -eq 1 ]]; then
             attempt env CARGO_BUILD_JOBS="$JOBS" cargo clippy "${args[@]}" -j "$JOBS" -- -D warnings
         fi
     elif [[ "$full" -eq 1 ]]; then
-        # Named as a skip rather than passed over (RD-1100-13): a --full green says nothing about
-        # the lint, and reading it as if it did is how a lint finding reaches GitHub.
-        skip "clippy" "--full lints nothing; scripts/check.sh --gate (integrate.sh) and CI's rust job lint the workspace, --clippy-all here"
+        # Not the workspace: what changed since the closest clippy green, recorded as `clippy` for
+        # this tree — the release chain's clippy step reuses it after the bump (RD-1410-04,
+        # lib/lint.sh). Without such a green a skip, named rather than passed over (RD-1100-13):
+        # reading a --full green as a lint is how a lint finding reaches GitHub.
+        rd_lint_full "$full_tree"
     else
         skip "clippy" "no crate in the change set; --clippy <crates> or --clippy-all lints anyway"
     fi

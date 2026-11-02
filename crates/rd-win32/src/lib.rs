@@ -29,6 +29,8 @@ mod power;
 mod security;
 #[cfg(windows)]
 mod shortcut;
+#[cfg(windows)]
+mod stdio;
 
 #[cfg(windows)]
 pub use desktop::{process_names, user_notification_state};
@@ -38,3 +40,5 @@ pub use power::{ExecutionStateHold, suspend};
 pub use security::{current_user_sid, dacl_sddl, set_protected_dacl};
 #[cfg(windows)]
 pub use shortcut::{KnownFolder, Shortcut, known_folder, write_shortcut};
+#[cfg(windows)]
+pub use stdio::keep_standard_handles_from_children;

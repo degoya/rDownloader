@@ -44,7 +44,9 @@ const components = {
   USelect: passthrough,
   // The dropdown rendered open: its items real buttons inside a marker, so a test can tell
   // "beside the row" from "under the dots".
-  UDropdownMenu: uiStubs.UDropdownMenu
+  UDropdownMenu: uiStubs.UDropdownMenu,
+  // No element of its own: the row is its trigger and takes the class the view hands it.
+  UContextMenu: uiStubs.UContextMenu
 }
 
 function candidate(

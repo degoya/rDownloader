@@ -76,13 +76,24 @@ public_ci="$(status_value public-ci)"
 grep -qx '==> all requested checks passed' "$logs/check.log" || die "check.log lacks its closing line '==> all requested checks passed'"
 
 # check.log: the commit of the recorded green, the tree of the --full green, then the counts in
-# the order the stages ran, as the hand-written lines of 1.26 named them.
+# the order the stages ran, as the hand-written lines of 1.26 named them. A --full that a recorded
+# green covers whole (lib/verified.sh, rd_full_already_green: "a recorded green already covers this
+# content", each half's tree, "recorded for tree …") ran no stage and has no Summary line: its
+# evidence is the covering green, named by tree; so is a half that lib/check-reuse.sh skipped
+# ("the whole Rust half — a recorded green covers it (tree …").
 summary="$(awk '
     function add(key, value) {
         if (!(key in count)) { order[++keys] = key; count[key] = value } else count[key] = count[key] " + " value
     }
+    function cover(half, recorded) { covering[tolower(half)] = recorded }
     /^==> recorded green at / { commit = $5; next }
     /^==> recorded a --full green for tree / { tree = $8; next }
+    /^==> a recorded green already covers this content / { covered = 1; next }
+    covered && /^    (rust|web): tree [0-9a-f]+,/ { recorded = $3; sub(/,$/, "", recorded); cover(substr($1, 1, length($1) - 1), recorded); next }
+    covered && /^    recorded for tree [0-9a-f]+ / { tree = $4; next }
+    /^    - the whole (Rust|web) half — a recorded green covers it \(tree [0-9a-f]+/ {
+        recorded = substr($0, index($0, "(tree ") + 6); sub(/[^0-9a-f].*/, "", recorded); cover($4, recorded); next
+    }
     /^==> / {
         header = substr($0, 5)
         if (header == "pnpm run typecheck:full") typecheck = 1
@@ -112,9 +123,19 @@ summary="$(awk '
         if (vitest != "") line = line (line == "" ? "" : "; ") "Vitest " vitest
         if (extension != "") line = line (line == "" ? "" : "; ") "Erweiterung " extension
         if (typecheck) line = line (line == "" ? "" : "; ") "`typecheck:full`"
+        halves = ""
+        if ("rust" in covering) halves = "Rust-Hälfte Baum " covering["rust"]
+        if ("web" in covering) halves = halves (halves == "" ? "" : ", ") "Web-Hälfte Baum " covering["web"]
+        if (halves != "") line = line (line == "" ? "" : "; ") "abgedeckt vom aufgezeichneten Grün: " halves
         print line
     }' "$logs/check.log")"
-{ read -r commit; read -r short_tree; read -r counts; } <<< "$summary"
+# Three lines, the empty ones at the end cut off by the command substitution: mapfile, not three
+# `read`s — the one that met the end returned 1 and set -e ended the script before the reasons
+# below (RD-1410-02).
+mapfile -t fields <<< "$summary"
+commit="${fields[0]-}"
+short_tree="${fields[1]-}"
+counts="${fields[2]-}"
 [[ -n "$commit" ]] || die "check.log records no green commit ('==> recorded green at …')"
 [[ -n "$short_tree" ]] || die "check.log records no --full green ('==> recorded a --full green for tree …')"
 [[ -n "$counts" ]] || die "check.log carries no Summary line"

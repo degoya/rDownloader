@@ -1401,5 +1401,9 @@
   "package_reset_delete_extracted": {
     "label": "Beim Zurücksetzen Entpacktes löschen",
     "description": "„Paket komplett zurücksetzen“ löscht auch, was das Entpacken dieses Pakets erzeugt hat. Aus: die entpackten Ergebnisse bleiben liegen, nur die Downloads selbst werden verworfen."
+  },
+  "sequential_packages": {
+    "label": "Paket für Paket",
+    "description": "Ein Download startet erst, wenn kein Paket weiter oben in der Liste noch eine wartende Datei hat. Der Preis: Wartet das erste Paket – auf ein Hoster-Limit oder verbrauchten Traffic –, wartet die ganze Liste mit. Einschalten stoppt nichts, was schon läuft."
   }
 }

@@ -1,7 +1,7 @@
 plugin_type = "crawler"
 id = "019d0000-0000-7000-8000-000000000133"
 name = "MEGA folders"
-version = "0.1.16"
+version = "0.1.17"
 
 # Only the command endpoint: a folder listing is one call and names no storage node.
 [capabilities.net_http]

@@ -14,6 +14,8 @@ use crate::{BlockReason, ExternalRunner, SchedulerHandle, rates, worker};
 
 #[path = "dispatch_admission.rs"]
 mod admission;
+#[path = "dispatch_order.rs"]
+mod order;
 #[path = "dispatch_selection.rs"]
 mod selection;
 
@@ -183,7 +185,16 @@ impl SchedulerHandle {
         // Places kept by files further up the list whose retry is close: no file after them
         // takes one (RD-1250-07).
         let mut kept = 0_usize;
+        // Package by package, when the setting is on (RD-1410-01): `dispatch_order.rs`.
+        let mut order = self
+            .package_order(&files, |file| {
+                not_due.contains(&file.package_id) || gate.holds(file)
+            })
+            .await;
         for file in files {
+            if let Some(order) = order.as_mut() {
+                order.look_at(&file);
+            }
             if not_due.contains(&file.package_id) || gate.holds(&file) {
                 continue;
             }
@@ -196,6 +207,11 @@ impl SchedulerHandle {
                     continue;
                 }
                 Turn::Waits => continue,
+            }
+            if order.as_ref().is_some_and(|order| !order.admits(&file))
+                && self.takes_a_counted_place(file.kind)
+            {
+                continue;
             }
             if !self
                 .may_start(&file, now, &destinations, &mut groups, &mut blocked_kinds)
@@ -236,6 +252,9 @@ impl SchedulerHandle {
                     continue;
                 }
                 Claim::Claimed => {}
+            }
+            if let Some(order) = order.as_mut() {
+                order.started(file.id);
             }
             let scheduler = self.clone();
             tokio::spawn(async move {

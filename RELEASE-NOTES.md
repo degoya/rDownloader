@@ -12,9 +12,14 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.41.0
+## 1.42.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.41.0
+
+- A new setting, "Package by package", finishes one package before the next begins; it is off by default and found beside the simultaneous downloads.
+- On Windows, starting the service from the capture agent's command line now returns at once instead of waiting for as long as the service runs.
 
 ## 1.40.1
 

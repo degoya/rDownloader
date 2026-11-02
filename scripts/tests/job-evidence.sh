@@ -52,7 +52,8 @@ OTHER_TREE="$(git -C "$TREE" rev-parse 'HEAD~2^{tree}')"
 
 LOGS="$SCRATCH/integration-1.99-w1"
 fill() {
-    sed -e "s/@COMMIT@/$COMMIT/g" -e "s/@TREE@/${TREE_ID:0:12}/g" -e "s/@GENERATORS@/$COMMIT/g" "$1"
+    sed -e "s/@COMMIT@/$COMMIT/g" -e "s/@TREE@/${TREE_ID:0:12}/g" -e "s/@OTHER@/${OTHER_TREE:0:12}/g" \
+        -e "s/@GENERATORS@/$COMMIT/g" "$1"
 }
 reset_logs() {
     rm -rf "$LOGS"
@@ -128,6 +129,14 @@ sed -i '/^ubuntu-24.04 /d' "$TREE/.git/rd-verified-ci"
 refused "no Linux green on GitHub and none local" "no GitHub green on Linux and Windows recorded" 1299-01
 sed -i "s/recorded green at $COMMIT/recorded green at 0123456789ab/" "$LOGS/check.log"
 refused "a commit this repository does not have" "is not in" 1299-01
+# A check.log short of its last lines: each refusal names its reason, no silent exit 1 (RD-1410-02).
+grep -E '^==> (recorded|all requested)' "$LOGS/check.log" > "$SCRATCH/check.log"
+cp "$SCRATCH/check.log" "$LOGS/check.log"
+refused "check.log without a Summary line" "carries no Summary line" 1299-01
+grep -Ev '^==> recorded a --full green' "$SCRATCH/check.log" > "$LOGS/check.log"
+refused "check.log without a --full green" "records no --full green" 1299-01
+grep -x '==> all requested checks passed' "$SCRATCH/check.log" > "$LOGS/check.log"
+refused "check.log without a recorded green" "records no green commit" 1299-01
 refused "an unknown job" "RD-1299-09: 0 job files match" 1299-01 1299-09
 refused "RD-1120-24 itself" "collects the open boxes" 1120-24
 refused "no job id" "not a job id: alpha" alpha
@@ -161,6 +170,32 @@ if [[ "$line" == *", GitHub CI 123456 grün auf windows-2025, Linux durch das lo
     ok "the evidence line says so"
 else
     fail "the evidence line says so" "$line"
+fi
+
+# --- a --full a recorded green covered whole: its evidence is that green (RD-1410-02) -----------
+reset_logs
+for file in "$FIXTURES"/jobs/*.in; do cp "$file" "$JOBS/$(basename "${file%.in}")"; done
+fill "$FIXTURES/logs/check-covered.log" > "$LOGS/check.log"
+run_status evidence 1299-02
+expect_status "a --full covered by a recorded green" 0
+line="$(grep '^— Nachweis der Welle' "$JOBS/1299-02-beta.md" | tail -1)"
+if [[ "$line" == *"\`scripts/check.sh --full\` grün (abgedeckt vom aufgezeichneten Grün: Rust-Hälfte Baum ${OTHER_TREE:0:12}, Web-Hälfte Baum ${TREE_ID:0:12})"* ]]; then
+    ok "the evidence line names the covering green"
+else
+    fail "the evidence line names the covering green" "$line"
+fi
+
+# --- a half skipped as covered: the counts of the other, and the green of the skipped one -------
+reset_logs
+for file in "$FIXTURES"/jobs/*.in; do cp "$file" "$JOBS/$(basename "${file%.in}")"; done
+sed -i "/^==> recorded a --full green/i ==> skipped, and why\n    - the whole Rust half — a recorded green covers it (tree ${OTHER_TREE:0:12}, documentation changed since)" "$LOGS/check.log"
+run_status evidence 1299-02
+expect_status "a --full whose Rust half a recorded green covered" 0
+line="$(grep '^— Nachweis der Welle' "$JOBS/1299-02-beta.md" | tail -1)"
+if [[ "$line" == *"; \`typecheck:full\`; abgedeckt vom aufgezeichneten Grün: Rust-Hälfte Baum ${OTHER_TREE:0:12})"* ]]; then
+    ok "the evidence line names the counts and the covering green"
+else
+    fail "the evidence line names the counts and the covering green" "$line"
 fi
 
 finish_tests "job-evidence"

@@ -7,11 +7,13 @@ import { isNumber } from '@/utils/numberInput'
  * The settings document as the view holds it before the service has answered: every field the
  * tabs bind to, so no tab reads an undefined value while the first request is in flight.
  * Only the shape matters here; the values the service reports replace all of it.
- * `RestartSettings` names `restart_when_needed` (RD-1240-32) until the schema is regenerated.
+ * `RestartSettings` names `restart_when_needed` (RD-1240-32), and the return type
+ * `sequential_packages` (RD-1410-01), until the schema is regenerated.
  */
-export function defaultSettings(): RestartSettings {
+export function defaultSettings(): RestartSettings & { sequential_packages: boolean } {
   return {
     max_active_files: 3,
+    sequential_packages: false,
     max_chunks_per_file: 4,
     max_connections_per_host: 6,
     nntp_connections_per_file: 0,

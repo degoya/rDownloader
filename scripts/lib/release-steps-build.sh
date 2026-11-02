@@ -147,9 +147,10 @@ rd_prebump_reuse() {
 
 # Deliberately the full workspace, deliberately alone, deliberately at 2 jobs. AGENTS.md calls
 # this the run that has needed a hard restart; nothing else is running beside it here. Not again
-# after a bump of version lines only when a `clippy` green — the integration gate's, or
-# check.sh --clippy-all's — covers the tree before it (RD-1120-06, audit A5); its own green is
-# recorded as that half.
+# after a bump of version lines only when a `clippy` green covers the tree before it (RD-1120-06,
+# audit A5): the one check.sh --full records there, linting what changed since the integration
+# gate's green — the migration baselines above all (lib/lint.sh, RD-1410-04) — or --clippy-all's.
+# Its own green is recorded as that half.
 step_clippy() {
     rd_prebump_reuse clippy "workspace clippy" && return 0
     local tree; tree="$(rd_worktree_tree "$ROOT")"

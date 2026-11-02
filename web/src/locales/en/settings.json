@@ -1401,5 +1401,9 @@
   "package_reset_delete_extracted": {
     "label": "Delete unpacked results on a package reset",
     "description": "“Reset the package completely” also deletes what unpacking that package made. Off: the unpacked results stay and only the downloads themselves are discarded."
+  },
+  "sequential_packages": {
+    "label": "Package by package",
+    "description": "A download starts only once no package above it in the list still has a file waiting. The price: if the first package waits — for a hoster's limit or used-up traffic — the whole list waits with it. Switching it on stops nothing that is already running."
   }
 }

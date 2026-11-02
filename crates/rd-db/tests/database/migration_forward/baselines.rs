@@ -39,8 +39,8 @@ macro_rules! every_release_baseline {
 }
 
 every_release_baseline! {
-    the_1_39_1_baseline_upgrades_with_its_queue_intact => "1.39.1",
     the_1_40_1_baseline_upgrades_with_its_queue_intact => "1.40.1",
+    the_1_41_0_baseline_upgrades_with_its_queue_intact => "1.41.0",
 }
 
 /// A row added to BASELINES gets its test above; without this it would upgrade nowhere.

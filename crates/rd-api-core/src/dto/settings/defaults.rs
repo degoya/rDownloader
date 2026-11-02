@@ -49,6 +49,7 @@ impl Default for SettingsResponse {
     fn default() -> Self {
         Self {
             max_active_files: 3,
+            sequential_packages: false,
             max_chunks_per_file: 4,
             log_retention_records: default_log_retention_records(),
             log_retention_days: default_log_retention_days(),

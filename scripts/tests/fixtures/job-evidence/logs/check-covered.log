@@ -1,0 +1,9 @@
+==> a recorded green already covers this content (rust web); it is not run again
+    rust: tree @OTHER@, documentation changed since
+    web: tree @TREE@, this very content
+    recorded for tree @TREE@ in /x/target/.rd-verified-full/%x%integration-1.99-w1
+    (--again runs it anyway)
+==> recorded green at @COMMIT@ in /x/target/.rd-verified/%x%integration-1.99-w1
+
+==> all requested checks passed
+REAL EXIT: 0

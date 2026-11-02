@@ -124,6 +124,7 @@ impl SchedulerHandle {
             external_parallel_files: Arc::new(AtomicUsize::new(config.external_parallel_files)),
             generate_sha256: Arc::new(AtomicBool::new(true)),
             pause_during_postprocess: Arc::new(AtomicBool::new(true)),
+            sequential_packages: Arc::new(AtomicBool::new(false)),
             auto_retry_failed: Arc::new(AtomicBool::new(false)),
             auto_retry_interval_hours: Arc::new(AtomicU32::new(DEFAULT_AUTO_RETRY_INTERVAL_HOURS)),
             auto_retry_max_rounds: Arc::new(AtomicU32::new(DEFAULT_AUTO_RETRY_MAX_ROUNDS)),

@@ -1401,5 +1401,9 @@
   "package_reset_delete_extracted": {
     "label": "Eliminar lo extraído al restablecer un paquete",
     "description": "«Restablecer el paquete por completo» también elimina lo que creó la extracción de ese paquete. Desactivado: los resultados extraídos se conservan y solo se descartan las descargas."
+  },
+  "sequential_packages": {
+    "label": "Paquete por paquete",
+    "description": "Una descarga solo empieza cuando ningún paquete por encima en la lista tiene aún un archivo en espera. El precio: si el primer paquete espera (un límite del hoster o el tráfico agotado), toda la lista espera con él. Activarlo no detiene nada de lo que ya está en curso."
   }
 }

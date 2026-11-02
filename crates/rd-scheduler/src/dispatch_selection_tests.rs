@@ -51,7 +51,7 @@ impl ExternalRunner for Holding {
 }
 
 /// A scheduler with `parallel` places whose supervisor starts nothing.
-async fn queue(directory: &Path, parallel: usize) -> (SchedulerHandle, rd_db::Database) {
+pub(crate) async fn queue(directory: &Path, parallel: usize) -> (SchedulerHandle, rd_db::Database) {
     let database = rd_db::Database::open(directory.join("order.sqlite3"))
         .await
         .expect("database");
@@ -124,7 +124,7 @@ async fn packages(
 }
 
 /// The attempt on `file` failed with `category` and waits until `at`.
-async fn waits(
+pub(crate) async fn waits(
     database: &rd_db::Database,
     file: &DownloadFile,
     category: FailureKind,
@@ -136,14 +136,14 @@ async fn waits(
         .expect("failure");
 }
 
-async fn pass(scheduler: &SchedulerHandle, now: DateTime<Utc>) {
+pub(crate) async fn pass(scheduler: &SchedulerHandle, now: DateTime<Utc>) {
     scheduler
         .dispatch_pass(now, &mut HashMap::new())
         .await
         .expect("pass");
 }
 
-async fn running(scheduler: &SchedulerHandle) -> HashSet<DownloadId> {
+pub(crate) async fn running(scheduler: &SchedulerHandle) -> HashSet<DownloadId> {
     scheduler
         .active
         .lock()

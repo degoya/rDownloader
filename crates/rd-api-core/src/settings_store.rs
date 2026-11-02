@@ -48,6 +48,7 @@ pub fn runtime_settings(settings: &SettingsResponse) -> rd_scheduler::RuntimeSet
         retry_middle_attempts: settings.retry_middle_attempts,
         retry_long_wait_minutes: settings.retry_long_wait_minutes,
         pause_during_postprocess: settings.pause_during_postprocess,
+        sequential_packages: settings.sequential_packages,
         auto_retry_failed: settings.auto_retry_failed,
         auto_retry_interval_hours: settings.auto_retry_interval_hours,
         auto_retry_max_rounds: settings.auto_retry_max_rounds,
@@ -78,6 +79,7 @@ pub const RUNTIME_FIELDS: &[&str] = &[
     "retry_middle_attempts",
     "retry_long_wait_minutes",
     "pause_during_postprocess",
+    "sequential_packages",
     "auto_retry_failed",
     "auto_retry_interval_hours",
     "auto_retry_max_rounds",
@@ -313,6 +315,23 @@ mod tests {
             let refused = startup_settings_of(Some(&blob)).err().expect("refused");
             assert_eq!(refused.field.as_deref(), Some(field));
         }
+    }
+
+    /// RD-1410-01: package by package is off by default, reaches the scheduler when stored, and
+    /// a stored value that is no boolean refuses the start by name.
+    #[test]
+    fn package_by_package_is_off_by_default_and_part_of_the_runtime_slice() {
+        let (settings, runtime) = startup_settings_of(None).expect("defaults");
+        assert!(!settings.sequential_packages);
+        assert!(!runtime.sequential_packages);
+
+        let blob = serde_json::json!({ "sequential_packages": true });
+        let (_, runtime) = startup_settings_of(Some(&blob)).expect("valid");
+        assert!(runtime.sequential_packages);
+
+        let blob = serde_json::json!({ "sequential_packages": "yes" });
+        let refused = startup_settings_of(Some(&blob)).err().expect("refused");
+        assert_eq!(refused.field.as_deref(), Some("sequential_packages"));
     }
 
     /// RD-191-13: the NZB hand-over is shown in the LinkGrabber and in the Downloads view

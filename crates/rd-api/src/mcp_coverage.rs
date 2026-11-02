@@ -185,6 +185,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
     // RD-1140-01: `unwrap_package_folder` the same way, plus create/update_category.
     // RD-1190-14: `account_traffic_action` and `account_traffic_overrides` the same way; the
     // accounts held for their traffic are read with get_queue_pause.
+    // RD-1410-01: `sequential_packages` (package by package) the same way, named in
+    // get_settings' description.
     covered(
         "The settings document",
         "Settings",

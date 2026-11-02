@@ -24,7 +24,9 @@ pub const MSI_SUCCESS: [i32; 3] = [0, 3010, 1641];
 /// Starts `program` in `cwd`, detached from this process — its own process group on Unix; on
 /// Windows a group and a hidden console of its own, outside the caller's job where Windows allows
 /// it — so it outlives the process that started it and a Ctrl-C meant for that one does not reach
-/// it. Standard output and error are appended to the two files.
+/// it. Standard output and error are appended to the two files, and on Windows it gets none of
+/// the caller's own standard handles either (RD-1410-02): a caller's pipe it held open kept
+/// `… | Out-Host` waiting for as long as it ran.
 ///
 /// A hidden console, not none (1.8.0 live finding): a process started without a console
 /// (`DETACHED_PROCESS`) hands none to the console programs it starts, so each of them — every
@@ -50,6 +52,8 @@ pub fn spawn_detached<S: AsRef<OsStr>>(
             .open(path)
             .with_context(|| format!("open {}", path.display()))
     };
+    // Best effort: a handle Windows will not change costs the caller's pipe, never the start.
+    let _ = rd_files::keep_standard_handles_from_children();
     let mut command = Command::new(program);
     command
         .args(args)

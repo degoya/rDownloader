@@ -1,7 +1,7 @@
 plugin_type = "stream-transform"
 id = "019d0000-0000-7000-8000-000000000132"
 name = "MEGA"
-version = "0.1.16"
+version = "0.1.17"
 
 # MEGA's file key is the fragment of the link (ADR 0011). Declaring the hosts here is what
 # keeps the key out of the candidate row and in the vault instead of being dropped with the

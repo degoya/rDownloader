@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * The queue and its retries (RD-1120-21; their stages after the fast five, RD-1340-01): the NNTP limits went to *Usenet*, the speed and upload
+ * The queue, its order (package by package, RD-1410-01) and its retries (RD-1120-21; their stages after the fast five, RD-1340-01): the NNTP limits went to *Usenet*, the speed and upload
  * limits to *Bandwidth*, the storage capacity to *Storage & rules*, the UI port and the admin
  * login to *Security*. Mirror detection went to the *LinkGrabber* page and the import history to
  * *System › Logs & retention* (RD-1120-23). The SHA-256 stays: the scheduler computes it for each
  * file as the transfer finishes, before a package reaches post-processing.
  */
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Settings } from '@/api/types'
@@ -16,6 +17,13 @@ import { WHOLE } from '@/utils/numberInput'
 
 const settings = defineModel<Settings>({ required: true })
 const { t } = useI18n()
+
+/** Package by package (RD-1410-01); the field is named by hand until the schema is regenerated. */
+type QueueOrderSettings = Settings & { sequential_packages?: boolean }
+const sequentialPackages = computed({
+  get: () => (settings.value as QueueOrderSettings).sequential_packages ?? false,
+  set: (on: boolean) => { (settings.value as QueueOrderSettings).sequential_packages = on }
+})
 </script>
 
 <template>
@@ -31,6 +39,9 @@ const { t } = useI18n()
     <UCard as="section" :ui="{ body: 'grid gap-4' }">
       <UFormField data-settings-anchor="general.active_files" :label="t('settings.active_files.label')" :description="t('settings.active_files.description')">
         <UInputNumber v-model="settings.max_active_files" required :min="1" :max="32" :format-options="WHOLE" increment decrement class="mt-2 w-full" />
+      </UFormField>
+      <UFormField data-settings-anchor="general.sequential_packages" :label="t('settings.sequential_packages.label')" :description="t('settings.sequential_packages.description')" orientation="horizontal">
+        <USwitch v-model="sequentialPackages" data-testid="sequential-packages-switch" />
       </UFormField>
       <UFormField :label="t('settings.chunks.label')" :description="t('settings.chunks.description')">
         <UInputNumber v-model="settings.max_chunks_per_file" required :min="1" :max="16" :format-options="WHOLE" increment decrement class="mt-2 w-full" />

@@ -16331,6 +16331,13 @@ export interface components {
              */
             scripts_directory: string | null;
             /**
+             * @description Package by package (RD-1410-01): a file starts only while no package ahead of its own in
+             *     the list still has a waiting file, queued or waiting for its retry. Off by default; on, a
+             *     first package that waits (a hoster's limit, used-up traffic) holds the whole list.
+             * @default false
+             */
+            sequential_packages: boolean;
+            /**
              * Format: int32
              * @description Hours without a request after which a sign-in ends (RD-130-09); 1 to 720.
              * @default 12

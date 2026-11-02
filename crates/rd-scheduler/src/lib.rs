@@ -18,6 +18,8 @@ mod content_index;
 mod control;
 mod dispatch;
 #[cfg(test)]
+mod dispatch_order_tests;
+#[cfg(test)]
 mod dispatch_selection_tests;
 #[cfg(test)]
 mod dispatch_tests;
@@ -161,6 +163,9 @@ pub struct RuntimeSettings {
     pub retry_long_wait_minutes: u32,
     /// Hold new downloads while a package is post-processing.
     pub pause_during_postprocess: bool,
+    /// Package by package (RD-1410-01): a file that takes a counted place starts only while no
+    /// package ahead of its own still has a waiting file.
+    pub sequential_packages: bool,
     /// Put failed downloads whose failure may pass later back into the queue (RD-191-12).
     pub auto_retry_failed: bool,
     /// Hours between a failure and its automatic retry, [`MIN_AUTO_RETRY_INTERVAL_HOURS`] to
@@ -214,6 +219,7 @@ impl Default for RuntimeSettings {
             global_proxy_profile_id: None,
             custom_ca_pem: None,
             pause_during_postprocess: true,
+            sequential_packages: false,
             auto_retry_failed: false,
             auto_retry_interval_hours: DEFAULT_AUTO_RETRY_INTERVAL_HOURS,
             auto_retry_max_rounds: DEFAULT_AUTO_RETRY_MAX_ROUNDS,
@@ -275,6 +281,8 @@ pub struct SchedulerHandle {
     retry_long_wait_minutes: Arc<AtomicU32>,
     generate_sha256: Arc<AtomicBool>,
     pause_during_postprocess: Arc<AtomicBool>,
+    /// Package by package (RD-1410-01); see `dispatch_order.rs`.
+    sequential_packages: Arc<AtomicBool>,
     /// The automatic retry of failed downloads (RD-191-12); see `auto_retry.rs`.
     auto_retry_failed: Arc<AtomicBool>,
     auto_retry_interval_hours: Arc<AtomicU32>,

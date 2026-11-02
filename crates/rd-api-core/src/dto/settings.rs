@@ -13,6 +13,11 @@ pub use defaults::{MAX_RETENTION_DAYS, MIN_HOURLY_DAYS, MIN_RETENTION_DAYS};
 #[serde(default)]
 pub struct SettingsResponse {
     pub max_active_files: u32,
+    /// Package by package (RD-1410-01): a file starts only while no package ahead of its own in
+    /// the list still has a waiting file, queued or waiting for its retry. Off by default; on, a
+    /// first package that waits (a hoster's limit, used-up traffic) holds the whole list.
+    #[serde(default)]
+    pub sequential_packages: bool,
     pub max_chunks_per_file: u32,
     /// Simultaneous connections one host may see across all running transfers; `0` lifts
     /// the limit entirely.

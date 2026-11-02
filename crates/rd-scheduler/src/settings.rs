@@ -98,6 +98,8 @@ impl SchedulerHandle {
             .store(settings.generate_sha256, Ordering::Release);
         self.pause_during_postprocess
             .store(settings.pause_during_postprocess, Ordering::Release);
+        self.sequential_packages
+            .store(settings.sequential_packages, Ordering::Release);
         self.auto_retry_failed
             .store(settings.auto_retry_failed, Ordering::Release);
         self.auto_retry_interval_hours

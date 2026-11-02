@@ -70,6 +70,12 @@ pub fn enter_autostart(target: Target) -> Result<AutostartLogs> {
 /// argument, its registration's working folder, its output appended to its log files, no console
 /// window on Windows. Returns once it is started; it is not waited for.
 ///
+/// The program gets none of the caller's standard handles: its input is the null device, its
+/// output goes to its log files, and on Windows the caller's own standard handles are made
+/// non-inheritable first — a Windows child receives every inheritable handle, and a caller's
+/// pipe the service held open kept `rdownloader-capture start-service | Out-Host` waiting for as
+/// long as the service ran (RD-1410-02). So the caller, which ends right after, keeps them.
+///
 /// # Errors
 ///
 /// When the program is not beside `sibling` or cannot be started; a start that fails is also
@@ -93,6 +99,8 @@ fn start_detached(target: Target, executable: &Path) -> Result<()> {
     let registration = Registration::new(target, executable)?;
     let logs = AutostartLogs::open(&registration)?;
     let mut errors = logs.errors.try_clone().context("share the error log")?;
+    // Best effort: a handle Windows will not change costs the caller's pipe, never the start.
+    let _ = rd_files::keep_standard_handles_from_children();
     let started = Command::new(executable)
         .arg(target.argument())
         .current_dir(&registration.working_directory)
@@ -128,9 +136,20 @@ fn append(path: &Path) -> Result<File> {
 
 #[cfg(all(test, unix))]
 mod tests {
-    use std::{os::unix::fs::PermissionsExt as _, time::Duration};
+    use std::{
+        os::unix::fs::PermissionsExt as _,
+        path::Path,
+        process::Stdio,
+        time::{Duration, Instant},
+    };
+
+    use rd_files::NoConsoleWindow as _;
 
     use super::{Target, executable_name, start_beside};
+
+    /// Set for the run of this test binary that plays the capture agent: the agent's path.
+    const AGENT: &str = "RD_AUTOSTART_TEST_AGENT";
+    const CALLER_TEST: &str = "launch::tests::the_callers_output_ends_while_the_service_runs";
 
     #[test]
     fn the_service_starts_beside_the_agent_with_its_folder_and_logs() {
@@ -165,6 +184,45 @@ mod tests {
         assert!(
             output.starts_with("out serve ") && output.contains(folder.to_str().expect("UTF-8")),
             "{output}"
+        );
+    }
+
+    /// `rdownloader-capture start-service | Out-Host` (RD-1410-02): the caller reads the agent's
+    /// output to its end, and that end comes when the agent ends, not when the service does.
+    /// The test binary plays the agent, its output a pipe read to the end, while the stand-in
+    /// service runs on for five seconds.
+    #[test]
+    fn the_callers_output_ends_while_the_service_runs() {
+        if let Some(agent) = std::env::var_os(AGENT) {
+            start_beside(Target::Server, Path::new(&agent)).expect("start the stand-in");
+            return;
+        }
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let service = directory.path().join(executable_name(Target::Server));
+        std::fs::write(&service, "#!/bin/sh\nsleep 5\n").expect("write the stand-in");
+        std::fs::set_permissions(&service, std::fs::Permissions::from_mode(0o755))
+            .expect("make it executable");
+        let agent = directory.path().join(executable_name(Target::Capture));
+
+        let started = Instant::now();
+        let output = std::process::Command::new(std::env::current_exe().expect("test binary"))
+            .args(["--exact", CALLER_TEST, "--nocapture"])
+            .env(AGENT, &agent)
+            .stdin(Stdio::null())
+            .no_console_window()
+            .output()
+            .expect("run the agent");
+        let elapsed = started.elapsed();
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && stdout.contains("1 passed"),
+            "{stdout}\n{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            elapsed < Duration::from_secs(4),
+            "the caller's output stayed open while the service ran: {elapsed:?}"
         );
     }
 

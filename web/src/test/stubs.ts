@@ -5,7 +5,7 @@
  */
 import { CalendarDate, endOfMonth, getLocalTimeZone, today } from '@internationalized/date'
 import { useFileUpload } from '@nuxt/ui/composables/useFileUpload'
-import { defineComponent, toRef, type ComponentPublicInstance, type PropType } from 'vue'
+import { cloneVNode, Comment, defineComponent, toRef, type ComponentPublicInstance, type PropType } from 'vue'
 
 import { clockOf, dateFieldValue, dayOf, timeFieldValue } from '@/utils/timeFields'
 
@@ -76,6 +76,23 @@ export const fileUpload = defineComponent({
     '<div><slot :open="open"><div ref="dropzoneRef" data-file-drop :role="interactive ? \'button\' : undefined" @click="interactive && open()">'
     + '{{ label }} {{ description }}<slot name="actions" :open="open" /></div></slot>'
     + '<input :ref="setInput" type="file" hidden :accept="accept" :multiple="multiple" v-bind="$attrs" /></div>'
+})
+
+/**
+ * The right-click menu as the real one renders it closed: no element of its own, the wrapped row
+ * or header its trigger (`as-child`), which takes the attributes and the `class` the menu was
+ * given. The menu opens on a right-click, which a test does not reach (RD-1410-03).
+ */
+export const contextMenu = defineComponent({
+  inheritAttrs: false,
+  props: ['items', 'disabled'],
+  setup(_, { attrs, slots }) {
+    return () => {
+      const nodes = slots.default?.() ?? []
+      const trigger = nodes.findIndex(node => node.type !== Comment)
+      return nodes.map((node, index) => index === trigger ? cloneVNode(node, attrs, true) : node)
+    }
+  }
 })
 
 /**
@@ -226,6 +243,9 @@ export const uiStubs = {
       '<div v-bind="$attrs" :data-state="shown ? \'open\' : \'closed\'"><div @click="toggle"><slot :open="shown" /></div>'
       + '<div v-if="shown" data-collapsible-content><slot name="content" /></div></div>'
   },
+  /** A mark carrying the chosen colour; picking one is the real one's business (RD-1410-03). */
+  UColorPicker: { props: ['modelValue'], template: '<div v-bind="$attrs" data-color-picker :data-value="modelValue" />' },
+  UContextMenu: contextMenu,
   /** Title, description and the action buttons in the real order, each action a button by its label (RD-1110-11). */
   UEmpty: {
     props: ['title', 'description', 'icon', 'actions'],
@@ -338,6 +358,14 @@ export const uiStubs = {
       + '<button v-for="item in offered" :key="item" type="button" @click="$emit(\'update:modelValue\', item)">{{ item }}</button>'
       + '<button v-if="unknown" type="button" data-create-item @click="$emit(\'create\', term)">{{ term }}</button>'
       + '</div></div>'
+  },
+  /** The tags as one comma-separated text input; typing a list hands the model its entries (RD-1410-03). */
+  UInputTags: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    template:
+      '<input type="text" v-bind="$attrs" :value="(modelValue ?? []).join(\',\')"'
+      + ' @input="$emit(\'update:modelValue\', $event.target.value.split(\',\').map(tag => tag.trim()).filter(Boolean))" />'
   },
   /** An anchor to where `to` points; the router is the real one's business, not the test's. */
   ULink: { props: ['to'], template: '<a v-bind="$attrs" :href="to"><slot /></a>' },
