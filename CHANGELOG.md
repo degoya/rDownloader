@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Bencode reading is bounded.** The torrent crate's bencode reader follows lists and
+  dictionaries at most 32 levels deep and refuses a deeper document, and an HTTP tracker scrape
+  reads at most 64 KiB of response body, checked against the declared length and again while the
+  chunks arrive (`rd-torrent`'s `bencode.rs`, `trackers.rs`).
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

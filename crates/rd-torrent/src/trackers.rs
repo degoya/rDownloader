@@ -28,6 +28,9 @@ pub const SCRAPE_FRESHNESS: Duration = Duration::from_secs(15 * 60);
 /// Timeout for one scrape round-trip.
 const SCRAPE_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Largest HTTP scrape body read; the answer for one info hash is a few hundred bytes.
+const MAX_SCRAPE_BYTES: usize = 64 * 1024;
+
 /// Whether a scrape result is too old to be presented as current.
 #[must_use]
 pub fn is_stale(
@@ -125,15 +128,32 @@ async fn scrape_http(announce: &str, info_hash: &[u8]) -> Result<TrackerScrape> 
         .dns_resolver(rd_http::GuardedResolver::system(tracker_policy()))
         .build()
         .context("build scrape client")?;
-    let body = client
+    let response = client
         .get(&request)
         .send()
         .await
-        .context("scrape request failed")?
-        .bytes()
-        .await
-        .context("read scrape response")?;
+        .context("scrape request failed")?;
+    let body = read_capped(response, MAX_SCRAPE_BYTES).await?;
     parse_http_scrape(&body, info_hash)
+}
+
+/// Reads a response body of at most `limit` bytes.
+///
+/// The declared length is a claim, not a guarantee: a chunked response declares none at all,
+/// so the body is collected chunk by chunk and abandoned the moment it passes the cap.
+pub(crate) async fn read_capped(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8>> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > limit as u64)
+    {
+        bail!("scrape response is too large");
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.context("read scrape response")? {
+        body.extend_from_slice(&chunk);
+        anyhow::ensure!(body.len() <= limit, "scrape response is too large");
+    }
+    Ok(body)
 }
 
 /// Reads the counters of the requested info hash out of a scrape response.
