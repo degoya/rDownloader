@@ -22,7 +22,7 @@ impl TorrentService {
         let session = self.session().await?;
         let response = session
             .add_torrent(
-                crate::runner::add_request(source)?,
+                crate::runner::add_request(source).await?,
                 Some(librqbit::AddTorrentOptions {
                     list_only: true,
                     ..Default::default()
@@ -57,12 +57,12 @@ impl TorrentService {
         }
     }
 
-    /// Persists a changed plan and pushes the new selection to a running torrent.
+    /// Pushes the selection of an already persisted plan to a running torrent.
     ///
-    /// Persisting first means a failure to reach the engine still leaves the plan stored,
-    /// so the next add applies it; the row never ends up downloading files the user
-    /// deselected.
-    pub async fn apply_plan(&self, id: DownloadId, state: TorrentJobState) -> Result<()> {
+    /// The caller stores the plan first (`Database::update_download_torrent_state`), so a
+    /// failure to reach the engine still leaves the plan stored and the next add applies it;
+    /// the row never ends up downloading files the user deselected.
+    pub async fn push_plan(&self, id: DownloadId, state: &TorrentJobState) -> Result<()> {
         let selection = state.metadata.as_ref().map(|metadata| {
             rd_core::resolve_plan(metadata, &state.plan)
                 .included_indices()
@@ -70,11 +70,6 @@ impl TorrentService {
                 .map(|index| index as usize)
                 .collect::<std::collections::HashSet<usize>>()
         });
-        self.inner
-            .database
-            .set_download_torrent_state(id, state)
-            .await
-            .context("persist torrent plan")?;
         let Some(selection) = selection else {
             return Ok(());
         };

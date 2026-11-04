@@ -192,6 +192,7 @@ async fn a_configured_solver_answers_a_click_point_and_a_cutcaptcha() {
                 "solver": "two_captcha_compatible",
                 "endpoint": endpoint,
                 "api_key_ref": reference,
+                "allow_plain_http": true,
             }),
         )
         .await

@@ -335,9 +335,17 @@ fn finished_file(mut file: NzbFile) -> NzbFile {
         .first()
         .is_some_and(|segment| segment.number == 0)
     {
-        for segment in &mut file.segments {
-            segment.number += 1;
-        }
+        // Shifted by one with a checked add: a list that counts from 0 and also names
+        // `u32::MAX` has no room for that last segment, and it is dropped rather than wrapped
+        // to 0, which the database refuses for the whole import.
+        file.segments
+            .retain_mut(|segment| match segment.number.checked_add(1) {
+                Some(number) => {
+                    segment.number = number;
+                    true
+                }
+                None => false,
+            });
     }
     file
 }

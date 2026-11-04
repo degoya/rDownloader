@@ -84,6 +84,10 @@ const warning = computed(() => {
       <UFormField data-settings-anchor="security.allowed_hosts" :label="t('system.proxy.allowed_hosts')" :description="t('system.proxy.allowed_hosts_hint')">
         <UTextarea v-model="allowedHostsText" :rows="2" placeholder="nas.lan&#10;rdownloader" class="w-full font-mono" />
       </UFormField>
+      <!-- RD-1420-02: off, a name only the local network knows needs the list above too. -->
+      <UFormField data-settings-anchor="security.accept_local_network_names" :label="t('system.proxy.local_names')" :description="t('system.proxy.local_names_hint')" orientation="horizontal">
+        <USwitch v-model="modelValue.accept_local_network_names" data-testid="local-names-switch" />
+      </UFormField>
       <UFormField :label="t('system.proxy.cookie_label')" :description="t('system.proxy.cookie_hint')">
         <USelect v-model="modelValue.cookie_security" :items="cookieOptions" class="w-full" />
       </UFormField>

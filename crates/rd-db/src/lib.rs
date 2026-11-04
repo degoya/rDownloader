@@ -63,6 +63,7 @@ mod facade_stats;
 mod facade_storage;
 mod facade_streams;
 mod facade_subscriptions;
+mod facade_torrent_state;
 mod facade_usenet_traffic;
 mod full_backup_store;
 mod helpers;
@@ -134,6 +135,8 @@ mod pre_migration_tests;
 mod stats_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod writer_integrity_tests;
 
 use std::{
     path::PathBuf,

@@ -74,9 +74,12 @@ const archiveMaxGiB = byteModel(
         <NumberWithUnit v-model="archiveMaxGiB" unit="GiB" :min="0.01" :format-options="DECIMAL" :step-snapping="false" class="w-full" data-testid="archive-max-size" />
       </UFormField>
     </div>
-    <UFormField :label="t('settings.postprocess.rar_tool')">
+    <UFormField :label="t('settings.postprocess.rar_tool')" :description="t('settings.postprocess.rar_tool_password_note')">
       <USelect v-model="settings.rar_tool" :items="rarToolItems" class="w-full" />
     </UFormField>
     <SettingsCrossLink class="-mt-3" anchor="postprocess.rar_executable" :lead="t('settings.cross_link.program_path')" />
+    <UFormField :label="t('settings.postprocess.refuse_unknown_archive_tool_version.label')" :description="t('settings.postprocess.refuse_unknown_archive_tool_version.description')" orientation="horizontal">
+      <USwitch v-model="settings.refuse_unknown_archive_tool_version" data-testid="refuse-unknown-archive-tool-version" />
+    </UFormField>
   </UCard>
 </template>

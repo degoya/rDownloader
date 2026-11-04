@@ -26,6 +26,18 @@ impl SchedulerHandle {
     ///
     /// Nothing to do, and no error, when the package has no outstanding move recorded.
     pub async fn relocate_package(&self, package_id: PackageId) -> Result<()> {
+        // Called at the end of every attempt: a package without an outstanding move must not
+        // queue behind another package's move, which can copy a whole directory across
+        // devices. Read again under the lock, since a move recorded in between is carried
+        // over by the call that recorded it.
+        if self
+            .database
+            .package_previous_destination(package_id)
+            .await?
+            .is_none()
+        {
+            return Ok(());
+        }
         let _one_move_at_a_time = self.relocations.lock().await;
         let Some(previous) = self
             .database

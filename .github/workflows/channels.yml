@@ -95,6 +95,9 @@ jobs:
       EXPECT: ${{ needs.gate.outputs.expect }}
       FROM: ${{ needs.gate.outputs.from }}
       TAP: ${{ github.repository_owner }}/rdownloader
+      # The Homebrew installer at a commit and its SHA-256, checked like the Scoop installer's.
+      HOMEBREW_INSTALLER_COMMIT: 35da6871c4be7d7fdab2fd505fb7fa667926a2a5
+      HOMEBREW_INSTALLER_SHA256: 5f333bbe53bc490e51e7ccb1df8779b3dd6ee73a1a7379efda216edb08ccb148
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The Ubuntu image carries Homebrew without putting it on PATH; the arm64 one lacks it.
@@ -106,7 +109,8 @@ jobs:
           prefix=/home/linuxbrew/.linuxbrew
           if [[ ! -x "${prefix}/bin/brew" && "${RUNNER_ARCH}" == ARM64 ]]; then
             curl --fail --silent --show-error --location --output "${RUNNER_TEMP}/install-homebrew.sh" \
-              https://raw.githubusercontent.com/Homebrew/install/35da6871c4be7d7fdab2fd505fb7fa667926a2a5/install.sh
+              "https://raw.githubusercontent.com/Homebrew/install/${HOMEBREW_INSTALLER_COMMIT}/install.sh"
+            echo "${HOMEBREW_INSTALLER_SHA256}  ${RUNNER_TEMP}/install-homebrew.sh" | sha256sum --check --strict
             NONINTERACTIVE=1 bash "${RUNNER_TEMP}/install-homebrew.sh"
           fi
           test -x "${prefix}/bin/brew"

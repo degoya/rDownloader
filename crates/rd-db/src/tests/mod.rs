@@ -35,6 +35,7 @@ mod remote_jobs;
 mod subscription_pages;
 mod subscriptions;
 mod token_expiry;
+mod torrent_state;
 
 /// The file [`temp_database`] opens; `rd_testkit::DATABASE_FILE` for the integration tests.
 pub(crate) const DATABASE_FILE: &str = "rdownloader-test.sqlite3";

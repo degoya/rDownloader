@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::Context;
 use rd_files::NoConsoleWindow as _;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
     ArchiveLimits, ExtractionError, ExtractionReport, ProgressSender,
@@ -33,11 +33,12 @@ pub struct ExternalRarTool {
 }
 
 /// Extracts a RAR set (first volume) into `staging` and validates the resulting tree.
-/// The password is passed on the command line (`-p`), which is what both tools expect; only
-/// [`RarArguments::redacted`] is ever logged. Console output is streamed to derive the percentage.
+/// `unrar` reads the password from its standard input, 7-Zip gets it on the command line (`-p`,
+/// RD-1420-03, see `rar_args`); only [`RarArguments::redacted`] is ever logged. Console output is
+/// streamed to derive the percentage.
 ///
-/// The process locale is set explicitly (`tool_env`): `unrar` decodes that `-p` argument through
-/// it, so a service without `LANG` would reject a correct non-ASCII password (RD-107-11).
+/// The process locale is set explicitly (`tool_env`): `unrar` decodes the password through it,
+/// so a service without `LANG` would reject a correct non-ASCII password (RD-107-11).
 pub(crate) async fn extract_rar_into(
     tool: &ExternalRarTool,
     first_volume: &Path,
@@ -52,7 +53,7 @@ pub(crate) async fn extract_rar_into(
         mut stderr,
         arguments,
         ..
-    } = spawn_rar(tool, RarAction::Extract { staging }, first_volume, password)?;
+    } = spawn_rar(tool, RarAction::Extract { staging }, first_volume, password).await?;
     let run = async {
         let mut stdout_text = String::new();
         let reader = async {
@@ -211,15 +212,18 @@ pub(crate) struct RarProcess {
     pub(crate) stdout: tokio::process::ChildStdout,
     pub(crate) stderr: tokio::process::ChildStderr,
     /// Only for [`RarAction::Follow`], which is answered on it; every other action gets none.
+    /// A password `unrar` reads from it has already been written (RD-1420-03).
     pub(crate) stdin: Option<tokio::process::ChildStdin>,
     pub(crate) arguments: RarArguments,
 }
 
 /// Starts the RAR tool for `action` the one way both the unpack and the integrity test do: no
 /// shell, no console window, the tool environment, no stdin, piped output, killed when dropped
-/// (audit 1.9.1, INTAKE-15). Direct unpack's [`RarAction::Follow`] is the one action with a
-/// stdin, because its volume questions are answered there (RD-1100-07).
-pub(crate) fn spawn_rar(
+/// (audit 1.9.1, INTAKE-15). Direct unpack's [`RarAction::Follow`] is the one action that keeps
+/// a stdin, because its volume questions are answered there (RD-1100-07). A password `unrar`
+/// reads from its standard input is written there first (RD-1420-03); for every other action the
+/// pipe is closed right after it, so a question the tool still asks reads the end of input.
+pub(crate) async fn spawn_rar(
     tool: &ExternalRarTool,
     action: RarAction<'_>,
     first_volume: &Path,
@@ -232,9 +236,10 @@ pub(crate) fn spawn_rar(
     }
     let mut command = tokio::process::Command::new(&tool.executable);
     let answered = matches!(action, RarAction::Follow { .. });
+    let arguments = rar_arguments(tool.kind, action, first_volume, password);
     command
         .kill_on_drop(true)
-        .stdin(if answered {
+        .stdin(if answered || arguments.password_on_stdin {
             Stdio::piped()
         } else {
             Stdio::null()
@@ -243,7 +248,6 @@ pub(crate) fn spawn_rar(
         .stderr(Stdio::piped())
         .no_console_window();
     apply_tool_environment(&mut command);
-    let arguments = rar_arguments(tool.kind, action, first_volume, password);
     arguments
         .apply_to(tool.kind, &mut command)
         .inspect_err(|error| log_refused(tool, &arguments, error))?;
@@ -251,7 +255,13 @@ pub(crate) fn spawn_rar(
     let mut child = command.spawn().context("spawn RAR tool")?;
     let stdout = child.stdout.take().context("RAR tool stdout")?;
     let stderr = child.stderr.take().context("RAR tool stderr")?;
-    let stdin = child.stdin.take();
+    let mut stdin = child.stdin.take();
+    if arguments.password_on_stdin
+        && let (Some(pipe), Some(secret)) = (stdin.as_mut(), password)
+    {
+        write_password(pipe, secret).await;
+    }
+    let stdin = stdin.filter(|_| answered);
     Ok(RarProcess {
         child,
         stdout,
@@ -259,6 +269,23 @@ pub(crate) fn spawn_rar(
         stdin,
         arguments,
     })
+}
+
+/// Writes `secret` as the first line of the tool's standard input (RD-1420-03).
+///
+/// A few hundred bytes fit the pipe's buffer whether or not the tool has started reading. A
+/// failed write is not an error of its own: a tool that exited before reading it has its own
+/// exit status and output, which say more than a broken pipe does.
+async fn write_password(pipe: &mut tokio::process::ChildStdin, secret: &str) {
+    let written = async {
+        pipe.write_all(secret.as_bytes()).await?;
+        pipe.write_all(b"\n").await?;
+        pipe.flush().await
+    }
+    .await;
+    if let Err(error) = written {
+        tracing::debug!(%error, "the RAR tool did not take the password from its input");
+    }
 }
 
 /// The tool, and its arguments without the password, before it starts (RD-120-56).
@@ -330,7 +357,7 @@ pub async fn test_rar(
         mut stderr,
         arguments,
         ..
-    } = spawn_rar(tool, RarAction::Test, first_volume, password)?;
+    } = spawn_rar(tool, RarAction::Test, first_volume, password).await?;
     let run = async {
         // `t` lists every member it tested, so a large set prints a line per file; only the end,
         // where the verdict is, is kept.

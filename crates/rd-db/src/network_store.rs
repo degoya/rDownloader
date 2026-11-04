@@ -171,6 +171,10 @@ pub(crate) async fn delete_account(
         .fetch_optional(&mut *tx)
         .await?
         .context(StoreError::not_found("account not found"))?;
+    // Read before anything is deleted: a row that does not decode leaves the account in place
+    // rather than deleting it and losing the references the vault sweep needs.
+    let references: (Option<String>, Option<String>) =
+        (row.try_get("secret_ref")?, row.try_get("cookie_ref")?);
     let jobs = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM downloads WHERE account_id = ? \
          AND state NOT IN ('completed', 'cancelled')",
@@ -193,10 +197,7 @@ pub(crate) async fn delete_account(
         .await?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    Ok((
-        ((row.get("secret_ref"), row.get("cookie_ref")), sign_in),
-        event,
-    ))
+    Ok(((references, sign_in), event))
 }
 
 pub(crate) async fn create_proxy_profile(
@@ -292,6 +293,7 @@ pub(crate) async fn delete_proxy_profile(
         .fetch_optional(&mut *tx)
         .await?
         .context(StoreError::not_found("proxy profile not found"))?;
+    let secret_ref: Option<String> = row.try_get("secret_ref")?;
     for (table, condition) in [
         ("accounts", ""),
         ("usenet_servers", ""),
@@ -314,7 +316,6 @@ pub(crate) async fn delete_proxy_profile(
         .await?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    let secret_ref: Option<String> = row.get("secret_ref");
     Ok((secret_ref, event))
 }
 

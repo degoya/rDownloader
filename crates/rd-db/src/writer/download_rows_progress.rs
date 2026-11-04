@@ -25,9 +25,9 @@ impl Writer {
         .fetch_optional(&mut *tx)
         .await?
         .context("chunk not found")?;
-        let previous: i64 = row.get("committed_offset");
-        let start: i64 = row.get("start_offset");
-        let end: Option<i64> = row.get("end_offset");
+        let previous: i64 = row.try_get("committed_offset")?;
+        let start: i64 = row.try_get("start_offset")?;
+        let end: Option<i64> = row.try_get("end_offset")?;
         if value < previous || value < start || end.is_some_and(|limit| value > limit) {
             bail!("invalid chunk checkpoint");
         }
@@ -37,7 +37,7 @@ impl Writer {
             .bind(chunk_id.to_string())
             .execute(&mut *tx)
             .await?;
-        let download_id: String = row.get("download_id");
+        let download_id: String = row.try_get("download_id")?;
         sqlx::query(
             "UPDATE downloads SET committed_bytes = (SELECT COALESCE(SUM(committed_offset - start_offset), 0) \
              FROM chunks WHERE download_id = ?), updated_at = ? WHERE id = ?",

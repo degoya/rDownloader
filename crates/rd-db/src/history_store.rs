@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use rd_core::{
     ByteCount, DownloadKind, HISTORY_MAX_SOURCES, HistoryEntry, HistoryOutcome, MessageParams,
 };
-use sqlx::{QueryBuilder, Row, Sqlite, SqliteConnection, SqlitePool};
+use sqlx::{Connection, QueryBuilder, Row, Sqlite, SqliteConnection, SqlitePool};
 
 /// One file of a package as the history keeps it: id, source, sizes, state, failure.
 type FileRow = (String, String, Option<i64>, i64, String, Option<String>);
@@ -364,15 +364,16 @@ fn entry_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<HistoryEntry> {
 /// the oldest beyond `max_entries`. Returns how many went.
 ///
 /// One statement each, not batches: the history holds at most the retention's cap of small
-/// rows, and the sweep that calls this runs once a minute.
+/// rows, and the sweep that calls this runs once a minute. Both in one transaction.
 pub(crate) async fn prune(
     connection: &mut SqliteConnection,
     max_entries: u64,
     older_than: DateTime<Utc>,
 ) -> Result<u64> {
+    let mut tx = connection.begin().await?;
     let aged = sqlx::query("DELETE FROM download_history WHERE finished_at < ?")
         .bind(timestamp(&older_than))
-        .execute(&mut *connection)
+        .execute(&mut *tx)
         .await?
         .rows_affected();
     let over = sqlx::query(
@@ -380,9 +381,10 @@ pub(crate) async fn prune(
          ORDER BY finished_at DESC, id DESC LIMIT -1 OFFSET ?)",
     )
     .bind(i64::try_from(max_entries).unwrap_or(i64::MAX))
-    .execute(&mut *connection)
+    .execute(&mut *tx)
     .await?
     .rows_affected();
+    tx.commit().await?;
     Ok(aged + over)
 }
 
@@ -408,13 +410,16 @@ pub(crate) async fn hide_from_compat(
         .await?
         .rows_affected());
     };
+    // One transaction, so a failure part way leaves none of the packages hidden.
+    let mut tx = connection.begin().await?;
     let mut hidden = 0;
     for id in ids {
         hidden += sqlx::query("UPDATE download_history SET compat_hidden = 1 WHERE package_id = ?")
             .bind(id.to_string())
-            .execute(&mut *connection)
+            .execute(&mut *tx)
             .await?
             .rows_affected();
     }
+    tx.commit().await?;
     Ok(hidden)
 }

@@ -3,7 +3,7 @@
  * of the switch and a configured proxy or external address raises it, and it follows the form
  * before anything is saved.
  */
-import { fireEvent, screen } from '@testing-library/vue'
+import { fireEvent, screen, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
 import { apiClientMock, toastMock } from '@/test/mocks'
 
@@ -66,7 +66,7 @@ describe('SettingsSecurityTab after the move by topic', () => {
     return mountComponent(SettingsSecurityTab, {
       messages: { settings, system },
       props: {
-        modelValue: { admin_login_disabled: false, trusted_proxies: [], allowed_hosts: [], external_url: null, cookie_security: 'auto', ui_port: null, ...values } as unknown as Settings
+        modelValue: { admin_login_disabled: false, trusted_proxies: [], allowed_hosts: [], accept_local_network_names: true, external_url: null, cookie_security: 'auto', ui_port: null, ...values } as unknown as Settings
       },
       stubs: {
         SettingsMfaCard: true,
@@ -101,10 +101,26 @@ describe('SettingsSecurityTab after the move by topic', () => {
   })
 
   it('switches the warning with the switch on its new tab', async () => {
-    mountWithCards({ trusted_proxies: ['127.0.0.1'] })
+    const { container } = mountWithCards({ trusted_proxies: ['127.0.0.1'] })
     expect(warning()).toBeNull()
-    await fireEvent.click(screen.getByRole('switch'))
+    const signin = container.querySelector('[data-tab="signin"]') as HTMLElement
+    await fireEvent.click(within(signin).getByRole('switch'))
     expect(warning()).not.toBeNull()
+  })
+
+  /** RD-1420-02: the local network names switch sits beside the allowed host list and writes the setting. */
+  it('puts the local network names switch on the proxy tab, on by default', async () => {
+    const values = { accept_local_network_names: true } as Partial<Settings>
+    const { container } = mountWithCards(values)
+    const proxy = container.querySelector('[data-tab="proxy"]') as HTMLElement
+    const field = proxy.querySelector('[data-settings-anchor="security.accept_local_network_names"]') as HTMLElement
+    expect(field.textContent).toContain(system.proxy.local_names)
+    // The proxy tab is not the open one, so the switch is found by its test id, not its role.
+    const toggle = within(field).getByTestId('local-names-switch')
+    expect(toggle.getAttribute('role')).toBe('switch')
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+    await fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
   })
 
   it('renders without an axe violation', async () => {

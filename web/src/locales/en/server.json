@@ -1334,7 +1334,12 @@
     "web.route_not_found": "Nothing at this address answers this request",
     "package.reset": "No package reset | Package reset: {count} file starts again from the beginning | Package reset: {count} files start again from the beginning",
     "package.reset_not_failed": "Only a failed package can be reset completely",
-    "package.reset_running": "Pause or stop the running files of this package first"
+    "package.reset_running": "Pause or stop the running files of this package first",
+    "plugin.host_requests_exhausted": "The plugin call used up its allowance of host requests ({limit})",
+    "postprocess.malware_scanner_failed": "clamd at {address} could not be reached",
+    "captcha.endpoint_plain_http": "The solver endpoint uses plain http, which would send the API key unencrypted: use https, or allow plain http in the captcha settings",
+    "extract.tool_version_unknown": "The version of {tool} could not be read, and the settings refuse such a tool for extraction: whether it is at least {minimum}, below which links inside an archive write outside the destination, cannot be checked. Point the program path at {tool} itself, or update it.",
+    "postprocess.rar_test_skipped_version_unknown": "Skipped: the RAR tool's version could not be read"
   },
   "capabilities": {
     "media_download": "media downloads",

@@ -30,7 +30,8 @@ const storedConfig = {
   endpoint: 'https://api.2captcha.com',
   has_api_key: true,
   manual_enabled: true,
-  manual_timeout_seconds: 180
+  manual_timeout_seconds: 180,
+  allow_plain_http: false
 }
 
 const Harness = defineComponent({
@@ -88,6 +89,28 @@ describe('SettingsCaptchaCard', () => {
     expect(options.body.manual_timeout_seconds).toBe(180)
   })
 
+  /** RD-1420-01: the switch for a plain-http endpoint travels with the save and with the test. */
+  it('sends the plain-http switch as it stands with the save and the test', async () => {
+    vi.mocked(api.GET).mockResolvedValue({
+      data: { ...storedConfig, endpoint: 'http://solver.lan:8000', allow_plain_http: true }
+    } as never)
+    vi.mocked(api.POST).mockResolvedValue({ data: { balance: 1 } } as never)
+    await loaded()
+
+    await fireEvent.click(screen.getByRole('button', { name: en.settings.test.button }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Save configuration' }))
+
+    await waitFor(() => expect(api.PUT).toHaveBeenCalled())
+    const [, saved] = vi.mocked(api.PUT).mock.calls[0] as unknown as [
+      string,
+      { body: Record<string, unknown> }
+    ]
+    expect(saved.body).toMatchObject({ endpoint: 'http://solver.lan:8000', allow_plain_http: true })
+    expect(api.POST).toHaveBeenCalledWith('/api/v1/captcha-config/test', {
+      body: { allow_plain_http: true, endpoint: 'http://solver.lan:8000' }
+    })
+  })
+
   it('never keeps the typed key in the form after saving it', async () => {
     await loaded()
     const key = screen.getByPlaceholderText('••••••••') as HTMLInputElement
@@ -113,7 +136,7 @@ describe('SettingsCaptchaCard', () => {
 
     await waitFor(() =>
       expect(api.POST).toHaveBeenCalledWith('/api/v1/captcha-config/test', {
-        body: { endpoint: 'https://api.2captcha.com', api_key: 'unsaved-key' }
+        body: { allow_plain_http: false, endpoint: 'https://api.2captcha.com', api_key: 'unsaved-key' }
       })
     )
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('12.5'))

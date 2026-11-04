@@ -237,3 +237,24 @@ fn the_seeding_filter_keeps_only_seeding_downloads() {
         );
     }
 }
+
+/// A request that reaches a tool without the transport gate's resolution is granted nothing,
+/// whatever credential its headers carry: the caller fails closed instead of resolving the
+/// credential a second time.
+#[test]
+fn a_caller_the_gate_did_not_resolve_is_granted_nothing() {
+    let request = axum::http::Request::builder()
+        .header("authorization", "Bearer rd_test_token")
+        .body(())
+        .expect("request");
+    let (parts, ()) = request.into_parts();
+
+    let (scopes, audit) = super::caller_from_parts(Some(&parts));
+
+    assert!(scopes.is_empty());
+    assert_eq!(audit.actor.kind, rd_core::AuditActorKind::Anonymous);
+    assert_eq!(audit.actor.via, rd_core::AuditChannel::Mcp);
+
+    let (scopes, _) = super::caller_from_parts(None);
+    assert!(scopes.is_empty());
+}

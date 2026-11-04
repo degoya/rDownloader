@@ -55,6 +55,11 @@ pub struct AddressPolicy {
     /// Ports no redirect may lead to, whatever the host: the service's own listeners. A hop
     /// may change the port, and a name is judged by the resolver, which never sees one.
     refused_ports: Vec<u16>,
+    /// Ports no redirect may lead to on this machine alone (RD-1420-01): a reverse proxy's in
+    /// front of the service. On another host such a port is anybody's.
+    local_refused_ports: Vec<u16>,
+    /// The addresses that are this machine for [`Self::local_refused_ports`], beyond loopback.
+    local_addresses: Vec<IpAddr>,
 }
 
 impl AddressPolicy {
@@ -66,6 +71,8 @@ impl AddressPolicy {
             loopback: false,
             this_machine: Vec::new(),
             refused_ports: Vec::new(),
+            local_refused_ports: Vec::new(),
+            local_addresses: Vec::new(),
         }
     }
 
@@ -87,6 +94,61 @@ impl AddressPolicy {
         ports.dedup();
         self.refused_ports = ports;
         self
+    }
+
+    /// Refuses a redirect to one of `ports` on this machine: a hop whose host is `localhost`,
+    /// a loopback address or the address the service listens on (every interface's, listening
+    /// on all of them). A hop to another host on those ports is followed (RD-1420-01).
+    #[must_use]
+    pub fn refusing_redirects_on_this_machine(
+        mut self,
+        ports: &[u16],
+        listen: Option<SocketAddr>,
+    ) -> Self {
+        let mut ports = ports.to_vec();
+        ports.sort_unstable();
+        ports.dedup();
+        self.local_refused_ports = ports;
+        self.local_addresses = match listen {
+            Some(listen) if listen.ip().is_unspecified() => interface_addresses(),
+            Some(listen) => vec![listen.ip().to_canonical()],
+            None => Vec::new(),
+        };
+        self
+    }
+
+    /// Whether the rule names a port refused on this machine alone.
+    pub(crate) fn has_local_refused_ports(&self) -> bool {
+        !self.local_refused_ports.is_empty()
+    }
+
+    /// Whether a connection on `port` may not reach this machine (RD-1420-01).
+    pub(crate) fn refuses_this_machine_on(&self, port: Option<u16>) -> bool {
+        port.is_some_and(|port| self.local_refused_ports.contains(&port))
+    }
+
+    /// Whether `address` is this machine: loopback, the unspecified address (which connects
+    /// here), or an address the service listens on.
+    pub(crate) fn is_this_machine(&self, address: IpAddr) -> bool {
+        let address = address.to_canonical();
+        address.is_loopback() || address.is_unspecified() || self.local_addresses.contains(&address)
+    }
+
+    /// Whether `target` is a hop to this machine on one of [`Self::local_refused_ports`], by
+    /// its look: a literal address, or `localhost`. A name that resolves here is refused when
+    /// the connection is made, where its addresses are known (`connect_target.rs`).
+    fn local_hop(&self, target: &Url) -> bool {
+        if !self.refuses_this_machine_on(target.port_or_known_default()) {
+            return false;
+        }
+        match literal_address(target) {
+            Some(address) => self.is_this_machine(address),
+            None => {
+                let host = target.host_str().unwrap_or_default();
+                let host = host.trim_end_matches('.').to_ascii_lowercase();
+                host == "localhost" || host.ends_with(".localhost")
+            }
+        }
     }
 
     /// Also refuses the address the service listens on — or, listening on every interface,
@@ -123,7 +185,8 @@ impl AddressPolicy {
 
     /// Why a redirect to `target` may not be followed, or `None` when it may. Only HTTP(S),
     /// and a literal address has to be one the policy permits; a name is left to the resolver,
-    /// which a guarded client always has.
+    /// which a guarded client always has — or, behind a proxy that resolves names itself, to
+    /// the judgement of each connection (`pinned_proxy_at_proxy.rs`, RD-1420-01).
     #[must_use]
     pub fn hop_refusal(&self, target: &Url) -> Option<AddressRefused> {
         let host = target.host_str().unwrap_or_default().to_owned();
@@ -132,6 +195,7 @@ impl AddressPolicy {
             || target
                 .port_or_known_default()
                 .is_some_and(|port| self.refused_ports.contains(&port))
+            || self.local_hop(target)
         {
             return Some(AddressRefused {
                 host,
@@ -396,6 +460,19 @@ impl reqwest::dns::Resolve for GuardedResolver {
                 Err(TargetRefusal::Refused(refused)) => return Err(refused.into()),
                 Err(TargetRefusal::Unresolved(error)) => return Err(error.into()),
             };
+            // On a port only this machine is refused on (RD-1420-01), an answer naming this
+            // machine refuses the name; the connect call that runs this says which port it is.
+            if crate::connect_target::this_machine_refused()
+                && let Some(local) = permitted
+                    .iter()
+                    .find(|address| policy.is_this_machine(**address))
+            {
+                return Err(AddressRefused {
+                    host,
+                    address: Some(*local),
+                }
+                .into());
+            }
             // Port 0: the connector sets the URL's port on every address it is handed.
             let addresses: reqwest::dns::Addrs = Box::new(
                 permitted

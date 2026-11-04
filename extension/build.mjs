@@ -57,6 +57,14 @@ export function manifestFor(target, base) {
     manifest.background = { service_worker: 'src/background.js', type: 'module' }
     manifest.minimum_chrome_version = CHROME_MIN_VERSION
     manifest.permissions = [...manifest.permissions, ...CHROME_ONLY_PERMISSIONS]
+    // Click'n'Load's three answers reach pages only under the per-session dynamic id, so a page
+    // cannot probe the fixed `chrome-extension://<id>/` address to learn the extension is there
+    // (audit L-05, RD-1420-02). The session rules redirect with `extensionPath`, which Chrome
+    // resolves to that dynamic address. `matches` stays every http(s) page: the sites a person
+    // allows for Click'n'Load are chosen at run time, and the rules' `initiatorDomains` are what
+    // narrows the answer to them. Firefox has no such key (its `moz-extension://` id is already
+    // random per profile) and keeps the base entry.
+    manifest.web_accessible_resources = manifest.web_accessible_resources.map((entry) => ({ ...entry, use_dynamic_url: true }))
   } else if (target === 'firefox') {
     manifest.background = { scripts: ['src/background.js'], type: 'module' }
     // The floor is what the project actually supports, not the oldest Firefox that would

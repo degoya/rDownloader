@@ -59,16 +59,23 @@ impl<'a> Value<'a> {
     }
 }
 
+/// Deepest list or dictionary nesting the reader follows.
+///
+/// A scrape response nests three levels, a `.torrent` about five (`info.files[].path[]`);
+/// a document nested deeper is refused rather than followed, so the recursion stays bounded.
+const MAX_DEPTH: usize = 32;
+
 /// Decodes one complete bencode document.
 ///
 /// Trailing bytes after the first value are ignored, which is what tracker responses and
 /// `.torrent` files in the wild sometimes carry.
 pub(crate) fn decode(bytes: &[u8]) -> Option<Value<'_>> {
-    read(bytes, 0).map(|(value, _)| value)
+    read(bytes, 0, 0).map(|(value, _)| value)
 }
 
-/// Reads the value at `start`, returning it and the offset just past it.
-fn read(bytes: &[u8], start: usize) -> Option<(Value<'_>, usize)> {
+/// Reads the value at `start`, which sits `depth` containers deep, returning it and the
+/// offset just past it.
+fn read(bytes: &[u8], start: usize, depth: usize) -> Option<(Value<'_>, usize)> {
     match bytes.get(start)? {
         b'i' => {
             let end = bytes[start..].iter().position(|byte| *byte == b'e')? + start;
@@ -79,11 +86,12 @@ fn read(bytes: &[u8], start: usize) -> Option<(Value<'_>, usize)> {
             Some((Value::Integer(value), end + 1))
         }
         b'0'..=b'9' => read_bytes(bytes, start).map(|(value, next)| (Value::Bytes(value), next)),
+        b'l' | b'd' if depth >= MAX_DEPTH => None,
         b'l' => {
             let mut cursor = start + 1;
             let mut items = Vec::new();
             while *bytes.get(cursor)? != b'e' {
-                let (item, next) = read(bytes, cursor)?;
+                let (item, next) = read(bytes, cursor, depth + 1)?;
                 items.push(item);
                 cursor = next;
             }
@@ -94,7 +102,7 @@ fn read(bytes: &[u8], start: usize) -> Option<(Value<'_>, usize)> {
             let mut entries = Vec::new();
             while *bytes.get(cursor)? != b'e' {
                 let (key, after_key) = read_bytes(bytes, cursor)?;
-                let (value, after_value) = read(bytes, after_key)?;
+                let (value, after_value) = read(bytes, after_key, depth + 1)?;
                 entries.push((key, value));
                 cursor = after_value;
             }
@@ -118,7 +126,42 @@ fn read_bytes(bytes: &[u8], start: usize) -> Option<(&[u8], usize)> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Value, decode};
+    use super::{MAX_DEPTH, Value, decode};
+
+    #[test]
+    fn nesting_beyond_the_limit_is_refused() {
+        let deep = vec![b'l'; 1_000_000];
+        assert_eq!(decode(&deep), None);
+        let mut lists = vec![b'l'; MAX_DEPTH + 1];
+        lists.extend(std::iter::repeat_n(b'e', MAX_DEPTH + 1));
+        assert_eq!(decode(&lists), None);
+        let mut dicts = b"d1:k".repeat(MAX_DEPTH + 1);
+        dicts.extend_from_slice(b"i0e");
+        dicts.extend(std::iter::repeat_n(b'e', MAX_DEPTH + 1));
+        assert_eq!(decode(&dicts), None);
+    }
+
+    #[test]
+    fn nesting_up_to_the_limit_decodes() {
+        let mut lists = vec![b'l'; MAX_DEPTH];
+        lists.extend(std::iter::repeat_n(b'e', MAX_DEPTH));
+        assert!(decode(&lists).is_some());
+        let mut dicts = b"d1:k".repeat(MAX_DEPTH);
+        dicts.extend_from_slice(b"i0e");
+        dicts.extend(std::iter::repeat_n(b'e', MAX_DEPTH));
+        assert!(decode(&dicts).is_some());
+    }
+
+    #[test]
+    fn real_torrent_files_decode_within_the_limit() {
+        for bytes in [
+            &include_bytes!("../../../testfile/big-buck-bunny.torrent")[..],
+            &include_bytes!("../../../testfile/debian-13.6.0-amd64-netinst.iso.torrent")[..],
+        ] {
+            let value = decode(bytes).expect("decodes");
+            assert!(value.get(b"info").is_some());
+        }
+    }
 
     #[test]
     fn scalars_decode() {

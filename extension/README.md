@@ -148,7 +148,9 @@ so it takes those requests in the browser instead (RD-1260-10):
   — the desktop agent, or another Click'n'Load program — the extension answers nothing and hands
   nothing over.
 - `/jdcheck.js` and `/flash` are answered as the agent answers them, from three files the
-  extension ships (`src/cnl/`, its only `web_accessible_resources`). A `POST` or `GET` to
+  extension ships (`src/cnl/`, its only `web_accessible_resources`; Chrome exposes them only under
+  its per-session dynamic id, `use_dynamic_url`, so a page cannot probe a fixed extension address
+  to detect it). A `POST` or `GET` to
   `/flash/add` or `/flash/addcrypted2` is answered with `success`, and its fields — `crypted`,
   `jk`, `urls`, `passwords`, `package`, `source` — go to `POST /api/v1/capture/click-and-load`
   with the capture token. **`jk` is never run in the browser**: it travels as the string the page

@@ -29,6 +29,10 @@ use crate::TorrentService;
 
 #[path = "relocate_files.rs"]
 mod files;
+#[path = "relocate_gates.rs"]
+mod gates;
+
+pub(crate) use gates::{AddClaim, Gates};
 
 #[cfg(test)]
 use files::relative_path;
@@ -107,17 +111,23 @@ impl TorrentService {
 
     /// Whether a move of this torrent's files runs in this process right now.
     pub async fn is_relocating(&self, id: DownloadId) -> bool {
-        self.inner.relocating.lock().await.contains(&id)
+        self.inner.gates.is_relocating(id)
+    }
+
+    /// Holds off any move of this torrent until the returned claim is dropped, or `None` while
+    /// a move runs. The runner holds it from its check until the torrent is in the session.
+    pub(crate) fn begin_add(&self, id: DownloadId) -> Option<AddClaim<'_>> {
+        self.inner.gates.begin_add(id)
     }
 
     async fn begin_relocation(&self, id: DownloadId, to: PathBuf) -> Result<Relocation> {
-        anyhow::ensure!(
-            self.inner.relocating.lock().await.insert(id),
-            "a move of this torrent is under way already"
-        );
+        self.inner
+            .gates
+            .begin_relocation(id)
+            .map_err(anyhow::Error::msg)?;
         let begun = self.journal_relocation(id, to).await;
         if begun.is_err() {
-            self.inner.relocating.lock().await.remove(&id);
+            self.inner.gates.end_relocation(id);
             // Nothing moved; a seed that already left the session takes it up again.
             self.resume_if_seeding(id).await;
         }
@@ -171,24 +181,25 @@ impl TorrentService {
     /// it before the journal was there can drop it again. The journal is therefore written once
     /// more right before the commit, the step after which losing it would matter.
     async fn write_journal(&self, relocation: &Relocation, fresh: bool) -> Result<()> {
-        let mut state = self.job_state(relocation.id).await;
-        if !fresh && state.relocation.as_ref() == Some(&relocation.journal) {
-            return Ok(());
-        }
-        state.relocation = Some(relocation.journal.clone());
-        if fresh {
-            state.relocation_error = None;
-        }
-        self.inner
-            .database
-            .set_download_torrent_state(relocation.id, state)
-            .await
-            .context("record the move")
+        let journal = relocation.journal.clone();
+        self.edit_job_state(relocation.id, move |state| {
+            if !fresh && state.relocation.as_ref() == Some(&journal) {
+                return None;
+            }
+            state.relocation = Some(journal);
+            if fresh {
+                state.relocation_error = None;
+            }
+            Some(())
+        })
+        .await
+        .context("record the move")?;
+        Ok(())
     }
 
     async fn carry_out(&self, relocation: Relocation) -> Result<()> {
         let result = self.run_relocation(&relocation).await;
-        self.inner.relocating.lock().await.remove(&relocation.id);
+        self.inner.gates.end_relocation(relocation.id);
         result
     }
 
@@ -278,13 +289,11 @@ impl TorrentService {
             discard(&rd_files::move_temporary_of(&target)).await?;
         }
         remove_empty_folders(relocation.source_folder(), &relocation.files).await;
-        let mut state = self.job_state(relocation.id).await;
-        state.relocation = None;
-        state.relocation_error = None;
-        self.inner
-            .database
-            .set_download_torrent_state(relocation.id, state)
-            .await?;
+        self.update_job_state(relocation.id, |state| {
+            state.relocation = None;
+            state.relocation_error = None;
+        })
+        .await?;
         // A session entry restored from a list written before the move would seed from the
         // old folder; the next add starts from the package's.
         self.forget(relocation.id).await;
@@ -315,13 +324,12 @@ impl TorrentService {
             }
         }
         remove_empty_folders(relocation.target_folder(), &relocation.files).await;
-        let mut state = self.job_state(relocation.id).await;
-        state.relocation = None;
-        state.relocation_error = Some(reason.to_owned());
-        self.inner
-            .database
-            .set_download_torrent_state(relocation.id, state)
-            .await?;
+        let reason_kept = reason.to_owned();
+        self.update_job_state(relocation.id, move |state| {
+            state.relocation = None;
+            state.relocation_error = Some(reason_kept);
+        })
+        .await?;
         tracing::warn!(download_id = %relocation.id, reason, "torrent move taken back");
         Ok(())
     }

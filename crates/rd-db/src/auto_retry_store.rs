@@ -42,9 +42,9 @@ async fn retry_counters(pool: &SqlitePool, id: DownloadId) -> Result<Option<Retr
         .await?;
     row.map(|row| {
         Ok(RetryCounters {
-            limit_waits: u32::try_from(row.get::<i64, _>("limit_waits"))
+            limit_waits: u32::try_from(row.try_get::<i64, _>("limit_waits")?)
                 .context("invalid limit wait count")?,
-            auto_retry_rounds: u32::try_from(row.get::<i64, _>("auto_retry_rounds"))
+            auto_retry_rounds: u32::try_from(row.try_get::<i64, _>("auto_retry_rounds")?)
                 .context("invalid automatic retry count")?,
         })
     })

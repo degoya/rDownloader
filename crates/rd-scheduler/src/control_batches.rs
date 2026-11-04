@@ -79,7 +79,10 @@ impl SchedulerHandle {
                     ))));
                     continue;
                 }
-                active.reasons.remove(&id);
+                // As in `resume`: a stopping worker keeps the reason it writes its row from.
+                if !active.tokens.contains_key(&id) {
+                    active.reasons.remove(&id);
+                }
                 batch.push(id);
                 positions.push(index);
                 outcomes.push(Ok(()));

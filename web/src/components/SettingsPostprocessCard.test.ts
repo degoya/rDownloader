@@ -38,7 +38,7 @@ describe('SettingsPostprocessCard switch rows', () => {
       props: { modelValue: { ...SETTINGS } },
       stubs: { UFormField }
     })
-    const rows = ['recursive_unpack', 'unpack_to_subfolder', 'unwrap_package_folder', 'direct_unpack', 'pause'] as const
+    const rows = ['recursive_unpack', 'unpack_to_subfolder', 'unwrap_package_folder', 'direct_unpack', 'pause', 'refuse_unknown_archive_tool_version'] as const
     for (const key of rows) {
       const entry = settings.postprocess[key]
       const toggle = screen.getByRole('switch', { name: entry.label })
@@ -78,6 +78,18 @@ describe('SettingsPostprocessCard switch rows', () => {
     await fireEvent.click(screen.getByRole('switch', { name: settings.postprocess.direct_unpack.label }))
 
     expect(model.direct_unpack).toBe(true)
+  })
+
+  /** RD-1420-03: off by default (an unreadable version only warns), and the switch writes it. */
+  it('switches refusing an archive tool of unknown version on and off', async () => {
+    const model = { ...SETTINGS, refuse_unknown_archive_tool_version: false } as Settings
+    mount(model)
+    const toggle = screen.getByRole('switch', { name: settings.postprocess.refuse_unknown_archive_tool_version.label })
+
+    await fireEvent.click(toggle)
+    expect(model.refuse_unknown_archive_tool_version).toBe(true)
+    await fireEvent.click(toggle)
+    expect(model.refuse_unknown_archive_tool_version).toBe(false)
   })
 })
 

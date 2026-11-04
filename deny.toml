@@ -23,7 +23,9 @@ ignore = [
   # deliberately configured RSA client key, which gives an observer far too few samples to be
   # useful. Disabling that feature removes the advisory but also drops ssh-rsa and rsa-sha2-*
   # host keys, which are still common on default sshd installations, so the compatibility cost
-  # outweighs the exposure.
+  # outweighs the exposure. Review this entry on every release, and drop it once rsa 0.10 is
+  # stable and openidconnect and russh have moved to it (`cargo update`). Settings > FTP, SFTP
+  # and WebDAV recommends Ed25519 client keys, which need no RSA private key operation at all.
   { id = "RUSTSEC-2023-0071", reason = "rsa 0.9.10 via openidconnect, rsa 0.10 rc via russh; Marvin targets private-key operations, which signature, host key and ID-token verification do not perform. No safe upgrade is available." },
 
   # proc-macro-error below, under the archived GTK3 bindings, is a graph artifact rather than a
@@ -36,6 +38,12 @@ ignore = [
   # `cargo deny --target x86_64-unknown-linux-gnu check advisories`, which reports none of
   # it. Drop it once tao and tray-icon move off GTK3.
   { id = "RUSTSEC-2024-0370", reason = "proc-macro-error via glib-macros and gtk3-macros; unreachable GTK3 stack, see above." },
+  # glib 0.18.5 (RUSTSEC-2024-0429, informational "unsound" in `VariantStrIter`) belongs to the
+  # same GTK3 stack: a Linux-only dependency of tao and tray-icon, which rd-capture builds on
+  # Windows and macOS only, so no shipped binary contains it, and nothing here iterates a
+  # GVariant. cargo-deny does not report it for that reason; cargo audit, which does not
+  # filter by target, does. Drop it together with RUSTSEC-2024-0370.
+  { id = "RUSTSEC-2024-0429", reason = "glib 0.18 via the GTK3 stack of tao and tray-icon, built for no shipped target; see above." },
 
   # zbus_names, zvariant and zvariant_derive are unmaintained as standalone crates: zbus 6.0.0
   # (2026-10-16) took them in as modules. They come from zbus 5, which notify-rust 4.18.2 and

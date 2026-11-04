@@ -45,9 +45,13 @@ impl Connection {
     ///
     /// `guard` is the address rule of a link a stranger's document or page proposed
     /// (RD-150-03). The host is then resolved once and every address checked before the
-    /// socket is opened, and the control connection goes to exactly those addresses. The data
-    /// connections follow it: the address a `PASV` reply names is ignored for the control
-    /// connection's own peer, so a server cannot point a transfer at another machine.
+    /// socket is opened, and the control connection goes to exactly those addresses.
+    ///
+    /// The data connections follow the control connection, with or without a guard: the
+    /// address a `PASV` reply names is ignored for the control connection's own peer, so a
+    /// server cannot point a transfer at another machine — a link the person entered
+    /// included (RD-1420-01, audit L-09). A server whose data channel really is elsewhere is
+    /// exotic; one behind NAT that names its private address is the common case this serves.
     pub(crate) async fn open(
         credential: &RemoteCredential,
         password: Option<&SecretString>,
@@ -122,9 +126,7 @@ impl Connection {
         } else {
             Mode::Active
         });
-        if guard.is_some() {
-            connection.set_passive_nat_workaround(true);
-        }
+        connection.set_passive_nat_workaround(true);
         let (user, secret) = match credential.auth_mode {
             RemoteAuthMode::Anonymous => (ANONYMOUS_USER.to_owned(), ANONYMOUS_PASSWORD.to_owned()),
             _ => (

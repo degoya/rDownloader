@@ -70,7 +70,8 @@
       "linkgrabber": "Sperrliste, ausgeschlossene Domains, Spiegel, Mirrors, Container",
       "desktop_agent": "Tastenkürzel, Hotkey, Zwischenablage, pausieren, Capture-Agent",
       "link_filters": "Filter, Linkfilter, ausblenden, Regeln",
-      "download_window": "Download-Zeitfenster, Zeitfenster, nachts laden, Uhrzeit, Startzeit, Downloads pausieren, tagsüber pausieren"
+      "download_window": "Download-Zeitfenster, Zeitfenster, nachts laden, Uhrzeit, Startzeit, Downloads pausieren, tagsüber pausieren",
+      "local_network_names": "mDNS, .local, Hostname, Heimnetz, DNS-Rebinding"
     }
   },
   "connection": {

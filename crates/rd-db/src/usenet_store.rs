@@ -232,13 +232,14 @@ pub(crate) async fn delete(
         .fetch_optional(&mut *tx)
         .await?
         .context(StoreError::not_found("usenet server not found"))?;
+    let password_ref: Option<String> = row.try_get("password_ref")?;
     sqlx::query("DELETE FROM usenet_servers WHERE id = ?")
         .bind(id.to_string())
         .execute(&mut *tx)
         .await?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
-    Ok((row.get("password_ref"), event))
+    Ok((password_ref, event))
 }
 
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<UsenetServer>> {

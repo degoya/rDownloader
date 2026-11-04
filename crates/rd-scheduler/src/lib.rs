@@ -116,6 +116,9 @@ pub struct SchedulerConfig {
     /// The address the service's own API listens on. A mirror a Metalink names may never point
     /// at it, even where the person's own network is otherwise allowed (RD-150-03).
     pub own_address: Option<std::net::SocketAddr>,
+    /// What the outside world calls this service (the setting `external_url`): behind a
+    /// reverse proxy on this machine its port reaches the service too (RD-1420-01).
+    pub external_url: Option<url::Url>,
 }
 
 /// Package-level queue attributes chosen at enqueue time.
@@ -246,7 +249,16 @@ impl SchedulerConfig {
             network_defaults: SharedNetworkDefaults::default(),
             postprocess_hold: rd_core::PostprocessHold::new(),
             own_address: None,
+            external_url: None,
         }
+    }
+
+    /// The service's own listeners, which no plugin request may reach (RA-HOST-01): the API's
+    /// address, Click'n'Load's port and, on this machine, the external URL's port.
+    #[must_use]
+    pub fn own_endpoints(&self) -> rd_plugin_host::OwnEndpoints {
+        rd_plugin_host::OwnEndpoints::new(self.own_address)
+            .with_external_url(self.external_url.as_ref())
     }
 }
 

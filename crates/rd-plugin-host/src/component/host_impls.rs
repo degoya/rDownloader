@@ -248,6 +248,7 @@ impl PluginStoreState {
                 "Plugin host is not connected",
             )
         })?;
+        self.claim_http_request()?;
         let identity = self.identity().clone();
         let granted_secret = self.granted_secret().map(str::to_owned);
         let authority = self.request_authority();
@@ -303,8 +304,8 @@ impl PluginStoreState {
         // Remembered whatever the answer: the values were in the request either way (PL-02).
         self.remember_redactions(expanded);
         // Credited on the failure path too: a request that timed out still spent that time
-        // waiting on the network rather than computing.
-        self.credit_host_time(started.elapsed());
+        // waiting on the network rather than computing -- up to the invocation's allowance.
+        self.credit_http_time(started.elapsed());
         let response = response?;
         // A hop the gate refused comes back unfollowed, as the redirect itself; it is refused
         // here exactly like a request that had ended outside the list, so a plugin sees one

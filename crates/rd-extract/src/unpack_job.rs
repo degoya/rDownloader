@@ -35,6 +35,10 @@ const NO_TOOL: &str = "extract.no_tool";
 /// finding 5), with `{tool}`, `{found}` and `{minimum}`.
 pub(crate) const TOOL_OUTDATED: &str = "extract.tool_outdated";
 
+/// The tool's version could not be read, and `refuse_unknown_archive_tool_version` refuses such
+/// a tool (RD-1420-03), with `{tool}` and `{minimum}`, the floor that could not be checked.
+pub(crate) const TOOL_VERSION_UNKNOWN: &str = "extract.tool_version_unknown";
+
 pub(crate) struct UnpackContext<'a> {
     pub owner: &'a str,
     pub directory: &'a Path,
@@ -385,8 +389,24 @@ async fn remove_stale_staging(destination: &Path, direct: &[crate::direct_unpack
 }
 
 /// The step outcome for a tool refused for its version: the code with the tool, the version it
-/// reported and the floor, so the interface can say which update is missing.
+/// reported and the floor, so the interface can say which update is missing. A version that
+/// could not be read has a code of its own, without `{found}`.
 fn outdated_outcome(outdated: &crate::settings::OutdatedTool) -> Outcome<'static> {
+    if outdated.unknown {
+        return Outcome {
+            code: TOOL_VERSION_UNKNOWN,
+            params: [
+                ("tool".to_owned(), outdated.tool.to_owned()),
+                ("minimum".to_owned(), outdated.minimum.clone()),
+            ]
+            .into_iter()
+            .collect(),
+            message: Some(format!(
+                "the version of {} could not be read, and extraction is set to refuse such a tool",
+                outdated.tool
+            )),
+        };
+    }
     Outcome {
         code: TOOL_OUTDATED,
         params: [

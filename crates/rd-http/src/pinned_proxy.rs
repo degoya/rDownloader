@@ -32,8 +32,10 @@
 //! `http://proxy.lan:8080/` reach the proxy's host on any port.
 //!
 //! A profile may say that its proxy resolves names itself ([`NameResolution::AtProxy`]), for a
-//! network where only the proxy can: the proxy is then handed the name, as before this rule,
-//! and the name is judged only before the request ([`check_before_request`]).
+//! network where only the proxy can: the proxy is then handed the name, as before this rule.
+//! The name is judged before the request ([`check_before_request`]) and, under an address rule,
+//! again by the same rule at every connection — the first request's and each redirect hop's —
+//! before anything reaches the proxy (`pinned_proxy_at_proxy.rs`, RD-1420-01).
 //!
 //! A request no proxy profile covers — a webhook, a Web Push message, the reconnect's IP check —
 //! takes the proxy the environment names, through the same bridge and always with names resolved
@@ -52,6 +54,8 @@ use crate::{
     TargetRefusal,
 };
 
+#[path = "pinned_proxy_at_proxy.rs"]
+mod at_proxy;
 #[path = "pinned_proxy_bridge.rs"]
 mod bridge;
 #[path = "pinned_proxy_environment.rs"]
@@ -113,7 +117,9 @@ pub async fn check_before_request(
 
 /// Gives `builder` the proxy at `endpoint`. Under an address rule (`guard`) every target is
 /// resolved and checked here when the connection is made and the proxy is handed the checked
-/// address, never the name — unless `resolution` says the proxy resolves names itself.
+/// address, never the name — unless `resolution` says the proxy resolves names itself: then the
+/// proxy is handed the name, and each connection's target, a redirect hop's too, is judged
+/// first ([`check_before_request`]).
 /// `custom_ca_pem` is what an `https://` proxy's own certificate is checked with; the targets'
 /// certificates are the client's business, as without a proxy.
 pub fn with_proxy(
@@ -155,7 +161,15 @@ pub fn with_proxy_lookup(
             custom_ca_pem,
             lookup,
         ),
-        _ => Ok(builder.proxy(profile_proxy(endpoint, credentials)?)),
+        // The recorder comes first: reqwest asks its proxies in order, and it declines.
+        Some(policy) => Ok(builder
+            .proxy(at_proxy::recorder())
+            .proxy(profile_proxy(endpoint, credentials)?)
+            .connector_layer(at_proxy::JudgeLayer {
+                policy: policy.clone(),
+                lookup,
+            })),
+        None => Ok(builder.proxy(profile_proxy(endpoint, credentials)?)),
     }
 }
 
@@ -175,6 +189,8 @@ pub(crate) fn pinned(
     let bridge = Bridge::start(upstream, policy.clone(), Arc::clone(&tickets))?;
     // A name that does not resolve here fails as one, never handed to the proxy instead.
     let targets = Arc::new(unresolved::ResolvedHere(lookup));
+    // Its recorder has to be asked before the bridge, which would otherwise take the call.
+    let builder = crate::connect_target::refusing_this_machine(builder, policy);
     Ok(builder
         .proxy(bridge.into_proxy())
         .connector_layer(crate::tunnel_refusal::TicketLayer(tickets))

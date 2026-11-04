@@ -37,7 +37,10 @@ use failures::{
 
 pub use manual::{AnswerSource, CaptchaKind, PendingCaptcha, PendingWidget, SubmitOutcome};
 pub use presence::{BROWSER_EXTENSION_PRESENCE_WINDOW, CaptchaAnswerers};
-pub use settings::{CaptchaSettings, DEFAULT_ENDPOINT, SETTINGS_KEY, SolverKind};
+pub use settings::{
+    CODE_ENDPOINT_INVALID, CODE_ENDPOINT_PLAIN_HTTP, CaptchaSettings, DEFAULT_ENDPOINT,
+    EndpointRefusal, SETTINGS_KEY, SolverKind, checked_endpoint,
+};
 pub use solver::SolverTiming;
 
 /// Timeout for one solver-service HTTP call.
@@ -85,8 +88,12 @@ impl CaptchaBroker {
         secrets: rd_secrets::SecretStore,
         solver_timing: SolverTiming,
     ) -> Self {
+        // No redirect is followed: a `307` from an https endpoint to an http one would carry
+        // the key in the clear, past the scheme rule (RD-1420-01). A solver API answers where
+        // it is asked.
         let http = rd_http::client_builder(rd_http::ClientPurpose::Service)
             .timeout(SOLVER_REQUEST_TIMEOUT)
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .unwrap_or_default();
         Self {
@@ -291,8 +298,22 @@ impl CaptchaBroker {
         endpoint: Option<String>,
         api_key: Option<String>,
     ) -> Result<f64, Failure> {
+        self.test_solver_with(endpoint, api_key, None).await
+    }
+
+    /// [`Self::test_solver`], with `allow_plain_http` in place of the stored setting where
+    /// given, so a form can be tried before it is saved (RD-1420-01).
+    pub async fn test_solver_with(
+        &self,
+        endpoint: Option<String>,
+        api_key: Option<String>,
+        allow_plain_http: Option<bool>,
+    ) -> Result<f64, Failure> {
         let settings = self.settings().await;
-        let endpoint = endpoint.unwrap_or(settings.endpoint);
+        let endpoint = usable_endpoint(
+            &endpoint.unwrap_or(settings.endpoint),
+            allow_plain_http.unwrap_or(settings.allow_plain_http),
+        )?;
         let key = match api_key {
             Some(key) => secrecy::SecretString::from(key),
             None => {
@@ -312,6 +333,7 @@ impl CaptchaBroker {
         settings: &CaptchaSettings,
         challenge: &CaptchaChallenge,
     ) -> Result<CaptchaAnswer, Failure> {
+        let endpoint = usable_endpoint(&settings.endpoint, settings.allow_plain_http)?;
         let reference = settings.api_key_ref.as_deref().ok_or_else(key_missing)?;
         let key = self
             .inner
@@ -321,7 +343,7 @@ impl CaptchaBroker {
             .map_err(|error| key_unreadable(&error))?;
         solver::solve(
             &self.inner.http,
-            &settings.endpoint,
+            &endpoint,
             key.expose_secret(),
             challenge,
             self.inner.solver_timing,
@@ -391,6 +413,14 @@ impl CaptchaBroker {
     fn announce(&self, change: PendingChange) {
         announce(&self.inner, change);
     }
+}
+
+/// The endpoint the key may be sent to, or the refusal as a permanent failure: the setting is
+/// the person's to change, and no retry changes it (RD-1420-01).
+fn usable_endpoint(endpoint: &str, allow_plain_http: bool) -> Result<String, Failure> {
+    checked_endpoint(endpoint, allow_plain_http).map_err(|refusal| {
+        Failure::coded(FailureKind::Permanent, refusal.code(), refusal.message())
+    })
 }
 
 /// Drops a queue entry once nothing waits for it any more.

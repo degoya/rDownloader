@@ -226,7 +226,7 @@ impl Writer {
             .fetch_optional(&mut self.connection)
             .await?
             .context(StoreError::not_found("download not found"))?;
-        let current: DownloadState = row.get::<String, _>("state").parse()?;
+        let current: DownloadState = row.try_get::<String, _>("state")?.parse()?;
         // Tagged, so a pause or resume the state does not allow reaches the interface as a
         // refusal instead of an internal error (RD-150-22).
         if !current.can_transition_to(next) {

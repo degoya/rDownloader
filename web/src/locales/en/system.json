@@ -457,7 +457,9 @@
     "allowed_hosts_hint": "One name per line that you open the service by in a browser, such as nas.lan. IP addresses, localhost and the external URL's host always work; any other name is refused, so no foreign page gets in through DNS rebinding.",
     "login_off_title": "Sign-in is off although a proxy or an external address is set",
     "login_off_description": "Without sign-in, every request from this machine that carries no forwarding header counts as the administrator. A local tunnel or proxy that sets no X-Forwarded-For makes everyone behind it the administrator. Switch sign-in back on under General, or make sure your proxy sets the header.",
-    "login_off_wiki": "Reverse proxy in the handbook"
+    "login_off_wiki": "Reverse proxy in the handbook",
+    "local_names": "Accept local network names",
+    "local_names_hint": "Names that exist only on the local network – a single name such as nas, .local, .home.arpa, .internal – work without an entry in the list. Switch this off if you do not trust other devices on your network: then only IP addresses, localhost, the external URL's host and the allowed host names work."
   },
   "mfa": {
     "eyebrow": "Second factor",
@@ -499,7 +501,7 @@
     "copied": "Copied",
     "step_up": {
       "label": "Password",
-      "hint": "Adding, removing or switching off a factor asks for the password again."
+      "hint": "Adding, removing or switching off a factor, and issuing new recovery codes, asks for the password again."
     }
   },
   "passkeys": {

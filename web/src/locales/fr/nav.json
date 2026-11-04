@@ -70,7 +70,8 @@
       "linkgrabber": "liste de blocage, domaines exclus, miroirs, conteneur",
       "desktop_agent": "raccourci, touche, clavier, presse-papiers, pause, agent de capture",
       "link_filters": "filtre, filtre de liens, masquer, règles",
-      "download_window": "plage de téléchargement, plage horaire, télécharger la nuit, heure de début, mettre les téléchargements en pause, pause en journée"
+      "download_window": "plage de téléchargement, plage horaire, télécharger la nuit, heure de début, mettre les téléchargements en pause, pause en journée",
+      "local_network_names": "mDNS, .local, nom d'hôte, réseau domestique, DNS rebinding"
     }
   },
   "connection": {

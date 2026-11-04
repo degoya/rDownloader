@@ -61,3 +61,10 @@ reason = "The exchange file's entries are typed now: each carries its rule and t
 release = "1.23.0"
 finding = "rest:request-property-required:schemas.SiteRuleImportRequest.document"
 reason = "An import names the exchange file and, after the preview, the rules it may replace."
+
+# 1.42.0: reissuing the recovery codes is a step-up action like adding or removing a factor
+# (GitHub #33). No installed base, so no transition (AGENTS.md).
+[[break]]
+release = "1.42.0"
+finding = "rest:request-body-required:POST /api/v1/mfa/recovery-codes"
+reason = "Reissuing the recovery codes asks for the password again; the request carries { password }."

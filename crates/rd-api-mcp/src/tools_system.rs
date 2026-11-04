@@ -92,21 +92,24 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Try the ClamAV scanner the post-processing malware scan uses: PING and VERSION against `address` (host:port or unix:/path), else the saved clamd address. Nothing is scanned. The scan itself is switched with update_settings (malware_scan_enabled, clamd_address) and per category with update_category_postprocess (malware_scan)."
+        description = "Try the ClamAV scanner the post-processing malware scan uses: PING and VERSION against `address` (host:port or unix:/path; an address other than the saved one needs api:admin), else the saved clamd address. Nothing is scanned. The scan itself is switched with update_settings (malware_scan_enabled, clamd_address) and per category with update_category_postprocess (malware_scan)."
     )]
     pub async fn test_malware_scanner(
         &self,
         Parameters(params): Parameters<MalwareScannerTestParams>,
     ) -> McpToolResult {
+        // A free address and the reason of a failure are the administration scope's, as on
+        // the REST route.
+        let holds_admin = super::granted_now().contains(&rd_core::Scope::Admin);
         respond(
-            postprocess::test_malware_scanner(
-                State(self.state.clone()),
-                Json(postprocess::MalwareScannerTestRequest {
+            rd_api_core::malware_scanner_handlers::malware_scanner_test(
+                &self.state,
+                holds_admin,
+                rd_api_core::malware_scanner_handlers::MalwareScannerTestRequest {
                     address: params.address,
-                }),
+                },
             )
-            .await
-            .map(|Json(answer)| answer),
+            .await,
         )
     }
 

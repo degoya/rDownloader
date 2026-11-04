@@ -457,7 +457,9 @@
     "allowed_hosts_hint": "Ein Name pro Zeile, unter dem du den Dienst im Browser öffnest, etwa nas.lan. IP-Adressen, localhost und der Host der externen URL gelten immer; jeder andere Name wird abgewiesen, damit keine fremde Seite per DNS-Rebinding hereinkommt.",
     "login_off_title": "Die Anmeldung ist aus, obwohl ein Proxy oder eine externe Adresse eingetragen ist",
     "login_off_description": "Ohne Anmeldung gilt jeder Aufruf von dieser Maschine ohne Weiterleitungs-Header als Administrator. Ein lokaler Tunnel oder Proxy, der kein X-Forwarded-For setzt, macht damit jeden dahinter zum Administrator. Schalte die Anmeldung unter Allgemein wieder ein oder sorge dafür, dass dein Proxy den Header setzt.",
-    "login_off_wiki": "Reverse Proxy im Handbuch"
+    "login_off_wiki": "Reverse Proxy im Handbuch",
+    "local_names": "Lokale Netzwerknamen annehmen",
+    "local_names_hint": "Namen, die es nur im lokalen Netz gibt – ein einzelner Name wie nas, .local, .home.arpa, .internal –, gelten ohne Eintrag in der Liste. Schalte das aus, wenn du anderen Geräten in deinem Netz nicht traust: Dann gelten nur noch IP-Adressen, localhost, der Host der externen URL und die erlaubten Hostnamen."
   },
   "mfa": {
     "eyebrow": "Zweiter Faktor",
@@ -499,7 +501,7 @@
     "copied": "Kopiert",
     "step_up": {
       "label": "Passwort",
-      "hint": "Einen Faktor hinzufügen, entfernen oder abschalten verlangt das Passwort noch einmal."
+      "hint": "Einen Faktor hinzufügen, entfernen oder abschalten und neue Wiederherstellungscodes ausstellen verlangt das Passwort noch einmal."
     }
   },
   "passkeys": {

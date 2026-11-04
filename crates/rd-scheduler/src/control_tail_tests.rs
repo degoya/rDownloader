@@ -129,3 +129,71 @@ async fn discarding_all_data_takes_the_finished_payload_too() {
     scheduler.discard_all(file.id).await.expect("discard all");
     assert!(!payload.exists(), "the whole package's data goes");
 }
+
+/// A resume that reaches a worker before it stopped is refused by the row's state; it must
+/// leave the stop it met alone, or the worker writes the fallback `Paused` instead of the
+/// cancel that was asked for.
+#[tokio::test]
+async fn a_refused_resume_keeps_the_stop_a_worker_is_ending_with() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let (scheduler, file, _destination) = paused_package(temporary.path()).await;
+    worked_to(&scheduler, &file, DownloadState::Downloading).await;
+    scheduler
+        .active
+        .lock()
+        .await
+        .tokens
+        .insert(file.id, CancellationToken::new());
+
+    scheduler.cancel(file.id).await.expect("cancel requested");
+    let refused = scheduler
+        .resume(file.id)
+        .await
+        .expect_err("a running row cannot be queued");
+    assert_eq!(
+        rd_db::store_kind(&refused),
+        Some(rd_db::StoreErrorKind::WrongState)
+    );
+
+    // The worker reaches its checkpoint.
+    let row = scheduler
+        .database
+        .get_download(file.id)
+        .await
+        .expect("lookup")
+        .expect("row");
+    crate::worker::transition_stopped(&scheduler, &row)
+        .await
+        .expect("stopped");
+    let state = scheduler
+        .database
+        .get_download(file.id)
+        .await
+        .expect("lookup")
+        .expect("row")
+        .state;
+    assert_eq!(state, DownloadState::Cancelled);
+}
+
+/// In the worker's tail the row already says `Paused`, and a resume queues it as before.
+#[tokio::test]
+async fn a_resume_in_the_worker_tail_queues_the_paused_row() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let (scheduler, file, _destination) = paused_package(temporary.path()).await;
+    scheduler
+        .active
+        .lock()
+        .await
+        .tokens
+        .insert(file.id, CancellationToken::new());
+
+    scheduler.resume(file.id).await.expect("resumed");
+    let state = scheduler
+        .database
+        .get_download(file.id)
+        .await
+        .expect("lookup")
+        .expect("row")
+        .state;
+    assert_eq!(state, DownloadState::Queued);
+}

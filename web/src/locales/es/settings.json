@@ -370,7 +370,12 @@
     "mcp_scripts_allowed": {
       "label": "Los asistentes de IA (MCP) pueden asignar scripts",
       "description": "Desactivado por defecto. Si está activado, una herramienta MCP puede asignar a un paquete, una categoría o una automatización un script de la carpeta de scripts y elegir el script de finalización y de reconexión. Solo se cambia aquí; ninguna herramienta puede hacerlo."
-    }
+    },
+    "refuse_unknown_archive_tool_version": {
+      "label": "Rechazar herramientas de extracción de versión desconocida",
+      "description": "Si no se puede leer la versión de unrar o 7-Zip (un programa renombrado o envuelto), se rechaza extraer con él en lugar de continuar con una advertencia. Su versión mínima impide que los enlaces de un archivo escriban fuera de la carpeta de destino, y una versión desconocida no se puede comprobar."
+    },
+    "rar_tool_password_note": "unrar lee la contraseña de un archivo desde su entrada; 7-Zip la recibe en su línea de comandos, donde otros programas de este equipo pueden verla mientras se ejecuta."
   },
   "appearance": {
     "eyebrow": "Solo este navegador",

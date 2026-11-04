@@ -42,6 +42,9 @@ pub struct CaptchaConfigResponse {
     pub has_api_key: bool,
     pub manual_enabled: bool,
     pub manual_timeout_seconds: u64,
+    /// Whether the endpoint may be plain http, which sends the API key unencrypted
+    /// (RD-1420-01); off unless switched on.
+    pub allow_plain_http: bool,
 }
 
 /// Partial update of the solver configuration.
@@ -62,6 +65,10 @@ pub struct UpdateCaptchaConfigRequest {
     pub manual_enabled: Option<bool>,
     #[serde(default)]
     pub manual_timeout_seconds: Option<u64>,
+    /// Allows an `http://` endpoint, for a solver on this machine or in the own network; the
+    /// endpoint stored or sent along is checked against the new value.
+    #[serde(default)]
+    pub allow_plain_http: Option<bool>,
 }
 
 /// The answer to one waiting captcha.
@@ -88,6 +95,9 @@ pub struct TestCaptchaSolverRequest {
     #[serde(default)]
     #[schema(write_only)]
     pub api_key: Option<String>,
+    /// Plain http allowed for this test instead of the stored setting, as the form says.
+    #[serde(default)]
+    pub allow_plain_http: Option<bool>,
 }
 
 /// Proof that the solver service answered and accepted the key.
@@ -296,14 +306,19 @@ pub async fn report_capture_captcha_without_widget(
 
 #[utoipa::path(get, path = "/api/v1/captcha-config", tag = "captcha", responses((status = 200, body = CaptchaConfigResponse)))]
 pub async fn get_captcha_config(State(state): State<AppState>) -> Json<CaptchaConfigResponse> {
-    let settings = state.scheduler.captcha().settings().await;
-    Json(CaptchaConfigResponse {
+    Json(config_response(state.scheduler.captcha().settings().await))
+}
+
+/// The stored configuration as the API shows it, without the key's reference.
+fn config_response(settings: CaptchaSettings) -> CaptchaConfigResponse {
+    CaptchaConfigResponse {
         solver: settings.solver,
         endpoint: settings.endpoint,
         has_api_key: settings.api_key_ref.is_some(),
         manual_enabled: settings.manual_enabled,
         manual_timeout_seconds: settings.manual_timeout_seconds,
-    })
+        allow_plain_http: settings.allow_plain_http,
+    }
 }
 
 #[utoipa::path(put, path = "/api/v1/captcha-config", tag = "captcha", request_body = UpdateCaptchaConfigRequest, responses((status = 200, body = CaptchaConfigResponse), (status = 400, body = crate::error::ErrorBody)))]
@@ -312,10 +327,13 @@ pub async fn update_captcha_config(
     Json(request): Json<UpdateCaptchaConfigRequest>,
 ) -> Result<Json<CaptchaConfigResponse>, ApiError> {
     let current = state.scheduler.captcha().settings().await;
-    let endpoint = match request.endpoint {
-        Some(value) => validated_endpoint(&value)?,
-        None => current.endpoint,
-    };
+    // The endpoint that ends up stored is held to the setting that ends up stored: switching
+    // plain http off under an http endpoint is refused too (RD-1420-01).
+    let allow_plain_http = request.allow_plain_http.unwrap_or(current.allow_plain_http);
+    let endpoint = validated_endpoint(
+        request.endpoint.as_deref().unwrap_or(&current.endpoint),
+        allow_plain_http,
+    )?;
     let previous_key_ref = current.api_key_ref.clone();
     let api_key_ref = match request.api_key {
         Some(value) => Some(state.secrets.put_string(validated_api_key(value)?).await?),
@@ -330,6 +348,7 @@ pub async fn update_captcha_config(
         manual_timeout_seconds: request
             .manual_timeout_seconds
             .unwrap_or(current.manual_timeout_seconds),
+        allow_plain_http,
     }
     .sanitized();
     state
@@ -346,13 +365,7 @@ pub async fn update_captcha_config(
     {
         tracing::warn!(%error, "previous captcha solver key was not removed");
     }
-    Ok(Json(CaptchaConfigResponse {
-        solver: settings.solver,
-        endpoint: settings.endpoint,
-        has_api_key: settings.api_key_ref.is_some(),
-        manual_enabled: settings.manual_enabled,
-        manual_timeout_seconds: settings.manual_timeout_seconds,
-    }))
+    Ok(Json(config_response(settings)))
 }
 
 #[utoipa::path(post, path = "/api/v1/captcha-config/test", tag = "captcha", request_body = TestCaptchaSolverRequest, responses((status = 200, body = CaptchaSolverTestResponse), (status = 400, body = crate::error::ErrorBody), (status = 502, body = crate::error::ErrorBody)))]
@@ -360,8 +373,14 @@ pub async fn test_captcha_solver(
     State(state): State<AppState>,
     Json(request): Json<TestCaptchaSolverRequest>,
 ) -> Result<Json<CaptchaSolverTestResponse>, ApiError> {
+    // A typed endpoint is checked here against the form's setting, or the stored one; the
+    // broker checks the endpoint it ends up with against the same.
+    let allow_plain_http = match request.allow_plain_http {
+        Some(allowed) => allowed,
+        None => state.scheduler.captcha().settings().await.allow_plain_http,
+    };
     let endpoint = match request.endpoint {
-        Some(value) => Some(validated_endpoint(&value)?),
+        Some(value) => Some(validated_endpoint(&value, allow_plain_http)?),
         None => None,
     };
     let api_key = match request.api_key {
@@ -371,7 +390,7 @@ pub async fn test_captcha_solver(
     let balance = state
         .scheduler
         .captcha()
-        .test_solver(endpoint, api_key)
+        .test_solver_with(endpoint, api_key, request.allow_plain_http)
         .await
         .map_err(solver_unreachable)?;
     Ok(Json(CaptchaSolverTestResponse { balance }))
@@ -383,6 +402,8 @@ fn solver_unreachable(failure: Failure) -> ApiError {
     let code = match failure.code.as_deref() {
         Some("captcha.solver_key_missing") => "captcha.solver_key_missing",
         Some("captcha.solver_timeout") => "captcha.solver_timeout",
+        Some(rd_captcha::CODE_ENDPOINT_PLAIN_HTTP) => rd_captcha::CODE_ENDPOINT_PLAIN_HTTP,
+        Some(rd_captcha::CODE_ENDPOINT_INVALID) => rd_captcha::CODE_ENDPOINT_INVALID,
         _ => "captcha.solver_failed",
     };
     // A rejected key or an empty balance is the user's to fix; anything else is the
@@ -418,24 +439,11 @@ fn captcha_token(value: &str) -> Result<String, ApiError> {
 }
 
 /// Solver endpoints are contacted with the user's API key, so only absolute HTTPS URLs are
-/// accepted — a typo must not send the key over plain HTTP.
-fn validated_endpoint(value: &str) -> Result<String, ApiError> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return Ok(rd_captcha::DEFAULT_ENDPOINT.to_owned());
-    }
-    let url = url::Url::parse(trimmed).map_err(|_| endpoint_invalid())?;
-    if url.scheme() != "https" || url.host_str().is_none() {
-        return Err(endpoint_invalid());
-    }
-    Ok(trimmed.trim_end_matches('/').to_owned())
-}
-
-fn endpoint_invalid() -> ApiError {
-    ApiError::bad_request(
-        "captcha.endpoint_invalid",
-        "The solver endpoint must be an absolute https URL",
-    )
+/// accepted — a typo must not send the key over plain HTTP — and an http one only where the
+/// configuration allows it, with a code of its own (`rd_captcha::checked_endpoint`).
+fn validated_endpoint(value: &str, allow_plain_http: bool) -> Result<String, ApiError> {
+    rd_captcha::checked_endpoint(value, allow_plain_http)
+        .map_err(|refusal| ApiError::bad_request(refusal.code(), refusal.message()))
 }
 
 fn not_waiting() -> ApiError {
@@ -446,52 +454,5 @@ fn not_waiting() -> ApiError {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{CaptureCaptchaClient, ListCaptureCaptchasQuery, validated_endpoint};
-
-    /// The extension names itself in the query string; an agent that says nothing is still
-    /// served, and a client nobody knows is refused rather than silently counted as one.
-    #[test]
-    fn the_polling_client_is_optional_and_only_known_names_are_accepted() {
-        let named: ListCaptureCaptchasQuery =
-            serde_json::from_value(serde_json::json!({ "client": "browser_extension" }))
-                .expect("known client");
-        assert_eq!(named.client, Some(CaptureCaptchaClient::BrowserExtension));
-
-        let unnamed: ListCaptureCaptchasQuery =
-            serde_json::from_value(serde_json::json!({})).expect("no client");
-        assert_eq!(unnamed.client, None);
-
-        assert!(
-            serde_json::from_value::<ListCaptureCaptchasQuery>(
-                serde_json::json!({ "client": "toaster" })
-            )
-            .is_err(),
-            "an unknown client must not pass as the extension"
-        );
-    }
-
-    /// The endpoint receives the API key, so it must be https and absolute.
-    #[test]
-    fn only_absolute_https_endpoints_are_accepted() {
-        assert_eq!(
-            validated_endpoint("https://api.capmonster.cloud/").expect("https"),
-            "https://api.capmonster.cloud"
-        );
-        assert_eq!(
-            validated_endpoint("  ").expect("blank falls back"),
-            rd_captcha::DEFAULT_ENDPOINT
-        );
-        for rejected in [
-            "http://api.2captcha.com",
-            "api.2captcha.com",
-            "ftp://example.test",
-            "https://",
-        ] {
-            assert!(
-                validated_endpoint(rejected).is_err(),
-                "{rejected} must be rejected"
-            );
-        }
-    }
-}
+#[path = "captcha_handlers_tests.rs"]
+mod tests;

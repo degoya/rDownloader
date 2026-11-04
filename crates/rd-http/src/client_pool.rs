@@ -220,8 +220,10 @@ fn build_client(context: &ClientContext, cookie_jar: Arc<Jar>) -> Result<Client>
 
     // A guarded client resolves and checks every target itself, when the connection is made;
     // behind a proxy the proxy is then handed the checked address, not the name, which it
-    // would resolve again — unless the profile says it resolves names itself (RD-1320-07).
-    // The target is also judged before the request (`check_target`), and every redirect hop is.
+    // would resolve again — unless the profile says it resolves names itself (RD-1320-07); then
+    // each connection's target, a redirect hop's too, is judged before the proxy is asked for
+    // it (RD-1420-01). The target is also judged before the request (`check_target`), and every
+    // redirect hop is.
     let guard = context.key.address_policy.as_ref();
     builder = match (&context.proxy, guard) {
         (Some(profile), _) => crate::with_proxy(
@@ -232,9 +234,11 @@ fn build_client(context: &ClientContext, cookie_jar: Arc<Jar>) -> Result<Client>
             crate::NameResolution::of(Some(profile)),
             &context.custom_ca_pem,
         )?,
-        (None, Some(policy)) => {
-            builder.dns_resolver(crate::GuardedResolver::system(policy.clone()))
-        }
+        // A port refused on this machine alone is checked where the addresses are known.
+        (None, Some(policy)) => crate::connect_target::refusing_this_machine(
+            builder.dns_resolver(crate::GuardedResolver::system(policy.clone())),
+            policy,
+        ),
         (None, None) => builder,
     };
 

@@ -85,7 +85,7 @@ use rd_api_admin::{
     stats_handlers, system_cleanup, tools_handlers, update_handlers, web_push_handlers,
 };
 use rd_api_core::{
-    ApiError, AppState, audit, auth, client, container_upload, dto, error_codes, hosters,
+    ApiError, AppState, audit, auth, container_upload, dto, error_codes, hosters,
     postprocess_handlers, scope_policy, settings_store, storage_capacity,
 };
 use rd_api_intake::{
@@ -325,40 +325,10 @@ impl RdMcpServer {
     /// the only place the credential is visible: the session factory that builds this server
     /// never sees a request, so the scopes cannot be resolved once per session. The transport
     /// gate (`auth::require_api_token`) already resolved them for this very request and left
-    /// them in the parts' extensions; they are read from there, and looked up only for a
-    /// request that did not pass the gate, which the router does not let happen.
-    async fn caller(
-        &self,
-        context: &RequestContext<RoleServer>,
-    ) -> (Vec<Scope>, crate::audit::AuditContext) {
-        let Some(parts) = context.extensions.get::<axum::http::request::Parts>() else {
-            // No HTTP parts means this is not the streamable-HTTP transport the service is
-            // mounted on. Nothing to authorise against, so nothing is granted.
-            return (
-                Vec::new(),
-                crate::audit::AuditContext {
-                    actor: crate::audit::Actor::system(),
-                    trace: None,
-                },
-            );
-        };
-        let trace = parts.extensions.get::<rd_core::TraceContext>().copied();
-        let resolved = parts
-            .extensions
-            .get::<crate::auth::Granted>()
-            .zip(parts.extensions.get::<crate::audit::Actor>());
-        let (scopes, actor) = match resolved {
-            Some((granted, actor)) => (granted.scopes().to_vec(), actor.clone()),
-            None => {
-                let from_this_machine =
-                    crate::client::from_this_machine(&parts.extensions, &parts.headers);
-                crate::auth::credential(&self.state, &parts.headers, from_this_machine).await
-            }
-        };
-        // Through MCP, whichever path resolved it: the gate already says so, the fallback does
-        // not (RD-1200-04).
-        let actor = actor.through(rd_core::AuditChannel::Mcp);
-        (scopes, crate::audit::AuditContext { actor, trace })
+    /// them in the parts' extensions; they are read from there. A request that did not pass
+    /// the gate -- which the router does not let happen -- is granted nothing.
+    fn caller(context: &RequestContext<RoleServer>) -> (Vec<Scope>, crate::audit::AuditContext) {
+        caller_from_parts(context.extensions.get::<axum::http::request::Parts>())
     }
 
     /// The permission check and the call itself, before the mask.
@@ -377,7 +347,7 @@ impl RdMcpServer {
                 })),
             ));
         };
-        let (granted, audit) = self.caller(&context).await;
+        let (granted, audit) = Self::caller(&context);
         if !granted.contains(&required) {
             return Err(refusal(required, &request.name));
         }
@@ -453,6 +423,39 @@ pub fn service(state: AppState) -> StreamableHttpService<RdMcpServer, LocalSessi
         Arc::new(LocalSessionManager::default()),
         config,
     )
+}
+
+/// [`RdMcpServer::caller`] over the request's HTTP parts, apart from the rmcp context so it
+/// can be driven directly.
+fn caller_from_parts(
+    parts: Option<&axum::http::request::Parts>,
+) -> (Vec<Scope>, crate::audit::AuditContext) {
+    let Some(parts) = parts else {
+        // No HTTP parts means this is not the streamable-HTTP transport the service is
+        // mounted on. Nothing to authorise against, so nothing is granted.
+        return (
+            Vec::new(),
+            crate::audit::AuditContext {
+                actor: crate::audit::Actor::system(),
+                trace: None,
+            },
+        );
+    };
+    let trace = parts.extensions.get::<rd_core::TraceContext>().copied();
+    let resolved = parts
+        .extensions
+        .get::<crate::auth::Granted>()
+        .zip(parts.extensions.get::<crate::audit::Actor>());
+    let (scopes, actor) = match resolved {
+        Some((granted, actor)) => (granted.scopes().to_vec(), actor.clone()),
+        // A request the transport gate did not resolve carries nothing to authorise against:
+        // it is granted nothing rather than looked up a second time, outside the gate's own
+        // accounting.
+        None => (Vec::new(), crate::audit::Actor::anonymous()),
+    };
+    // Through MCP, whichever path resolved it (RD-1200-04).
+    let actor = actor.through(rd_core::AuditChannel::Mcp);
+    (scopes, crate::audit::AuditContext { actor, trace })
 }
 
 #[cfg(test)]

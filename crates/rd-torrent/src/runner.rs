@@ -42,14 +42,32 @@ impl TorrentRunner {
 /// the session, `file://` points at a stored `.torrent` file. Neither a queue row's nor a
 /// LinkGrabber link's http(s) address comes here: [`TorrentService::request_for`] and
 /// `rd_api_core::torrent_candidate` fetch it on the row's or the link's own network (RD-1320-05).
-pub(crate) fn add_request(source: &Url) -> Result<AddTorrent<'static>> {
+///
+/// A stored `.torrent` is read without blocking the runtime, and only when it is no larger
+/// than `MAX_TORRENT_BYTES`, the limit it was stored under.
+pub(crate) async fn add_request(source: &Url) -> Result<AddTorrent<'static>> {
     if source.scheme() == "file" {
         let path = source
             .to_file_path()
             .ok()
             .context("stored .torrent path is invalid")?;
-        let bytes = std::fs::read(&path)
+        let length = tokio::fs::metadata(&path)
+            .await
+            .with_context(|| format!("read stored .torrent {}", path.display()))?
+            .len();
+        anyhow::ensure!(
+            length <= crate::MAX_TORRENT_BYTES as u64,
+            "stored .torrent {} exceeds the 16 MiB limit",
+            path.display()
+        );
+        let bytes = tokio::fs::read(&path)
+            .await
             .with_context(|| format!("read stored .torrent {}", path.display()))?;
+        anyhow::ensure!(
+            bytes.len() <= crate::MAX_TORRENT_BYTES,
+            "stored .torrent {} exceeds the 16 MiB limit",
+            path.display()
+        );
         return Ok(AddTorrent::from_bytes(bytes));
     }
     Ok(AddTorrent::from_url(source.to_string()))
@@ -94,6 +112,19 @@ impl ExternalRunner for TorrentRunner {
             .scheduler
             .get()
             .map(|scheduler| scheduler.transfer_network(file, limits.address_policy));
+        // Its files are being carried to another folder right now; added here, the torrent
+        // would start writing into the folder that is being emptied (RD-1100-10). The claim
+        // keeps a move from starting until the torrent is in the session and the registry; a
+        // move that starts after that takes it out again as it does any running torrent.
+        let Some(adding) = self.service.begin_add(file.id) else {
+            return Ok(RunOutcome::Failed(Failure::coded(
+                FailureKind::Transient {
+                    retry_after_seconds: Some(60),
+                },
+                "torrent.relocation_running",
+                "The torrent's files are being moved",
+            )));
+        };
         let Added {
             session,
             generation,
@@ -113,6 +144,7 @@ impl ExternalRunner for TorrentRunner {
             crate::registry::TorrentPhase::Downloading,
             generation,
         );
+        drop(adding);
         if let Some(outcome) = self
             .initialize(file, &session, &handle, id_or_hash, &cancellation)
             .await
@@ -153,9 +185,9 @@ impl ExternalRunner for TorrentRunner {
             .torrent_max_active_seeds;
         if crate::seeding::seeds_after_download(&self.service, file.id).await {
             crate::seeding::begin(&self.service, file.id, torrent_id, info_hash, generation).await;
-            let mut state = self.service.job_state(file.id).await;
-            state.seed.start(chrono::Utc::now());
-            self.service.store_job_state(file.id, state).await;
+            self.service
+                .record_job_state(file.id, |state| state.seed.start(chrono::Utc::now()))
+                .await;
             // Past the seed limit, the supervisor ends the longest seed now (RD-1240-16).
             if seed_limit.is_some() {
                 self.service.nudge_seeding();
@@ -187,17 +219,6 @@ impl TorrentRunner {
         package: &DownloadPackage,
         network: Option<&rd_scheduler::TransferNetwork>,
     ) -> Result<ControlFlow<RunOutcome, Added>> {
-        // Its files are being carried to another folder right now; added here, the torrent
-        // would start writing into the folder that is being emptied (RD-1100-10).
-        if self.service.is_relocating(file.id).await {
-            return Ok(ControlFlow::Break(RunOutcome::Failed(Failure::coded(
-                FailureKind::Transient {
-                    retry_after_seconds: Some(60),
-                },
-                "torrent.relocation_running",
-                "The torrent's files are being moved",
-            ))));
-        }
         let (session, generation) = match self.service.session_slot().await {
             Ok(slot) => slot,
             Err(error) => {
@@ -311,7 +332,7 @@ impl TorrentRunner {
         // The stored plan addresses files by index, which is only meaningful for the exact
         // metadata it was reviewed against. A different info hash means the source changed
         // underneath the row, so it is refused rather than applied to the wrong files.
-        let mut state = self.service.job_state(file.id).await;
+        let state = self.service.job_state(file.id).await;
         if let Some(stored) = state.metadata.as_ref()
             && stored.info_hash != info_hash
         {
@@ -327,8 +348,12 @@ impl TorrentRunner {
             // A magnet only reveals its file tree here; store it so the detail view and a
             // later restart work from the same model as an uploaded `.torrent`.
             if let Some(metadata) = self.service.metadata_of(handle).await {
-                state.metadata = Some(metadata);
-                self.service.store_job_state(file.id, state).await;
+                self.service
+                    .record_job_state(file.id, move |state| {
+                        // Another control may have stored it meanwhile; that copy stays.
+                        state.metadata.get_or_insert(metadata);
+                    })
+                    .await;
             }
         }
         None
@@ -386,5 +411,37 @@ impl TorrentRunner {
             }
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::add_request;
+
+    #[tokio::test]
+    async fn a_stored_torrent_over_the_limit_is_refused_before_it_is_read() {
+        let path = std::env::temp_dir().join(format!(
+            "rd-torrent-oversized-{}.torrent",
+            rd_core::DownloadId::new()
+        ));
+        let file = std::fs::File::create(&path).expect("create");
+        file.set_len(crate::MAX_TORRENT_BYTES as u64 + 1)
+            .expect("size");
+        drop(file);
+        let source = url::Url::from_file_path(&path).expect("file URL");
+        let refused = add_request(&source).await;
+        let _ = std::fs::remove_file(&path);
+        let error = refused.err().expect("refused");
+        assert!(error.to_string().contains("16 MiB"));
+    }
+
+    #[tokio::test]
+    async fn a_missing_stored_torrent_is_an_error() {
+        let path = std::env::temp_dir().join(format!(
+            "rd-torrent-missing-{}.torrent",
+            rd_core::DownloadId::new()
+        ));
+        let source = url::Url::from_file_path(&path).expect("file URL");
+        assert!(add_request(&source).await.is_err());
     }
 }

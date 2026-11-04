@@ -431,3 +431,35 @@ async fn a_taken_name_is_never_overwritten() {
     cancellation.cancel();
     handle.await.expect("watcher task").expect("watcher result");
 }
+
+/// A link handed in by a native event is skipped the way the scan skips it, rather than
+/// followed to whatever file it names.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_link_reported_by_an_event_is_not_followed() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let outside = tempfile::tempdir().expect("outside directory");
+    let target = outside.path().join("elsewhere.nzb");
+    tokio::fs::write(&target, b"<nzb/>")
+        .await
+        .expect("write target");
+    let link = directory.path().join("link.nzb");
+    std::os::unix::fs::symlink(&target, &link).expect("create link");
+    let (sender, mut receiver) = mpsc::channel(1);
+    let mut imported = std::collections::HashSet::new();
+    let mut scanner = super::scanner::Scanner {
+        config: config(directory.path()),
+        root: directory.path().to_path_buf(),
+        processed: directory.path().join("processed"),
+        failed: directory.path().join("failed"),
+        sink: Arc::new(ChannelSink(sender)),
+        stability: Duration::ZERO,
+        observed: std::collections::HashMap::new(),
+        imported: &mut imported,
+    };
+    scanner.inspect(link.clone()).await.expect("first look");
+    scanner.inspect(link.clone()).await.expect("second look");
+    assert!(receiver.try_recv().is_err(), "the link was not imported");
+    assert!(link.symlink_metadata().is_ok(), "the link stays in place");
+    assert!(target.exists(), "the target is untouched");
+}

@@ -40,9 +40,11 @@ pub(crate) async fn archive_tools(run: &Run<'_>) -> Result<ArchiveTools> {
     ));
     let package_password = inner.database.package_password(run.package_id).await?;
     let candidates = password_candidates(package_password.as_deref(), &password_list);
-    let rar_choice =
-        settings::refuse_outdated(settings::rar_tool(&run.settings, inner.config.rar_timeout)?)
-            .await;
+    let rar_choice = settings::refuse_outdated(
+        settings::rar_tool(&run.settings, inner.config.rar_timeout)?,
+        run.settings.refuse_unknown_archive_tool_version,
+    )
+    .await;
     Ok(ArchiveTools {
         candidates,
         rar_choice,
@@ -136,17 +138,20 @@ pub(crate) async fn verify(
                 "the set was unpacked while it downloaded",
             )
             .await?;
-        } else if rar_choice.outdated.is_some() {
+        } else if let Some(outdated) = &rar_choice.outdated {
             // Not started at all; the unpack step names the version and the floor.
-            rar_test_job::skip(
-                inner,
-                owner,
-                steps,
-                sets,
-                crate::steps::codes::RAR_TEST_SKIPPED_OUTDATED,
-                "the RAR tool is below its security floor",
-            )
-            .await?;
+            let (code, message) = if outdated.unknown {
+                (
+                    crate::steps::codes::RAR_TEST_SKIPPED_VERSION_UNKNOWN,
+                    "the RAR tool's version could not be read",
+                )
+            } else {
+                (
+                    crate::steps::codes::RAR_TEST_SKIPPED_OUTDATED,
+                    "the RAR tool is below its security floor",
+                )
+            };
+            rar_test_job::skip(inner, owner, steps, sets, code, message).await?;
         } else {
             rar_test_ok = rar_test_job::run(
                 inner,

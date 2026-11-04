@@ -6,23 +6,29 @@ use std::time::Duration;
 use url::Url;
 
 use super::fixtures::{
-    Answers, PUBLIC, client, connect_proxy, entries, fetch, plain_origin, refusing_proxy,
-    socks_proxy,
+    Answers, Named, PUBLIC, client, connect_proxy, entries, fetch, plain_origin, redirecting_proxy,
+    refusing_proxy, socks_proxy,
 };
 use super::*;
 
-/// A client under the public rule behind `endpoint` as [`with_proxy`] builds it, with the
-/// system's lookup — which a name the proxy resolves never reaches.
+/// A client under the public rule behind `endpoint` as [`with_proxy`] builds it, over a lookup
+/// that knows no name, as in a network where only the proxy resolves.
 fn resolving_at_proxy(endpoint: &str) -> reqwest::Client {
+    resolving_at_proxy_over(endpoint, Answers::nothing())
+}
+
+/// [`resolving_at_proxy`] over `lookup`, which judges every connection's target.
+fn resolving_at_proxy_over(endpoint: &str, lookup: Arc<dyn HostLookup>) -> reqwest::Client {
     let builder =
         crate::client_builder(crate::ClientPurpose::Direct).connect_timeout(Duration::from_secs(5));
-    with_proxy(
+    with_proxy_lookup(
         builder,
         &Url::parse(endpoint).expect("endpoint"),
         None,
         Some(&AddressPolicy::new(false)),
         NameResolution::AtProxy,
         &[],
+        lookup,
     )
     .expect("builder")
     .build()
@@ -216,6 +222,66 @@ async fn before_the_request_a_name_is_judged_only_when_the_proxy_resolves_it() {
     )
     .await;
     assert!(nowhere.is_ok());
+}
+
+/// RD-1420-01 (audit L-07): behind a proxy that resolves names, a redirect hop to a name that
+/// answers here with an address the rule refuses is refused before the proxy is asked for it.
+#[tokio::test]
+async fn behind_a_proxy_resolving_names_a_hop_to_a_refused_address_is_refused() {
+    let (proxy, asked) = redirecting_proxy("http://intranet.test/secret").await;
+    let lookup = Arc::new(Named(vec![(
+        "intranet.test",
+        std::net::IpAddr::from([10, 0, 0, 5]),
+    )]));
+    let client = resolving_at_proxy_over(&format!("http://127.0.0.1:{proxy}"), lookup);
+
+    let error = client
+        .get("http://files.test/start")
+        .send()
+        .await
+        .expect_err("refused hop");
+
+    assert!(crate::is_refusal(&error), "{error:?}");
+    assert_eq!(entries(&asked), ["GET http://files.test/start HTTP/1.1"]);
+}
+
+/// The same hop to a name that answers here with a public address, or not at all, is followed
+/// through the proxy, which is handed the name.
+#[tokio::test]
+async fn behind_a_proxy_resolving_names_a_hop_to_a_permitted_name_is_followed() {
+    for hop in ["http://cdn.test/file", "http://elsewhere.test/file"] {
+        let (proxy, asked) = redirecting_proxy(hop).await;
+        let lookup = Arc::new(Named(vec![("cdn.test", PUBLIC)]));
+        let client = resolving_at_proxy_over(&format!("http://127.0.0.1:{proxy}"), lookup);
+
+        let body = fetch(&client, "http://files.test/start").await;
+
+        assert_eq!(body, "ok");
+        assert_eq!(
+            entries(&asked),
+            [
+                "GET http://files.test/start HTTP/1.1".to_owned(),
+                format!("GET {hop} HTTP/1.1"),
+            ]
+        );
+    }
+}
+
+/// A literal the rule refuses is refused at the connection too, not only by the caller's
+/// check before the request.
+#[tokio::test]
+async fn behind_a_proxy_resolving_names_a_refused_literal_never_reaches_it() {
+    let (proxy, asked) = redirecting_proxy("http://cdn.test/file").await;
+    let client = resolving_at_proxy(&format!("http://127.0.0.1:{proxy}"));
+
+    let error = client
+        .get("http://169.254.169.254/latest/meta-data/")
+        .send()
+        .await
+        .expect_err("refused");
+
+    assert!(crate::is_refusal(&error), "{error:?}");
+    assert!(entries(&asked).is_empty(), "{:?}", entries(&asked));
 }
 
 #[test]

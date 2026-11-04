@@ -10,6 +10,66 @@ pub const SETTINGS_KEY: &str = "captcha";
 /// CapSolver, …) exposes the same `createTask`/`getTaskResult` pair on its own host.
 pub const DEFAULT_ENDPOINT: &str = "https://api.2captcha.com";
 
+/// The code of a solver endpoint over plain http while [`CaptchaSettings::allow_plain_http`]
+/// is off (RD-1420-01): the API key would cross the network unencrypted.
+pub const CODE_ENDPOINT_PLAIN_HTTP: &str = "captcha.endpoint_plain_http";
+
+/// The code of a solver endpoint that is no absolute http(s) URL with a host.
+pub const CODE_ENDPOINT_INVALID: &str = "captcha.endpoint_invalid";
+
+/// Why a solver endpoint is not used.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EndpointRefusal {
+    /// No absolute http(s) URL with a host.
+    Invalid,
+    /// Plain http without [`CaptchaSettings::allow_plain_http`].
+    PlainHttp,
+}
+
+impl EndpointRefusal {
+    /// The stable code of the refusal.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Invalid => CODE_ENDPOINT_INVALID,
+            Self::PlainHttp => CODE_ENDPOINT_PLAIN_HTTP,
+        }
+    }
+
+    /// The refusal in English, for logs and API clients without a translation.
+    #[must_use]
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::Invalid => "The solver endpoint must be an absolute https URL",
+            Self::PlainHttp => {
+                "The solver endpoint uses plain http, which would send the API key \
+                 unencrypted: use https, or allow plain http in the captcha settings"
+            }
+        }
+    }
+}
+
+/// The solver endpoint `value` as it is stored and used: trimmed and without a trailing slash,
+/// the default when blank. Only an absolute https URL with a host, or an http one when
+/// `allow_plain_http` — the endpoint receives the person's API key (RD-1420-01).
+pub fn checked_endpoint(value: &str, allow_plain_http: bool) -> Result<String, EndpointRefusal> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Ok(DEFAULT_ENDPOINT.to_owned());
+    }
+    let url = url::Url::parse(trimmed).map_err(|_| EndpointRefusal::Invalid)?;
+    if url.host_str().is_none_or(str::is_empty) {
+        return Err(EndpointRefusal::Invalid);
+    }
+    match url.scheme() {
+        "https" => {}
+        "http" if allow_plain_http => {}
+        "http" => return Err(EndpointRefusal::PlainHttp),
+        _ => return Err(EndpointRefusal::Invalid),
+    }
+    Ok(trimmed.trim_end_matches('/').to_owned())
+}
+
 /// How captchas are solved.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -35,6 +95,10 @@ pub struct CaptchaSettings {
     pub manual_enabled: bool,
     #[serde(default = "default_manual_timeout")]
     pub manual_timeout_seconds: u64,
+    /// Whether the endpoint may be plain http, which sends the API key unencrypted — for a
+    /// solver on this machine or in the person's own network (RD-1420-01). Off by default.
+    #[serde(default)]
+    pub allow_plain_http: bool,
 }
 
 fn default_endpoint() -> String {
@@ -59,6 +123,7 @@ impl Default for CaptchaSettings {
             api_key_ref: None,
             manual_enabled: default_manual_enabled(),
             manual_timeout_seconds: default_manual_timeout(),
+            allow_plain_http: false,
         }
     }
 }
@@ -83,7 +148,7 @@ impl CaptchaSettings {
 
 #[cfg(test)]
 mod tests {
-    use super::{CaptchaSettings, SolverKind};
+    use super::{CaptchaSettings, EndpointRefusal, SolverKind, checked_endpoint};
 
     #[test]
     fn an_empty_stored_object_yields_working_defaults() {
@@ -92,6 +157,48 @@ mod tests {
         assert!(settings.manual_enabled);
         assert!(!settings.has_solver());
         assert_eq!(settings.endpoint, super::DEFAULT_ENDPOINT);
+        assert!(
+            !settings.allow_plain_http,
+            "plain http is off unless switched on"
+        );
+    }
+
+    /// RD-1420-01 (audit L-08): the endpoint receives the API key, so plain http only with the
+    /// setting, and never anything but an absolute http(s) URL.
+    #[test]
+    fn a_plain_http_endpoint_needs_the_setting() {
+        assert_eq!(
+            checked_endpoint("https://api.capmonster.cloud/", false),
+            Ok("https://api.capmonster.cloud".to_owned())
+        );
+        assert_eq!(
+            checked_endpoint("  ", false),
+            Ok(super::DEFAULT_ENDPOINT.to_owned())
+        );
+        assert_eq!(
+            checked_endpoint("http://127.0.0.1:8000/", false),
+            Err(EndpointRefusal::PlainHttp)
+        );
+        assert_eq!(
+            checked_endpoint("http://127.0.0.1:8000/", true),
+            Ok("http://127.0.0.1:8000".to_owned())
+        );
+        assert_eq!(
+            EndpointRefusal::PlainHttp.code(),
+            "captcha.endpoint_plain_http"
+        );
+        for rejected in [
+            "api.2captcha.com",
+            "ftp://example.test",
+            "https://",
+            "http://",
+        ] {
+            assert_eq!(
+                checked_endpoint(rejected, true),
+                Err(EndpointRefusal::Invalid),
+                "{rejected}"
+            );
+        }
     }
 
     #[test]

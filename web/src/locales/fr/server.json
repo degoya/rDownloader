@@ -1334,7 +1334,12 @@
     "web.route_not_found": "Rien à cette adresse ne répond à cette requête",
     "package.reset": "Aucun paquet réinitialisé | Paquet réinitialisé : {count} fichier recommence depuis le début | Paquet réinitialisé : {count} fichiers recommencent depuis le début",
     "package.reset_not_failed": "Seul un paquet en échec peut être entièrement réinitialisé",
-    "package.reset_running": "Mettez d’abord en pause ou arrêtez les fichiers en cours de ce paquet"
+    "package.reset_running": "Mettez d’abord en pause ou arrêtez les fichiers en cours de ce paquet",
+    "plugin.host_requests_exhausted": "L'appel du plugin a épuisé son quota de requêtes à l'hôte ({limit})",
+    "postprocess.malware_scanner_failed": "clamd à {address} est injoignable",
+    "captcha.endpoint_plain_http": "Le point de terminaison du service de résolution utilise http non chiffré, qui enverrait la clé d’API en clair : utilise https ou autorise http dans les réglages des captchas",
+    "extract.tool_version_unknown": "La version de {tool} n’a pas pu être lue, et les paramètres refusent un tel outil pour l’extraction : impossible de vérifier qu’il est au moins en version {minimum}, en dessous de laquelle les liens d’une archive écrivent hors du dossier de destination. Pointez le chemin du programme directement vers {tool} ou mettez-le à jour.",
+    "postprocess.rar_test_skipped_version_unknown": "Ignoré : la version de l'outil RAR n'a pas pu être lue"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

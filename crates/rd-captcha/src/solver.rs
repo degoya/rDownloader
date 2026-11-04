@@ -11,6 +11,10 @@ use rd_plugin_api::{
 };
 use serde_json::{Value, json};
 
+/// Largest answer read from a solver service. A task result is a token or a few coordinates;
+/// anything near this size is not an answer, and reading it whole would only cost memory.
+const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
+
 /// How a solver service is polled. The service runs with the default; a test against a local
 /// solver that answers at once passes shorter waits (RD-1120-08), which change nothing else.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -235,10 +239,35 @@ async fn post(
     if !response.status().is_success() {
         return Err(solver_failure(&format!("HTTP {}", response.status())));
     }
-    response
-        .json()
+    let body = read_bounded(response, MAX_RESPONSE_BYTES).await?;
+    serde_json::from_slice(&body).map_err(|error| solver_failure(&error.to_string()))
+}
+
+/// The response body, collected chunk by chunk and abandoned once it passes `max_bytes`: the
+/// declared length is checked first, but a chunked answer declares none.
+async fn read_bounded(
+    mut response: reqwest::Response,
+    max_bytes: usize,
+) -> Result<Vec<u8>, Failure> {
+    let too_large = || solver_failure("response too large");
+    if response
+        .content_length()
+        .is_some_and(|length| length > max_bytes as u64)
+    {
+        return Err(too_large());
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
         .await
-        .map_err(|error| solver_failure(&rd_core::error_with_causes(&error.without_url())))
+        .map_err(|error| solver_failure(&rd_core::error_with_causes(&error.without_url())))?
+    {
+        body.extend_from_slice(&chunk);
+        if body.len() > max_bytes {
+            return Err(too_large());
+        }
+    }
+    Ok(body)
 }
 
 fn solver_failure(reason: &str) -> Failure {

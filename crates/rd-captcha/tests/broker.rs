@@ -49,9 +49,9 @@ async fn fixture() -> Fixture {
 }
 
 impl Fixture {
-    /// Writes the settings row directly, which is also the only way to point the broker at a
-    /// local solver: the REST layer accepts https endpoints only.
-    async fn configure(&self, settings: Value) {
+    /// Writes the settings row directly, with plain http allowed, which a local solver speaks.
+    async fn configure(&self, mut settings: Value) {
+        settings["allow_plain_http"] = json!(true);
         self.database
             .set_setting(rd_captcha::SETTINGS_KEY.to_owned(), settings)
             .await
@@ -397,7 +397,7 @@ async fn an_unsaved_key_can_be_tested_before_it_is_stored() {
 
     let balance = fixture
         .broker
-        .test_solver(Some(endpoint), Some("typed-key".to_owned()))
+        .test_solver_with(Some(endpoint), Some("typed-key".to_owned()), Some(true))
         .await
         .expect("service answered");
 
@@ -417,7 +417,7 @@ async fn a_rejected_key_is_reported_as_the_users_problem_and_a_dead_service_as_o
 
     let failure = fixture
         .broker
-        .test_solver(Some(rejected), Some("wrong".to_owned()))
+        .test_solver_with(Some(rejected), Some("wrong".to_owned()), Some(true))
         .await
         .expect_err("key rejected");
     assert_eq!(failure.code.as_deref(), Some("captcha.solver_failed"));
@@ -440,7 +440,7 @@ async fn a_rejected_key_is_reported_as_the_users_problem_and_a_dead_service_as_o
     let busy = busy_server.url("");
     let failure = fixture
         .broker
-        .test_solver(Some(busy), Some("fine".to_owned()))
+        .test_solver_with(Some(busy), Some("fine".to_owned()), Some(true))
         .await
         .expect_err("service busy");
     assert_eq!(failure.category, FailureKind::CaptchaFailed);
@@ -520,3 +520,5 @@ async fn a_configured_solver_answers_a_widget_challenge_nobody_could_type() {
         "no request may carry the key in its URL"
     );
 }
+#[path = "broker/solver_answer.rs"]
+mod solver_answer;

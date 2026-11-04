@@ -25,6 +25,8 @@ mod direct_tests;
 #[cfg(test)]
 mod rar_args_tests;
 #[cfg(test)]
+mod rar_stdin_tests;
+#[cfg(test)]
 mod seven_zip_args_tests;
 #[cfg(test)]
 mod seven_zip_password_tests;

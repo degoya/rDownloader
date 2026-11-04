@@ -5,6 +5,208 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.42.0] - 2026-11-04
+
+### Changed
+
+- **GitHub Actions updated (Dependabot #29).** `taiki-e/install-action` 2.88.1, pinned by commit
+  SHA; the SDK's `sdk/ci/plugin.yml` carries the same pin.
+
+- **CI checks the action pins.** The `scripts` job runs `scripts/check-actions-pinned.sh`, which
+  so far ran only in the local preflight.
+
+- **Installers fetched by the workflows are checked.** The Homebrew installer in `channels.yml` is
+  verified against its SHA-256 like the Scoop installer; the soak run installs psutil 7.2.2 from
+  `scripts/lib/soak-requirements.txt` with `--require-hashes`.
+
+- **Dependency notes.** async-executor 1.14.1 replaces the yanked 1.14.0; `deny.toml` documents
+  RUSTSEC-2024-0429 (glib 0.18, GTK3 stack built for no shipped target) and when to review the
+  RUSTSEC-2023-0071 entry; the web lock overrides glob to ^14.0.2 (development dependency only).
+
+- **Dependencies current for 1.42.** `cargo update` (async-lock 3.5.0, jiff 0.2.39, russh 0.65.1,
+  toml 1.2.0, zip 9.3.0 among them); web: tailwindcss 4.3.4, vitest 5.1.0; oxlint 1.91.0 waits for
+  pnpm's minimum release age; the container's `rust:1.99.1-bookworm` base at its rebuilt digest.
+  Not taken (owner, 2026-11-02): `typescript` 7, `@types/node` 26.
+
+- **SFTP key hint.** Settings › FTP, SFTP and WebDAV recommends an Ed25519 client key.
+
+- **Tighter defaults for the container and the systemd units.** `docker/compose.yml` drops all
+  capabilities but `CHOWN`, `DAC_OVERRIDE`, `SETUID` and `SETGID`, which the entrypoint needs to
+  adopt PUID/PGID, and sets `no-new-privileges`; both user units add
+  `SystemCallFilter=@system-service` with `SystemCallErrorNumber=EPERM`.
+
+- **Capture pairing checks the caller's grant.** `POST /api/v1/capture/pair` hands out queue
+  control only to a credential holding `api:queue`, and server update only to one holding
+  `api:admin` (`api.scope_exceeds_grant` otherwise); a signed-in session is unaffected.
+
+- **Reissuing recovery codes asks for the password again.** `POST /api/v1/mfa/recovery-codes`
+  takes `{ "password" }` like adding or removing a factor, and writes a
+  `mfa_recovery_codes_reissued` audit record.
+
+- **`doctor` warns about an archive tool whose version cannot be read.** unrar and 7-Zip have a
+  minimum version extraction relies on; a version that cannot be read was listed as fine, and is
+  now a warning that says the minimum is not enforced.
+
+- **systemd units hardened further; Windows calls and API coverage measured (RD-1420-05).** Both
+  user units add `ProtectKernelTunables` and `UMask=0077` (new files for the user alone; a drop-in
+  with `UMask=0022` shares downloads with a media server). Not `ProtectKernelModules` or
+  `ProtectKernelLogs`: they drop capabilities, which systemd 255's user manager refuses with
+  218/CAPABILITIES (the installers run on Ubuntu 24.04); the system call filter covers both. `rd-win32` has unit tests for its handle owners and the access-list calls,
+  run on the Windows runner. `.github/workflows/coverage.yml` (weekly and by hand) runs the
+  API crates' tests under `cargo llvm-cov nextest` and puts lines and functions per crate into
+  the job summary and an artifact.
+
+### Fixed
+
+- **Transfer reset in one transaction.** Discarding a download's partial state for a refreshed
+  URL deletes the chunks and clears the committed bytes and validator together; a failure part
+  way keeps the chunk plan instead of leaving a row with committed bytes and no chunks.
+
+- **Insert-and-trim and read-then-write in transactions.** Plugin executions, notification
+  deliveries, the history prune and compat hide, and a source's recorded outcome each write in
+  one transaction instead of statement by statement.
+
+- **Database writer outlives a failing command.** A command that panics fails on its own and
+  the writer goes on with the next one; once the writer is gone, `GET /api/v1/health` answers
+  503 with `status: "unavailable"` (`Database::is_writable`).
+
+- **`doctor` does not migrate beside a running service.** With the instance lock held and
+  migrations pending, `doctor` and `doctor site-rules` stop with an explanation instead of
+  migrating the database under the service; the check reads the file read-only.
+
+- **Captcha solver answers are read with a size limit.** A response from the solver service is
+  collected up to 1 MiB and refused beyond it as `captcha.solver_failed`, instead of being read
+  whole.
+
+- **Sign-in callbacks keep `code`, `state` and `iss` out of the request log.** The OIDC and
+  plugin OAuth callback spans redact those values; the same names on other routes stay readable.
+
+- **Bencode reading is bounded.** The torrent crate's bencode reader follows lists and
+  dictionaries at most 32 levels deep and refuses a deeper document, and an HTTP tracker scrape
+  reads at most 64 KiB of response body, checked against the declared length and again while the
+  chunks arrive (`rd-torrent`'s `bencode.rs`, `trackers.rs`).
+
+- **Torrent state edits no longer overwrite each other.** A queue row's torrent state is edited
+  inside the database writer between its own read and write
+  (`Database::update_download_torrent_state`), so a scrape, the seeding supervisor, a recheck, a
+  move, the runner and the REST controls for the file plan, the trackers and the seeding
+  override each change only their own fields and keep what another one stored meanwhile.
+
+- **A torrent move and the runner's add exclude each other.** The runner holds the torrent's gate
+  from its check until the torrent is in the session and the registry, and a move started in that
+  window is refused instead of racing the add into the folder it is emptying.
+
+- **Tracker scrapes run in parallel under one deadline.** Eight trackers at a time, at most 30
+  seconds per scrape; a tracker that has not answered by then keeps its counters and says so, and
+  a second scrape of the same torrent while one runs answers with the stored state.
+
+- **Reannounce checks and marks its interval in one step**, so two calls at once cannot both
+  cycle the torrent; the mark is taken back when the cycle fails.
+
+- **A stored `.torrent` is read without blocking the runtime** and refused above 16 MiB before it
+  is read.
+
+- **An NZB whose segments count from 0 up to the largest number imports.** The renumbering adds
+  one with a checked add and drops the one segment that has no room, instead of wrapping it to 0.
+
+- **A resume that meets a worker still stopping leaves that stop alone.** It used to take out the
+  stop reason before the state refused it, so a cancel or a block ended as `paused`.
+
+- **The end of an attempt no longer waits for another package's category move.** A package with
+  no outstanding move answers before the move lock is taken.
+
+- **An NNTP body line cut at the read budget is refused explicitly** rather than relying on the
+  size check that follows; tests cover a line ending exactly at the article limit.
+
+- **A hot folder skips a symbolic link reported by a file event, as its scan already did.**
+  `inspect` reads `symlink_metadata` instead of following the link.
+
+- **Archive member names are checked per segment on Windows.** `safe_relative` refuses a `:`,
+  a trailing dot or space and a reserved device name there, and a NUL byte everywhere, in line
+  with the backup manifest's member names.
+
+- **A second stop signal ends the service at once.** While a stop is under way, another Ctrl-C or
+  SIGTERM removes the local control file and exits with code 130 instead of waiting out the 60 s
+  stop deadline.
+
+- **A start that fails late stops in order.** An error while preparing the state (for example a
+  hot folder that cannot start) now runs the ordinary stop sequence for the queue, the torrents,
+  the extraction and the traffic counters before the error is reported.
+
+- **The last log lines of a stop reach the log store.** The log sink is kept and finished (at most
+  5 s) as the last step of `serve`, so the lines of the stop and of a failed start are stored.
+
+- **The serve switches read from the environment accept `1`/`0`, `yes`/`no`, `on`/`off`.**
+  `RDOWNLOADER_PLUGIN_DEVELOPMENT_MODE`, `RDOWNLOADER_PLUGIN_ALLOW_LOCAL_TARGETS` and
+  `RDOWNLOADER_INSTALL_ALL_BUNDLED_PLUGINS` no longer refuse to start on anything but
+  `true`/`false`.
+
+- **Background loops stop with the service.** The power supervisor, automations, subscriptions,
+  sign-in flow sweep and notifications (the latter after the queue) are stopped during `serve`'s
+  stop instead of running until the process ends.
+
+- **Stored rows that do not decode are an error, not a panic (RD-1420-04).** Every column read in
+  `rd-db` uses `Row::try_get`, so a value of another type in a column fails the one read or
+  write command with the column named instead of panicking (SQLite's driver still reads a `NULL`
+  text as empty); deleting an
+  account, a proxy profile or a Usenet server reads its vault references before the delete.
+  `crates/rd-db/clippy.toml` denies `sqlx::Row::get` in the crate.
+
+### Security
+
+- **Network: the four open points of the 1.41.0 audit (RD-1420-01).** Behind a proxy profile that
+  resolves names itself, every connection of a guarded request — the first and each redirect hop
+  — is judged by the address rule before the proxy is asked for it (L-07). The captcha solver
+  endpoint must be https; the new captcha setting "Allow plain http" (`allow_plain_http`, off)
+  admits `http://`, otherwise `captcha.endpoint_plain_http`, and the solver client follows no
+  redirect (L-08). FTP data connections always go to the control connection's host, whatever the
+  `PASV` reply names (L-09). On this machine the port of the configured external URL counts among
+  the service's own ports, which a plugin request, a notification target or a redirect hop on
+  loopback, the unspecified or the listen address does not reach — a name is judged on the
+  addresses it resolves to when the connection is made; another host's 443 stays open; read at
+  start (L-10).
+
+- **Address policy for the recording thumbnail fetch.** The thumbnail named in streamlink's
+  metadata is fetched under the rule for a site-supplied address: public addresses only, the
+  service's own ports refused, redirects followed by hand with every hop checked (also behind the
+  recording's proxy), and the recording's cookies sent to the thumbnail's own origin alone.
+
+- **Extension plugins: named secrets in requests checked against `capabilities.secrets`.** A
+  `{{secret:…}}` or `{{basic:…}}` marker in an outgoing request of an extension plugin must name a
+  reference its manifest declares, the same grant `secret-available` and key derivation already
+  check; refused with `plugin.secret_target_not_allowed`. Host-minted renewal references are decided
+  by the host as before.
+
+- **Plugins: host HTTP requests bounded per invocation.** At most 2,000 requests, and at most 30
+  minutes of waiting time credited back to the execution deadline; past either the request is
+  refused with `plugin.host_requests_exhausted`.
+
+- **Malware scanner test: caller grant decides the address.** Trying a clamd address other than the
+  saved one (REST `POST /api/v1/postprocess/malware-scanner/test`, MCP `test_malware_scanner`)
+  needs `api:admin`; without it a failure answers `postprocess.malware_scanner_failed` and the
+  reason goes to the service log only.
+
+- **MCP: tool calls without the transport gate's resolution get no scopes.** The fallback that
+  looked the credential up again is gone; such a call is granted nothing.
+
+- **Host check: local network names behind a switch; the Chrome extension behind its dynamic id
+  (RD-1420-02).** The new setting "Accept local network names" (`accept_local_network_names`,
+  Settings → Security → Reverse proxy, on by default, `api:admin` to change, MCP
+  `update_settings`) decides whether one-label, `.local`, `.home.arpa` and `.internal` names pass
+  the `Host` check unlisted; off, they need an `allowed_hosts` entry. The Chrome build's
+  Click'n'Load resources carry `use_dynamic_url`, so a page cannot detect the extension at a fixed
+  address; Firefox has no such key.
+
+- **Archive password off unrar's command line; archive tools of unknown version can be refused
+  (RD-1420-03).** `unrar` gets a bare `-p` and reads the password from its standard input, so
+  `/proc/<pid>/cmdline` no longer shows it (7-Zip has no such reader and keeps `-p<secret>`, noted
+  in `doctor` and beside the tool choice; under Windows a non-ASCII password stays on `unrar`'s
+  command line, which its ANSI input reader would garble); the log shows `-p<stdin>`. New setting
+  `refuse_unknown_archive_tool_version` (Settings › Post-processing › Unpacking, MCP
+  `update_settings`, off by default): an `unrar` or 7-Zip whose version cannot be read fails the
+  set with `extract.tool_version_unknown` and skips the RAR test
+  (`postprocess.rar_test_skipped_version_unknown`) instead of extracting with a warning.
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

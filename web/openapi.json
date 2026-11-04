@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.41.0"
+    "version": "1.42.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -9659,10 +9659,21 @@
         "tags": [
           "system"
         ],
+        "summary": "Answers 503 with `status: \"unavailable\"` once the database writer is gone: the process\nstill serves reads, but nothing it does is persisted any more, and a supervisor or a\nreadiness probe should see that rather than an `ok`.",
         "operationId": "health",
         "responses": {
           "200": {
             "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
             "content": {
               "application/json": {
                 "schema": {
@@ -10980,6 +10991,16 @@
           "security"
         ],
         "operationId": "regenerate_recovery_codes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaStepUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -10990,6 +11011,16 @@
                   "items": {
                     "type": "string"
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -14617,6 +14648,9 @@
           },
           "400": {
             "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
           },
           "502": {
             "description": "Bad Gateway"
@@ -20046,6 +20080,7 @@
           "setup_completed",
           "mfa_enrolled",
           "mfa_removed",
+          "mfa_recovery_codes_reissued",
           "malware_detected",
           "identity_linked",
           "identity_unlinked",
@@ -23623,9 +23658,14 @@
           "endpoint",
           "has_api_key",
           "manual_enabled",
-          "manual_timeout_seconds"
+          "manual_timeout_seconds",
+          "allow_plain_http"
         ],
         "properties": {
+          "allow_plain_http": {
+            "type": "boolean",
+            "description": "Whether the endpoint may be plain http, which sends the API key unencrypted\n(RD-1420-01); off unless switched on."
+          },
           "endpoint": {
             "type": "string"
           },
@@ -31810,7 +31850,7 @@
               "string",
               "null"
             ],
-            "description": "`host:port` or `unix:/path`, as the settings take it; omitted or empty = the saved\naddress, else clamd's default `127.0.0.1:3310`. Lets the form try what it shows before\nit is saved."
+            "description": "`host:port` or `unix:/path`, as the settings take it; omitted or empty = the saved\naddress, else clamd's default `127.0.0.1:3310`. Lets the form try what it shows before\nit is saved. An address other than the saved one needs the administration scope."
           }
         }
       },
@@ -40762,6 +40802,11 @@
         "type": "object",
         "description": "Mutable local service settings exposed in version one.",
         "properties": {
+          "accept_local_network_names": {
+            "type": "boolean",
+            "description": "Whether names only the local network knows -- one label (`nas`), `.local`, `.home.arpa`,\n`.internal` -- pass the host check without a list entry (RD-1420-02, audit L-03).\n\nOn by default so `nas.local` keeps working; off leaves `localhost`, addresses, the\nexternal URL's host and `allowed_hosts`, which shuts out a neighbour on the network who\nanswers for such a name.",
+            "default": true
+          },
           "account_traffic_action": {
             "$ref": "#/components/schemas/AccountTrafficAction",
             "description": "What an account whose traffic its hoster reports used up does to the queue\n(RD-1190-14): `nothing` (only its failed files wait), `pause_account` (its other files\nwait too; default) or `pause_queue` (the whole queue holds new starts).",
@@ -41567,6 +41612,11 @@
           "recursive_unpack": {
             "type": "boolean",
             "description": "Also extract archives found inside extracted archives (depth-capped).",
+            "default": false
+          },
+          "refuse_unknown_archive_tool_version": {
+            "type": "boolean",
+            "description": "Refuse to extract with an `unrar` or 7-Zip whose version cannot be read, with\n`extract.tool_version_unknown`. Off by default: such a tool extracts with a warning\n(RD-1420-03).",
             "default": false
           },
           "remote_max_parallel": {
@@ -44528,6 +44578,13 @@
         "type": "object",
         "description": "Credentials to try against the solver service; both fall back to what is stored, so a\nkey can be checked before it is saved.",
         "properties": {
+          "allow_plain_http": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Plain http allowed for this test instead of the stored setting, as the form says."
+          },
           "api_key": {
             "type": [
               "string",
@@ -46457,6 +46514,13 @@
         "type": "object",
         "description": "Partial update of the solver configuration.",
         "properties": {
+          "allow_plain_http": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Allows an `http://` endpoint, for a solver on this machine or in the own network; the\nendpoint stored or sent along is checked against the new value."
+          },
           "api_key": {
             "type": [
               "string",

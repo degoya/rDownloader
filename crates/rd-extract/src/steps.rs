@@ -95,6 +95,9 @@ pub(crate) mod codes {
     pub(crate) const RAR_TEST_SKIPPED_PAR2: &str = "postprocess.rar_test_skipped_par2";
     pub(crate) const RAR_TEST_SKIPPED_SFV: &str = "postprocess.rar_test_skipped_sfv";
     pub(crate) const RAR_TEST_SKIPPED_OUTDATED: &str = "postprocess.rar_test_skipped_outdated";
+    /// RD-1420-03: the tool's version could not be read and the settings refuse such a tool.
+    pub(crate) const RAR_TEST_SKIPPED_VERSION_UNKNOWN: &str =
+        "postprocess.rar_test_skipped_version_unknown";
     pub(crate) const RAR_TEST_SKIPPED_NO_TOOL: &str = "postprocess.rar_test_skipped_no_tool";
     pub(crate) const CLEANUP_DONE: &str = "postprocess.cleanup_done";
     pub(crate) const CLEANUP_FAILED: &str = "postprocess.cleanup_failed";

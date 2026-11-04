@@ -279,6 +279,7 @@ async function confirmForget(key: SshHostKey): Promise<void> {
             v-if="usesKey"
             :label="t('remote.credentials.private_key')"
             :description="credentialHint('private_key_keep')"
+            :help="t('remote.credentials.private_key_hint')"
             :required="credentialRequired"
           >
             <UTextarea v-model="form.private_key" :rows="4" class="w-full font-mono text-xs" :placeholder="t('remote.credentials.private_key_placeholder')" />

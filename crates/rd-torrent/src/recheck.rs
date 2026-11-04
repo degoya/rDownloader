@@ -31,13 +31,11 @@ impl TorrentService {
             .get_download(id)
             .await?
             .context("download not found")?;
-        let mut state = self.job_state(id).await;
-        state.recheck = Some(TorrentRecheck::requested(chrono::Utc::now()));
-        self.inner
-            .database
-            .set_download_torrent_state(id, state)
-            .await
-            .context("record the recheck")?;
+        self.update_job_state(id, |state| {
+            state.recheck = Some(TorrentRecheck::requested(chrono::Utc::now()));
+        })
+        .await
+        .context("record the recheck")?;
         let location = self.locate(id).await;
         let info_hash = location.info_hash().map(str::to_owned);
         self.forget_located(location).await;
@@ -68,25 +66,41 @@ impl TorrentService {
     /// Called by the runner once a torrent is initialised, and for a seed by the task the
     /// recheck spawned. Nothing happens when no recheck is pending.
     pub(crate) async fn finish_recheck(&self, id: DownloadId, handle: &librqbit::ManagedTorrent) {
-        let mut state = self.job_state(id).await;
-        let Some(recheck) = state
-            .recheck
-            .as_mut()
-            .filter(|recheck| recheck.is_pending())
-        else {
-            return;
+        let pending = |state: &rd_core::TorrentJobState| {
+            state
+                .recheck
+                .as_ref()
+                .is_some_and(TorrentRecheck::is_pending)
         };
+        if !pending(&self.job_state(id).await) {
+            return;
+        }
         let stats = handle.stats();
-        recheck.finished_at = Some(chrono::Utc::now());
-        recheck.verified_bytes = stats.progress_bytes;
-        recheck.total_bytes = stats.total_bytes;
-        tracing::info!(
-            download_id = %id,
-            verified_bytes = stats.progress_bytes,
-            total_bytes = stats.total_bytes,
-            "torrent recheck finished"
-        );
-        self.store_job_state(id, state).await;
+        let (verified_bytes, total_bytes) = (stats.progress_bytes, stats.total_bytes);
+        let edited = self
+            .edit_job_state(id, move |state| {
+                let recheck = state
+                    .recheck
+                    .as_mut()
+                    .filter(|recheck| recheck.is_pending())?;
+                recheck.finished_at = Some(chrono::Utc::now());
+                recheck.verified_bytes = verified_bytes;
+                recheck.total_bytes = total_bytes;
+                Some(())
+            })
+            .await;
+        match edited {
+            Ok(Some(_)) => tracing::info!(
+                download_id = %id,
+                verified_bytes,
+                total_bytes,
+                "torrent recheck finished"
+            ),
+            Ok(None) => {}
+            Err(error) => {
+                tracing::warn!(download_id = %id, %error, "writing torrent state failed");
+            }
+        }
     }
 
     /// Waits until the seed added again by [`Self::recheck`] has been hashed and reports it.

@@ -32,7 +32,7 @@
 # The Windows version resource both executables' build scripts include (RD-1120-12).
 ^resources/build/                           rdownloader rd-capture
 # The container fixtures.
-^testfile/                                  rd-api rd-collector
+^testfile/                                  rd-api rd-collector rd-torrent
 # The plugin templates the scaffold, the stream-transform contract and the third-party manifest
 # test (RD-1280-18) read.
 ^sdk/templates/                             rd-pack rd-plugin-ext rd-plugin-host

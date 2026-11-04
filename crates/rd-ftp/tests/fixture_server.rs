@@ -47,6 +47,8 @@ pub struct Behaviour {
     pub ignore_rest: bool,
     /// Answer `MDTM` with an error, as servers without the command do.
     pub refuse_mdtm: bool,
+    /// Name this address in the `PASV` reply instead of the one the data listener is on.
+    pub passive_address: Option<[u8; 4]>,
 }
 
 #[derive(Clone)]
@@ -212,8 +214,9 @@ impl Fixture {
                     let data = TcpListener::bind("127.0.0.1:0").await?;
                     let port = data.local_addr()?.port();
                     pending_data = Some(data);
+                    let [a, b, c, d] = self.behaviour().passive_address.unwrap_or([127, 0, 0, 1]);
                     let reply = format!(
-                        "227 Entering Passive Mode (127,0,0,1,{},{})\r\n",
+                        "227 Entering Passive Mode ({a},{b},{c},{d},{},{})\r\n",
                         port / 256,
                         port % 256
                     );

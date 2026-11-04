@@ -70,6 +70,10 @@
       "label": "Plazo de respuesta",
       "description": "Cuánto espera un captcha tu respuesta antes de que la descarga falle."
     },
-    "hint": "Los captchas de widget (reCAPTCHA v2, hCaptcha, Turnstile) están ligados al dominio del hoster y no se pueden mostrar aquí. Los responde un servicio resolutor o tú mismo: en tu propio navegador mediante la extensión de rDownloader, que abre la página del hoster en una pestaña. Esa extensión es la única vía por la que una persona responde uno; el agente de escritorio no los muestra. La resolución manual en esta interfaz solo cubre captchas de imagen. Los cambios se guardan con la configuración."
+    "hint": "Los captchas de widget (reCAPTCHA v2, hCaptcha, Turnstile) están ligados al dominio del hoster y no se pueden mostrar aquí. Los responde un servicio resolutor o tú mismo: en tu propio navegador mediante la extensión de rDownloader, que abre la página del hoster en una pestaña. Esa extensión es la única vía por la que una persona responde uno; el agente de escritorio no los muestra. La resolución manual en esta interfaz solo cubre captchas de imagen. Los cambios se guardan con la configuración.",
+    "plain_http": {
+      "label": "Permitir http sin cifrar",
+      "description": "Solo para un servicio resolutor en este equipo o en tu propia red: por http la clave de la API se envía sin cifrar."
+    }
   }
 }

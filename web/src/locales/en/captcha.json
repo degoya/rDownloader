@@ -70,6 +70,10 @@
       "label": "Answer timeout",
       "description": "How long a captcha waits for your answer before the download fails."
     },
-    "hint": "Widget captchas (reCAPTCHA v2, hCaptcha, Turnstile) are bound to the hoster's domain and cannot be shown here. They are answered either by a solver service or by you — in your own browser through the rDownloader browser extension, which opens the hoster's page in a tab. That extension is the only way a person answers one; the desktop agent does not show them. Manual solving in this interface covers image captchas only. Changes are saved with the configuration."
+    "hint": "Widget captchas (reCAPTCHA v2, hCaptcha, Turnstile) are bound to the hoster's domain and cannot be shown here. They are answered either by a solver service or by you — in your own browser through the rDownloader browser extension, which opens the hoster's page in a tab. That extension is the only way a person answers one; the desktop agent does not show them. Manual solving in this interface covers image captchas only. Changes are saved with the configuration.",
+    "plain_http": {
+      "label": "Allow plain http",
+      "description": "Only for a solver service on this machine or in your own network: over http the API key is sent unencrypted."
+    }
   }
 }

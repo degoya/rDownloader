@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use sqlx::{FromRow, SqliteConnection, SqlitePool};
+use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 /// Entries kept per plugin. Enough to see a pattern, small enough to never matter.
 pub const MAX_EXECUTIONS_PER_PLUGIN: i64 = 50;
@@ -84,6 +84,7 @@ pub(crate) async fn record_plugin_execution(
     connection: &mut SqliteConnection,
     entry: NewPluginExecution,
 ) -> Result<()> {
+    let mut tx = connection.begin().await?;
     sqlx::query(
         "INSERT INTO plugin_executions (id, plugin_id, plugin_version, plugin_type, operation, \
          correlation_id, outcome, error_class, message, started_at, duration_ms) \
@@ -100,9 +101,10 @@ pub(crate) async fn record_plugin_execution(
     .bind(&entry.message)
     .bind(entry.started_at)
     .bind(entry.duration_ms)
-    .execute(&mut *connection)
+    .execute(&mut *tx)
     .await?;
-    // Trim in the same write, so the table cannot grow between two inserts.
+    // Trim in the same transaction, so the insert never lands without it and the table cannot
+    // grow past the cap between two inserts.
     sqlx::query(
         "DELETE FROM plugin_executions WHERE plugin_id = ? AND id NOT IN ( \
            SELECT id FROM plugin_executions WHERE plugin_id = ? \
@@ -111,7 +113,8 @@ pub(crate) async fn record_plugin_execution(
     .bind(&entry.plugin_id)
     .bind(&entry.plugin_id)
     .bind(MAX_EXECUTIONS_PER_PLUGIN)
-    .execute(&mut *connection)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
     Ok(())
 }

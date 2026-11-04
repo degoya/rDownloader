@@ -187,6 +187,10 @@ pub(crate) static COVERAGE: &[Capability] = &[
     // accounts held for their traffic are read with get_queue_pause.
     // RD-1410-01: `sequential_packages` (package by package) the same way, named in
     // get_settings' description.
+    // RD-1420-02: `accept_local_network_names` (the host check's local names) the same way,
+    // named with `allowed_hosts` in update_settings' description.
+    // RD-1420-03: `refuse_unknown_archive_tool_version` the same way, named in update_settings'
+    // description.
     covered(
         "The settings document",
         "Settings",
@@ -723,6 +727,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
         &[any("/api/v1/object-storage/profiles")],
         OWNER_LINE,
     ),
+    // The solver configuration's `allow_plain_http` (RD-1420-01) is part of this route and
+    // stays out with it: it decides whether the solver's API key may cross the network
+    // unencrypted, which is the person's consent to give, not an agent's.
     omitted(
         "Solving captchas",
         "captcha dialog",

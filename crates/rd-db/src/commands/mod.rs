@@ -35,7 +35,7 @@ pub(crate) use auth::AuthCommand;
 pub(crate) use bandwidth::BandwidthCommand;
 pub(crate) use collector::CollectorCommand;
 pub(crate) use config::ConfigCommand;
-pub(crate) use downloads::DownloadsCommand;
+pub(crate) use downloads::{DownloadsCommand, TorrentStateEdit};
 pub(crate) use full_backup::{BackupLedgerCommand, FullBackupCommand};
 pub(crate) use history::HistoryCommand;
 pub(crate) use indexers::IndexersCommand;
@@ -90,6 +90,11 @@ pub(crate) enum WriterCommand {
     Audit(AuditCommand),
     Storage(StorageCommand),
     History(HistoryCommand),
+    /// Panics inside the writer, so a test can check that the writer outlives it.
+    #[cfg(test)]
+    PanicForTest {
+        reply: Reply<()>,
+    },
 }
 
 /// Lets a facade method hand `writer::request` the command of its area as it is.

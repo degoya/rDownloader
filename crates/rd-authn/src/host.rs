@@ -15,7 +15,10 @@
 //! - a name that exists only on the local network and that nobody can register in public DNS:
 //!   a single label (`nas`, `syno-xyz`), a multicast DNS name under `.local` (RFC 6762), or a
 //!   name under the reserved home and private suffixes `.home.arpa` (RFC 8375) and `.internal`.
-//!   An attacker's page carries the attacker's own public name, which is never one of these;
+//!   An attacker's page carries the attacker's own public name, which is never one of these —
+//!   unless the attacker sits on the same network and answers for such a name there (an mDNS
+//!   or LAN DNS reply). The setting "accept local network names" (on by default, RD-1420-02)
+//!   switches this group off; then such a name passes only when it is listed below;
 //! - the host of the configured external URL;
 //! - one of the names the operator added to the allowed host list.
 //!
@@ -74,12 +77,13 @@ pub(crate) fn parse_allowed_host(value: &str) -> Option<String> {
 /// Whether a request naming `host` may be served.
 ///
 /// `external` is the external URL's host, `allowed` the operator's list, both already
-/// normalised.
+/// normalised; `local_names` whether the names only the local network knows pass on their own.
 #[must_use]
 pub(crate) fn host_permitted(
     host: &RequestHost,
     external: Option<&str>,
     allowed: &[String],
+    local_names: bool,
 ) -> bool {
     let name = match host {
         RequestHost::Address(_) => return true,
@@ -87,7 +91,7 @@ pub(crate) fn host_permitted(
     };
     name == "localhost"
         || name.ends_with(".localhost")
-        || is_local_only(name)
+        || (local_names && is_local_only(name))
         || external == Some(name)
         || allowed.iter().any(|entry| entry == name)
 }
@@ -127,9 +131,28 @@ mod tests {
     use super::*;
 
     fn permitted(value: &str, external: Option<&str>, allowed: &[&str]) -> bool {
-        let allowed: Vec<String> = allowed.iter().map(|entry| (*entry).to_owned()).collect();
-        parse_request_host(value).is_some_and(|host| host_permitted(&host, external, &allowed))
+        permitted_with(value, external, allowed, true)
     }
+
+    fn permitted_with(
+        value: &str,
+        external: Option<&str>,
+        allowed: &[&str],
+        local_names: bool,
+    ) -> bool {
+        let allowed: Vec<String> = allowed.iter().map(|entry| (*entry).to_owned()).collect();
+        parse_request_host(value)
+            .is_some_and(|host| host_permitted(&host, external, &allowed, local_names))
+    }
+
+    const LOCAL_ONLY: [&str; 6] = [
+        "nas",
+        "syno-xyz:8710",
+        "SYNO-XYZ.",
+        "syno-xyz.local:8710",
+        "nas.home.arpa",
+        "rdownloader.internal:8710",
+    ];
 
     #[test]
     fn every_address_literal_is_permitted() {
@@ -179,16 +202,49 @@ mod tests {
     /// no page can rebind to one of them.
     #[test]
     fn a_local_only_name_is_permitted() {
-        for value in [
-            "nas",
-            "syno-xyz:8710",
-            "SYNO-XYZ.",
-            "syno-xyz.local:8710",
-            "nas.home.arpa",
-            "rdownloader.internal:8710",
-        ] {
+        for value in LOCAL_ONLY {
             assert!(permitted(value, None, &[]), "{value}");
         }
+    }
+
+    /// Audit L-03 (RD-1420-02): with local network names switched off, a name somebody on the
+    /// same network could answer for passes only when the operator listed it.
+    #[test]
+    fn with_local_names_off_a_local_only_name_needs_the_list() {
+        for value in LOCAL_ONLY {
+            assert!(!permitted_with(value, None, &[], false), "{value}");
+        }
+        assert!(!permitted_with("foo.local", None, &[], false));
+        assert!(permitted_with(
+            "foo.local:8710",
+            None,
+            &["foo.local"],
+            false
+        ));
+        assert!(permitted_with("FOO.local.", None, &["foo.local"], false));
+        assert!(permitted_with("nas", None, &["nas"], false));
+        assert!(!permitted_with("bar.local", None, &["foo.local"], false));
+        assert!(permitted_with(
+            "rd.internal",
+            Some("rd.internal"),
+            &[],
+            false
+        ));
+    }
+
+    /// What the switch leaves alone: addresses and `localhost` pass, a public name stays out.
+    #[test]
+    fn with_local_names_off_addresses_and_localhost_still_pass() {
+        for value in [
+            "127.0.0.1:8710",
+            "192.168.1.20",
+            "[::1]:8710",
+            "localhost",
+            "app.localhost:8710",
+        ] {
+            assert!(permitted_with(value, None, &[], false), "{value}");
+        }
+        assert!(!permitted_with("attacker.example", None, &[], false));
     }
 
     #[test]
@@ -202,6 +258,24 @@ mod tests {
             Some("rd.example.com"),
             &["nas.lan"]
         ));
+    }
+
+    /// The switch as the settings set it on the proxy contract (RD-1420-02): on by default,
+    /// off refuses `foo.local` until the list names it.
+    #[test]
+    fn the_proxy_contract_carries_the_switch() {
+        let default =
+            crate::ProxyConfig::parse(&[], None, crate::CookieSecurity::Auto).expect("config");
+        assert!(default.host_allowed("foo.local:8710"));
+        let off = default.with_local_names(false);
+        assert!(!off.host_allowed("foo.local:8710"));
+        assert!(off.host_allowed("localhost:8710"));
+        assert!(off.host_allowed("192.168.1.20:8710"));
+        let listed = off
+            .with_allowed_hosts(&["foo.local".to_owned()])
+            .expect("list");
+        assert!(listed.host_allowed("foo.local:8710"));
+        assert!(!listed.host_allowed("nas"));
     }
 
     #[test]

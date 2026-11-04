@@ -23,7 +23,8 @@ const form = reactive<CaptchaConfig>({
   endpoint: '',
   has_api_key: false,
   manual_enabled: true,
-  manual_timeout_seconds: 180
+  manual_timeout_seconds: 180,
+  allow_plain_http: false
 })
 const apiKey = ref('')
 const clearApiKey = ref(false)
@@ -33,7 +34,7 @@ const testResult = ref<{ ok: boolean, message: string } | null>(null)
 const { loading, loadError, load } = useFetchState()
 let loadRequest: Promise<boolean> | null = null
 /** The editable fields as last loaded or saved, so the page can tell a leave what it would lose (RD-180-16). */
-const editable = (): string => JSON.stringify([form.solver, form.endpoint, form.manual_enabled, form.manual_timeout_seconds])
+const editable = (): string => JSON.stringify([form.solver, form.endpoint, form.manual_enabled, form.manual_timeout_seconds, form.allow_plain_http])
 const saved = ref(editable())
 const dirty = computed(() => editable() !== saved.value || apiKey.value !== '' || clearApiKey.value)
 
@@ -76,6 +77,8 @@ async function test(): Promise<void> {
   testResult.value = null
   const endpoint = form.endpoint.trim()
   const body: TestCaptchaSolver = {
+    // The form's switch, saved or not, is the rule the typed endpoint is tried under (RD-1420-01).
+    allow_plain_http: form.allow_plain_http,
     ...(endpoint ? { endpoint } : {}),
     ...(apiKey.value ? { api_key: apiKey.value } : {})
   }
@@ -99,6 +102,7 @@ async function save(): Promise<boolean> {
     solver: form.solver,
     manual_enabled: form.manual_enabled,
     manual_timeout_seconds: form.manual_timeout_seconds,
+    allow_plain_http: form.allow_plain_http,
     // An empty field means "keep whatever is stored" rather than an invalid endpoint.
     ...(endpoint ? { endpoint } : {}),
     ...(apiKey.value ? { api_key: apiKey.value } : {}),
@@ -144,6 +148,14 @@ defineExpose({ save, dirty })
           :disabled="loading || !solverActive"
           class="w-full font-mono"
         />
+      </UFormField>
+      <UFormField
+        data-settings-anchor="captcha.plain_http"
+        :label="t('captcha.settings.plain_http.label')"
+        :description="t('captcha.settings.plain_http.description')"
+        orientation="horizontal"
+      >
+        <USwitch v-model="form.allow_plain_http" :disabled="loading || !solverActive" />
       </UFormField>
       <USwitch v-if="form.has_api_key" v-model="clearApiKey" size="sm" :label="t('captcha.settings.api_key.clear')" />
       <UFormField

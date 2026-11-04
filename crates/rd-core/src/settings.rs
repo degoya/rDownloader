@@ -80,6 +80,13 @@ pub struct PostprocessSettings {
     pub archive_max_uncompressed_bytes: ByteCount,
     pub rar_executable: Option<String>,
     pub rar_tool: String,
+    /// Refuse to extract with an `unrar` or 7-Zip whose version cannot be read (RD-1420-03).
+    ///
+    /// Off by default: such a tool extracts with a warning, because a renamed or wrapped binary
+    /// would otherwise stop every RAR unpack. On, the set fails with
+    /// `extract.tool_version_unknown`, since the version floor that keeps an archive's links
+    /// inside staging cannot be checked for it.
+    pub refuse_unknown_archive_tool_version: bool,
     /// Directory searched for unrar/7z before `PATH`; `None` = the built-in vendor folders.
     pub vendor_directory: Option<String>,
     /// Upload finished packages to an rclone remote after the other steps.
@@ -160,6 +167,7 @@ impl Default for PostprocessSettings {
                 .expect("default archive limit fits SQLite"),
             rar_executable: None,
             rar_tool: "unrar".to_owned(),
+            refuse_unknown_archive_tool_version: false,
             vendor_directory: None,
             upload_enabled: false,
             upload_remote: None,
@@ -382,6 +390,16 @@ mod tests {
         let off: PostprocessSettings =
             serde_json::from_str(r#"{"fail_hopeless_jobs":false}"#).expect("explicit opt-out");
         assert!(!off.fail_hopeless_jobs);
+    }
+
+    #[test]
+    fn an_unreadable_archive_tool_version_only_warns_unless_refusing_is_asked_for() {
+        let missing: PostprocessSettings = serde_json::from_str("{}").expect("empty blob");
+        assert!(!missing.refuse_unknown_archive_tool_version);
+        let on: PostprocessSettings =
+            serde_json::from_str(r#"{"refuse_unknown_archive_tool_version":true}"#)
+                .expect("explicit opt-in");
+        assert!(on.refuse_unknown_archive_tool_version);
     }
 
     #[test]

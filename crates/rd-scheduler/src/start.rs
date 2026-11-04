@@ -87,7 +87,7 @@ impl SchedulerHandle {
             network_defaults.clone(),
             Some(Arc::new(captcha.clone())),
             // The service's own listeners are no plugin's to reach (RA-HOST-01).
-            rd_plugin_host::OwnEndpoints::new(config.own_address),
+            config.own_endpoints(),
         );
         if let Some(plugins) = plugins {
             let loaded = resolvers.load_components_from_registry(plugins).await?;

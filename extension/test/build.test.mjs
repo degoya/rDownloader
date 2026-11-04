@@ -77,6 +77,28 @@ test('Click\'n\'Load takes the two port addresses and, in Chrome alone, session 
   }])
 })
 
+test('chrome exposes the Click\'n\'Load answers only under the dynamic id, firefox without the key', () => {
+  // Audit L-05 (RD-1420-02): a fixed `chrome-extension://<id>/` address lets any page detect the
+  // extension. Firefox does not know `use_dynamic_url`; its id is random per profile anyway.
+  const chrome = manifestFor('chrome', base)
+  assert.ok(chrome.web_accessible_resources.length > 0)
+  for (const entry of chrome.web_accessible_resources) {
+    assert.equal(entry.use_dynamic_url, true, JSON.stringify(entry))
+  }
+  assert.deepEqual(
+    chrome.web_accessible_resources.map(({ use_dynamic_url: _, ...rest }) => rest),
+    base.web_accessible_resources,
+    'the key is all Chrome adds'
+  )
+  const firefox = manifestFor('firefox', base)
+  for (const entry of firefox.web_accessible_resources) {
+    assert.equal(entry.use_dynamic_url, undefined, 'a Chrome-only key reached Firefox')
+  }
+  for (const entry of base.web_accessible_resources) {
+    assert.equal(entry.use_dynamic_url, undefined, 'the key belongs to the Chrome build, not the base')
+  }
+})
+
 test('the base manifest requests the download interception permissions', () => {
   for (const permission of ['contextMenus', 'storage', 'notifications', 'clipboardRead', 'downloads']) {
     assert.ok(base.permissions.includes(permission), `missing permission ${permission}`)
@@ -166,6 +188,7 @@ test('a real build writes two manifests, both pages and all four icons', () => {
     const chromeManifest = JSON.parse(readFileSync(join(out, 'chrome', 'manifest.json'), 'utf8'))
     assert.equal(chromeManifest.minimum_chrome_version, CHROME_MIN_VERSION)
     assert.equal(chromeManifest.browser_specific_settings, undefined, 'a Firefox-only key reached Chrome')
+    assert.ok(chromeManifest.web_accessible_resources.every((entry) => entry.use_dynamic_url === true), 'the built Chrome manifest hides its resources behind the dynamic id')
     assert.equal(firefox.minimum_chrome_version, undefined, 'a Chrome-only key reached Firefox')
     const chrome = JSON.parse(readFileSync(join(out, 'chrome', 'manifest.json'), 'utf8'))
     assert.equal(chrome.browser_specific_settings, undefined)

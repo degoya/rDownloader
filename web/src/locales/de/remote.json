@@ -33,7 +33,8 @@
     "create_action": "Zugang anlegen",
     "created": "Zugang angelegt",
     "saved": "Zugang gespeichert",
-    "secret_host_changed": "Protokoll, Host oder Port geändert: Das gespeicherte Passwort oder der Schlüssel geht nicht an den neuen Server. Gib es erneut ein."
+    "secret_host_changed": "Protokoll, Host oder Port geändert: Das gespeicherte Passwort oder der Schlüssel geht nicht an den neuen Server. Gib es erneut ein.",
+    "private_key_hint": "Empfohlen ist ein Ed25519-Schlüssel (ssh-keygen -t ed25519); RSA-Schlüssel funktionieren ebenfalls."
   },
   "protocols": {
     "ftp": "FTP (unverschlüsselt)",

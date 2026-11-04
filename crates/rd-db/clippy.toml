@@ -1,0 +1,8 @@
+# Clippy reads this file for `rd-db` alone: it looks for `clippy.toml` from the crate's own
+# directory upwards, and the workspace root has none (RD-1420-04).
+#
+# `Row::get` panics on a NULL or a value of another type. In the writer task one such panic used
+# to end every write of the process; `try_get` turns it into the one command's error.
+disallowed-methods = [
+    { path = "sqlx::Row::get", reason = "panics on NULL or a type mismatch; use `try_get(..)?`" },
+]

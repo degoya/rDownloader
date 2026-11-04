@@ -160,6 +160,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('captcha.settings', 'captcha', 'captcha.settings.title', { descriptionKey: 'captcha.settings.description' }),
   field('captcha.solver', 'captcha', 'captcha.settings.solver.label', { descriptionKey: 'captcha.settings.solver.description', terms: ['2Captcha'] }),
   field('captcha.api_key', 'captcha', 'captcha.settings.api_key.label'),
+  field('captcha.plain_http', 'captcha', 'captcha.settings.plain_http.label', { descriptionKey: 'captcha.settings.plain_http.description' }),
   field('captcha.timeout', 'captcha', 'captcha.settings.timeout.label', { descriptionKey: 'captcha.settings.timeout.description' }),
   // Site rules
   card('siterules.editor', 'siterules', 'siterules.editor.eyebrow', { descriptionKey: 'siterules.editor.description', keywordsKey: `${K}.siterules` }),
@@ -231,6 +232,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   card('security.reverse_proxy', 'security', 'system.proxy.title', { tab: 'proxy', descriptionKey: 'system.proxy.description', terms: ['nginx', 'Caddy', 'Traefik'] }),
   field('security.external_url', 'security', 'system.proxy.external_url', { tab: 'proxy', descriptionKey: 'system.proxy.external_url_hint' }),
   field('security.allowed_hosts', 'security', 'system.proxy.allowed_hosts', { tab: 'proxy', descriptionKey: 'system.proxy.allowed_hosts_hint', keywordsKey: `${K}.allowed_hosts` }),
+  field('security.accept_local_network_names', 'security', 'system.proxy.local_names', { tab: 'proxy', descriptionKey: 'system.proxy.local_names_hint', keywordsKey: `${K}.local_network_names` }),
   card('security.password', 'security', 'system.password.title', { tab: 'signin', descriptionKey: 'system.password.description' }),
   card('security.passkeys', 'security', 'system.passkeys.title', { tab: 'signin', descriptionKey: 'system.passkeys.description', terms: ['WebAuthn', 'FIDO2'] }),
   card('security.mfa', 'security', 'system.mfa.title', { tab: 'signin', descriptionKey: 'system.mfa.description', terms: ['2FA', 'TOTP'] }),

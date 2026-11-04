@@ -79,10 +79,10 @@ pub(crate) async fn save_plugin_transfer(
     .fetch_one(&mut *connection)
     .await?;
     Ok(PluginTransfer {
-        plugin_id: row.get("plugin_id"),
-        plugin_version: row.get("plugin_version"),
-        checkpoint: row.get("checkpoint"),
-        updated_at: row.get("updated_at"),
+        plugin_id: row.try_get("plugin_id")?,
+        plugin_version: row.try_get("plugin_version")?,
+        checkpoint: row.try_get("checkpoint")?,
+        updated_at: row.try_get("updated_at")?,
     })
 }
 

@@ -70,6 +70,10 @@
       "label": "Délai de réponse",
       "description": "Durée pendant laquelle un captcha attend votre réponse avant l’échec du téléchargement."
     },
-    "hint": "Les captchas widget (reCAPTCHA v2, hCaptcha, Turnstile) sont liés au domaine de l’hébergeur et ne peuvent pas être affichés ici. Ils sont résolus par un service de résolution ou par vous — dans votre propre navigateur via l’extension rDownloader, qui ouvre la page de l’hébergeur dans un onglet. Cette extension est la seule voie par laquelle une personne y répond ; l’agent de bureau ne les affiche pas. La résolution manuelle dans cette interface ne couvre que les captchas image. Les modifications sont enregistrées avec la configuration."
+    "hint": "Les captchas widget (reCAPTCHA v2, hCaptcha, Turnstile) sont liés au domaine de l’hébergeur et ne peuvent pas être affichés ici. Ils sont résolus par un service de résolution ou par vous — dans votre propre navigateur via l’extension rDownloader, qui ouvre la page de l’hébergeur dans un onglet. Cette extension est la seule voie par laquelle une personne y répond ; l’agent de bureau ne les affiche pas. La résolution manuelle dans cette interface ne couvre que les captchas image. Les modifications sont enregistrées avec la configuration.",
+    "plain_http": {
+      "label": "Autoriser http non chiffré",
+      "description": "Uniquement pour un service de résolution sur cette machine ou dans votre propre réseau : en http, la clé d’API est envoyée sans chiffrement."
+    }
   }
 }

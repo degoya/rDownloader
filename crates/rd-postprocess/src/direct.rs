@@ -146,7 +146,8 @@ async fn follow(
         RarAction::Follow { staging },
         request.first_volume,
         request.password,
-    )?;
+    )
+    .await?;
     let mut stdin = stdin.context("RAR tool stdin")?;
     let mut volumes = vec![file_name(request.first_volume)];
     let mut console = String::new();

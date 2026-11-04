@@ -116,7 +116,7 @@ impl Database {
         .bind(version)
         .fetch_one(&self.readers)
         .await?;
-        Ok(u64::try_from(row.get::<i64, _>("bound")).unwrap_or(0))
+        Ok(u64::try_from(row.try_get::<i64, _>("bound")?).unwrap_or(0))
     }
 
     /// Names the first `limit` downloads that hold this plugin version, oldest first.
@@ -145,8 +145,8 @@ impl Database {
         .await?;
         Ok(rows
             .into_iter()
-            .map(|row| row.get::<String, _>("file_name"))
-            .collect())
+            .map(|row| row.try_get::<String, _>("file_name"))
+            .collect::<std::result::Result<Vec<String>, sqlx::Error>>()?)
     }
 
     /// Writes the row that stands for one remote job, before the provider is asked for

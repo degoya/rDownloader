@@ -457,7 +457,9 @@
     "allowed_hosts_hint": "Un nombre por línea con el que abres el servicio en el navegador, por ejemplo nas.lan. Las direcciones IP, localhost y el host de la URL externa siempre valen; cualquier otro nombre se rechaza para que ninguna página ajena entre mediante DNS rebinding.",
     "login_off_title": "El inicio de sesión está desactivado aunque hay un proxy o una dirección externa configurados",
     "login_off_description": "Sin inicio de sesión, cada petición desde esta máquina sin cabeceras de reenvío cuenta como el administrador. Un túnel o proxy local que no establece X-Forwarded-For convierte a cualquiera detrás de él en administrador. Vuelve a activar el inicio de sesión en General o asegúrate de que tu proxy establece la cabecera.",
-    "login_off_wiki": "Proxy inverso en el manual"
+    "login_off_wiki": "Proxy inverso en el manual",
+    "local_names": "Aceptar nombres de la red local",
+    "local_names_hint": "Los nombres que solo existen en la red local –un nombre simple como nas, .local, .home.arpa, .internal– valen sin entrada en la lista. Desactívalo si no confías en otros dispositivos de tu red: entonces solo valen las direcciones IP, localhost, el host de la URL externa y los nombres de host permitidos."
   },
   "mfa": {
     "eyebrow": "Segundo factor",
@@ -499,7 +501,7 @@
     "copied": "Copiado",
     "step_up": {
       "label": "Contraseña",
-      "hint": "Añadir, quitar o desactivar un factor vuelve a pedir la contraseña."
+      "hint": "Añadir, quitar o desactivar un factor y generar nuevos códigos de recuperación vuelve a pedir la contraseña."
     }
   },
   "passkeys": {

@@ -42,6 +42,11 @@ pub struct SettingsResponse {
     pub archive_max_uncompressed_bytes: rd_core::ByteCount,
     pub rar_executable: Option<String>,
     pub rar_tool: String,
+    /// Refuse to extract with an `unrar` or 7-Zip whose version cannot be read, with
+    /// `extract.tool_version_unknown`. Off by default: such a tool extracts with a warning
+    /// (RD-1420-03).
+    #[serde(default)]
+    pub refuse_unknown_archive_tool_version: bool,
     /// Retries per file before a retryable failure becomes final (0–100). Waiting out a limit
     /// the hoster imposed (a rate or daily limit, an IP block) is no retry and spends none of
     /// them; at most 48 such waits in a row (RD-191-12).
@@ -114,6 +119,14 @@ pub struct SettingsResponse {
     /// unless it is listed here, which is what keeps a DNS rebinding page out.
     #[serde(default)]
     pub allowed_hosts: Vec<String>,
+    /// Whether names only the local network knows -- one label (`nas`), `.local`, `.home.arpa`,
+    /// `.internal` -- pass the host check without a list entry (RD-1420-02, audit L-03).
+    ///
+    /// On by default so `nas.local` keeps working; off leaves `localhost`, addresses, the
+    /// external URL's host and `allowed_hosts`, which shuts out a neighbour on the network who
+    /// answers for such a name.
+    #[serde(default = "default_true")]
+    pub accept_local_network_names: bool,
     /// When the session cookie is marked `Secure`.
     #[serde(default)]
     pub cookie_security: rd_authn::CookieSecurity,

@@ -70,7 +70,8 @@
       "linkgrabber": "lista de bloqueo, dominios excluidos, espejos, contenedor",
       "desktop_agent": "atajo, tecla rápida, teclado, portapapeles, pausar, agente de captura",
       "link_filters": "filtro, filtro de enlaces, ocultar, reglas",
-      "download_window": "ventana de descarga, franja horaria, descargar de noche, hora de inicio, pausar descargas, pausar durante el día"
+      "download_window": "ventana de descarga, franja horaria, descargar de noche, hora de inicio, pausar descargas, pausar durante el día",
+      "local_network_names": "mDNS, .local, nombre de host, red doméstica, DNS rebinding"
     }
   },
   "connection": {

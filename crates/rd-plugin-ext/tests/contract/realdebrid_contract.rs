@@ -455,7 +455,7 @@ async fn a_device_sign_in_runs_through_to_a_stored_token_and_is_then_renewed() {
     // And the renewal that follows, which is why this is an `oauth` plugin at all: the same
     // grant type, the personal client and the stored material, and the person asked nothing.
     let renewed = plugin
-        .refresh(account, Some("account/renewal/reference"))
+        .refresh(account, Some("vault://realdebrid-renewal"))
         .await
         .expect("refresh");
     assert_eq!(renewed, TokenOutcome::Authorized);
@@ -475,7 +475,7 @@ async fn a_device_sign_in_runs_through_to_a_stored_token_and_is_then_renewed() {
     // host is what substitutes it on the way out.
     assert_eq!(
         renewal.form_field("code"),
-        Some("{{secret:account/renewal/reference}}")
+        Some("{{secret:vault://realdebrid-renewal}}")
     );
     assert_eq!(server.stored().len(), 2);
     // No value the host keeps ever travelled in a request the plugin described.
@@ -623,7 +623,7 @@ async fn a_refused_renewal_ends_the_stored_sign_in() {
     let server = MockRealDebrid::signed_in(Case::RefreshRefused);
     let plugin = provider(server.clone(), &bytes);
     let outcome = plugin
-        .refresh(AccountId::new(), Some("account/renewal/reference"))
+        .refresh(AccountId::new(), Some("vault://realdebrid-renewal"))
         .await
         .expect("refresh");
     let TokenOutcome::Failed { message, .. } = outcome else {
@@ -642,7 +642,7 @@ async fn an_expired_token_is_renewed_from_the_kept_client() {
     let plugin = provider(server.clone(), &bytes);
     let account = AccountId::new();
     let outcome = plugin
-        .refresh(account, Some("account/renewal/reference"))
+        .refresh(account, Some("vault://realdebrid-renewal"))
         .await
         .expect("refresh");
     assert_eq!(outcome, TokenOutcome::Authorized);
@@ -699,7 +699,7 @@ async fn a_renewal_without_stored_material_never_reaches_the_provider() {
         (MockRealDebrid::signed_in(Case::Granted), None),
         (
             MockRealDebrid::new(Case::Granted),
-            Some("account/renewal/reference"),
+            Some("vault://realdebrid-renewal"),
         ),
     ] {
         let plugin = provider(server.clone(), &bytes);

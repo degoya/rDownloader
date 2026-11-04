@@ -151,3 +151,75 @@ fn counters_go_stale_after_the_freshness_window() {
     assert!(!is_stale(now - chrono::Duration::minutes(5), now));
     assert!(is_stale(now - chrono::Duration::minutes(20), now));
 }
+
+/// Serves one fixed raw HTTP response to every connection on a loopback port.
+async fn serve(response: Vec<u8>) -> String {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let address = listener.local_addr().expect("address");
+    tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let response = response.clone();
+            tokio::spawn(async move {
+                let mut raw = Vec::new();
+                let mut buffer = [0_u8; 1024];
+                while !raw.windows(4).any(|window| window == b"\r\n\r\n") {
+                    match stream.read(&mut buffer).await {
+                        Ok(0) | Err(_) => return,
+                        Ok(read) => raw.extend_from_slice(&buffer[..read]),
+                    }
+                }
+                let _ = stream.write_all(&response).await;
+                let _ = stream.shutdown().await;
+            });
+        }
+    });
+    format!("http://{address}/scrape")
+}
+
+/// Fetches `url` and reads its body through the scrape cap.
+async fn fetch_capped(url: &str, limit: usize) -> anyhow::Result<Vec<u8>> {
+    let response = reqwest::Client::builder()
+        .no_proxy()
+        .build()
+        .expect("client")
+        .get(url)
+        .send()
+        .await
+        .expect("response");
+    super::read_capped(response, limit).await
+}
+
+#[tokio::test]
+async fn a_scrape_body_within_the_cap_is_read() {
+    let url =
+        serve(b"HTTP/1.1 200 OK\r\ncontent-length: 4\r\nconnection: close\r\n\r\ni42e".to_vec())
+            .await;
+    assert_eq!(fetch_capped(&url, 4).await.expect("read"), b"i42e");
+}
+
+#[tokio::test]
+async fn a_declared_length_over_the_cap_is_refused() {
+    let mut response =
+        b"HTTP/1.1 200 OK\r\ncontent-length: 5000\r\nconnection: close\r\n\r\n".to_vec();
+    response.extend(std::iter::repeat_n(b'l', 5000));
+    let url = serve(response).await;
+    assert!(fetch_capped(&url, 1024).await.is_err());
+}
+
+#[tokio::test]
+async fn an_undeclared_body_over_the_cap_is_refused() {
+    let mut response =
+        b"HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\nconnection: close\r\n\r\n".to_vec();
+    for _ in 0..8 {
+        response.extend_from_slice(b"200\r\n");
+        response.extend(std::iter::repeat_n(b'l', 0x200));
+        response.extend_from_slice(b"\r\n");
+    }
+    response.extend_from_slice(b"0\r\n\r\n");
+    let url = serve(response).await;
+    let error = fetch_capped(&url, 1024).await.expect_err("too large");
+    assert!(error.to_string().contains("too large"));
+}

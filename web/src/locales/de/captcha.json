@@ -70,6 +70,10 @@
       "label": "Antwortfrist",
       "description": "Wie lange ein Captcha auf deine Antwort wartet, bevor der Download fehlschlägt."
     },
-    "hint": "Widget-Captchas (reCAPTCHA v2, hCaptcha, Turnstile) sind an die Domain des Hosters gebunden und lassen sich hier nicht anzeigen. Sie werden entweder von einem Löserdienst beantwortet oder von dir — in deinem eigenen Browser über die rDownloader-Browsererweiterung, die die Seite des Hosters in einem Tab öffnet. Diese Erweiterung ist der einzige Weg, auf dem ein Mensch eines beantwortet; der Desktop-Agent zeigt sie nicht an. Manuelles Lösen in dieser Oberfläche gilt nur für Bild-Captchas. Änderungen werden mit der Konfiguration gespeichert."
+    "hint": "Widget-Captchas (reCAPTCHA v2, hCaptcha, Turnstile) sind an die Domain des Hosters gebunden und lassen sich hier nicht anzeigen. Sie werden entweder von einem Löserdienst beantwortet oder von dir — in deinem eigenen Browser über die rDownloader-Browsererweiterung, die die Seite des Hosters in einem Tab öffnet. Diese Erweiterung ist der einzige Weg, auf dem ein Mensch eines beantwortet; der Desktop-Agent zeigt sie nicht an. Manuelles Lösen in dieser Oberfläche gilt nur für Bild-Captchas. Änderungen werden mit der Konfiguration gespeichert.",
+    "plain_http": {
+      "label": "Unverschlüsseltes http erlauben",
+      "description": "Nur für einen Löserdienst auf diesem Rechner oder in deinem eigenen Netz: über http wird der API-Schlüssel unverschlüsselt gesendet."
+    }
   }
 }

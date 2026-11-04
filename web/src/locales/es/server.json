@@ -1334,7 +1334,12 @@
     "web.route_not_found": "Nada en esta dirección responde a esta solicitud",
     "package.reset": "Ningún paquete restablecido | Paquete restablecido: {count} archivo empieza de nuevo | Paquete restablecido: {count} archivos empiezan de nuevo",
     "package.reset_not_failed": "Solo un paquete fallido puede restablecerse por completo",
-    "package.reset_running": "Pausa o detén primero los archivos en curso de este paquete"
+    "package.reset_running": "Pausa o detén primero los archivos en curso de este paquete",
+    "plugin.host_requests_exhausted": "La llamada del plugin agotó su cupo de solicitudes al host ({limit})",
+    "postprocess.malware_scanner_failed": "No se pudo contactar con clamd en {address}",
+    "captcha.endpoint_plain_http": "El endpoint del servicio resolutor usa http sin cifrar, que enviaría la clave de la API en claro: usa https o permite http en los ajustes de captcha",
+    "extract.tool_version_unknown": "No se pudo leer la versión de {tool} y la configuración rechaza una herramienta así para extraer: no se puede comprobar si es al menos la {minimum}; por debajo de ella, los enlaces de un archivo escriben fuera de la carpeta de destino. Apunta la ruta del programa directamente a {tool} o actualízalo.",
+    "postprocess.rar_test_skipped_version_unknown": "Omitido: no se pudo leer la versión de la herramienta RAR"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

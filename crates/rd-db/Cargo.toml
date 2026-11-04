@@ -14,6 +14,7 @@ test-support = []
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
+futures-util.workspace = true
 rd-automation = { path = "../rd-automation" }
 rd-core = { path = "../rd-core" }
 rd-limits = { path = "../rd-limits" }

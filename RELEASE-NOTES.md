@@ -12,9 +12,20 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.42.0
+## 1.43.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.42.0
+
+- Stopping the service shuts every part down in order, a second Ctrl-C ends it at once, and the last lines of a stop reach the log.
+- Torrent changes made at the same time, such as a move, a tracker scrape and seeding limits, no longer overwrite each other; tracker scrapes are faster.
+- Database writes stay consistent when something fails part way, a resumed download keeps its cancel or block, and the health check reports a database that cannot be written.
+- Reissuing two-factor recovery codes asks for your password again, and pairing the capture agent grants no more than the signed-in credential holds.
+- Plugins may only use the secrets they declare and make a bounded number of requests per run; proxied requests, FTP transfers and thumbnails keep to the address rules.
+- A captcha solver must use https unless you allow plain http, archive passwords no longer show in the process list, and unpacking can refuse a tool whose version is unknown.
+- Hot folders skip symbolic links, archive member names that Windows cannot store safely are refused, and some NZB files that failed to import now import.
+- The container and the Linux service units run with tighter default permissions, and local network names can be required to be listed before the web interface answers them.
 
 ## 1.41.0
 

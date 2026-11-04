@@ -1,18 +1,22 @@
 //! `rdownloader serve`: the start of the service in named steps, the stop, and the deadline
 //! that bounds the stop.
 
-use std::{
-    net::SocketAddr,
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::{net::SocketAddr, path::Path, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
 use rd_api::AppState;
 use rd_scheduler::{SchedulerConfig, SchedulerHandle};
 use tokio_util::sync::CancellationToken;
 
-use crate::{ServeArgs, Telemetry, load_stored_settings, plugin_boot, startup, updater_cli};
+use crate::{
+    ServeArgs, Telemetry, load_stored_settings, plugin_boot,
+    serve_stop::{ControlFile, end_after_stop_deadline, remove_control_file, shutdown_on_signal},
+    startup, updater_cli,
+};
+
+/// How long the stop waits for the log sink to store the last lines, once everything else
+/// has stopped.
+const LOG_SINK_FINISH: Duration = Duration::from_secs(5);
 
 /// Runs the service until it is stopped: the store, the settings, the plugins, the queue and
 /// the post-processing, then the HTTP surface; the stop in the reverse order. Answers the exit
@@ -31,12 +35,37 @@ pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<Option<
         restore,
         // Named, so it lives to the end of `serve` rather than being dropped right here.
         instance: _instance,
+        log_sink,
     } = startup::open_store(&args.paths, telemetry).await?;
+    let outcome = run_on_store(&args, data_directory, database, secrets, restore).await;
+    if let Err(error) = &outcome {
+        tracing::error!(error = %format!("{error:#}"), "the service ended with an error");
+    }
+    // Last, so the lines of the stop -- and of a start that failed -- reach the store too.
+    if !log_sink.finish(LOG_SINK_FINISH).await {
+        tracing::warn!("the log sink did not finish in time; the last lines are on stderr only");
+    }
+    outcome
+}
+
+/// Everything of [`run`] after the store opened.
+async fn run_on_store(
+    args: &ServeArgs,
+    data_directory: std::path::PathBuf,
+    database: rd_db::Database,
+    secrets: rd_secrets::SecretStore,
+    restore: rd_backup::restore::cutover::Cutover,
+) -> Result<Option<i32>> {
     let (stored, runtime) = load_stored_settings(&database, &args.paths.database).await?;
     let listen = listen_address(args.listen, &stored);
     let controls = queue_controls();
-    let scheduler_config = scheduler_config_for(&args, &runtime, listen, &controls);
-    let plugins = plugin_boot::open_plugins(&args, &database, &stored, &data_directory).await?;
+    let mut scheduler_config = scheduler_config_for(args, &runtime, listen, &controls);
+    // Behind a reverse proxy its port is the service's own too (RD-1420-01); read at start.
+    scheduler_config.external_url = stored
+        .external_url
+        .as_deref()
+        .and_then(|external| reqwest::Url::parse(external).ok());
+    let plugins = plugin_boot::open_plugins(args, &database, &stored, &data_directory).await?;
     let mut native = startup::native_runners(
         &database,
         &secrets,
@@ -63,7 +92,8 @@ pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<Option<
     let traffic_flusher = native
         .usenet_traffic
         .start_flushing(database.clone(), rd_usenet::FLUSH_INTERVAL);
-    let shutdown = shutdown_on_signal();
+    let control_file = ControlFile::default();
+    let shutdown = shutdown_on_signal(Arc::downgrade(&control_file));
 
     let (state, extraction, torrent_service) = assemble_state(
         native,
@@ -83,12 +113,13 @@ pub(crate) async fn run(args: ServeArgs, telemetry: Telemetry) -> Result<Option<
     };
     serve_until_stopped(
         state,
-        &args,
+        args,
         &data_directory,
         &restore,
         listen,
         shutdown,
         running,
+        &control_file,
     )
     .await
 }
@@ -251,7 +282,9 @@ struct Running {
 }
 
 /// Serves until the stop, then stops everything in order; the control file goes last. Answers
-/// the exit code of a restart the supervisor carries out, if one was asked for.
+/// the exit code of a restart the supervisor carries out, if one was asked for. A start that
+/// fails once the services run stops them in the same order before it reports the error.
+#[expect(clippy::too_many_arguments)]
 async fn serve_until_stopped(
     state: AppState,
     args: &ServeArgs,
@@ -260,50 +293,68 @@ async fn serve_until_stopped(
     listen: SocketAddr,
     shutdown: CancellationToken,
     running: Running,
+    control_file: &ControlFile,
 ) -> Result<Option<i32>> {
     // Written only now, with everything the stop route needs in place; removed as the last
     // step of this function, so `rdownloader stop --wait` sees it gone once the queue is safe.
-    let (local_control, control_file) =
-        rd_api::local_control::LocalControl::issue(data_directory, listen)
-            .context("write the local control file")?;
-    let control_file = Arc::new(Mutex::new(Some(control_file)));
-    end_after_stop_deadline(shutdown.clone(), Arc::downgrade(&control_file));
+    let (local_control, guard) = rd_api::local_control::LocalControl::issue(data_directory, listen)
+        .context("write the local control file")?;
+    if let Ok(mut file) = control_file.lock() {
+        *file = Some(guard);
+    }
+    end_after_stop_deadline(shutdown.clone(), Arc::downgrade(control_file));
     let state = state
         .with_local_control(local_control)
-        .with_shutdown(shutdown);
-    startup::prepare_state(&state).await?;
-    startup::finish_restore(&args.paths, restore);
-    let hotfolders = state.hotfolders.clone();
-    let state_link_check = state.link_check.clone();
-    let remote_jobs = state.remote_jobs.clone();
-    let stream_monitor = state.stream_monitor.clone();
+        .with_shutdown(shutdown.clone());
+    // The services with loops of their own, stopped once the HTTP surface is gone (a request
+    // may need them until then) and before the queue: the power supervisor among them, so a
+    // queue the stop empties is not read as finished.
+    let stop_before_queue = {
+        let stream_monitor = state.stream_monitor.clone();
+        let power_supervisor = state.power_supervisor.clone();
+        let automations = state.automations.clone();
+        let subscriptions = state.subscriptions.clone();
+        let auth_flows = state.auth_flows.clone();
+        let hotfolders = state.hotfolders.clone();
+        let link_check = state.link_check.clone();
+        let remote_jobs = state.remote_jobs.clone();
+        async move {
+            stream_monitor.shutdown();
+            power_supervisor.shutdown();
+            automations.shutdown();
+            subscriptions.shutdown();
+            auth_flows.shutdown();
+            hotfolders.shutdown().await;
+            link_check.shutdown();
+            remote_jobs.shutdown();
+        }
+    };
+    let notifications = state.notifications.clone();
     let restart = state.restart.clone();
-    updater_cli::confirm_when_answering(&args.paths.database, listen);
-    let result = rd_api::serve(state, listen).await;
-    stream_monitor.shutdown();
+    let result = match startup::prepare_state(&state).await {
+        Ok(()) => {
+            startup::finish_restore(&args.paths, restore);
+            updater_cli::confirm_when_answering(&args.paths.database, listen);
+            rd_api::serve(state, listen).await
+        }
+        Err(error) => {
+            // The start ends here; what already runs stops in the usual order below.
+            shutdown.cancel();
+            drop(state);
+            Err(error)
+        }
+    };
+    stop_before_queue.await;
     running.torrent_service.shutdown();
-    hotfolders.shutdown().await;
-    state_link_check.shutdown();
-    remote_jobs.shutdown();
     running.extraction.shutdown().await;
     let stopped = running.scheduler.shutdown().await;
+    // After the queue, so what its stop reported is still queued for delivery.
+    notifications.shutdown();
     running.traffic_flusher.shutdown().await;
-    remove_control_file(&control_file);
+    remove_control_file(control_file);
     stopped?;
     result?;
     Ok(restart.exit_code())
-}
-
-/// Cancelled by a signal, and by `POST /api/v1/system/shutdown` (RD-180-02): the one way to
-/// stop the service gracefully on Windows, where a console-less process gets no Ctrl-C.
-fn shutdown_on_signal() -> CancellationToken {
-    let shutdown = CancellationToken::new();
-    let signal = shutdown.clone();
-    tokio::spawn(async move {
-        wait_for_shutdown_signal().await;
-        signal.cancel();
-    });
-    shutdown
 }
 
 /// Resumes the post-processing and the seeding a stop interrupted.
@@ -335,87 +386,5 @@ fn sweep_abandoned_uploads(sweeper: rd_object_storage::ObjectStorageService) {
     });
 }
 
-/// How long a stop may take, from the request to the end of the process (RD-180-02).
-///
-/// The listener drains for at most `rd_api::CONNECTION_DRAIN`, the scheduler gives its transfers
-/// ten seconds to checkpoint, the rest stops in moments; this bounds all of it together and what
-/// nothing else bounds -- a blocking task the runtime waits for on its way out, a stop that hangs.
-/// Below the updater's wait for the stop (120 s), so a slow stop no longer fails an update. What
-/// a forced end leaves is what a crash leaves, and every persistence path survives a crash
-/// (`crates/rd-core/recovery-matrix.md`).
-const STOP_DEADLINE: std::time::Duration = std::time::Duration::from_secs(60);
-
-/// The local control file, removed as the last step of a stop: its removal is what
-/// `rdownloader stop --wait` and the updater read as the end of the process.
-type ControlFile = Arc<Mutex<Option<rd_api::local_control::ControlFileGuard>>>;
-
-fn remove_control_file(control_file: &ControlFile) {
-    if let Ok(mut file) = control_file.lock() {
-        file.take();
-    }
-}
-
-/// Ends the process [`STOP_DEADLINE`] after `shutdown` was cancelled, if it is still running.
-///
-/// On a thread of its own, so a runtime whose workers are all stuck still ends. The control file
-/// goes first, as at the end of an ordinary stop, so whoever asked for the stop sees it done;
-/// held weakly, so a start that fails drops it as before.
-fn end_after_stop_deadline(
-    shutdown: CancellationToken,
-    control_file: std::sync::Weak<Mutex<Option<rd_api::local_control::ControlFileGuard>>>,
-) {
-    tokio::spawn(async move {
-        shutdown.cancelled().await;
-        std::thread::spawn(move || {
-            std::thread::sleep(STOP_DEADLINE);
-            tracing::error!(
-                seconds = STOP_DEADLINE.as_secs(),
-                "the stop did not finish in time; the process ends without the rest of it"
-            );
-            if let Some(control_file) = control_file.upgrade() {
-                remove_control_file(&control_file);
-            }
-            std::process::exit(1);
-        });
-    });
-}
-
 /// Default address when neither `--listen` nor the `ui_port` setting says otherwise.
 const DEFAULT_LISTEN_PORT: u16 = 8710;
-
-async fn wait_for_shutdown_signal() {
-    #[cfg(unix)]
-    {
-        use tokio::signal::unix::{SignalKind, signal};
-
-        let Ok(mut terminate) = signal(SignalKind::terminate()) else {
-            let _ = tokio::signal::ctrl_c().await;
-            return;
-        };
-        tokio::select! {
-            result = tokio::signal::ctrl_c() => { let _ = result; }
-            _ = terminate.recv() => {}
-        }
-    }
-    // Ctrl-C, the console window closed, and the system shutting down (RD-180-02). Windows ends
-    // the process a few seconds after a close or shutdown event whatever it does, so this is
-    // the best effort; `rdownloader stop` is the stop that waits for the queue.
-    #[cfg(windows)]
-    {
-        use tokio::signal::windows::{ctrl_close, ctrl_shutdown};
-
-        let (Ok(mut close), Ok(mut system)) = (ctrl_close(), ctrl_shutdown()) else {
-            let _ = tokio::signal::ctrl_c().await;
-            return;
-        };
-        tokio::select! {
-            result = tokio::signal::ctrl_c() => { let _ = result; }
-            _ = close.recv() => {}
-            _ = system.recv() => {}
-        }
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        let _ = tokio::signal::ctrl_c().await;
-    }
-}

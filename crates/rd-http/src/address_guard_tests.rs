@@ -478,3 +478,19 @@ fn a_redirect_to_a_refused_port_is_refused_on_any_host() {
             .is_none()
     );
 }
+
+/// RD-1420-01: a reverse proxy's port is refused on this machine only.
+#[test]
+fn a_port_refused_on_this_machine_is_followed_elsewhere() {
+    let listen = SocketAddr::from(([192, 168, 1, 4], 8710));
+    let policy = AddressPolicy::new(true).refusing_redirects_on_this_machine(&[443], Some(listen));
+    let refused = |target: &str| policy.hop_refusal(&url(target)).is_some();
+    assert!(refused("https://127.0.0.1/") && refused("https://localhost/x"));
+    assert!(refused("https://192.168.1.4/"), "the listen address");
+    assert!(
+        refused("https://0.0.0.0/") && refused("https://[::]/"),
+        "unspecified"
+    );
+    assert!(!refused("https://cdn.example.com/") && !refused("https://192.168.1.9/"));
+    assert!(!refused("http://localhost/"), "another port");
+}

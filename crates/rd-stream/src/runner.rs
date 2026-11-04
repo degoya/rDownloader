@@ -71,7 +71,17 @@ impl StreamRunner {
     /// itself succeeds - the same inconsistency `with_network_defaults` closed for NNTP.
     #[must_use]
     pub fn with_network_defaults(mut self, network: SharedNetworkDefaults) -> Self {
-        self.sidecars = SidecarClients::with_network_defaults(network);
+        let policy = std::mem::take(&mut self.sidecars.policy);
+        self.sidecars = SidecarClients::with_network_defaults(network).with_address_policy(policy);
+        self
+    }
+
+    /// Holds the thumbnail fetches to `policy`: the rule for an address a website handed over,
+    /// with the service's own listeners refused. Without it only public addresses are reached
+    /// and no port is refused by number.
+    #[must_use]
+    pub fn with_sidecar_address_policy(mut self, policy: rd_http::AddressPolicy) -> Self {
+        self.sidecars = std::mem::take(&mut self.sidecars).with_address_policy(policy);
         self
     }
 }

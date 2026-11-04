@@ -245,9 +245,11 @@ async fn start_if_wanted(inner: &Arc<Inner>, download_id: rd_core::DownloadId) -
     if !first_volume.is_file() {
         return Ok(());
     }
-    let choice =
-        settings::refuse_outdated(settings::rar_tool(&postprocess, inner.config.rar_timeout)?)
-            .await;
+    let choice = settings::refuse_outdated(
+        settings::rar_tool(&postprocess, inner.config.rar_timeout)?,
+        postprocess.refuse_unknown_archive_tool_version,
+    )
+    .await;
     let Some(tool) = choice.tool.filter(|tool| tool.kind == RarToolKind::Unrar) else {
         tracing::info!(
             package_id = %package.id,

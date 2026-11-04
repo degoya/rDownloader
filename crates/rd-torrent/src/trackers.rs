@@ -14,7 +14,11 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result, bail};
 use rd_core::{DownloadId, TrackerScrape};
 
-use crate::{TorrentService, error::TorrentError};
+use crate::{
+    TorrentService,
+    error::TorrentError,
+    scrape_run::{SCRAPE_DEADLINE, SCRAPE_PARALLEL, ScrapeClaim, apply_scrapes, scrape_all},
+};
 
 /// Shortest interval between two manual reannounces of one torrent.
 ///
@@ -27,6 +31,9 @@ pub const SCRAPE_FRESHNESS: Duration = Duration::from_secs(15 * 60);
 
 /// Timeout for one scrape round-trip.
 const SCRAPE_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Largest HTTP scrape body read; the answer for one info hash is a few hundred bytes.
+const MAX_SCRAPE_BYTES: usize = 64 * 1024;
 
 /// Whether a scrape result is too old to be presented as current.
 #[must_use]
@@ -125,15 +132,32 @@ async fn scrape_http(announce: &str, info_hash: &[u8]) -> Result<TrackerScrape> 
         .dns_resolver(rd_http::GuardedResolver::system(tracker_policy()))
         .build()
         .context("build scrape client")?;
-    let body = client
+    let response = client
         .get(&request)
         .send()
         .await
-        .context("scrape request failed")?
-        .bytes()
-        .await
-        .context("read scrape response")?;
+        .context("scrape request failed")?;
+    let body = read_capped(response, MAX_SCRAPE_BYTES).await?;
     parse_http_scrape(&body, info_hash)
+}
+
+/// Reads a response body of at most `limit` bytes.
+///
+/// The declared length is a claim, not a guarantee: a chunked response declares none at all,
+/// so the body is collected chunk by chunk and abandoned the moment it passes the cap.
+pub(crate) async fn read_capped(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8>> {
+    if response
+        .content_length()
+        .is_some_and(|length| length > limit as u64)
+    {
+        bail!("scrape response is too large");
+    }
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.context("read scrape response")? {
+        body.extend_from_slice(&chunk);
+        anyhow::ensure!(body.len() <= limit, "scrape response is too large");
+    }
+    Ok(body)
 }
 
 /// Reads the counters of the requested info hash out of a scrape response.
@@ -288,10 +312,13 @@ impl TorrentService {
     /// makes it re-announce with the currently persisted tracker list.
     pub async fn reannounce(&self, id: DownloadId) -> Result<()> {
         let now = Instant::now();
-        {
-            let registry = self.inner.registry.read().await;
+        // Checked and marked under one write lock, so two calls at once cannot both pass the
+        // interval check; the mark is taken back when the cycle does not happen.
+        let (entry, previous) = {
+            let mut registry = self.inner.registry.write().await;
             let entry = registry
                 .get(id)
+                .cloned()
                 .context(TorrentError::not_active("torrent is not active"))?;
             if let Some(last) = entry.last_reannounce
                 && now.duration_since(last) < REANNOUNCE_INTERVAL
@@ -306,15 +333,23 @@ impl TorrentService {
                 ))
                 .into());
             }
+            let previous = entry.last_reannounce;
+            registry.mark_reannounce(id, now);
+            (entry, previous)
+        };
+        let cycled = self.cycle_for_reannounce(&entry).await;
+        if cycled.is_err() {
+            self.inner
+                .registry
+                .write()
+                .await
+                .unmark_reannounce(id, now, previous);
         }
-        let entry = self
-            .inner
-            .registry
-            .read()
-            .await
-            .get(id)
-            .cloned()
-            .context(TorrentError::not_active("torrent is not active"))?;
+        cycled
+    }
+
+    /// Pauses and resumes one torrent, which makes the engine announce again.
+    async fn cycle_for_reannounce(&self, entry: &crate::registry::TorrentEntry) -> Result<()> {
         let session = self.session().await?;
         let handle = session
             .get(entry.handle())
@@ -327,35 +362,48 @@ impl TorrentService {
             .unpause(&handle)
             .await
             .context("resume after reannounce")?;
-        self.inner.registry.write().await.mark_reannounce(id, now);
         Ok(())
     }
 
     /// Scrapes every tracker of one torrent and stores the counters.
     ///
     /// One tracker failing never fails the whole call: its previous counters are kept and
-    /// the reason is stored on that entry alone.
+    /// the reason is stored on that entry alone. Trackers are asked `SCRAPE_PARALLEL` at a
+    /// time and the whole call ends after `SCRAPE_DEADLINE`; a tracker that has not
+    /// answered by then keeps its counters and says so. While one scrape of a torrent runs, a
+    /// second call starts none and answers with the stored state.
     pub async fn scrape_trackers(&self, id: DownloadId) -> Result<rd_core::TorrentJobState> {
-        let mut state = self.job_state(id).await;
+        let Some(_running) = ScrapeClaim::take(&self.inner.scraping, id) else {
+            return Ok(self.job_state(id).await);
+        };
+        let state = self.job_state(id).await;
         let metadata = state
             .metadata
-            .as_mut()
+            .as_ref()
             .context("torrent metadata is not known yet")?;
         let info_hash = metadata.info_hash.clone();
-        for tracker in &mut metadata.trackers {
-            match scrape(&tracker.url, &info_hash).await {
-                Ok(counters) => {
-                    tracker.scrape = Some(counters);
-                    tracker.last_error = None;
+        let urls: Vec<String> = metadata
+            .trackers
+            .iter()
+            .map(|tracker| tracker.url.clone())
+            .collect();
+        let results = scrape_all(
+            urls.clone(),
+            move |url| {
+                let info_hash = info_hash.clone();
+                async move {
+                    let result = scrape(&url, &info_hash).await;
+                    (url, result)
                 }
-                Err(error) => {
-                    // The URL may hold a passkey, so only the reason is kept.
-                    tracker.last_error = Some(format!("{error:#}"));
-                }
-            }
-        }
-        self.store_job_state(id, state.clone()).await;
-        Ok(state)
+            },
+            SCRAPE_PARALLEL,
+            SCRAPE_DEADLINE,
+        )
+        .await;
+        // Only the scraped entries' counters are written, into the state as it is now: a
+        // tracker list or plan changed while the trackers were asked stays as it was changed.
+        self.update_job_state(id, move |state| apply_scrapes(state, &urls, results))
+            .await
     }
 
     /// The tracker list applied when the torrent is added.

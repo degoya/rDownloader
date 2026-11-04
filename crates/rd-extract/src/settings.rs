@@ -56,6 +56,9 @@ pub(crate) struct OutdatedTool {
     pub found: String,
     /// The oldest version extraction runs.
     pub minimum: String,
+    /// The version could not be read at all, and `refuse_unknown_archive_tool_version` refuses
+    /// such a tool (RD-1420-03); `found` is then `unknown`.
+    pub unknown: bool,
 }
 
 /// Takes the tool out of `choice` when its version is below the floor in
@@ -63,10 +66,12 @@ pub(crate) struct OutdatedTool {
 ///
 /// unrar before 6.12 and 7-Zip before 25.00 write through an archive's links before
 /// `validate_tree` can look at the result, so the only brake is not to start them. A version
-/// that cannot be read is not refused: `unknown` is not `old` (the rule of `rd_tools::compat`),
-/// a renamed or wrapped binary would otherwise stop every RAR unpack, and the person sees the
-/// unreadable version in the tool status and in `doctor`. It is logged as a warning here.
-pub(crate) async fn refuse_outdated(choice: RarToolChoice) -> RarToolChoice {
+/// that cannot be read is not refused by default: `unknown` is not `old` (the rule of
+/// `rd_tools::compat`), a renamed or wrapped binary would otherwise stop every RAR unpack, and
+/// the person sees the unreadable version in the tool status and in `doctor`. It is logged as a
+/// warning here. With `refuse_unknown` (the setting `refuse_unknown_archive_tool_version`,
+/// RD-1420-03) it is taken out like an old one.
+pub(crate) async fn refuse_outdated(choice: RarToolChoice, refuse_unknown: bool) -> RarToolChoice {
     let Some(tool) = choice.tool.as_ref() else {
         return choice;
     };
@@ -78,6 +83,7 @@ pub(crate) async fn refuse_outdated(choice: RarToolChoice) -> RarToolChoice {
                 tool: name,
                 found: assessment.version.unwrap_or_else(|| "unknown".to_owned()),
                 minimum: assessment.min_version.unwrap_or_default(),
+                unknown: false,
             };
             tracing::warn!(
                 tool = %tool.executable.display(),
@@ -89,6 +95,23 @@ pub(crate) async fn refuse_outdated(choice: RarToolChoice) -> RarToolChoice {
                 tool: None,
                 conflict: choice.conflict,
                 outdated: Some(outdated),
+            }
+        }
+        rd_tools::Verdict::Unknown if refuse_unknown => {
+            tracing::warn!(
+                tool = %tool.executable.display(),
+                version = assessment.version.as_deref().unwrap_or("unreadable"),
+                "archive tool version could not be read; extraction refused by the settings"
+            );
+            RarToolChoice {
+                tool: None,
+                conflict: choice.conflict,
+                outdated: Some(OutdatedTool {
+                    tool: name,
+                    found: "unknown".to_owned(),
+                    minimum: assessment.min_version.unwrap_or_default(),
+                    unknown: true,
+                }),
             }
         }
         rd_tools::Verdict::Unknown => {
@@ -260,7 +283,12 @@ mod tests {
             ..PostprocessSettings::default()
         };
         let choose = |settings: PostprocessSettings| async move {
-            refuse_outdated(rar_tool(&settings, Duration::from_secs(1)).expect("resolve")).await
+            let refuse_unknown = settings.refuse_unknown_archive_tool_version;
+            refuse_outdated(
+                rar_tool(&settings, Duration::from_secs(1)).expect("resolve"),
+                refuse_unknown,
+            )
+            .await
         };
 
         let old = fake("unrar", "UNRAR 6.11 freeware      Copyright (c) 1993-2022");
@@ -291,5 +319,30 @@ mod tests {
         let silent = fake("my-unpacker", "");
         let unknown = choose(settings(&silent, "unrar")).await;
         assert!(unknown.tool.is_some() && unknown.outdated.is_none());
+
+        // RD-1420-03: with the switch on, an unreadable version is refused like an old one.
+        let refusing = PostprocessSettings {
+            refuse_unknown_archive_tool_version: true,
+            ..settings(&silent, "unrar")
+        };
+        let refused = choose(refusing).await;
+        assert!(
+            refused.tool.is_none(),
+            "an unreadable version must not extract"
+        );
+        let outdated = refused.outdated.expect("the refusal says why");
+        assert!(outdated.unknown);
+        assert_eq!(
+            (outdated.tool, outdated.found.as_str()),
+            ("unrar", "unknown")
+        );
+        assert_eq!(outdated.minimum, "6.12");
+        // A version that can be read is judged as before, switch or not.
+        let readable = PostprocessSettings {
+            refuse_unknown_archive_tool_version: true,
+            ..settings(&current, "7z")
+        };
+        let kept = choose(readable).await;
+        assert!(kept.tool.is_some() && kept.outdated.is_none());
     }
 }

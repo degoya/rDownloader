@@ -70,7 +70,8 @@
       "linkgrabber": "blocklist, excluded domains, mirrors, container",
       "desktop_agent": "shortcut, hotkey, keyboard, clipboard, pause, capture agent",
       "link_filters": "filter, link filter, hide, rules",
-      "download_window": "download window, time window, download at night, start time, pause downloads, pause during the day"
+      "download_window": "download window, time window, download at night, start time, pause downloads, pause during the day",
+      "local_network_names": "mDNS, .local, host name, home network, DNS rebinding"
     }
   },
   "connection": {

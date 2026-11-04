@@ -482,7 +482,7 @@ async fn a_refused_refresh_fails_and_an_unreachable_provider_does_not() {
     let server = MockAuthorizationServer::new(Case::RefreshRefused);
     let plugin = provider(server.clone(), &bytes);
     let outcome = plugin
-        .refresh(account, Some("example_oauth_refresh"))
+        .refresh(account, Some("vault://example-oauth-renewal"))
         .await
         .expect("refresh");
     let TokenOutcome::Failed { message, .. } = outcome else {
@@ -497,12 +497,14 @@ async fn a_refused_refresh_fails_and_an_unreachable_provider_does_not() {
     assert_eq!(sent.field("grant_type"), Some("refresh_token"));
     assert_eq!(
         sent.field("refresh_token"),
-        Some("{{secret:example_oauth_refresh}}")
+        Some("{{secret:vault://example-oauth-renewal}}")
     );
 
     let offline = MockAuthorizationServer::new(Case::Unreachable);
     let plugin = provider(offline.clone(), &bytes);
-    let outcome = plugin.refresh(account, Some("example_oauth_refresh")).await;
+    let outcome = plugin
+        .refresh(account, Some("vault://example-oauth-renewal"))
+        .await;
     assert!(
         outcome.is_err(),
         "an unreachable provider must not end the flow, got {outcome:?}"
@@ -532,7 +534,7 @@ async fn a_rate_limit_becomes_a_wait_carrying_retry_after() {
     );
 
     let renewed = plugin
-        .refresh(account, Some("example_oauth_refresh"))
+        .refresh(account, Some("vault://example-oauth-renewal"))
         .await
         .expect("refresh");
     assert_eq!(
@@ -554,7 +556,7 @@ async fn a_renewal_stores_the_new_token_without_a_redirect() {
     let account = AccountId::new();
 
     let outcome = plugin
-        .refresh(account, Some("example_oauth_refresh"))
+        .refresh(account, Some("vault://example-oauth-renewal"))
         .await
         .expect("refresh");
     assert_eq!(outcome, TokenOutcome::Authorized);
@@ -668,7 +670,7 @@ async fn a_device_sign_in_is_renewed_without_anybody_being_asked_again() {
     // stored refresh material leaves the plugin as a template rather than as a value.
     server.set_case(Case::RenewalGranted);
     let renewed = plugin
-        .refresh(account, Some("example_oauth_refresh"))
+        .refresh(account, Some("vault://example-oauth-renewal"))
         .await
         .expect("refresh");
     assert_eq!(renewed, TokenOutcome::Authorized);
@@ -677,7 +679,7 @@ async fn a_device_sign_in_is_renewed_without_anybody_being_asked_again() {
     assert_eq!(sent.field("grant_type"), Some("refresh_token"));
     assert_eq!(
         sent.field("refresh_token"),
-        Some("{{secret:example_oauth_refresh}}")
+        Some("{{secret:vault://example-oauth-renewal}}")
     );
     assert!(
         sent.field("device_code").is_none(),
@@ -801,7 +803,7 @@ fn no_token_or_refresh_material_reaches_a_log_or_an_answer() {
                 .expect("poll");
             server.set_case(Case::RefreshRefused);
             let refused = plugin
-                .refresh(account, Some("example_oauth_refresh"))
+                .refresh(account, Some("vault://example-oauth-renewal"))
                 .await
                 .expect("refresh");
             (request, granted, refused)

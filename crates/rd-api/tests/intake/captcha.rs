@@ -11,6 +11,9 @@ use common::{CAPTURE_BEARER, Harness, eventually, request_to, send_strict, test_
 
 const SOLVER_KEY: &str = "top-secret-solver-key";
 
+#[path = "captcha/plain_http.rs"]
+mod plain_http;
+
 impl Harness {
     /// Sends one request and decodes its JSON answer; a body that is not JSON fails the test.
     async fn call(&self, request: axum::http::Request<Body>) -> (StatusCode, serde_json::Value) {
@@ -185,35 +188,6 @@ async fn clearing_the_key_removes_it_from_the_secret_store() {
 }
 
 #[tokio::test]
-async fn a_malformed_configuration_is_refused_with_a_code_the_ui_can_translate() {
-    let directory = tempfile::tempdir().expect("directory");
-    let harness = test_harness(directory.path()).await;
-
-    let (status, error) = harness
-        .send(
-            "PUT",
-            "/api/v1/captcha-config",
-            serde_json::json!({ "endpoint": "http://api.2captcha.com" }),
-        )
-        .await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert_eq!(
-        error["code"], "captcha.endpoint_invalid",
-        "a plain-HTTP endpoint would put the key on the wire"
-    );
-
-    let (status, error) = harness
-        .send(
-            "PUT",
-            "/api/v1/captcha-config",
-            serde_json::json!({ "api_key": "   " }),
-        )
-        .await;
-    assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert_eq!(error["code"], "captcha.api_key_invalid");
-}
-
-#[tokio::test]
 async fn answering_a_captcha_nobody_is_waiting_for_reports_it_plainly() {
     let directory = tempfile::tempdir().expect("directory");
     let harness = test_harness(directory.path()).await;
@@ -318,7 +292,7 @@ async fn testing_a_solver_that_was_never_configured_says_which_part_is_missing()
         )
         .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert_eq!(error["code"], "captcha.endpoint_invalid");
+    assert_eq!(error["code"], "captcha.endpoint_plain_http");
 }
 
 /// The browser extension's path through the API, end to end (RD-108-02): the service knows

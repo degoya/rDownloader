@@ -1,0 +1,122 @@
+name: Coverage
+
+# How much of the HTTP surface the tests reach (RD-1420-05, audit L-39): the API crates carry few
+# tests of their own, and rd-api's integration suites exercise them from outside, so only a line
+# count says what they cover. cargo-llvm-cov runs the crates' tests under nextest with
+# instrumentation; the job summary holds lines and functions per crate, the artifact the JSON
+# summary, the per-file table and an lcov file. A number to watch, not a gate: no threshold fails
+# the run, and it is not part of ci.yml's tree green.
+#
+# Weekly on the default branch, which in the public repository is `main`; by hand on any branch:
+#   gh workflow run coverage.yml --ref <branch>
+#
+# No Rust cache: an instrumented build shares nothing with `rust-tests`, and a cache of its own
+# for a weekly run would hold gigabytes of the repository's 10 GB (RD-1120-07).
+on:
+  schedule:
+    - cron: "37 4 * * 2"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # RUSTUP_TOOLCHAIN: set by .github/actions/setup-rust for every step after it (RD-191-09).
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  api-crates:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 150
+    env:
+      # Two build jobs keep the links of the instrumented rd-api test binaries within memory.
+      CARGO_BUILD_JOBS: 2
+      # The CI selection: no plugin components (this job builds none), one retry for a flaky test.
+      NEXTEST_PROFILE: ci
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Every rd-api integration binary links the whole dependency graph (RD-120-67), and
+      # instrumentation makes them larger still.
+      - name: Free runner disk
+        uses: ./.github/actions/free-runner-disk
+      # rust-embed compiles web/dist into rd-api.
+      - uses: ./.github/actions/setup-web
+      - name: Build the web UI
+        working-directory: web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: llvm-tools
+      - uses: taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68 # v2.88.1
+        with:
+          tool: nextest@0.9.146,cargo-llvm-cov@0.9.1
+      - name: The API crates' tests, instrumented
+        run: >-
+          cargo llvm-cov nextest --locked --no-report --no-fail-fast
+          -p rd-api -p rd-api-core -p rd-api-access -p rd-api-intake -p rd-api-queue
+          -p rd-api-admin -p rd-api-compat -p rd-api-mcp -p rd-authn
+      # What ran is measured even when a test failed; a cancelled run has nothing to report.
+      - name: Reports
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          COVERAGE="${RUNNER_TEMP}/coverage"
+          mkdir -p "${COVERAGE}"
+          cargo llvm-cov report --json --summary-only --output-path "${COVERAGE}/summary.json"
+          cargo llvm-cov report --lcov --output-path "${COVERAGE}/lcov.info"
+          cargo llvm-cov report > "${COVERAGE}/files.txt"
+      # Lines and functions per API crate, its src/ only (cargo-llvm-cov leaves tests/ and
+      # *_tests.rs out of every report), and the API crates together.
+      - name: Summary
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          python3 - "${RUNNER_TEMP}/coverage/summary.json" >> "${GITHUB_STEP_SUMMARY}" << 'EOF'
+          import json
+          import re
+          import sys
+
+          API = re.compile(r"/crates/(rd-api[a-z-]*|rd-authn)/src/")
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              files = json.load(handle)["data"][0]["files"]
+          crates = {}
+          for entry in files:
+              match = API.search(entry["filename"].replace("\\", "/"))
+              if not match:
+                  continue
+              total = crates.setdefault(match.group(1), [0, 0, 0, 0])
+              lines, functions = entry["summary"]["lines"], entry["summary"]["functions"]
+              total[0] += lines["covered"]
+              total[1] += lines["count"]
+              total[2] += functions["covered"]
+              total[3] += functions["count"]
+          if not crates:
+              print("::error::the coverage data names no file of an API crate", file=sys.stderr)
+              sys.exit(1)
+
+          def share(covered, count):
+              return f"{100 * covered / count:.1f} %" if count else "–"
+
+          print("## Coverage of the API crates\n")
+          print("| Crate | Lines | Covered | Functions | Covered |")
+          print("| --- | ---: | ---: | ---: | ---: |")
+          for name in sorted(crates):
+              line_hit, line_all, fn_hit, fn_all = crates[name]
+              print(f"| `{name}` | {line_all} | {share(line_hit, line_all)} | {fn_all} | {share(fn_hit, fn_all)} |")
+          sums = [sum(column) for column in zip(*crates.values())]
+          print(f"| **all** | {sums[1]} | **{share(sums[0], sums[1])}** | {sums[3]} | **{share(sums[2], sums[3])}** |")
+          EOF
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage-api-crates
+          path: ${{ runner.temp }}/coverage
+          if-no-files-found: error
+          retention-days: 30

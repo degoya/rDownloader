@@ -9,7 +9,7 @@ use std::{ffi::OsString, path::Path};
 
 use crate::{
     RarToolKind,
-    rar_args::{RarAction, rar_arguments, unrar_quote},
+    rar_args::{RarAction, rar_arguments, rar_arguments_for, unrar_quote},
 };
 
 pub(crate) const QUOTE: u16 = b'"' as u16;
@@ -193,8 +193,9 @@ fn the_test_command_and_seven_zip_keep_their_argument_lists() {
     );
     assert_eq!(
         strings(&unrar_test.args),
-        ["t", "-y", "-idc", "-ppw", "--", "/pkg/a.rar"]
+        ["t", "-y", "-idc", "-p", "--", "/pkg/a.rar"]
     );
+    assert!(unrar_test.password_on_stdin, "RD-1420-03");
     let seven_extract = rar_arguments(
         RarToolKind::SevenZip,
         RarAction::Extract {
@@ -228,7 +229,8 @@ fn the_test_command_and_seven_zip_keep_their_argument_lists() {
     );
 }
 
-/// Every argument arrives unchanged under unrar's parser, passwords included.
+/// Every argument arrives unchanged under unrar's parser, passwords included: an ASCII one goes
+/// to standard input (RD-1420-03), a non-ASCII one stays on the Windows command line.
 #[test]
 fn every_unrar_argument_survives_the_windows_command_line() {
     let passwords = [
@@ -251,18 +253,24 @@ fn every_unrar_argument_survives_the_windows_command_line() {
             },
             RarAction::Test,
         ] {
-            let built = rar_arguments(
+            let built = rar_arguments_for(
                 RarToolKind::Unrar,
                 action,
                 Path::new(ARCHIVE),
                 Some(password),
+                true,
             );
             assert_eq!(
                 round_trip(&built.args, unrar_quote),
                 strings(&built.args),
                 "password {password:?}, {action:?}"
             );
-            assert!(strings(&built.args).contains(&format!("-p{password}")));
+            let on_command_line = if password.is_ascii() {
+                "-p".to_owned()
+            } else {
+                format!("-p{password}")
+            };
+            assert!(strings(&built.args).contains(&on_command_line));
         }
     }
 }
@@ -309,9 +317,17 @@ fn the_log_line_names_every_argument_but_the_password() {
     let line = built.redacted();
     assert_eq!(
         line,
-        format!("x -o- -y -idc -p*** -op{STAGING} -- {ARCHIVE}")
+        format!("x -o- -y -idc -p<stdin> -op{STAGING} -- {ARCHIVE}")
     );
     assert!(!line.contains("canary"));
+    let windows = rar_arguments_for(
+        RarToolKind::Unrar,
+        RarAction::Test,
+        Path::new(ARCHIVE),
+        Some("canary \u{e4}"),
+        true,
+    );
+    assert_eq!(windows.redacted(), format!("t -y -idc -p*** -- {ARCHIVE}"));
     let none = rar_arguments(
         RarToolKind::Unrar,
         RarAction::Test,
@@ -397,10 +413,10 @@ async fn the_log_names_tool_arguments_and_exit_code_and_never_the_password() {
     assert_eq!(log.matches("RAR tool finished").count(), 2, "{log}");
     assert_eq!(log.matches("tool=/bin/false").count(), 4, "{log}");
     assert_eq!(log.matches("exit=\"1\"").count(), 2, "{log}");
-    assert!(log.contains("args=t -y -idc -p*** -- "), "{log}");
+    assert!(log.contains("args=t -y -idc -p<stdin> -- "), "{log}");
     assert!(
         log.contains(&format!(
-            "args=x -o- -y -idc -p*** -op{} -- ",
+            "args=x -o- -y -idc -p<stdin> -op{} -- ",
             staging.display()
         )),
         "{log}"

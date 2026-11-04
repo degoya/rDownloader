@@ -370,7 +370,12 @@
     "mcp_scripts_allowed": {
       "label": "AI assistants (MCP) may set scripts",
       "description": "Off by default. When on, an MCP tool may give a package, a category or an automation a script from the scripts folder and choose the completion and reconnect script. Only you switch this here; no tool can."
-    }
+    },
+    "refuse_unknown_archive_tool_version": {
+      "label": "Refuse archive tools of unknown version",
+      "description": "When the version of unrar or 7-Zip cannot be read (a renamed or wrapped program), extraction with it is refused instead of running with a warning. Their minimum version keeps links inside an archive from writing outside the destination, and an unknown version cannot be checked against it."
+    },
+    "rar_tool_password_note": "unrar reads an archive password from its input; 7-Zip gets it on its command line, where other programs on this computer can see it while it runs."
   },
   "appearance": {
     "eyebrow": "This browser only",

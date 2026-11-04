@@ -59,17 +59,19 @@ pub fn build(database: Database, settings: SharedStreamSettings) -> Arc<dyn Exte
 
 /// [`build`], with the sidecar fetches trusting what the rest of the service trusts,
 /// streamlink handed each recording's proxy and the custom CA (RD-1240-08), and both its
-/// cookie profile (RD-1320-03).
+/// cookie profile (RD-1320-03). `sidecar_policy` is the address rule a thumbnail fetch keeps to.
 pub fn build_with_network_defaults(
     database: Database,
     secrets: rd_secrets::SecretStore,
     settings: SharedStreamSettings,
     network: rd_http::SharedNetworkDefaults,
     tools: rd_scheduler::ToolNetworkSource,
+    sidecar_policy: rd_http::AddressPolicy,
 ) -> Arc<dyn ExternalRunner> {
     Arc::new(
         StreamRunner::new(database, settings)
             .with_network_defaults(network)
+            .with_sidecar_address_policy(sidecar_policy)
             .with_tool_network(tools)
             .with_auth_profiles(secrets),
     )

@@ -8,7 +8,7 @@ use axum::{
     body::Body,
     http::{StatusCode, header},
 };
-use common::{auth_harness, post_json, post_json_with_headers};
+use common::{auth_harness, get_json, post_json, post_json_with_headers};
 
 /// Every audit action the store holds, newest first.
 async fn audit_actions(database: &rd_db::Database) -> Vec<String> {
@@ -136,4 +136,26 @@ async fn a_public_route_refuses_a_large_body() {
     )
     .await;
     assert_ne!(status, StatusCode::PAYLOAD_TOO_LARGE, "{body}");
+}
+
+/// The health check says the service is not ready once the database can no longer be written.
+#[tokio::test]
+async fn health_reports_unavailable_once_the_database_writer_is_gone() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let (status, body) = get_json(&harness.router, "/api/v1/health").await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["status"], "ok", "{body}");
+
+    harness.database.close().await.expect("close");
+    for _ in 0..200 {
+        if !harness.database.is_writable() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    let (status, body) = get_json(&harness.router, "/api/v1/health").await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    assert_eq!(body["status"], "unavailable", "{body}");
+    assert_eq!(body["version"], env!("CARGO_PKG_VERSION"), "{body}");
 }

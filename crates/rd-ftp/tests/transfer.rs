@@ -45,6 +45,42 @@ async fn a_whole_file_is_downloaded_and_promoted() {
     assert!(!harness.part_path(&file).exists());
 }
 
+/// RD-1420-01 (audit L-09): a `PASV` reply that names another address does not move the data
+/// connection, not even for a link the person entered (no address rule). The data listener is
+/// on `127.0.0.1` only, so a connection to the named `127.0.0.2` would be refused.
+#[tokio::test]
+async fn a_passive_reply_naming_another_address_does_not_move_the_data_connection() {
+    let harness = Harness::start().await;
+    harness
+        .fixture
+        .put("/pub/movie.bin", RemoteFile::new(payload()));
+    harness.fixture.set_behaviour(Behaviour {
+        passive_address: Some([127, 0, 0, 2]),
+        ..Behaviour::default()
+    });
+    let file = harness.queue("/pub/movie.bin", "movie.bin").await;
+
+    let outcome = harness
+        .runner()
+        .run(
+            &file,
+            &harness.package_of(&file).await,
+            CancellationToken::new(),
+            run_limits(),
+        )
+        .await
+        .expect("run");
+
+    assert!(
+        matches!(outcome, RunOutcome::Completed { .. }),
+        "{outcome:?}"
+    );
+    let written = tokio::fs::read(harness.destination.join("movie.bin"))
+        .await
+        .expect("final file");
+    assert_eq!(written, payload());
+}
+
 #[tokio::test]
 async fn an_interrupted_transfer_resumes_from_the_partial_file() {
     let harness = Harness::start().await;

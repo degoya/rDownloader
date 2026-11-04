@@ -457,7 +457,9 @@
     "allowed_hosts_hint": "Un nom par ligne sous lequel vous ouvrez le service dans le navigateur, par exemple nas.lan. Les adresses IP, localhost et l'hôte de l'URL externe fonctionnent toujours ; tout autre nom est refusé, afin qu'aucune page étrangère n'entre par DNS rebinding.",
     "login_off_title": "La connexion est désactivée alors qu’un proxy ou une adresse externe est configuré",
     "login_off_description": "Sans connexion, chaque requête de cette machine sans en-tête de transfert compte comme l’administrateur. Un tunnel ou proxy local qui ne définit pas X-Forwarded-For fait de chacun derrière lui l’administrateur. Réactivez la connexion sous Général, ou assurez-vous que votre proxy définit l’en-tête.",
-    "login_off_wiki": "Proxy inverse dans le manuel"
+    "login_off_wiki": "Proxy inverse dans le manuel",
+    "local_names": "Accepter les noms du réseau local",
+    "local_names_hint": "Les noms qui n'existent que sur le réseau local – un nom simple comme nas, .local, .home.arpa, .internal – fonctionnent sans entrée dans la liste. Désactivez cette option si vous ne faites pas confiance aux autres appareils de votre réseau : seuls les adresses IP, localhost, l'hôte de l'URL externe et les noms d'hôte autorisés fonctionnent alors."
   },
   "mfa": {
     "eyebrow": "Deuxième facteur",
@@ -499,7 +501,7 @@
     "copied": "Copié",
     "step_up": {
       "label": "Mot de passe",
-      "hint": "Ajouter, retirer ou désactiver un facteur demande à nouveau le mot de passe."
+      "hint": "Ajouter, retirer ou désactiver un facteur et générer de nouveaux codes de récupération demande à nouveau le mot de passe."
     }
   },
   "passkeys": {

@@ -5,7 +5,7 @@
 use std::{net::SocketAddr, path::PathBuf};
 
 use anyhow::{Context, Result};
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, builder::BoolishValueParser};
 use rd_db::Database;
 use rd_scheduler::SchedulerConfig;
 
@@ -19,6 +19,7 @@ mod remote;
 mod reset_password_cli;
 mod restart_cli;
 mod serve;
+mod serve_stop;
 mod site_rules_cli;
 mod startup;
 mod stop_cli;
@@ -106,6 +107,8 @@ struct CommonPaths {
     downloads: PathBuf,
 }
 
+// The serve switches also read from the environment, where a unit or container file may say
+// `1`/`0`, `yes`/`no` or `on`/`off` as well as `true`/`false`.
 #[derive(Args)]
 struct ServeArgs {
     #[command(flatten)]
@@ -121,18 +124,18 @@ struct ServeArgs {
     #[arg(long = "trusted-plugin-key")]
     trusted_plugin_keys: Vec<String>,
     /// Allows unsigned plugin installation. Never enable for production.
-    #[arg(long, env = "RDOWNLOADER_PLUGIN_DEVELOPMENT_MODE")]
+    #[arg(long, env = "RDOWNLOADER_PLUGIN_DEVELOPMENT_MODE", value_parser = BoolishValueParser::new())]
     plugin_development_mode: bool,
     /// Allows installed transfer backends to dial loopback and private-network addresses.
     /// Separate from --plugin-development-mode on purpose: never enable for production.
-    #[arg(long, env = "RDOWNLOADER_PLUGIN_ALLOW_LOCAL_TARGETS")]
+    #[arg(long, env = "RDOWNLOADER_PLUGIN_ALLOW_LOCAL_TARGETS", value_parser = BoolishValueParser::new())]
     plugin_allow_local_targets: bool,
     /// Directory with bundled `.rdplug` packages; installed plugins are updated from it
     /// automatically when newer (default: `plugins/` next to the executable).
     #[arg(long, env = "RDOWNLOADER_BUNDLED_PLUGINS")]
     bundled_plugins: Option<PathBuf>,
     /// Installs every bundled package instead of only the chosen ones (RD-160-05).
-    #[arg(long, env = "RDOWNLOADER_INSTALL_ALL_BUNDLED_PLUGINS")]
+    #[arg(long, env = "RDOWNLOADER_INSTALL_ALL_BUNDLED_PLUGINS", value_parser = BoolishValueParser::new())]
     install_all_bundled_plugins: bool,
     /// Ignores the release signing key compiled into this binary.
     #[arg(long)]
@@ -283,6 +286,7 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
     // Held until `doctor` returns when it was free, so no service starts and migrates beside
     // it (RA-IN-03).
     let probe = instance_lock::probe(data_directory).await;
+    instance_lock::refuse_migration_beside_service(&probe, &args.paths.database).await?;
     let database = Database::open(&args.paths.database).await?;
     if matches!(probe, instance_lock::Probe::Free { .. }) {
         database.checkpoint_wal().await?;
@@ -309,8 +313,7 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
     if let Some(refused) = refused {
         println!("settings: a start refuses them: {refused}");
     }
-    // The same checks the diagnostic bundle carries (RD-110-02), so the command and the
-    // archive never disagree about what was found.
+    // The diagnostic bundle's checks (RD-110-02): the command and the archive never disagree.
     let checks =
         rd_api::diagnostics_checks::system_checks(&rd_api::diagnostics_checks::SystemChecksInput {
             vendor_directory: settings.vendor_directory.clone(),
@@ -318,6 +321,7 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
             external_url: settings.external_url.clone(),
             cookie_security: settings.cookie_security,
             data_directory: rd_core::data_directory().map(std::path::Path::to_path_buf),
+            refuse_unknown_archive_tool_version: settings.refuse_unknown_archive_tool_version,
         })
         .await;
     print!("{}", rd_api::diagnostics_checks::render_checks(&checks));
@@ -374,7 +378,11 @@ async fn site_rules_selftest(
         .unwrap_or_else(|| std::path::Path::new("."))
         .to_path_buf();
     rd_core::set_data_directory(&data_directory);
+    // Held only while the database opens (and migrates); the slower checks block no service.
+    let probe = instance_lock::probe(&data_directory).await;
+    instance_lock::refuse_migration_beside_service(&probe, &paths.database).await?;
     let database = Database::open(&paths.database).await?;
+    drop(probe);
     let secrets =
         rd_secrets::SecretStore::open_with_os_keyring(data_directory.join("secrets")).await?;
     database.install_secret_vault(secrets.clone());
@@ -448,4 +456,45 @@ fn init_tracing() -> Telemetry {
 struct Telemetry {
     logs: rd_diagnostics::LogStream,
     spans: rd_diagnostics::SpanStream,
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    /// What a serve switch answers when its environment variable says `value`. Given as the
+    /// default instead, which clap reads through the same parser as the environment, so the
+    /// test does not have to change the process environment.
+    fn switch_from_environment(id: &str, value: &'static str) -> Result<bool, clap::Error> {
+        let matches = crate::Cli::command()
+            .mut_subcommand("serve", |serve| {
+                serve.mut_arg(id, |argument| argument.default_value(value))
+            })
+            .try_get_matches_from(["rdownloader", "serve"])?;
+        let (_, serve) = matches.subcommand().expect("serve");
+        Ok(serve.get_flag(id))
+    }
+
+    #[test]
+    fn environment_switches_accept_the_usual_spellings() {
+        for variable in [
+            "plugin_development_mode",
+            "plugin_allow_local_targets",
+            "install_all_bundled_plugins",
+        ] {
+            for on in ["true", "1", "yes", "on"] {
+                assert!(
+                    switch_from_environment(variable, on).expect(on),
+                    "{variable}={on}"
+                );
+            }
+            for off in ["false", "0", "no", "off"] {
+                assert!(
+                    !switch_from_environment(variable, off).expect(off),
+                    "{variable}={off}"
+                );
+            }
+            assert!(switch_from_environment(variable, "maybe").is_err());
+        }
+    }
 }

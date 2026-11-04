@@ -119,12 +119,16 @@ pub async fn apply_download_seeding(
     id: DownloadId,
     request: SeedingPolicyRequest,
 ) -> Result<TorrentJobState, ApiError> {
-    let mut stored = require_download_state(state, id).await?;
-    stored.seeding = request.into_override()?;
-    state
+    require_download_state(state, id).await?;
+    let seeding = request.into_override()?;
+    let (stored, ()) = state
         .database
-        .set_download_torrent_state(id, stored.clone())
-        .await?;
+        .update_download_torrent_state(id, move |stored| {
+            stored.seeding = seeding;
+            Ok::<_, std::convert::Infallible>(())
+        })
+        .await?
+        .unwrap_or_else(|never| match never {});
     // A lowered limit must end a running seed now, not at the next tick.
     state.torrent.nudge_seeding();
     Ok(stored)
@@ -145,12 +149,15 @@ pub async fn delete_download_seeding(
     State(state): State<AppState>,
     Path(id): Path<DownloadId>,
 ) -> Result<Json<SeedingPolicyResponse>, ApiError> {
-    let mut stored = require_download_state(&state, id).await?;
-    stored.seeding = rd_core::SeedingPolicyOverride::default();
+    require_download_state(&state, id).await?;
     state
         .database
-        .set_download_torrent_state(id, stored)
-        .await?;
+        .update_download_torrent_state(id, |stored| {
+            stored.seeding = rd_core::SeedingPolicyOverride::default();
+            Ok::<_, std::convert::Infallible>(())
+        })
+        .await?
+        .unwrap_or_else(|never| match never {});
     state.torrent.nudge_seeding();
     Ok(Json(SeedingPolicyResponse {
         effective: state.torrent.effective_policy(id).await,

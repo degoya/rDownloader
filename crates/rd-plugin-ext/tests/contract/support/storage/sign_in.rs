@@ -72,7 +72,7 @@ pub struct SignIn {
     /// The address the person is sent to, up to its query.
     pub authorize: &'static str,
     pub token_endpoint: &'static str,
-    /// The vault reference the token is stored under and renewed from.
+    /// The renewal reference the host minted (`vault://…`), which a refresh names.
     pub access_reference: &'static str,
     /// A confidential client's secret, sent as a marker on every grant.
     pub client_secret: Option<&'static str>,

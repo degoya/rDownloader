@@ -46,6 +46,9 @@ impl Database {
         let options = SqliteConnectOptions::new()
             .filename(path)
             .create_if_missing(true)
+            // The only place foreign keys are switched on: the `PRAGMA foreign_keys = ON` at the
+            // top of migration 0001 runs inside the migration's transaction, where SQLite
+            // ignores it. It stays there because an applied migration is never edited.
             .foreign_keys(true)
             .journal_mode(SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
@@ -76,7 +79,19 @@ impl Database {
 
         let events = EventBus::new();
         let (command_tx, command_rx) = mpsc::channel(256);
-        tokio::spawn(Writer::new(writer_connection, command_rx, events.clone()).run());
+        let writer = tokio::spawn(Writer::new(writer_connection, command_rx, events.clone()).run());
+        // A command that panics is caught inside the writer; this only sees a panic outside
+        // one. Either way, once the task is gone `is_writable` turns false for every clone.
+        tokio::spawn(async move {
+            if let Err(error) = writer.await
+                && error.is_panic()
+            {
+                tracing::error!(
+                    %error,
+                    "the database writer stopped; nothing can be persisted until a restart"
+                );
+            }
+        });
 
         Ok(Self {
             readers,
@@ -85,6 +100,14 @@ impl Database {
             vault: Arc::new(OnceLock::new()),
             path: Arc::new(path.to_path_buf()),
         })
+    }
+
+    /// Whether the writer is still there to take commands. False after [`Database::close`],
+    /// and if the writer task ended any other way; a health check reports the service as not
+    /// ready then, since nothing it does can be persisted.
+    #[must_use]
+    pub fn is_writable(&self) -> bool {
+        !self.writer.is_closed()
     }
 
     /// The database file this facade opened.

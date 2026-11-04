@@ -10,6 +10,7 @@
 # One file per line: its path, its cargo package, its test target (`lib`, `bin:<name>` or
 # `test:<name>`) and the nextest filterset of its tests, the rest of the line. Each line is one
 # nextest run, which must run at least one test.
+crates/rd-api/tests/access/public_surface.rs                rd-api      test:access              test(/^public_surface::/)
 crates/rd-api/tests/admin/restart.rs                        rd-api      test:admin               test(/^restart::/)
 crates/rd-api/tests/admin/service_lifecycle.rs              rd-api      test:admin               test(/^service_lifecycle::/)
 crates/rd-api/tests/admin/updates.rs                        rd-api      test:admin               test(/^updates::/)

@@ -19,7 +19,7 @@ use crate::{ApiError, AppState, client::ListenAddress, dto::SettingsResponse};
 
 /// The proxy contract a settings document describes, the allowed host list included.
 ///
-/// The one place the four fields become a [`rd_authn::ProxyConfig`], so the validation on save,
+/// The one place the five fields become a [`rd_authn::ProxyConfig`], so the validation on save,
 /// the live apply and the start cannot build it three different ways.
 pub fn proxy_config(
     settings: &SettingsResponse,
@@ -29,6 +29,7 @@ pub fn proxy_config(
         settings.external_url.as_deref(),
         settings.cookie_security,
     )?
+    .with_local_names(settings.accept_local_network_names)
     .with_allowed_hosts(&settings.allowed_hosts)
 }
 

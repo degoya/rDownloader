@@ -408,12 +408,21 @@ pub async fn apply_download_plan(
     id: DownloadId,
     request: TorrentPlanRequest,
 ) -> Result<(TorrentMetadataInfo, TorrentJobState), ApiError> {
-    let mut stored = require_download_state(state, id).await?;
-    let metadata = stored.metadata.clone().ok_or_else(metadata_pending)?;
-    stored.plan = request.apply(&metadata, stored.plan, state.torrent.capabilities())?;
+    require_download_state(state, id).await?;
+    let capabilities = state.torrent.capabilities();
+    // Validated and folded in inside the database writer, against the stored state as it is
+    // at that moment, so a concurrent write of another field is not lost.
+    let (stored, metadata) = state
+        .database
+        .update_download_torrent_state(id, move |stored| {
+            let metadata = stored.metadata.clone().ok_or_else(metadata_pending)?;
+            stored.plan = request.apply(&metadata, stored.plan.clone(), capabilities)?;
+            Ok::<_, ApiError>(metadata)
+        })
+        .await??;
     state
         .torrent
-        .apply_plan(id, stored.clone())
+        .push_plan(id, &stored)
         .await
         .map_err(|error| ApiError::bad_request("torrent.plan_not_applied", format!("{error:#}")))?;
     Ok((metadata, stored))

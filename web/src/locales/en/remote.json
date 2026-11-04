@@ -33,7 +33,8 @@
     "create_action": "Create login",
     "created": "Login created",
     "saved": "Login saved",
-    "secret_host_changed": "The protocol, host or port changed: the stored password or key is not sent to the new server. Enter it again."
+    "secret_host_changed": "The protocol, host or port changed: the stored password or key is not sent to the new server. Enter it again.",
+    "private_key_hint": "An Ed25519 key is recommended (ssh-keygen -t ed25519); RSA keys work as well."
   },
   "protocols": {
     "ftp": "FTP (no encryption)",

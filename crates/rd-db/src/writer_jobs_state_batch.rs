@@ -89,8 +89,9 @@ impl Writer {
                 ))));
                 continue;
             };
-            let current: DownloadState = row.get::<String, _>("state").parse()?;
-            let package_id: String = row.get("package_id");
+            let current: DownloadState = row.try_get::<String, _>("state")?.parse()?;
+            let package_id: String = row.try_get("package_id")?;
+            let mirrored = row.try_get::<i64, _>("mirrored")? != 0;
             match change {
                 Move::Pause
                     if !matches!(current, DownloadState::Queued | DownloadState::RetryWait) =>
@@ -98,9 +99,7 @@ impl Writer {
                     outcomes.push(Ok(false));
                     continue;
                 }
-                Move::Resume
-                    if current == DownloadState::Skipped && row.get::<i64, _>("mirrored") != 0 =>
-                {
+                Move::Resume if current == DownloadState::Skipped && mirrored => {
                     outcomes.push(Ok(false));
                     continue;
                 }

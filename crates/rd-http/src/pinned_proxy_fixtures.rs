@@ -13,7 +13,10 @@ use url::Url;
 pub(super) use crate::test_support::{
     Answers, Log, PUBLIC, TestCa, connect_proxy, entries, refusing_proxy, tls_origin,
 };
-use crate::{AddressPolicy, ProxyCredentials, test_support::listen};
+use crate::{
+    AddressPolicy, HostLookup, LookupFuture, ProxyCredentials,
+    test_support::{listen, read_head},
+};
 
 /// A client under the public rule behind `endpoint`, trusting `ca` for its targets and
 /// `proxy_ca` for the proxy itself.
@@ -163,4 +166,52 @@ async fn socks_tunnel(
     stream.write_all(&[5, 0, 0, 1, 0, 0, 0, 0, 0, 0]).await?;
     tokio::io::copy_bidirectional(&mut stream, &mut origin).await?;
     Ok(())
+}
+
+/// A lookup that answers each of its names with its address, and every other name with none.
+pub(super) struct Named(pub(super) Vec<(&'static str, std::net::IpAddr)>);
+
+impl HostLookup for Named {
+    fn lookup<'a>(&'a self, host: &'a str) -> LookupFuture<'a> {
+        let answer = self
+            .0
+            .iter()
+            .filter(|(name, _)| *name == host)
+            .map(|(_, address)| *address)
+            .collect();
+        Box::pin(async move { Ok(answer) })
+    }
+}
+
+/// An HTTP proxy that is handed names (RD-1420-01): it records each request line, answers a
+/// request for a path `/start` with a redirect to `hop` and every other one with `ok`.
+pub(super) async fn redirecting_proxy(hop: &'static str) -> (u16, Log) {
+    let (listener, port) = listen().await;
+    let log = Log::default();
+    let seen = Arc::clone(&log);
+    tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let seen = Arc::clone(&seen);
+            tokio::spawn(async move {
+                loop {
+                    let head = read_head(&mut stream).await;
+                    let Some(line) = head.lines().next().filter(|line| !line.is_empty()) else {
+                        return;
+                    };
+                    rd_testkit::lock(&seen).push(line.to_owned());
+                    let answer = if line.contains("/start ") {
+                        format!(
+                            "HTTP/1.1 302 Found\r\nlocation: {hop}\r\ncontent-length: 0\r\n\r\n"
+                        )
+                    } else {
+                        "HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok".to_owned()
+                    };
+                    if stream.write_all(answer.as_bytes()).await.is_err() {
+                        return;
+                    }
+                }
+            });
+        }
+    });
+    (port, log)
 }

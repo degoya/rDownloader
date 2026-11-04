@@ -18,6 +18,12 @@
 //! the switches `-px\`, `-spf` and `-w\`, all in front of `--`. Its arguments now take the same
 //! `raw_arg` route through [`seven_zip_quote`], and a password with a `"` - which that parser
 //! cannot receive at all - is refused before the tool starts.
+//!
+//! RD-1420-03 (audit L-12): a password on the command line is readable by every process of the
+//! machine through `/proc/<pid>/cmdline` for as long as the tool runs. `unrar` therefore gets a
+//! bare `-p`, which makes it read the password as the first line of its standard input before it
+//! opens the archive, and the caller writes it there ([`reads_password_from_stdin`]). 7-Zip has
+//! no such reader - its bare `-p` is the empty password - so it keeps `-p<secret>`.
 
 use std::{
     ffi::{OsStr, OsString},
@@ -43,6 +49,31 @@ pub(crate) enum RarAction<'a> {
 pub(crate) struct RarArguments {
     pub(crate) args: Vec<OsString>,
     password_at: Option<usize>,
+    /// The password is not in `args`: the tool reads it from its standard input, where the
+    /// caller writes it as the first line (RD-1420-03).
+    pub(crate) password_on_stdin: bool,
+}
+
+/// The longest password sent as a line on standard input; `unrar` reads at most 511 characters
+/// of it, and a longer one would leave the rest in the pipe as the answer to its next question.
+const STDIN_PASSWORD_MAX_CHARS: usize = 500;
+
+/// Whether `unrar` gets `password` on its standard input rather than as `-p<password>`.
+///
+/// Only `unrar` reads one there (`-p` without a value asks for the password, and with standard
+/// input redirected it reads one line of it, without the confirmation a console asks for). The
+/// line has to carry the password whole: no line break, no NUL, nothing empty - an empty answer
+/// means "no password" to `unrar` - and not longer than [`STDIN_PASSWORD_MAX_CHARS`]. Outside
+/// Windows the tool's locale is UTF-8 (`tool_env`), so any other password goes. Under Windows
+/// `unrar` decodes that line through the ANSI code page, so only an ASCII password survives it; a
+/// non-ASCII one stays on the command line there, where it arrives intact (RD-107-11), and where
+/// only the same account or an administrator can read it.
+pub(crate) fn reads_password_from_stdin(kind: RarToolKind, password: &str, windows: bool) -> bool {
+    kind == RarToolKind::Unrar
+        && !password.is_empty()
+        && password.chars().count() <= STDIN_PASSWORD_MAX_CHARS
+        && !password.contains(['\n', '\r', '\0'])
+        && (!windows || password.is_ascii())
 }
 
 /// Builds the argument list for `kind`.
@@ -54,6 +85,17 @@ pub(crate) fn rar_arguments(
     action: RarAction<'_>,
     first_volume: &Path,
     password: Option<&str>,
+) -> RarArguments {
+    rar_arguments_for(kind, action, first_volume, password, cfg!(windows))
+}
+
+/// [`rar_arguments`] for the platform `windows` names, so the tests check both everywhere.
+pub(crate) fn rar_arguments_for(
+    kind: RarToolKind,
+    action: RarAction<'_>,
+    first_volume: &Path,
+    password: Option<&str>,
+    windows: bool,
 ) -> RarArguments {
     let mut args: Vec<OsString> = Vec::with_capacity(8);
     let command = match action {
@@ -75,8 +117,12 @@ pub(crate) fn rar_arguments(
         (RarToolKind::SevenZip, RarAction::Test) => &["-y", "-bso0"],
     };
     args.extend(switches.iter().map(OsString::from));
-    let password_at = password.map(|_| args.len());
+    let password_on_stdin =
+        password.is_some_and(|secret| reads_password_from_stdin(kind, secret, windows));
+    let password_at = password.filter(|_| !password_on_stdin).map(|_| args.len());
     args.push(match (kind, password) {
+        // unrar: "ask for it", answered from standard input.
+        (_, Some(_)) if password_on_stdin => "-p".into(),
         (_, Some(secret)) => format!("-p{secret}").into(),
         // unrar: "do not ask". 7-Zip: an empty password, so it never waits on the console.
         (RarToolKind::Unrar, None) => "-p-".into(),
@@ -99,7 +145,11 @@ pub(crate) fn rar_arguments(
         }
         RarAction::Test => first_volume.as_os_str().to_owned(),
     });
-    RarArguments { args, password_at }
+    RarArguments {
+        args,
+        password_at,
+        password_on_stdin,
+    }
 }
 
 fn joined(prefix: &str, value: &OsStr) -> OsString {
@@ -111,8 +161,9 @@ fn joined(prefix: &str, value: &OsStr) -> OsString {
 impl RarArguments {
     /// The arguments as one line for the log, the password replaced by `-p***`.
     ///
-    /// Only whether a password was passed is visible: `-p-` (unrar) or `-p` (7-Zip) for none,
-    /// `-p***` for one. Its length is not.
+    /// Only whether a password was passed, and which way, is visible: `-p-` (unrar) or `-p`
+    /// (7-Zip) for none, `-p<stdin>` for one `unrar` reads from its standard input, `-p***` for
+    /// one on the command line. Its length is not.
     pub(crate) fn redacted(&self) -> String {
         self.args
             .iter()
@@ -120,6 +171,8 @@ impl RarArguments {
             .map(|(index, arg)| {
                 if Some(index) == self.password_at {
                     "-p***".to_owned()
+                } else if self.password_on_stdin && arg == "-p" {
+                    "-p<stdin>".to_owned()
                 } else {
                     arg.to_string_lossy().into_owned()
                 }

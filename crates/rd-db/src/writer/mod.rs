@@ -5,7 +5,10 @@
 //! it — the split follows `src/*_store.rs`, so the writer half of `notify_store` is in
 //! [`notify`] — and the helpers below are what those modules share.
 
+use std::{ops::ControlFlow, panic::AssertUnwindSafe};
+
 use anyhow::{Context, Result};
+use futures_util::FutureExt as _;
 use rd_core::EventEnvelope;
 use sqlx::SqliteConnection;
 use tokio::sync::{mpsc, oneshot};
@@ -65,49 +68,84 @@ impl Writer {
 
     pub(crate) async fn run(mut self) {
         while let Some(command) = self.commands.recv().await {
-            // Exhaustive over `WriterCommand`, and every handler over the enum of its area: a new
-            // command does not compile until it is applied, which is what keeps one from being
-            // accepted and silently dropped.
-            match command {
-                WriterCommand::Close { reply } => {
+            // A command that panics fails alone: its reply sender is dropped with it, so the
+            // caller gets an error instead of waiting, and the writer goes on with the next
+            // command rather than leaving the process without a way to persist anything. A
+            // transaction the command had open is rolled back when it is dropped.
+            let applied = AssertUnwindSafe(self.apply(command)).catch_unwind().await;
+            match applied {
+                Ok(ControlFlow::Continue(())) => {}
+                Ok(ControlFlow::Break(reply)) => {
                     let closed = sqlx::Connection::close(self.connection)
                         .await
                         .map_err(anyhow::Error::from);
                     let _ = reply.send(closed);
                     return;
                 }
-                WriterCommand::Downloads(command) => self.handle_downloads(command).await,
-                WriterCommand::Sources(command) => self.handle_sources(command).await,
-                WriterCommand::Packages(command) => self.handle_packages(command).await,
-                WriterCommand::Collector(command) => self.handle_collector(command).await,
-                WriterCommand::Nzb(command) => self.handle_nzb(command).await,
-                WriterCommand::Config(command) => self.handle_config(command).await,
-                WriterCommand::Network(command) => self.handle_network(command).await,
-                WriterCommand::Auth(command) => self.handle_auth(command).await,
-                WriterCommand::Sessions(command) => self.handle_sessions(command).await,
-                WriterCommand::Plugins(command) => self.handle_plugins(command).await,
-                WriterCommand::PluginRepositories(command) => {
-                    self.handle_plugin_repositories(command).await
+                Err(panic) => {
+                    tracing::error!(
+                        panic = panic_message(panic.as_ref()),
+                        "a database writer command panicked; it failed, the writer continues"
+                    );
                 }
-                WriterCommand::ObjectStorage(command) => self.handle_object_storage(command).await,
-                WriterCommand::Indexers(command) => self.handle_indexers(command).await,
-                WriterCommand::Streams(command) => self.handle_streams(command).await,
-                WriterCommand::Subscriptions(command) => self.handle_subscriptions(command).await,
-                WriterCommand::Notify(command) => self.handle_notify(command).await,
-                WriterCommand::Bandwidth(command) => self.handle_bandwidth(command).await,
-                WriterCommand::Maintenance(command) => self.handle_maintenance(command).await,
-                WriterCommand::ArchivePasswords(command) => {
-                    self.handle_archive_passwords(command).await
-                }
-                WriterCommand::FullBackup(command) => self.handle_full_backup(command).await,
-                WriterCommand::BackupLedger(command) => self.handle_backup_ledger(command).await,
-                WriterCommand::Logs(command) => self.handle_logs(command).await,
-                WriterCommand::Audit(command) => self.handle_audit(command).await,
-                WriterCommand::Storage(command) => self.handle_storage(command).await,
-                WriterCommand::History(command) => self.handle_history(command).await,
             }
         }
     }
+
+    /// Applies one command; `Break` carries the reply of a `Close`, which `run` answers once
+    /// it has given up the connection.
+    async fn apply(&mut self, command: WriterCommand) -> ControlFlow<Reply<()>> {
+        // Exhaustive over `WriterCommand`, and every handler over the enum of its area: a new
+        // command does not compile until it is applied, which is what keeps one from being
+        // accepted and silently dropped.
+        match command {
+            WriterCommand::Close { reply } => return ControlFlow::Break(reply),
+            WriterCommand::Downloads(command) => self.handle_downloads(command).await,
+            WriterCommand::Sources(command) => self.handle_sources(command).await,
+            WriterCommand::Packages(command) => self.handle_packages(command).await,
+            WriterCommand::Collector(command) => self.handle_collector(command).await,
+            WriterCommand::Nzb(command) => self.handle_nzb(command).await,
+            WriterCommand::Config(command) => self.handle_config(command).await,
+            WriterCommand::Network(command) => self.handle_network(command).await,
+            WriterCommand::Auth(command) => self.handle_auth(command).await,
+            WriterCommand::Sessions(command) => self.handle_sessions(command).await,
+            WriterCommand::Plugins(command) => self.handle_plugins(command).await,
+            WriterCommand::PluginRepositories(command) => {
+                self.handle_plugin_repositories(command).await;
+            }
+            WriterCommand::ObjectStorage(command) => self.handle_object_storage(command).await,
+            WriterCommand::Indexers(command) => self.handle_indexers(command).await,
+            WriterCommand::Streams(command) => self.handle_streams(command).await,
+            WriterCommand::Subscriptions(command) => self.handle_subscriptions(command).await,
+            WriterCommand::Notify(command) => self.handle_notify(command).await,
+            WriterCommand::Bandwidth(command) => self.handle_bandwidth(command).await,
+            WriterCommand::Maintenance(command) => self.handle_maintenance(command).await,
+            WriterCommand::ArchivePasswords(command) => {
+                self.handle_archive_passwords(command).await;
+            }
+            WriterCommand::FullBackup(command) => self.handle_full_backup(command).await,
+            WriterCommand::BackupLedger(command) => self.handle_backup_ledger(command).await,
+            WriterCommand::Logs(command) => self.handle_logs(command).await,
+            WriterCommand::Audit(command) => self.handle_audit(command).await,
+            WriterCommand::Storage(command) => self.handle_storage(command).await,
+            WriterCommand::History(command) => self.handle_history(command).await,
+            #[cfg(test)]
+            WriterCommand::PanicForTest { reply } => {
+                let _reply = reply;
+                panic!("writer test command panics on purpose");
+            }
+        }
+        ControlFlow::Continue(())
+    }
+}
+
+/// The text a panic was raised with, when it was a string.
+fn panic_message(panic: &(dyn std::any::Any + Send)) -> &str {
+    panic
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string panic payload")
 }
 
 /// How long a persisted event is kept.

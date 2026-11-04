@@ -3324,6 +3324,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * Answers 503 with `status: "unavailable"` once the database writer is gone: the process
+         *     still serves reads, but nothing it does is persisted any more, and a supervisor or a
+         *     readiness probe should see that rather than an `ok`.
+         */
         get: operations["health"];
         put?: never;
         post?: never;
@@ -7440,7 +7445,7 @@ export interface components {
          *     can write a filter against.
          * @enum {string}
          */
-        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued" | "object_storage_profile_changed" | "remote_jobs_cleared" | "token_limits_changed" | "proxy_profile_changed" | "remote_credential_changed" | "site_rules_cleared" | "system_cleanup";
+        AuditAction: "login_succeeded" | "login_failed" | "logout" | "token_used" | "token_created" | "token_revoked" | "token_rescoped" | "settings_changed" | "settings_reset" | "plugin_installed" | "plugin_removed" | "plugin_key_revoked" | "plugin_digest_revoked" | "plugin_digest_unrevoked" | "plugin_repository_added" | "plugin_repository_changed" | "plugin_repository_removed" | "plugin_version_chosen" | "download_deleted" | "package_deleted" | "category_deleted" | "storage_root_deleted" | "backup_restored" | "password_changed" | "logs_cleared" | "audit_cleared" | "stats_cleared" | "notifications_cleared" | "notifications_discarded" | "storage_history_cleared" | "content_index_cleared" | "script_subscription_changed" | "file_overwritten" | "collision_decided" | "duplicate_linked" | "backup_configured" | "backup_key_changed" | "backup_created" | "backup_verified" | "service_stop_requested" | "update_prepared" | "update_install_started" | "setup_completed" | "mfa_enrolled" | "mfa_removed" | "mfa_recovery_codes_reissued" | "malware_detected" | "identity_linked" | "identity_unlinked" | "password_login_changed" | "password_reset_local" | "history_cleared" | "subscription_item_requeued" | "object_storage_profile_changed" | "remote_jobs_cleared" | "token_limits_changed" | "proxy_profile_changed" | "remote_credential_changed" | "site_rules_cleared" | "system_cleanup";
         /**
          * @description Who acted, by kind. The id beside it is opaque and never a credential.
          * @enum {string}
@@ -8698,6 +8703,11 @@ export interface components {
         };
         /** @description Solver configuration as exposed by the API; the API key itself is never returned. */
         CaptchaConfigResponse: {
+            /**
+             * @description Whether the endpoint may be plain http, which sends the API key unencrypted
+             *     (RD-1420-01); off unless switched on.
+             */
+            allow_plain_http: boolean;
             endpoint: string;
             has_api_key: boolean;
             manual_enabled: boolean;
@@ -12010,7 +12020,7 @@ export interface components {
             /**
              * @description `host:port` or `unix:/path`, as the settings take it; omitted or empty = the saved
              *     address, else clamd's default `127.0.0.1:3310`. Lets the form try what it shows before
-             *     it is saved.
+             *     it is saved. An address other than the saved one needs the administration scope.
              */
             address?: string | null;
         };
@@ -15545,6 +15555,16 @@ export interface components {
         /** @description Mutable local service settings exposed in version one. */
         SettingsResponse: {
             /**
+             * @description Whether names only the local network knows -- one label (`nas`), `.local`, `.home.arpa`,
+             *     `.internal` -- pass the host check without a list entry (RD-1420-02, audit L-03).
+             *
+             *     On by default so `nas.local` keeps working; off leaves `localhost`, addresses, the
+             *     external URL's host and `allowed_hosts`, which shuts out a neighbour on the network who
+             *     answers for such a name.
+             * @default true
+             */
+            accept_local_network_names: boolean;
+            /**
              * @description What an account whose traffic its hoster reports used up does to the queue
              *     (RD-1190-14): `nothing` (only its failed files wait), `pause_account` (its other files
              *     wait too; default) or `pause_queue` (the whole queue holds new starts).
@@ -16267,6 +16287,13 @@ export interface components {
              * @default false
              */
             recursive_unpack: boolean;
+            /**
+             * @description Refuse to extract with an `unrar` or 7-Zip whose version cannot be read, with
+             *     `extract.tool_version_unknown`. Off by default: such a tool extracts with a warning
+             *     (RD-1420-03).
+             * @default false
+             */
+            refuse_unknown_archive_tool_version: boolean;
             /**
              * Format: int32
              * @description Concurrent FTP/SFTP transfers (1–8).
@@ -17776,6 +17803,8 @@ export interface components {
          *     key can be checked before it is saved.
          */
         TestCaptchaSolverRequest: {
+            /** @description Plain http allowed for this test instead of the stored setting, as the form says. */
+            allow_plain_http?: boolean | null;
             /** @description Key to test instead of the stored one; never logged and never echoed back. */
             api_key?: string | null;
             endpoint?: string | null;
@@ -18571,6 +18600,11 @@ export interface components {
         };
         /** @description Partial update of the solver configuration. */
         UpdateCaptchaConfigRequest: {
+            /**
+             * @description Allows an `http://` endpoint, for a solver on this machine or in the own network; the
+             *     endpoint stored or sent along is checked against the new value.
+             */
+            allow_plain_http?: boolean | null;
             /** @description New API key; stored in the secret store, never echoed back. */
             api_key?: string | null;
             /** @description Removes the stored API key. */
@@ -26853,6 +26887,15 @@ export interface operations {
                     "application/json": Record<string, never>;
                 };
             };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
         };
     };
     list_download_history: {
@@ -27872,7 +27915,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaStepUpRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -27881,6 +27928,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
+                };
+            };
+            /** @description The password did not match */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -30809,6 +30865,13 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -167,12 +167,23 @@ fn is_hard_linked(path: &Path, _metadata: &std::fs::Metadata) -> Result<bool> {
     Ok(information.number_of_links() > 1)
 }
 
+/// Turns an archive member name into a path relative to the staging directory.
+///
+/// Besides `..`, roots and prefixes, a segment Windows would not store as the plain file it
+/// names is refused there: a `:` (a stream of another file), a trailing dot or space (dropped
+/// by the file system) and a reserved device name such as `NUL.txt`. A NUL byte is refused on
+/// every platform.
 pub(crate) fn safe_relative(name: &str) -> Result<PathBuf> {
     let normalized = name.replace('\\', "/");
     let mut safe = PathBuf::new();
     for component in Path::new(&normalized).components() {
         match component {
-            Component::Normal(value) => safe.push(value),
+            Component::Normal(value) => {
+                if !is_plain_segment(&value.to_string_lossy(), cfg!(windows)) {
+                    bail!("archive path is not a plain file name: {name:?}");
+                }
+                safe.push(value);
+            }
             Component::CurDir => {}
             Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
                 bail!("archive path escapes staging: {name}")
@@ -180,6 +191,17 @@ pub(crate) fn safe_relative(name: &str) -> Result<PathBuf> {
         }
     }
     Ok(safe)
+}
+
+/// Whether one path segment names a plain file; `windows` adds the rules of that platform.
+fn is_plain_segment(segment: &str, windows: bool) -> bool {
+    if segment.contains('\0') {
+        return false;
+    }
+    !windows
+        || (!segment.contains(':')
+            && !segment.ends_with(['.', ' '])
+            && !rd_files::is_windows_reserved(segment))
 }
 
 pub(crate) fn enforce_limits(report: ExtractionReport, limits: ArchiveLimits) -> Result<()> {
@@ -194,7 +216,41 @@ pub(crate) fn enforce_limits(report: ExtractionReport, limits: ArchiveLimits) ->
 
 #[cfg(test)]
 mod tests {
-    use super::{ArchiveLimits, create_staging, create_staging_inside, validate_tree};
+    use super::{
+        ArchiveLimits, create_staging, create_staging_inside, is_plain_segment, safe_relative,
+        validate_tree,
+    };
+
+    /// A segment Windows would turn into a stream, a device or a different name is refused
+    /// there; elsewhere only a NUL byte is, so a colon in a release name still extracts.
+    #[test]
+    fn a_segment_windows_cannot_store_as_named_is_refused_there() {
+        for refused in [
+            "film.mkv:payload",
+            "NUL.txt",
+            "con",
+            "COM1.log",
+            "trailing.",
+            "trailing ",
+        ] {
+            assert!(!is_plain_segment(refused, true), "{refused}");
+            assert!(is_plain_segment(refused, false), "{refused}");
+        }
+        assert!(!is_plain_segment("a\0b", true));
+        assert!(!is_plain_segment("a\0b", false));
+        for plain in ["film.mkv", "Season 1", "console.log", "nullable.txt"] {
+            assert!(is_plain_segment(plain, true), "{plain}");
+        }
+        assert!(safe_relative("dir/a\0b").is_err());
+        assert_eq!(
+            safe_relative(r"sub\dir/./file.bin").expect("an ordinary member"),
+            std::path::Path::new("sub/dir/file.bin")
+        );
+        #[cfg(windows)]
+        for refused in ["dir/film.mkv:payload", "NUL.txt", "dir./file", "dir/aux"] {
+            assert!(safe_relative(refused).is_err(), "{refused}");
+        }
+    }
 
     /// Every character of this name is a character the extracted path can no longer use, and
     /// Windows stops at 260 of them (RD-108-30). The old name spent 27.

@@ -129,8 +129,8 @@ impl Writer {
         .await?
         .context("download resolver pin was not persisted")?;
         Ok(rd_core::ResolverPin {
-            plugin_id: crate::parse_id(row.get::<String, _>("plugin_id").as_str())?,
-            version: row.get("plugin_version"),
+            plugin_id: crate::parse_id(row.try_get::<String, _>("plugin_id")?.as_str())?,
+            version: row.try_get("plugin_version")?,
         })
     }
 }

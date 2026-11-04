@@ -228,25 +228,29 @@ async fn the_rule_comes_from_the_invocation_and_the_port() {
     let own = own();
     let url = |text: &str| -> Url { text.parse().expect("url") };
     let ports = own.ports().to_vec();
-    let public = AddressPolicy::new(false).refusing_redirects_to(&ports);
-    assert_eq!(address_policy(&own, &url("http://localhost:2586/")), public);
+    // No reverse-proxy port is configured, but the rule still knows this machine's addresses.
+    let rule = |entered: bool| {
+        AddressPolicy::new(entered)
+            .refusing_redirects_to(&ports)
+            .refusing_redirects_on_this_machine(&[], own.listen())
+    };
+    assert_eq!(
+        address_policy(&own, &url("http://localhost:2586/")),
+        rule(false)
+    );
     assert_eq!(
         with_own_network(true, async {
             address_policy(&own, &url("http://localhost:2586/"))
         })
         .await,
-        AddressPolicy::new(true)
-            .refusing_redirects_to(&ports)
-            .with_loopback()
+        rule(true).with_loopback()
     );
     assert_eq!(
         with_own_network(true, async {
             address_policy(&own, &url("http://localhost:8710/"))
         })
         .await,
-        AddressPolicy::new(true)
-            .refusing_redirects_to(&ports)
-            .listening_on(own.listen())
+        rule(true).listening_on(own.listen())
     );
 }
 

@@ -27,7 +27,7 @@ pub(super) fn privileged_change(
 }
 
 /// Who may talk to the service, from where, and for how long a session lasts.
-fn access_fields(current: &SettingsResponse, next: &SettingsResponse) -> [(&'static str, bool); 7] {
+fn access_fields(current: &SettingsResponse, next: &SettingsResponse) -> [(&'static str, bool); 8] {
     [
         (
             "admin_login_disabled",
@@ -41,6 +41,12 @@ fn access_fields(current: &SettingsResponse, next: &SettingsResponse) -> [(&'sta
         // Which names a browser may reach the service by: the rebinding guard (security
         // review 2026-09-28, finding 3), so as privileged as the proxy contract it sits in.
         ("allowed_hosts", current.allowed_hosts != next.allowed_hosts),
+        // The other half of the same guard: whether local network names pass unlisted
+        // (RD-1420-02).
+        (
+            "accept_local_network_names",
+            current.accept_local_network_names != next.accept_local_network_names,
+        ),
         (
             "cookie_security",
             current.cookie_security != next.cookie_security,

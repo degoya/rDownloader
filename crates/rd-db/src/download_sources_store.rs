@@ -11,7 +11,7 @@ use rd_core::{
     CandidateId, ChecksumAlgorithm, ChunkId, DownloadId, DownloadSource, PieceHashes,
     SourceOutcome, SourceProtocol, SourceSet, source_backoff,
 };
-use sqlx::{Row, SqliteConnection, SqlitePool};
+use sqlx::{Connection, Row, SqliteConnection, SqlitePool};
 
 /// What the chunk engine recorded about one chunk beyond its offsets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -84,23 +84,23 @@ pub(crate) async fn list_sources(
     .await?;
     rows.iter()
         .map(|row| {
-            let protocol: String = row.get("protocol");
+            let protocol: String = row.try_get("protocol")?;
             Ok(DownloadSource {
-                position: u32::try_from(row.get::<i64, _>("position"))?,
-                url: url::Url::parse(&row.get::<String, _>("url"))?,
+                position: u32::try_from(row.try_get::<i64, _>("position")?)?,
+                url: url::Url::parse(&row.try_get::<String, _>("url")?)?,
                 protocol: SourceProtocol::from_scheme(&protocol)
                     .context("unknown source protocol")?,
                 priority: row
-                    .get::<Option<i64>, _>("priority")
+                    .try_get::<Option<i64>, _>("priority")?
                     .and_then(|value| u32::try_from(value).ok()),
-                location: row.get("location"),
-                failures: u32::try_from(row.get::<i64, _>("failures")).unwrap_or(u32::MAX),
-                backoff_until: row.get("backoff_until"),
-                isolated_code: row.get("isolated_code"),
-                last_error_code: row.get("last_error_code"),
-                delivered_bytes: u64::try_from(row.get::<i64, _>("delivered_bytes"))
+                location: row.try_get("location")?,
+                failures: u32::try_from(row.try_get::<i64, _>("failures")?).unwrap_or(u32::MAX),
+                backoff_until: row.try_get("backoff_until")?,
+                isolated_code: row.try_get("isolated_code")?,
+                last_error_code: row.try_get("last_error_code")?,
+                delivered_bytes: u64::try_from(row.try_get::<i64, _>("delivered_bytes")?)
                     .unwrap_or_default(),
-                local_network: row.get::<bool, _>("local_network"),
+                local_network: row.try_get::<bool, _>("local_network")?,
             })
         })
         .collect()
@@ -122,11 +122,11 @@ pub(crate) async fn piece_hashes(
         return Ok(None);
     };
     let algorithm: ChecksumAlgorithm =
-        serde_json::from_str(&format!("\"{}\"", row.get::<String, _>("algorithm")))?;
+        serde_json::from_str(&format!("\"{}\"", row.try_get::<String, _>("algorithm")?))?;
     Ok(Some(PieceHashes {
         algorithm,
-        length: u64::try_from(row.get::<i64, _>("piece_length"))?,
-        hashes: serde_json::from_str(&row.get::<String, _>("hashes_json"))?,
+        length: u64::try_from(row.try_get::<i64, _>("piece_length")?)?,
+        hashes: serde_json::from_str(&row.try_get::<String, _>("hashes_json")?)?,
     }))
 }
 
@@ -144,6 +144,9 @@ pub(crate) async fn record_outcome(
 ) -> Result<()> {
     let id = download_id.to_string();
     let position = i64::from(position);
+    // One transaction: the failure count is read and written back in it, so the update does
+    // not rely on the single writer alone to stay consistent.
+    let mut tx = connection.begin().await?;
     let result = match outcome {
         SourceOutcome::Delivered { bytes } => {
             sqlx::query(
@@ -155,7 +158,7 @@ pub(crate) async fn record_outcome(
             .bind(now)
             .bind(&id)
             .bind(position)
-            .execute(&mut *connection)
+            .execute(&mut *tx)
             .await?
         }
         SourceOutcome::Failed {
@@ -167,7 +170,7 @@ pub(crate) async fn record_outcome(
             )
             .bind(&id)
             .bind(position)
-            .fetch_optional(&mut *connection)
+            .fetch_optional(&mut *tx)
             .await?
             .context("download source not found")?;
             let failures = u32::try_from(failures)
@@ -184,7 +187,7 @@ pub(crate) async fn record_outcome(
             .bind(now)
             .bind(&id)
             .bind(position)
-            .execute(&mut *connection)
+            .execute(&mut *tx)
             .await?
         }
         SourceOutcome::Isolated { code } => {
@@ -197,13 +200,14 @@ pub(crate) async fn record_outcome(
             .bind(now)
             .bind(&id)
             .bind(position)
-            .execute(&mut *connection)
+            .execute(&mut *tx)
             .await?
         }
     };
     if result.rows_affected() == 0 {
         bail!(crate::StoreError::not_found("download source not found"));
     }
+    tx.commit().await?;
     Ok(())
 }
 
@@ -222,11 +226,11 @@ pub(crate) async fn chunk_marks(
     rows.iter()
         .map(|row| {
             Ok(ChunkMark {
-                chunk_id: row.get::<String, _>("id").parse()?,
+                chunk_id: row.try_get::<String, _>("id")?.parse()?,
                 source_position: row
-                    .get::<Option<i64>, _>("source_position")
+                    .try_get::<Option<i64>, _>("source_position")?
                     .and_then(|value| u32::try_from(value).ok()),
-                verified: row.get::<i64, _>("verified") != 0,
+                verified: row.try_get::<i64, _>("verified")? != 0,
             })
         })
         .collect()
@@ -272,12 +276,12 @@ pub(crate) async fn rewind_chunk(
             .fetch_optional(&mut *connection)
             .await?
             .context(crate::StoreError::not_found("chunk not found"))?;
-    let start: i64 = row.get("start_offset");
-    let current: i64 = row.get("committed_offset");
+    let start: i64 = row.try_get("start_offset")?;
+    let current: i64 = row.try_get("committed_offset")?;
     if value < start || value > current {
         bail!("invalid chunk rewind");
     }
-    let download_id: String = row.get("download_id");
+    let download_id: String = row.try_get("download_id")?;
     sqlx::query(
         "UPDATE chunks SET committed_offset = ?, verified = 0, updated_at = ? WHERE id = ?",
     )
@@ -372,8 +376,8 @@ pub(crate) async fn candidates_remote_reach(
             .await?;
     let mut reaches = std::collections::HashMap::with_capacity(rows.len());
     for row in rows {
-        let id: String = row.get("id");
-        let reach: String = row.get("remote_reach");
+        let id: String = row.try_get("id")?;
+        let reach: String = row.try_get("remote_reach")?;
         reaches.insert(id.parse()?, reach == "local_network");
     }
     Ok(reaches)

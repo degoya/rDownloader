@@ -80,6 +80,11 @@ Stated so a report can be aimed at what is *not* covered, rather than at what is
   one linked account; ID tokens are checked against a fixed algorithm allowlist, issuer, audience,
   nonce and time, the callback is bound to the browser that started it, and the password sign-in
   can be switched back on only from the machine itself.
+- Every request's `Host` is checked before anything routes, against DNS rebinding: addresses,
+  `localhost`, the external URL's host and the operator's allowed host list pass. Names that
+  exist only on the local network (one label, `.local`, `.home.arpa`, `.internal`) pass too while
+  "Accept local network names" is on, the default; a device on the same network can answer for
+  such a name, so switching it off leaves them to the allowed host list.
 - Machine tokens carry one or more of six permission areas; nothing confers stored credentials
   or administration implicitly, and the route policy is checked against the OpenAPI document in
   both directions by a test.
@@ -87,6 +92,15 @@ Stated so a report can be aimed at what is *not* covered, rather than at what is
   clear, and are excluded from settings backups unless explicitly exported with a passphrase.
   Archive passwords of packages, NZB imports and subscription hits are kept the same way: the
   database and its copies before a migration or an update hold a reference, not the password.
+- An address a stranger named — a mirror, a source set, a plugin's request — reaches public
+  addresses only (the person's own network where they entered it), never this machine's own
+  listeners, the port of the configured external URL included, and is checked again when the
+  connection is made. Behind a proxy whose profile says it resolves names itself, every
+  connection's target, a redirect hop's too, is judged before the proxy is asked for it; a name
+  this machine cannot resolve is the proxy's to resolve, which is what that switch is for. FTP
+  data connections go to the control connection's host whatever a `PASV` reply names, and the
+  captcha solver's API key goes to an https endpoint only, unless plain http is switched on in
+  the captcha settings.
 - Plugins are WebAssembly components with no WASI access, verified against an Ed25519 trust
   root, limited by fuel, memory and an allowed-domain list.
 - Release artifacts ship an SPDX SBOM, a SHA-256 manifest and a Sigstore bundle; container

@@ -86,8 +86,8 @@ impl Writer {
         previous
             .map(|row| {
                 Ok(rd_core::ResolverPin {
-                    plugin_id: crate::parse_id(row.get::<String, _>("plugin_id").as_str())?,
-                    version: row.get("plugin_version"),
+                    plugin_id: crate::parse_id(row.try_get::<String, _>("plugin_id")?.as_str())?,
+                    version: row.try_get("plugin_version")?,
                 })
             })
             .transpose()
@@ -196,8 +196,8 @@ impl Writer {
         .await?;
         let mut stale = Vec::new();
         for row in rows {
-            let plugin_id: String = row.get("plugin_id");
-            let version: String = row.get("plugin_version");
+            let plugin_id: String = row.try_get("plugin_id")?;
+            let version: String = row.try_get("plugin_version")?;
             if available
                 .iter()
                 .any(|(id, installed)| id == &plugin_id && installed == &version)
@@ -205,11 +205,11 @@ impl Writer {
                 continue;
             }
             stale.push((
-                row.get::<String, _>("download_id"),
+                row.try_get::<String, _>("download_id")?,
                 plugin_id,
                 version,
-                row.get::<String, _>("state"),
-                row.get::<bool, _>("withdrawn"),
+                row.try_get::<String, _>("state")?,
+                row.try_get::<bool, _>("withdrawn")?,
             ));
         }
         let mut transaction = self.connection.begin().await?;

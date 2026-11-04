@@ -23,10 +23,14 @@
 mod desktop;
 #[cfg(windows)]
 mod handle;
+#[cfg(all(test, windows))]
+mod handle_tests;
 #[cfg(windows)]
 mod power;
 #[cfg(windows)]
 mod security;
+#[cfg(all(test, windows))]
+mod security_tests;
 #[cfg(windows)]
 mod shortcut;
 #[cfg(windows)]

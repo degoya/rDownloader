@@ -286,6 +286,44 @@ async fn an_unpack_failure_carries_its_code_in_the_field_and_not_in_the_message(
 /// the tool is never started.
 #[tokio::test]
 async fn an_outdated_archive_tool_fails_the_unpack_with_its_version_and_the_floor() {
+    let step = refused_rar_step(crate::settings::OutdatedTool {
+        tool: "unrar",
+        found: "6.11".to_owned(),
+        minimum: "6.12".to_owned(),
+        unknown: false,
+    })
+    .await;
+    assert_eq!(step.code.as_deref(), Some(crate::unpack_job::TOOL_OUTDATED));
+    assert_eq!(step.params.get("tool").map(String::as_str), Some("unrar"));
+    assert_eq!(step.params.get("found").map(String::as_str), Some("6.11"));
+    assert_eq!(step.params.get("minimum").map(String::as_str), Some("6.12"));
+}
+
+/// RD-1420-03: with `refuse_unknown_archive_tool_version` on, a tool whose version cannot be
+/// read fails the set with a code of its own, naming the tool and the floor it could not check.
+#[tokio::test]
+async fn an_archive_tool_of_unknown_version_fails_the_unpack_when_refused() {
+    let step = refused_rar_step(crate::settings::OutdatedTool {
+        tool: "7z",
+        found: "unknown".to_owned(),
+        minimum: "25.00".to_owned(),
+        unknown: true,
+    })
+    .await;
+    assert_eq!(
+        step.code.as_deref(),
+        Some(crate::unpack_job::TOOL_VERSION_UNKNOWN)
+    );
+    assert_eq!(step.params.get("tool").map(String::as_str), Some("7z"));
+    assert_eq!(
+        step.params.get("minimum").map(String::as_str),
+        Some("25.00")
+    );
+}
+
+/// Runs one unpack pass over a RAR set whose tool was refused for `outdated`, and returns its
+/// failed step.
+async fn refused_rar_step(outdated: crate::settings::OutdatedTool) -> rd_core::PostprocessStep {
     let temp = tempfile::tempdir().expect("tempdir");
     let database = Database::open(temp.path().join("extract.sqlite"))
         .await
@@ -310,11 +348,7 @@ async fn an_outdated_archive_tool_fails_the_unpack_with_its_version_and_the_floo
         limits: rd_postprocess::ArchiveLimits::default(),
         rar_tool: None,
         rar_conflict: None,
-        rar_outdated: Some(crate::settings::OutdatedTool {
-            tool: "unrar",
-            found: "6.11".to_owned(),
-            minimum: "6.12".to_owned(),
-        }),
+        rar_outdated: Some(outdated),
         delete_volumes: false,
         trigger: ExtractionTrigger::Manual,
         target: crate::unpack_job::UnpackTarget::Package,
@@ -324,20 +358,17 @@ async fn an_outdated_archive_tool_fails_the_unpack_with_its_version_and_the_floo
         .await
         .expect("one unpack pass");
 
-    assert!(!ok, "an outdated tool is a failure, not a skipped step");
+    assert!(!ok, "a refused tool is a failure, not a skipped step");
     let steps = database
         .list_postprocess_steps(&owner)
         .await
         .expect("steps");
     let step = steps
-        .iter()
+        .into_iter()
         .find(|step| step.kind == PostprocessKind::ExtractRar)
         .expect("RAR step");
     assert_eq!(step.state, PostprocessState::Failed);
-    assert_eq!(step.code.as_deref(), Some(crate::unpack_job::TOOL_OUTDATED));
-    assert_eq!(step.params.get("tool").map(String::as_str), Some("unrar"));
-    assert_eq!(step.params.get("found").map(String::as_str), Some("6.11"));
-    assert_eq!(step.params.get("minimum").map(String::as_str), Some("6.12"));
+    step
 }
 
 /// The same through the whole pipeline: the package's settings name an `unrar` 6.11, and the

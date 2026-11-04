@@ -24,7 +24,23 @@ RestrictSUIDSGID=yes
 LockPersonality=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
+# The system calls of an ordinary service; anything outside that set fails with EPERM instead of
+# ending the process. Applies to the helpers it starts as well.
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+# Kernel tunables (/proc/sys, /sys) read-only (RD-1420-05, audit L-36). In a user unit systemd
+# sets this up in a user namespace of the unit's own (an implicit PrivateUsers=self: other users'
+# files show as nobody, access is unchanged); where the kernel refuses unprivileged user namespaces
+# systemd logs that and starts the agent without the read-only mounts. Not ProtectKernelModules or
+# ProtectKernelLogs: both drop a capability from the bounding set, which a user manager may not do
+# (systemd 255 on Ubuntu 24.04 stops the unit with 218/CAPABILITIES); the system call filter above
+# refuses module loading and the kernel log anyway. Not ProtectSystem or ProtectHome: a user cannot
+# write /usr or /etc anyway, and the user picks the folders it works in.
+ProtectKernelTunables=yes
+# New files (its configuration, the link token) for the user alone, as the service's unit and the
+# portable launcher (scripts/linux/start-rdownloader.sh) do.
+UMask=0077
 
 [Install]
 WantedBy=graphical-session.target

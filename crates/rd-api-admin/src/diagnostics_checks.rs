@@ -19,6 +19,9 @@ pub struct SystemChecksInput {
     pub cookie_security: rd_authn::CookieSecurity,
     /// The data directory whose permissions are checked; `None` checks nothing.
     pub data_directory: Option<std::path::PathBuf>,
+    /// `refuse_unknown_archive_tool_version`: an archive tool whose version cannot be read is
+    /// refused rather than run with a warning (RD-1420-03).
+    pub refuse_unknown_archive_tool_version: bool,
 }
 
 const HELPERS: &str = "download helpers";
@@ -51,7 +54,7 @@ pub async fn system_checks(input: &SystemChecksInput) -> Vec<Check> {
     }
     for tool in TOOLS {
         match rd_core::locate_tool(None, vendor, tool) {
-            Some(found) => checks.push(tool_check(tool, &found).await),
+            Some(found) => checks.push(tool_check(tool, &found, input).await),
             None => checks.push(Check::new(HELPERS, tool, CheckStatus::Missing, "not found")),
         }
     }
@@ -61,7 +64,7 @@ pub async fn system_checks(input: &SystemChecksInput) -> Vec<Check> {
         ..Default::default()
     };
     match rd_stream::locate_streamlink(&stream_probe) {
-        Some(found) => checks.push(tool_check("streamlink", &found).await),
+        Some(found) => checks.push(tool_check("streamlink", &found, input).await),
         None => checks.push(Check::new(
             HELPERS,
             "streamlink",
@@ -90,7 +93,7 @@ pub async fn system_checks(input: &SystemChecksInput) -> Vec<Check> {
 /// (RD-102-03). The upgrade path is its own note, because that is the line a person reading
 /// `doctor` output is looking for, and a version that could not be read has to look different
 /// from one that is simply old.
-async fn tool_check(tool: &str, found: &rd_core::ResolvedTool) -> Check {
+async fn tool_check(tool: &str, found: &rd_core::ResolvedTool, input: &SystemChecksInput) -> Check {
     let assessment = rd_tools::compat::assess(tool, &found.path).await;
     let version = assessment.version.as_deref().unwrap_or("unreadable");
     let mut check = Check::new(
@@ -103,9 +106,32 @@ async fn tool_check(tool: &str, found: &rd_core::ResolvedTool) -> Check {
     if let Some(upgrade) = assessment.upgrade() {
         check.status = CheckStatus::Warning;
         check = check.note(format!("upgrade: {upgrade}"));
+    } else if assessment.warns() {
+        // A rule sets a minimum for this tool, and the version needed to check it could not
+        // be read: for unrar and 7-Zip that minimum guards extraction, which still runs unless
+        // the settings refuse such a tool (RD-1420-03).
+        check.status = CheckStatus::Warning;
+        let refused = ARCHIVE_TOOLS.contains(&tool) && input.refuse_unknown_archive_tool_version;
+        check = check.note(if refused {
+            "check: the version could not be read, and the settings refuse such a tool for \
+             extraction; point the setting at the tool's own binary rather than a wrapper"
+        } else {
+            "check: the version could not be read, so its minimum version is not enforced; \
+             point the setting at the tool's own binary rather than a wrapper"
+        });
+    }
+    if tool == "7z" {
+        // RD-1420-03 (audit L-12): unrar reads the password from its input, 7-Zip cannot.
+        check = check.note(
+            "note: 7-Zip gets an archive password on its command line, which other processes \
+             of this machine can read while it runs; unrar reads it from its input instead",
+        );
     }
     check
 }
+
+/// The two archive tools whose version floor guards extraction.
+const ARCHIVE_TOOLS: [&str; 2] = ["unrar", "7z"];
 
 /// Whether the data directory is the service account's alone (security review 2026-09-30,
 /// finding 2): it holds the database, the secrets and the local control token, and whoever may
@@ -210,4 +236,65 @@ fn proxy_checks(input: &SystemChecksInput) -> Vec<Check> {
         ));
     }
     checks
+}
+
+#[cfg(test)]
+mod tests {
+    use rd_diagnostics::CheckStatus;
+
+    use super::{SystemChecksInput, tool_check};
+
+    fn unreadable(tool: &str) -> rd_core::ResolvedTool {
+        rd_core::ResolvedTool {
+            path: std::path::PathBuf::from("rd-doctor-test-missing").join(tool),
+            source: rd_core::ToolSource::Explicit,
+        }
+    }
+
+    /// An archive tool whose version cannot be read is extracted with all the same; `doctor`
+    /// says so instead of reporting it as fine - and says it is refused once the settings
+    /// refuse such a tool (RD-1420-03).
+    #[tokio::test]
+    async fn an_archive_tool_with_an_unreadable_version_is_a_warning() {
+        let mut input = SystemChecksInput::default();
+        let check = tool_check("unrar", &unreadable("unrar"), &input).await;
+        assert_eq!(check.status, CheckStatus::Warning, "{check:?}");
+        assert!(
+            check
+                .notes
+                .iter()
+                .any(|note| note.starts_with("check:") && note.contains("not enforced")),
+            "{check:?}"
+        );
+        input.refuse_unknown_archive_tool_version = true;
+        let refused = tool_check("unrar", &unreadable("unrar"), &input).await;
+        assert_eq!(refused.status, CheckStatus::Warning, "{refused:?}");
+        assert!(
+            refused
+                .notes
+                .iter()
+                .any(|note| note.starts_with("check:") && note.contains("refuse")),
+            "{refused:?}"
+        );
+    }
+
+    /// RD-1420-03 (audit L-12): 7-Zip is the tool that still gets the password on its command
+    /// line, and `doctor` says so; unrar does not carry the note.
+    #[tokio::test]
+    async fn seven_zip_carries_the_command_line_password_note() {
+        let input = SystemChecksInput::default();
+        let seven = tool_check("7z", &unreadable("7z"), &input).await;
+        assert!(
+            seven
+                .notes
+                .iter()
+                .any(|note| note.starts_with("note:") && note.contains("command line")),
+            "{seven:?}"
+        );
+        let unrar = tool_check("unrar", &unreadable("unrar"), &input).await;
+        assert!(
+            !unrar.notes.iter().any(|note| note.contains("command line")),
+            "{unrar:?}"
+        );
+    }
 }

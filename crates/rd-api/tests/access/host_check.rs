@@ -210,6 +210,51 @@ async fn the_external_url_host_and_the_listed_names_are_answered() {
     assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
 }
 
+/// Audit L-03 (RD-1420-02): local network names pass by default; switched off, `foo.local`
+/// is refused until the list names it, while addresses and `localhost` still pass.
+#[tokio::test]
+async fn local_network_names_follow_their_switch_and_the_list() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    let health = |host: &'static str| named("GET", "/api/v1/health", host);
+    for host in ["foo.local:8710", "nas", "nas.home.arpa"] {
+        let (status, body) = send(&harness.router, health(host)).await;
+        assert_eq!(status, StatusCode::OK, "on by default, {host}: {body}");
+    }
+
+    let (status, mut settings) = get_json(&harness.router, "/api/v1/settings").await;
+    assert_eq!(status, StatusCode::OK, "{settings}");
+    assert_eq!(settings["accept_local_network_names"], true, "the default");
+    settings["admin_login_disabled"] = Value::Bool(true);
+    settings["accept_local_network_names"] = Value::Bool(false);
+    let (status, body) = common::put_json(&harness.router, "/api/v1/settings", settings).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    for host in ["foo.local:8710", "nas", "nas.home.arpa"] {
+        let (status, body) = send(&harness.router, health(host)).await;
+        assert_eq!(
+            status,
+            StatusCode::FORBIDDEN,
+            "switched off, {host}: {body}"
+        );
+        assert_eq!(body["code"], REFUSED);
+    }
+    for host in ["127.0.0.1:8710", "localhost:8710", "192.168.1.20"] {
+        let (status, body) = send(&harness.router, health(host)).await;
+        assert_eq!(status, StatusCode::OK, "{host}: {body}");
+    }
+
+    let (status, mut settings) = get_json(&harness.router, "/api/v1/settings").await;
+    assert_eq!(status, StatusCode::OK, "{settings}");
+    assert_eq!(settings["accept_local_network_names"], false, "stored");
+    settings["allowed_hosts"] = json!(["foo.local"]);
+    let (status, body) = common::put_json(&harness.router, "/api/v1/settings", settings).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (status, body) = send(&harness.router, health("foo.local:8710")).await;
+    assert_eq!(status, StatusCode::OK, "listed: {body}");
+    let (status, _) = send(&harness.router, health("nas")).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "not listed");
+}
+
 #[tokio::test]
 async fn an_allowed_host_that_is_no_host_name_is_refused_on_save() {
     let directory = tempfile::tempdir().expect("tempdir");
@@ -291,6 +336,7 @@ async fn a_switched_off_login_does_not_open_mcp_to_another_machine() {
 
 /// The list decides who may reach the service, so changing it costs `api:admin` like the rest
 /// of the proxy contract; a configuration token could otherwise let a rebinding name back in.
+/// The local network names switch is the other half of the same guard (RD-1420-02).
 #[tokio::test]
 async fn a_config_token_cannot_change_the_allowed_hosts() {
     const CONFIG_BEARER: &str = "test-config-bearer-host-check";
@@ -302,16 +348,21 @@ async fn a_config_token_cannot_change_the_allowed_hosts() {
             .token(CONFIG_BEARER, rd_core::API_CONFIG_SCOPE),
     )
     .await;
-    let (status, mut settings) =
-        common::get_with_bearer(&harness.router, "/api/v1/settings", CONFIG_BEARER).await;
-    assert_eq!(status, StatusCode::OK, "{settings}");
-    settings["allowed_hosts"] = json!(["attacker.example"]);
-    let request = common::request_to("PUT", "/api/v1/settings")
-        .header(header::AUTHORIZATION, format!("Bearer {CONFIG_BEARER}"))
-        .header(header::CONTENT_TYPE, "application/json")
-        .body(Body::from(settings.to_string()))
-        .expect("request");
-    let (status, body) = send(&harness.router, request).await;
-    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
-    assert_eq!(body["params"]["setting"], "allowed_hosts");
+    for (field, value) in [
+        ("allowed_hosts", json!(["attacker.example"])),
+        ("accept_local_network_names", json!(false)),
+    ] {
+        let (status, mut settings) =
+            common::get_with_bearer(&harness.router, "/api/v1/settings", CONFIG_BEARER).await;
+        assert_eq!(status, StatusCode::OK, "{settings}");
+        settings[field] = value;
+        let request = common::request_to("PUT", "/api/v1/settings")
+            .header(header::AUTHORIZATION, format!("Bearer {CONFIG_BEARER}"))
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(settings.to_string()))
+            .expect("request");
+        let (status, body) = send(&harness.router, request).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{field}: {body}");
+        assert_eq!(body["params"]["setting"], field);
+    }
 }

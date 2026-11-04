@@ -1334,7 +1334,12 @@
     "web.route_not_found": "Unter dieser Adresse antwortet nichts auf diese Anfrage",
     "package.reset": "Kein Paket zurückgesetzt | Paket zurückgesetzt: {count} Datei startet von vorn | Paket zurückgesetzt: {count} Dateien starten von vorn",
     "package.reset_not_failed": "Komplett zurücksetzen geht nur bei einem fehlgeschlagenen Paket",
-    "package.reset_running": "Pausiere oder stoppe zuerst die laufenden Dateien dieses Pakets"
+    "package.reset_running": "Pausiere oder stoppe zuerst die laufenden Dateien dieses Pakets",
+    "plugin.host_requests_exhausted": "Der Plugin-Aufruf hat sein Kontingent an Host-Anfragen ({limit}) aufgebraucht",
+    "postprocess.malware_scanner_failed": "clamd unter {address} war nicht erreichbar",
+    "captcha.endpoint_plain_http": "Der Endpoint des Löserdienstes nutzt unverschlüsseltes http, über das der API-Schlüssel offen übertragen würde: nutze https oder erlaube http in den Captcha-Einstellungen",
+    "extract.tool_version_unknown": "Die Version von {tool} ließ sich nicht lesen, und die Einstellungen lehnen ein solches Werkzeug zum Entpacken ab: Ob es mindestens {minimum} ist – darunter schreiben Verknüpfungen im Archiv außerhalb des Zielordners –, lässt sich nicht prüfen. Richte den Programmpfad direkt auf {tool} oder aktualisiere es.",
+    "postprocess.rar_test_skipped_version_unknown": "Übersprungen: Die Version des RAR-Werkzeugs ließ sich nicht lesen"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

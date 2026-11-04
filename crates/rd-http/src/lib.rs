@@ -5,6 +5,7 @@
 mod address_guard;
 mod client;
 mod client_pool;
+mod connect_target;
 mod cookies;
 mod engine;
 mod hostlimit;

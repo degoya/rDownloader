@@ -118,7 +118,8 @@ pub(crate) async fn record_items(
         // cannot make that distinction and would report every refreshed item as discovered.
         .fetch_optional(&mut *tx)
         .await?
-        .map(|row| sqlx::Row::get::<String, _>(&row, "id"));
+        .map(|row| sqlx::Row::try_get::<String, _>(&row, "id"))
+        .transpose()?;
         // A new row and a refreshed pending one both take the announced password; the vault
         // holds it, `Database::record_subscription_items` puts it there (RD-190-04).
         if let (Some(row), Some(password)) = (&result, &item.password) {

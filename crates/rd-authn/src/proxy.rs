@@ -64,6 +64,10 @@ pub struct ProxyConfig {
     external_host: Option<String>,
     /// The further names a request may call the service by (`crate::host`).
     allowed_hosts: Vec<String>,
+    /// Whether the names only the local network knows (one label, `.local`, `.home.arpa`,
+    /// `.internal`) are refused unless listed. Stored inverted so the default keeps accepting
+    /// them, as the setting does (RD-1420-02).
+    refuse_local_names: bool,
     /// Mount point, with a leading and no trailing slash, or empty for the root.
     base_path: String,
     cookie_security: CookieSecurity,
@@ -144,6 +148,7 @@ impl ProxyConfig {
             origin,
             external_host,
             allowed_hosts: Vec::new(),
+            refuse_local_names: false,
             base_path,
             cookie_security,
         })
@@ -169,12 +174,25 @@ impl ProxyConfig {
         Ok(self)
     }
 
+    /// Whether the names only the local network knows pass without being listed (the default);
+    /// off, they need an entry in the allowed host list like any other name (RD-1420-02).
+    #[must_use]
+    pub fn with_local_names(mut self, accept: bool) -> Self {
+        self.refuse_local_names = !accept;
+        self
+    }
+
     /// Whether a request whose `Host` (or URI authority) is `value` may be served; see
     /// [`crate::host`] for which names pass and why.
     #[must_use]
     pub fn host_allowed(&self, value: &str) -> bool {
         crate::host::parse_request_host(value).is_some_and(|host| {
-            crate::host::host_permitted(&host, self.external_host.as_deref(), &self.allowed_hosts)
+            crate::host::host_permitted(
+                &host,
+                self.external_host.as_deref(),
+                &self.allowed_hosts,
+                !self.refuse_local_names,
+            )
         })
     }
 

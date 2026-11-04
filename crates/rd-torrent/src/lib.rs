@@ -26,6 +26,7 @@ mod recheck;
 mod registry;
 mod relocate;
 mod runner;
+mod scrape_run;
 mod seeding;
 mod session;
 mod stats;
@@ -102,7 +103,12 @@ pub(crate) struct ServiceInner {
     /// Rows whose files a move is carrying to another folder right now (RD-1100-10). Kept here
     /// rather than read from the journal: the journal is for the next start, and a torrent state
     /// written over it by another control must not decide whether a move runs.
-    pub relocating: tokio::sync::Mutex<std::collections::HashSet<rd_core::DownloadId>>,
+    ///
+    /// The same map holds the rows the runner is adding to the session right now, so that a
+    /// move and an add of one torrent exclude each other.
+    pub(crate) gates: relocate::Gates,
+    /// Rows whose trackers are being scraped right now; one scrape per torrent at a time.
+    pub(crate) scraping: std::sync::Mutex<std::collections::HashSet<rd_core::DownloadId>>,
     /// Vault handle used to resolve the proxy password; absent in tests.
     pub secrets: Option<rd_secrets::SecretStore>,
     /// Active bandwidth profile, so a scheduled limit reaches the engine too; absent in
@@ -141,7 +147,8 @@ impl TorrentService {
                 kill_switch_engaged: std::sync::atomic::AtomicBool::new(false),
                 kill_switch_held: tokio::sync::Mutex::new(std::collections::HashSet::new()),
                 rebuild_error: RwLock::new(None),
-                relocating: tokio::sync::Mutex::new(std::collections::HashSet::new()),
+                gates: relocate::Gates::default(),
+                scraping: std::sync::Mutex::new(std::collections::HashSet::new()),
                 secrets: None,
                 bandwidth: None,
                 shutdown: CancellationToken::new(),
@@ -255,18 +262,64 @@ impl TorrentService {
         }
     }
 
-    /// Persists the torrent state of one queue row.
+    /// Edits the persisted torrent state of one queue row in place and returns it as stored.
+    ///
+    /// The state is one blob several controls write; the edit runs inside the database writer
+    /// between its read and its write, so a field another control changed meanwhile is kept
+    /// rather than overwritten with an older copy.
+    pub(crate) async fn update_job_state(
+        &self,
+        id: rd_core::DownloadId,
+        edit: impl FnOnce(&mut rd_core::TorrentJobState) + Send + 'static,
+    ) -> Result<rd_core::TorrentJobState> {
+        let edited = self
+            .inner
+            .database
+            .update_download_torrent_state(id, move |state| {
+                edit(state);
+                Ok::<_, std::convert::Infallible>(())
+            })
+            .await?;
+        match edited {
+            Ok((state, ())) => Ok(state),
+            Err(never) => match never {},
+        }
+    }
+
+    /// [`Self::update_job_state`] for an edit that may decline: `None` from `edit` leaves the
+    /// state untouched and answers `Ok(None)`.
+    pub(crate) async fn edit_job_state<T: Send + 'static>(
+        &self,
+        id: rd_core::DownloadId,
+        edit: impl FnOnce(&mut rd_core::TorrentJobState) -> Option<T> + Send + 'static,
+    ) -> Result<Option<(rd_core::TorrentJobState, T)>> {
+        let edited = self
+            .inner
+            .database
+            .update_download_torrent_state(id, move |state| edit(state).ok_or(()))
+            .await?;
+        Ok(edited.ok())
+    }
+
+    /// Replaces the whole torrent state of one queue row, for the tests' fixtures.
+    #[cfg(test)]
     pub(crate) async fn store_job_state(
         &self,
         id: rd_core::DownloadId,
         state: rd_core::TorrentJobState,
     ) {
-        if let Err(error) = self
-            .inner
-            .database
-            .set_download_torrent_state(id, state)
+        self.update_job_state(id, move |stored| *stored = state)
             .await
-        {
+            .expect("store the torrent state");
+    }
+
+    /// [`Self::update_job_state`] for the bookkeeping writes whose failure is only logged.
+    pub(crate) async fn record_job_state(
+        &self,
+        id: rd_core::DownloadId,
+        edit: impl FnOnce(&mut rd_core::TorrentJobState) + Send + 'static,
+    ) {
+        if let Err(error) = self.update_job_state(id, edit).await {
             tracing::warn!(download_id = %id, %error, "writing torrent state failed");
         }
     }
