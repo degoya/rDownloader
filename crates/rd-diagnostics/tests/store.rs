@@ -102,3 +102,24 @@ async fn the_defaults_keep_twenty_thousand_records_for_two_weeks() {
     assert!(rd_core::LOG_RETENTION_RECORDS_RANGE.contains(&defaults.log_retention_records));
     assert!(rd_core::LOG_RETENTION_DAYS_RANGE.contains(&defaults.log_retention_days));
 }
+
+#[tokio::test]
+async fn finishing_the_sink_stores_what_is_still_waiting() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = rd_testkit::temp_database(directory.path()).await;
+    let (layer, stream) = LogCaptureLayer::with_stats(Arc::new(CaptureStats::default()));
+    // Kept alive, so the channel stays open: the sink must not depend on it closing.
+    let dispatch = tracing::Dispatch::new(registry().with(layer));
+    let log_sink = sink::spawn(stream, database.clone());
+    tracing::dispatcher::with_default(&dispatch, || {
+        for index in 0..50 {
+            tracing::info!(index, "the last lines of a stop");
+        }
+    });
+    assert!(
+        log_sink.finish(std::time::Duration::from_secs(10)).await,
+        "the sink ends when asked"
+    );
+    assert_eq!(database.count_log_records().await.expect("count"), 50);
+    drop(dispatch);
+}
