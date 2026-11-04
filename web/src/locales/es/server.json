@@ -1334,7 +1334,9 @@
     "web.route_not_found": "Nada en esta dirección responde a esta solicitud",
     "package.reset": "Ningún paquete restablecido | Paquete restablecido: {count} archivo empieza de nuevo | Paquete restablecido: {count} archivos empiezan de nuevo",
     "package.reset_not_failed": "Solo un paquete fallido puede restablecerse por completo",
-    "package.reset_running": "Pausa o detén primero los archivos en curso de este paquete"
+    "package.reset_running": "Pausa o detén primero los archivos en curso de este paquete",
+    "plugin.host_requests_exhausted": "La llamada del plugin agotó su cupo de solicitudes al host ({limit})",
+    "postprocess.malware_scanner_failed": "No se pudo contactar con clamd en {address}"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

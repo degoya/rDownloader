@@ -47,6 +47,7 @@ pub mod links_file;
 pub mod links_nzb;
 pub mod list_bounds;
 pub mod local_control;
+pub mod malware_scanner_handlers;
 pub mod notify_notice;
 pub mod notify_service;
 pub mod nzb_candidate;

@@ -286,7 +286,8 @@ pub(crate) struct PostprocessOptionsParams {
 
 #[derive(Deserialize, schemars::JsonSchema)]
 pub(crate) struct MalwareScannerTestParams {
-    /// `host:port` or `unix:/path`; omitted = the saved clamd address.
+    /// `host:port` or `unix:/path`; omitted = the saved clamd address. Another address needs
+    /// `api:admin`.
     pub address: Option<String>,
 }
 

@@ -1334,7 +1334,9 @@
     "web.route_not_found": "Nothing at this address answers this request",
     "package.reset": "No package reset | Package reset: {count} file starts again from the beginning | Package reset: {count} files start again from the beginning",
     "package.reset_not_failed": "Only a failed package can be reset completely",
-    "package.reset_running": "Pause or stop the running files of this package first"
+    "package.reset_running": "Pause or stop the running files of this package first",
+    "plugin.host_requests_exhausted": "The plugin call used up its allowance of host requests ({limit})",
+    "postprocess.malware_scanner_failed": "clamd at {address} could not be reached"
   },
   "capabilities": {
     "media_download": "media downloads",

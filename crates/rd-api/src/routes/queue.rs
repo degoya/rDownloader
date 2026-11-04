@@ -143,7 +143,7 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/postprocess/malware-scanner/test",
-            post(postprocess_handlers::test_malware_scanner),
+            post(rd_api_core::malware_scanner_handlers::test_malware_scanner),
         )
         .route(
             "/api/v1/categories/{id}/postprocess",
@@ -217,7 +217,7 @@ pub(crate) fn routes() -> Router<AppState> {
     postprocess_handlers::list_postprocess_scripts,
     postprocess_handlers::list_plugin_steps,
     postprocess_handlers::list_upload_destinations,
-    postprocess_handlers::test_malware_scanner,
+    rd_api_core::malware_scanner_handlers::test_malware_scanner,
     postprocess_handlers::update_category_postprocess,
     postprocess_handlers::preview_category_sorting,
     postprocess_handlers::preview_package_name,

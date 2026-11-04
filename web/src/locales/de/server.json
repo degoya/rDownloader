@@ -1334,7 +1334,9 @@
     "web.route_not_found": "Unter dieser Adresse antwortet nichts auf diese Anfrage",
     "package.reset": "Kein Paket zurückgesetzt | Paket zurückgesetzt: {count} Datei startet von vorn | Paket zurückgesetzt: {count} Dateien starten von vorn",
     "package.reset_not_failed": "Komplett zurücksetzen geht nur bei einem fehlgeschlagenen Paket",
-    "package.reset_running": "Pausiere oder stoppe zuerst die laufenden Dateien dieses Pakets"
+    "package.reset_running": "Pausiere oder stoppe zuerst die laufenden Dateien dieses Pakets",
+    "plugin.host_requests_exhausted": "Der Plugin-Aufruf hat sein Kontingent an Host-Anfragen ({limit}) aufgebraucht",
+    "postprocess.malware_scanner_failed": "clamd unter {address} war nicht erreichbar"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

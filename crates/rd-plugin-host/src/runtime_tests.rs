@@ -181,6 +181,50 @@ fn a_host_call_extends_the_deadline_without_spending_the_wait_budget() {
     );
 }
 
+/// One invocation's host HTTP requests are bounded in number, and so is the waiting time
+/// credited for them, however slowly the far side answers.
+#[test]
+fn host_http_requests_and_their_credited_time_are_bounded_per_invocation() {
+    use super::host_requests::{MAX_CREDITED_HTTP_TIME, MAX_HOST_HTTP_REQUESTS};
+
+    let sandbox = SandboxEngine::new(PluginLimits::default()).expect("sandbox");
+    let mut store = sandbox.create_store(Vec::new()).expect("store");
+    for _ in 0..MAX_HOST_HTTP_REQUESTS {
+        store
+            .data_mut()
+            .claim_http_request()
+            .expect("within the cap");
+    }
+    assert_eq!(store.data().host_http_requests(), MAX_HOST_HTTP_REQUESTS);
+    let failure = store
+        .data_mut()
+        .claim_http_request()
+        .expect_err("one past the cap");
+    assert_eq!(
+        failure.code.as_deref(),
+        Some("plugin.host_requests_exhausted")
+    );
+
+    let mut store = sandbox.create_store(Vec::new()).expect("store");
+    let deadline_before = store.data().execution_deadline;
+    store
+        .data_mut()
+        .claim_http_request()
+        .expect("first request");
+    store
+        .data_mut()
+        .credit_http_time(MAX_CREDITED_HTTP_TIME + std::time::Duration::from_secs(60));
+    assert_eq!(
+        store.data().execution_deadline - deadline_before,
+        MAX_CREDITED_HTTP_TIME,
+        "the credit stops at the allowance"
+    );
+    store
+        .data_mut()
+        .claim_http_request()
+        .expect_err("no waiting time left to credit");
+}
+
 /// A hoster countdown must come out of the wait budget and buy the same amount of extra
 /// execution time, so waiting is never mistaken for a hung plugin — and must run out.
 #[test]

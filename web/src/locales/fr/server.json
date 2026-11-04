@@ -1334,7 +1334,9 @@
     "web.route_not_found": "Rien à cette adresse ne répond à cette requête",
     "package.reset": "Aucun paquet réinitialisé | Paquet réinitialisé : {count} fichier recommence depuis le début | Paquet réinitialisé : {count} fichiers recommencent depuis le début",
     "package.reset_not_failed": "Seul un paquet en échec peut être entièrement réinitialisé",
-    "package.reset_running": "Mettez d’abord en pause ou arrêtez les fichiers en cours de ce paquet"
+    "package.reset_running": "Mettez d’abord en pause ou arrêtez les fichiers en cours de ce paquet",
+    "plugin.host_requests_exhausted": "L'appel du plugin a épuisé son quota de requêtes à l'hôte ({limit})",
+    "postprocess.malware_scanner_failed": "clamd à {address} est injoignable"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

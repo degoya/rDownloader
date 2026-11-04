@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security
+
+- **Extension plugins: named secrets in requests checked against `capabilities.secrets`.** A
+  `{{secret:…}}` or `{{basic:…}}` marker in an outgoing request of an extension plugin must name a
+  reference its manifest declares, the same grant `secret-available` and key derivation already
+  check; refused with `plugin.secret_target_not_allowed`. Host-minted renewal references are decided
+  by the host as before.
+- **Plugins: host HTTP requests bounded per invocation.** At most 2,000 requests, and at most 30
+  minutes of waiting time credited back to the execution deadline; past either the request is
+  refused with `plugin.host_requests_exhausted`.
+- **Malware scanner test: caller grant decides the address.** Trying a clamd address other than the
+  saved one (REST `POST /api/v1/postprocess/malware-scanner/test`, MCP `test_malware_scanner`)
+  needs `api:admin`; without it a failure answers `postprocess.malware_scanner_failed` and the
+  reason goes to the service log only.
+- **MCP: tool calls without the transport gate's resolution get no scopes.** The fallback that
+  looked the credential up again is gone; such a call is granted nothing.
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

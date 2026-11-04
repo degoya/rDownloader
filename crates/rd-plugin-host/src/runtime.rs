@@ -13,6 +13,7 @@ use wasmtime::{
 
 use crate::{PluginLimits, engine::SharedEngine};
 
+mod host_requests;
 mod imports;
 
 use imports::{allowed_imports, import_matches};
@@ -39,6 +40,8 @@ pub struct PluginStoreState {
     execution_deadline: Instant,
     /// Waiting time still available to this invocation.
     wait_budget: Duration,
+    /// Host HTTP requests made so far and the waiting time credited for them.
+    host_requests: host_requests::HostRequestBudget,
     /// Present only while a transfer backend is running; a resolver store has none, which is
     /// why a resolver cannot reach the sink even if it somehow linked the interface.
     pub(crate) transfer: Option<crate::transfer::TransferState>,
@@ -348,6 +351,7 @@ impl SandboxEngine {
             execution_deadline: Instant::now()
                 + Duration::from_millis(self.limits.timeout_milliseconds),
             wait_budget: Duration::from_millis(self.limits.wait_budget_milliseconds),
+            host_requests: host_requests::HostRequestBudget::default(),
             transfer: None,
             source: None,
             connections: std::collections::HashMap::new(),
