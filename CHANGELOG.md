@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security
+
+- **Address policy for the recording thumbnail fetch.** The thumbnail named in streamlink's
+  metadata is fetched under the rule for a site-supplied address: public addresses only, the
+  service's own ports refused, redirects followed by hand with every hop checked (also behind the
+  recording's proxy), and the recording's cookies sent to the thumbnail's own origin alone.
+
+### Fixed
+
+- **Captcha solver answers are read with a size limit.** A response from the solver service is
+  collected up to 1 MiB and refused beyond it as `captcha.solver_failed`, instead of being read
+  whole.
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

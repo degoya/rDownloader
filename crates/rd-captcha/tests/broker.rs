@@ -447,6 +447,26 @@ async fn a_rejected_key_is_reported_as_the_users_problem_and_a_dead_service_as_o
 }
 
 #[tokio::test]
+async fn an_oversized_solver_answer_is_not_read_to_the_end() {
+    let fixture = fixture().await;
+    // Valid JSON, but far larger than any answer a solver gives.
+    let padding = "x".repeat(2 * 1024 * 1024);
+    let router = Router::new().route(
+        "/getBalance",
+        post(async move || format!(r#"{{"errorId":0,"balance":1.0,"padding":"{padding}"}}"#)),
+    );
+    let server = solver_service(router).await;
+
+    let failure = fixture
+        .broker
+        .test_solver(Some(server.url("")), Some("key".to_owned()))
+        .await
+        .expect_err("answer too large");
+    assert_eq!(failure.code.as_deref(), Some("captcha.solver_failed"));
+    assert_eq!(failure.category, FailureKind::CaptchaFailed);
+}
+
+#[tokio::test]
 async fn testing_without_any_key_says_so_instead_of_calling_the_service() {
     let fixture = fixture().await;
 

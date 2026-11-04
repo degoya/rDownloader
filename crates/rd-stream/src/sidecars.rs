@@ -79,7 +79,8 @@ pub async fn capture(
     outcomes
 }
 
-/// The client every thumbnail fetch shares, and the trust roots it was built with.
+/// The client every thumbnail fetch shares, the trust roots it was built with, and the address
+/// rule every fetch keeps to.
 ///
 /// A thumbnail address is site-controlled input: it comes out of the provider's own metadata
 /// block, by way of streamlink. `reqwest::get` builds a throwaway client for it with no
@@ -99,9 +100,15 @@ pub async fn capture(
 /// The recording's proxy applies to its thumbnail as to its stream (RD-1240-22). A proxied
 /// fetch gets a client of its own, built per recording: there is one thumbnail per recording,
 /// and a cached client would carry one recording's proxy into the next.
+///
+/// The address is the provider's, so it is held to the rule for an address a website handed
+/// over: public addresses only, never one of the service's own ports, checked on every
+/// redirect hop as well as at connect time.
 #[derive(Default)]
 pub struct SidecarClients {
     network: SharedNetworkDefaults,
+    /// Public addresses only; the default knows none of the service's own ports.
+    pub(crate) policy: rd_http::AddressPolicy,
     /// The client and the `tls_revision` it was built for.
     cached: tokio::sync::Mutex<Option<(u64, reqwest::Client)>>,
 }
@@ -119,8 +126,19 @@ impl SidecarClients {
     pub fn with_network_defaults(network: SharedNetworkDefaults) -> Self {
         Self {
             network,
+            policy: rd_http::AddressPolicy::default(),
             cached: tokio::sync::Mutex::new(None),
         }
+    }
+
+    /// Holds every thumbnail fetch to `policy` instead of the default (public addresses only),
+    /// typically the same rule plus the service's own listeners.
+    #[must_use]
+    pub fn with_address_policy(mut self, policy: rd_http::AddressPolicy) -> Self {
+        self.policy = policy;
+        // A client built under the previous rule must not outlive it.
+        self.cached = tokio::sync::Mutex::new(None);
+        self
     }
 
     /// The client for a thumbnail fetched through `proxy`, or directly when there is none;
@@ -136,7 +154,7 @@ impl SidecarClients {
             (defaults.custom_ca_pem.clone(), defaults.tls_revision)
         };
         if proxy.is_some() {
-            return build_client(&custom_ca_pem, proxy);
+            return build_client(&custom_ca_pem, proxy, &self.policy);
         }
         let mut cached = self.cached.lock().await;
         if let Some((revision, client)) = cached.as_ref()
@@ -144,7 +162,7 @@ impl SidecarClients {
         {
             return Some(client.clone());
         }
-        let client = build_client(&custom_ca_pem, None)?;
+        let client = build_client(&custom_ca_pem, None, &self.policy)?;
         *cached = Some((tls_revision, client.clone()));
         Some(client)
     }
@@ -152,14 +170,24 @@ impl SidecarClients {
 
 /// A thumbnail client with the caps above, the custom CA and, when given, the proxy alone:
 /// the service's own proxy variables do not apply beside a profile, as in `rd-http`.
-fn build_client(custom_ca_pem: &[Vec<u8>], proxy: Option<&ToolProxy>) -> Option<reqwest::Client> {
+///
+/// Redirects are not followed by the client: [`capture_thumbnail`] follows them itself so each
+/// hop is checked against `policy`. Names are resolved through the guarded resolver, so a name
+/// that pointed elsewhere at the check cannot point inside at connect time; behind a proxy the
+/// proxy is handed the checked address, as in every guarded request (`ToolProxy::route`).
+fn build_client(
+    custom_ca_pem: &[Vec<u8>],
+    proxy: Option<&ToolProxy>,
+    policy: &rd_http::AddressPolicy,
+) -> Option<reqwest::Client> {
     let mut builder = rd_http::client_builder(rd_http::ClientPurpose::Service)
         .connect_timeout(THUMBNAIL_CONNECT_TIMEOUT)
         .timeout(THUMBNAIL_TIMEOUT)
-        .redirect(reqwest::redirect::Policy::limited(MAX_THUMBNAIL_REDIRECTS));
-    if let Some(proxy) = proxy {
-        match proxy.http_proxy() {
-            Ok(proxy) => builder = builder.no_proxy().proxy(proxy),
+        .redirect(reqwest::redirect::Policy::none());
+    match proxy {
+        None => builder = builder.dns_resolver(rd_http::GuardedResolver::system(policy.clone())),
+        Some(proxy) => match proxy.route(builder.no_proxy(), Some(policy), custom_ca_pem) {
+            Ok(routed) => builder = routed,
             Err(error) => {
                 tracing::warn!(
                     error = %format!("{error:#}"),
@@ -167,7 +195,7 @@ fn build_client(custom_ca_pem: &[Vec<u8>], proxy: Option<&ToolProxy>) -> Option<
                 );
                 return None;
             }
-        }
+        },
     }
     for pem in custom_ca_pem {
         match reqwest::Certificate::from_pem(pem) {
@@ -208,23 +236,9 @@ async fn capture_thumbnail(
     let Some(client) = clients.client(fetch.proxy).await else {
         return outcome("thumbnail", SidecarStatus::Failed, None);
     };
-    let mut request = client.get(&url);
-    // Only the rows the thumbnail's host may receive; reqwest drops the header on a redirect
-    // to another host.
-    if let Some(mut value) = fetch
-        .cookies
-        .and_then(|cookies| cookies.header_for(&url))
-        .and_then(|header| reqwest::header::HeaderValue::from_str(&header).ok())
-    {
-        value.set_sensitive(true);
-        request = request.header(reqwest::header::COOKIE, value);
-    }
-    let Ok(mut response) = request.send().await else {
+    let Some(mut response) = follow(&clients.policy, &client, fetch.cookies, &url).await else {
         return outcome("thumbnail", SidecarStatus::Failed, None);
     };
-    if !response.status().is_success() {
-        return outcome("thumbnail", SidecarStatus::Failed, None);
-    }
     if response
         .content_length()
         .is_some_and(|length| length > MAX_THUMBNAIL_BYTES as u64)
@@ -254,6 +268,68 @@ async fn capture_thumbnail(
         Ok(()) => outcome("thumbnail", SidecarStatus::Captured, Some(name)),
         Err(_) => outcome("thumbnail", SidecarStatus::Failed, None),
     }
+}
+
+/// Requests `address`, following up to [`MAX_THUMBNAIL_REDIRECTS`] redirects by hand so every
+/// hop is checked against `policy` first; the successful response, or `None`.
+///
+/// The recording's cookies go to the thumbnail's own origin alone, never to a hop elsewhere.
+async fn follow(
+    policy: &rd_http::AddressPolicy,
+    client: &reqwest::Client,
+    cookies: Option<&StreamCookies>,
+    address: &str,
+) -> Option<reqwest::Response> {
+    let first = url::Url::parse(address).ok()?;
+    let cookie = cookies
+        .and_then(|cookies| cookies.header_for(address))
+        .and_then(|header| reqwest::header::HeaderValue::from_str(&header).ok())
+        .map(|mut value| {
+            value.set_sensitive(true);
+            value
+        });
+    let mut current = first.clone();
+    for _ in 0..=MAX_THUMBNAIL_REDIRECTS {
+        if !hop_permitted(policy, &current).await {
+            tracing::info!(
+                host = current.host_str().unwrap_or_default(),
+                "thumbnail address not permitted by the address policy"
+            );
+            return None;
+        }
+        let mut request = client.get(current.clone());
+        if let Some(cookie) = &cookie
+            && current.origin() == first.origin()
+        {
+            request = request.header(reqwest::header::COOKIE, cookie.clone());
+        }
+        let response = request.send().await.ok()?;
+        let status = response.status();
+        if status.is_redirection() {
+            current = response
+                .headers()
+                .get(reqwest::header::LOCATION)
+                .and_then(|location| location.to_str().ok())
+                .and_then(|location| current.join(location).ok())?;
+            continue;
+        }
+        return status.is_success().then_some(response);
+    }
+    None
+}
+
+/// Whether `target` may be requested: scheme, port and a literal address by the policy's hop
+/// rule, and every address a name resolves to here. A name this machine cannot resolve is
+/// left to the connection, which fails on it or, behind a proxy that resolves names itself,
+/// hands it on.
+async fn hop_permitted(policy: &rd_http::AddressPolicy, target: &url::Url) -> bool {
+    if policy.hop_refusal(target).is_some() {
+        return false;
+    }
+    !matches!(
+        rd_http::check_target(policy, &rd_http::SystemLookup, target).await,
+        Err(rd_http::TargetRefusal::Refused(_))
+    )
 }
 
 /// Pulls a thumbnail address out of streamlink's metadata block.
@@ -305,152 +381,5 @@ fn outcome_owned(kind: &str, status: SidecarStatus, file_name: Option<String>) -
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{thumbnail_extension, thumbnail_url};
-
-    #[test]
-    fn a_thumbnail_address_is_read_from_the_metadata_block() {
-        let probe = r#"{"metadata":{"title":"Show","thumbnail":"https://cdn.test/t.png"}}"#;
-        assert_eq!(
-            thumbnail_url(probe).as_deref(),
-            Some("https://cdn.test/t.png")
-        );
-    }
-
-    #[test]
-    fn a_missing_or_non_http_thumbnail_is_not_offered() {
-        assert!(thumbnail_url(r#"{"metadata":{"title":"Show"}}"#).is_none());
-        assert!(thumbnail_url(r#"{"streams":{}}"#).is_none());
-        // A relative or data address is not something to fetch.
-        assert!(thumbnail_url(r#"{"metadata":{"thumbnail":"/t.png"}}"#).is_none());
-        assert!(thumbnail_url("not json").is_none());
-    }
-
-    #[test]
-    fn the_extension_comes_from_the_path_and_not_the_query() {
-        // Without this the file would be called `show.thumbnail.jpg?width=640`.
-        assert_eq!(
-            thumbnail_extension("https://cdn.test/t.png?width=640"),
-            "png"
-        );
-        assert_eq!(thumbnail_extension("https://cdn.test/t.jpeg"), "jpeg");
-        assert_eq!(thumbnail_extension("https://cdn.test/t.WEBP"), "webp");
-    }
-
-    #[test]
-    fn an_address_with_no_usable_extension_defaults_to_jpg() {
-        assert_eq!(thumbnail_extension("https://cdn.test/thumb"), "jpg");
-        assert_eq!(
-            thumbnail_extension("https://cdn.test/a.b.c.verylongext"),
-            "jpg"
-        );
-        assert_eq!(thumbnail_extension("https://cdn.test/t.p%20g"), "jpg");
-    }
-}
-
-/// RD-1240-22 — a recording's thumbnail is fetched through the recording's proxy.
-#[cfg(test)]
-mod proxy_tests {
-    use rd_core::{ProxyKind, SidecarStatus};
-    use rd_scheduler::ToolProxy;
-    use secrecy::SecretString;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-    use super::{SidecarClients, Thumbnail, capture_thumbnail};
-
-    const THUMBNAIL: &[u8] = b"\x89PNG-thumbnail";
-
-    /// A proxy that answers one request with the thumbnail and hands back the head it read.
-    async fn one_shot_proxy() -> (std::net::SocketAddr, tokio::task::JoinHandle<String>) {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-            .await
-            .expect("bind");
-        let address = listener.local_addr().expect("address");
-        let server = tokio::spawn(async move {
-            let (mut socket, _) = listener.accept().await.expect("accept");
-            let mut head = Vec::new();
-            let mut buffer = [0_u8; 1024];
-            while !head.windows(4).any(|window| window == b"\r\n\r\n") {
-                let read = socket.read(&mut buffer).await.expect("read");
-                if read == 0 {
-                    break;
-                }
-                head.extend_from_slice(&buffer[..read]);
-            }
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: {}\r\n\
-                 Connection: close\r\n\r\n",
-                THUMBNAIL.len()
-            );
-            socket.write_all(response.as_bytes()).await.expect("write");
-            socket.write_all(THUMBNAIL).await.expect("write");
-            let _ = socket.shutdown().await;
-            String::from_utf8_lossy(&head).into_owned()
-        });
-        (address, server)
-    }
-
-    #[tokio::test]
-    async fn the_thumbnail_goes_through_the_recordings_proxy() {
-        let (address, server) = one_shot_proxy().await;
-        let proxy = ToolProxy::new(
-            ProxyKind::Http,
-            format!("http://{address}").parse().expect("endpoint"),
-            Some("alice"),
-            Some(&SecretString::from("pr0xy-secret".to_owned())),
-        )
-        .expect("proxy");
-        let directory = tempfile::tempdir().expect("directory");
-        // A name nothing resolves: only the proxy can have answered.
-        let probe = r#"{"metadata":{"thumbnail":"http://thumbnails.invalid/show.png"}}"#;
-
-        // The recording's cookies for that host travel with it (RD-1320-03).
-        let cookies = crate::StreamCookies::from_rows(vec![rd_core::CookieRow {
-            domain: "thumbnails.invalid".to_owned(),
-            include_subdomains: false,
-            path: "/".to_owned(),
-            secure: false,
-            expires: 0,
-            name: "session".to_owned(),
-            value: "thumb-secret".to_owned(),
-        }])
-        .expect("cookies");
-
-        let outcome = capture_thumbnail(
-            &SidecarClients::new(),
-            &Thumbnail {
-                proxy: Some(&proxy),
-                cookies: Some(&cookies),
-            },
-            Some(probe),
-            directory.path(),
-            "show",
-        )
-        .await;
-        assert_eq!(outcome.status, SidecarStatus::Captured);
-        assert_eq!(
-            std::fs::read(directory.path().join("show.thumbnail.png")).expect("thumbnail"),
-            THUMBNAIL
-        );
-        let head = server.await.expect("server");
-        assert!(
-            head.starts_with("GET http://thumbnails.invalid/show.png HTTP/1.1\r\n"),
-            "{head}"
-        );
-        // `alice:pr0xy-secret`, as the proxy's own sign-in, never in the address.
-        assert!(
-            head.lines()
-                .any(|line| line.split_once(':').is_some_and(|(name, value)| name
-                    .eq_ignore_ascii_case("proxy-authorization")
-                    && value.trim() == "Basic YWxpY2U6cHIweHktc2VjcmV0")),
-            "{head}"
-        );
-        assert!(
-            head.lines().any(|line| line
-                .split_once(':')
-                .is_some_and(|(name, value)| name.eq_ignore_ascii_case("cookie")
-                    && value.trim() == "session=thumb-secret")),
-            "{head}"
-        );
-    }
-}
+#[path = "sidecars_tests.rs"]
+mod tests;

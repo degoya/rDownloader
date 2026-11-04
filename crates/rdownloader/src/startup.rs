@@ -267,6 +267,11 @@ pub(crate) async fn native_runners(
         stream_settings.clone(),
         config.network_defaults.clone(),
         tool_network,
+        // A thumbnail address comes from the provider's metadata: public addresses only, and
+        // never the service's own listeners on any host.
+        rd_http::AddressPolicy::new(false)
+            .listening_on(config.own_address)
+            .refusing_redirects_to(rd_plugin_host::OwnEndpoints::new(config.own_address).ports()),
     );
     let torrent_settings = rd_torrent::shared_settings(database).await?;
     let torrent_service = rd_torrent::TorrentService::start(
