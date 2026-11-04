@@ -94,3 +94,64 @@ async fn a_body_line_without_an_end_is_refused_at_the_article_limit() {
         "{error:#}"
     );
 }
+
+/// Answers one `BODY` with `article` (the lines and the terminator) and keeps the line open.
+async fn serve_one_body(article: Vec<u8>) -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("listener");
+    let port = listener.local_addr().expect("address").port();
+    tokio::spawn(async move {
+        let (stream, _) = listener.accept().await.expect("accept");
+        let (read, mut write) = stream.into_split();
+        write.write_all(b"200 ready\r\n").await.expect("greeting");
+        let mut command = String::new();
+        BufReader::new(read)
+            .read_line(&mut command)
+            .await
+            .expect("body command");
+        write
+            .write_all(b"222 body follows\r\n")
+            .await
+            .expect("status");
+        let _ = write.write_all(&article).await;
+        tokio::time::sleep(Duration::from_secs(60)).await;
+    });
+    port
+}
+
+/// A line that ends exactly at the article limit is taken whole.
+#[tokio::test]
+async fn a_line_that_ends_at_the_article_limit_is_taken() {
+    let mut article = vec![b'a'; 1022];
+    article.extend_from_slice(b"\r\n.\r\n");
+    let port = serve_one_body(article).await;
+
+    let mut client = NntpClient::connect(&config(port)).await.expect("connect");
+    let body = tokio::time::timeout(PATIENCE, client.body("limit@example.test"))
+        .await
+        .expect("answered")
+        .expect("a line within the limit is taken");
+
+    assert_eq!(body.len(), 1024);
+    assert!(body.ends_with(b"a\r\n"));
+}
+
+/// A stuffed line that runs past the read budget is refused as a whole; its rest is never
+/// read as a line of its own, so the lone dot that follows it cannot end the article early.
+#[tokio::test]
+async fn a_line_cut_at_the_read_budget_is_refused_not_split() {
+    let mut article = b"..".to_vec();
+    article.extend_from_slice(&[b'a'; 1025]);
+    article.extend_from_slice(b".\r\n.\r\n");
+    let port = serve_one_body(article).await;
+
+    let mut client = NntpClient::connect(&config(port)).await.expect("connect");
+    let error = tokio::time::timeout(PATIENCE, client.body("cut@example.test"))
+        .await
+        .expect("answered")
+        .expect_err("a line past the limit is refused");
+
+    assert!(
+        format!("{error:#}").contains("exceeds configured size limit"),
+        "{error:#}"
+    );
+}

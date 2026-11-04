@@ -184,3 +184,20 @@ fn only_a_new_outcome_ends_post_processing() {
         None
     );
 }
+
+/// The end of an attempt asks for its package's move; a package with none outstanding does
+/// not wait while another package's move holds the lock.
+#[tokio::test]
+async fn a_package_without_a_move_does_not_wait_for_another_move() {
+    let temporary = tempfile::tempdir().expect("temporary directory");
+    let (scheduler, file, _destination) = paused_package(temporary.path()).await;
+    let _another_move = scheduler.relocations.lock().await;
+
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        scheduler.relocate_package(file.package_id),
+    )
+    .await
+    .expect("answered without the lock")
+    .expect("nothing to move");
+}

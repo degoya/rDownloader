@@ -124,6 +124,30 @@ fn deduplicates_and_renumbers_broken_segments() {
 }
 
 #[test]
+fn a_list_from_zero_up_to_the_largest_number_drops_the_segment_without_room() {
+    let input = format!(
+        r#"<nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">
+          <file poster="tester" subject="example.bin">
+            <groups><group>alt.binaries.test</group></groups>
+            <segments>
+              <segment bytes="42" number="0">zero@example</segment>
+              <segment bytes="42" number="1">one@example</segment>
+              <segment bytes="42" number="{}">last@example</segment>
+            </segments>
+          </file>
+        </nzb>"#,
+        u32::MAX
+    );
+    let parsed = parse_nzb(input.as_bytes()).expect("the numbering is tolerated");
+    let numbers: Vec<u32> = parsed.files[0]
+        .segments
+        .iter()
+        .map(|segment| segment.number)
+        .collect();
+    assert_eq!(numbers, vec![1, 2]);
+}
+
+#[test]
 fn rejects_internal_entity_declarations() {
     let input = format!(
         "<?xml version=\"1.0\"?><!DOCTYPE nzb [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]>{BODY}"

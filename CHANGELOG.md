@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **An NZB whose segments count from 0 up to the largest number imports.** The renumbering adds
+  one with a checked add and drops the one segment that has no room, instead of wrapping it to 0.
+- **A resume that meets a worker still stopping leaves that stop alone.** It used to take out the
+  stop reason before the state refused it, so a cancel or a block ended as `paused`.
+- **The end of an attempt no longer waits for another package's category move.** A package with
+  no outstanding move answers before the move lock is taken.
+- **An NNTP body line cut at the read budget is refused explicitly** rather than relying on the
+  size check that follows; tests cover a line ending exactly at the article limit.
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

@@ -295,6 +295,11 @@ impl NntpReader {
             if read == 0 {
                 bail!("NNTP connection closed during article");
             }
+            // The budget ran out before the line ended. Its rest must never be read as a line
+            // of its own - a leading `..` would be unstuffed, a lone `.` taken for the end.
+            if read as u64 == budget && !line.ends_with(b"\n") {
+                bail!("NNTP article exceeds configured size limit");
+            }
             if line == b".\r\n" || line == b".\n" {
                 break;
             }

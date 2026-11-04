@@ -160,7 +160,12 @@ impl SchedulerHandle {
                     "the download is being reset or removed right now"
                 ));
             }
-            active.reasons.remove(&id);
+            // A worker that is still stopping writes its row from this reason; taken out here,
+            // the resume the row's state then refuses turned a cancel or a block into `Paused`.
+            // The worker's end takes the reason out itself.
+            if !active.tokens.contains_key(&id) {
+                active.reasons.remove(&id);
+            }
         }
         // Starting a waiting mirror by hand is a decision about which link to use, so its
         // siblings stand down for it. Without this the dispatcher would put it straight back:
