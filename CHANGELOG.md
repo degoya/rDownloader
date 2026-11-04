@@ -5,6 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Torrent state edits no longer overwrite each other.** A queue row's torrent state is edited
+  inside the database writer between its own read and write
+  (`Database::update_download_torrent_state`), so a scrape, the seeding supervisor, a recheck, a
+  move, the runner and the REST controls for the file plan, the trackers and the seeding
+  override each change only their own fields and keep what another one stored meanwhile.
+- **A torrent move and the runner's add exclude each other.** The runner holds the torrent's gate
+  from its check until the torrent is in the session and the registry, and a move started in that
+  window is refused instead of racing the add into the folder it is emptying.
+- **Tracker scrapes run in parallel under one deadline.** Eight trackers at a time, at most 30
+  seconds per scrape; a tracker that has not answered by then keeps its counters and says so, and
+  a second scrape of the same torrent while one runs answers with the stored state.
+- **Reannounce checks and marks its interval in one step**, so two calls at once cannot both
+  cycle the torrent; the mark is taken back when the cycle fails.
+- **A stored `.torrent` is read without blocking the runtime** and refused above 16 MiB before it
+  is read.
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

@@ -63,6 +63,7 @@ mod facade_stats;
 mod facade_storage;
 mod facade_streams;
 mod facade_subscriptions;
+mod facade_torrent_state;
 mod facade_usenet_traffic;
 mod full_backup_store;
 mod helpers;

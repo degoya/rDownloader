@@ -123,13 +123,7 @@ pub async fn put_trackers(
         return Err(crate::torrent_control::unsupported("tracker_edit"));
     }
     require_safe_state(&state, id).await?;
-    let mut stored = crate::torrent_control::require_download_state(&state, id).await?;
-    let metadata = stored.metadata.as_mut().ok_or_else(|| {
-        ApiError::bad_request(
-            "torrent.metadata_pending",
-            "The torrent metadata has not been resolved yet",
-        )
-    })?;
+    crate::torrent_control::require_download_state(&state, id).await?;
     if request.trackers.len() > rd_core::MAX_TORRENT_TRACKERS {
         return Err(ApiError::bad_request(
             "torrent.tracker_limit",
@@ -140,6 +134,27 @@ pub async fn put_trackers(
         )
         .with_param("max", rd_core::MAX_TORRENT_TRACKERS.to_string()));
     }
+    // Built inside the database writer against the list as stored at that moment, so a
+    // concurrent scrape or seeding write is neither lost nor resurrected.
+    let (stored, ()) = state
+        .database
+        .update_download_torrent_state(id, move |stored| replace_trackers(stored, request))
+        .await??;
+    Ok(Json(view(&state, stored.metadata.as_ref())))
+}
+
+/// Replaces the stored tracker list with the requested one, keeping the full URL of every
+/// entry the request names by id.
+fn replace_trackers(
+    stored: &mut rd_core::TorrentJobState,
+    request: TrackerListRequest,
+) -> Result<(), ApiError> {
+    let metadata = stored.metadata.as_mut().ok_or_else(|| {
+        ApiError::bad_request(
+            "torrent.metadata_pending",
+            "The torrent metadata has not been resolved yet",
+        )
+    })?;
     let existing = metadata.trackers.clone();
     let mut replacement: Vec<TorrentTracker> = Vec::with_capacity(request.trackers.len());
     for entry in request.trackers {
@@ -171,11 +186,7 @@ pub async fn put_trackers(
         }
     }
     metadata.trackers = replacement;
-    state
-        .database
-        .set_download_torrent_state(id, stored.clone())
-        .await?;
-    Ok(Json(view(&state, stored.metadata.as_ref())))
+    Ok(())
 }
 
 /// Forces a fresh announce to every tracker.

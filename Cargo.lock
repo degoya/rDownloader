@@ -8597,6 +8597,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "dunce",
+ "futures-util",
  "hex",
  "librqbit",
  "network-interface",

@@ -35,7 +35,7 @@ pub(crate) use auth::AuthCommand;
 pub(crate) use bandwidth::BandwidthCommand;
 pub(crate) use collector::CollectorCommand;
 pub(crate) use config::ConfigCommand;
-pub(crate) use downloads::DownloadsCommand;
+pub(crate) use downloads::{DownloadsCommand, TorrentStateEdit};
 pub(crate) use full_backup::{BackupLedgerCommand, FullBackupCommand};
 pub(crate) use history::HistoryCommand;
 pub(crate) use indexers::IndexersCommand;

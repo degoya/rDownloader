@@ -32,13 +32,15 @@ impl TorrentService {
         network: Option<&TransferNetwork>,
     ) -> Result<AddTorrent<'static>, Failure> {
         if !is_http(&file.source) {
-            return crate::runner::add_request(&file.source).map_err(|error| {
-                Failure::coded(
-                    FailureKind::Permanent,
-                    "torrent.source_invalid",
-                    format!("{error:#}"),
-                )
-            });
+            return crate::runner::add_request(&file.source)
+                .await
+                .map_err(|error| {
+                    Failure::coded(
+                        FailureKind::Permanent,
+                        "torrent.source_invalid",
+                        format!("{error:#}"),
+                    )
+                });
         }
         if let Some(path) = self.stored_copy_path(file).await
             && let Ok(bytes) = tokio::fs::read(&path).await

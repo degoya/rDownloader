@@ -44,6 +44,22 @@ pub(crate) fn open_tier(
     Some(TorrentFilePriority::Low)
 }
 
+/// The tier to open now and the selection that goes with it, or `None` when the open tier
+/// stays as it is.
+fn next_tier(
+    state: &TorrentJobState,
+    file_progress: &[u64],
+) -> Option<(TorrentFilePriority, Vec<usize>)> {
+    if state.plan.priorities.is_empty() {
+        return None;
+    }
+    let tier = open_tier(state, file_progress)?;
+    if state.open_tier == Some(tier) {
+        return None;
+    }
+    Some((tier, staged_selection(state, file_progress)?))
+}
+
 /// File indices the engine should currently download.
 ///
 /// Without priorities this is simply the whole selection. With them it is the selection
@@ -95,21 +111,27 @@ impl TorrentService {
     /// Called from the runner's progress tick. Does nothing for a torrent without
     /// priorities, so the common case costs one map lookup.
     pub(crate) async fn advance_tiers(&self, id: DownloadId, file_progress: &[u64]) {
-        let mut state = self.job_state(id).await;
-        if state.plan.priorities.is_empty() {
+        // A plain read first: this runs on every progress tick, and almost always nothing
+        // changes, so the writer is only involved when a tier actually opens.
+        if next_tier(&self.job_state(id).await, file_progress).is_none() {
             return;
         }
-        let Some(tier) = open_tier(&state, file_progress) else {
-            return;
+        let progress = file_progress.to_vec();
+        let edited = self
+            .edit_job_state(id, move |state| {
+                let (tier, staged) = next_tier(state, &progress)?;
+                state.open_tier = Some(tier);
+                Some((tier, staged))
+            })
+            .await;
+        let (tier, staged) = match edited {
+            Ok(Some((_, opened))) => opened,
+            Ok(None) => return,
+            Err(error) => {
+                tracing::warn!(download_id = %id, %error, "writing torrent state failed");
+                return;
+            }
         };
-        if state.open_tier == Some(tier) {
-            return;
-        }
-        let Some(staged) = staged_selection(&state, file_progress) else {
-            return;
-        };
-        state.open_tier = Some(tier);
-        self.store_job_state(id, state).await;
         let entry = self.inner.registry.read().await.get(id).cloned();
         let Some(entry) = entry else { return };
         let Ok(session) = self.session().await else {

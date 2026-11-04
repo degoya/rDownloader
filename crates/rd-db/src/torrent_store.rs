@@ -106,6 +106,37 @@ pub(crate) async fn set_download_state(
     ))
 }
 
+/// Reads the torrent state of one download row, applies `edit` and writes the result back,
+/// all on the writer's connection, so no other write of the blob can land in between.
+///
+/// A row without state starts from the defaults. When `edit` declines (returns `false`) the
+/// row is left untouched and no event is produced; the state is returned either way.
+pub(crate) async fn update_download_state(
+    connection: &mut SqliteConnection,
+    id: DownloadId,
+    edit: crate::commands::TorrentStateEdit,
+) -> Result<(rd_core::TorrentJobState, Option<EventEnvelope>)> {
+    let exists: Option<Option<String>> =
+        sqlx::query_scalar("SELECT torrent_json FROM downloads WHERE id = ?")
+            .bind(id.to_string())
+            .fetch_optional(&mut *connection)
+            .await?;
+    let stored = exists.ok_or_else(|| StoreError::not_found("download not found"))?;
+    let mut state: rd_core::TorrentJobState = stored
+        .map(|value| serde_json::from_str(&value))
+        .transpose()
+        .context("parse download torrent state")?
+        .unwrap_or_default();
+    // A panicking edit must not take the single writer task down with it.
+    let write = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| edit.apply(&mut state)))
+        .map_err(|_| anyhow::anyhow!("torrent state edit panicked"))?;
+    if !write {
+        return Ok((state, None));
+    }
+    let event = set_download_state(connection, id, &state).await?;
+    Ok((state, Some(event)))
+}
+
 /// Reads the torrent state of every download row that has one, for restart recovery.
 pub(crate) async fn all_download_states(
     connection: &mut SqliteConnection,

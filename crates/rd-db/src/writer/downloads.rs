@@ -102,6 +102,15 @@ impl Writer {
                         .await;
                 publish_unit_event(reply, result, &self.events);
             }
+            DownloadsCommand::UpdateDownloadTorrentState { id, edit, reply } => {
+                let result =
+                    crate::torrent_store::update_download_state(&mut self.connection, id, edit)
+                        .await;
+                if let Ok((_, Some(event))) = &result {
+                    let _ = self.events.send(event.clone());
+                }
+                send(reply, result.map(|(state, _)| state));
+            }
             DownloadsCommand::PrepareTransfer {
                 id,
                 total_bytes,

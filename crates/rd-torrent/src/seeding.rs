@@ -97,9 +97,8 @@ impl TorrentService {
 
     /// Closes the seed clock of one row, folding the running stretch into the total.
     pub(crate) async fn close_seed_clock(&self, id: DownloadId) {
-        let mut state = self.job_state(id).await;
-        state.seed.stop(chrono::Utc::now());
-        self.store_job_state(id, state).await;
+        self.record_job_state(id, |state| state.seed.stop(chrono::Utc::now()))
+            .await;
     }
 
     /// Wakes the supervisor so a changed policy takes effect at once.
@@ -217,10 +216,20 @@ pub(crate) async fn supervise(service: TorrentService) {
             // Read per torrent, not once per tick: a category or torrent override can
             // differ from the global settings and from every other seed in the loop.
             let policy = service.effective_policy(download_id).await;
-            let mut state = service.job_state(download_id).await;
-            state.seed.start(chrono::Utc::now());
-            let seeded_seconds = state.seed.seeded_seconds(chrono::Utc::now());
-            service.store_job_state(download_id, state).await;
+            let seeded_seconds = match service
+                .update_job_state(download_id, |state| state.seed.start(chrono::Utc::now()))
+                .await
+            {
+                Ok(state) => state.seed.seeded_seconds(chrono::Utc::now()),
+                Err(error) => {
+                    tracing::warn!(download_id = %download_id, %error, "writing torrent state failed");
+                    service
+                        .job_state(download_id)
+                        .await
+                        .seed
+                        .seeded_seconds(chrono::Utc::now())
+                }
+            };
             let ratio_reached = policy.ratio_reached(stats.uploaded_bytes, stats.total_bytes);
             let time_reached = policy.time_reached(seeded_seconds);
             if !policy.enabled || ratio_reached || time_reached {

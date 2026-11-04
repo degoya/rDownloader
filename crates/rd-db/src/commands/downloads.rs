@@ -6,6 +6,31 @@ use rd_core::{ChunkId, DownloadFile, DownloadId, DownloadState};
 use super::Reply;
 use crate::models::{NewDownload, NewPackage, PersistedChunk};
 
+/// An edit of one queue row's torrent state, applied inside the writer; `false` leaves the
+/// stored state as it was.
+///
+/// Held behind a mutex only so the command stays `Sync` like every other one; the edit runs
+/// exactly once and is never shared.
+pub(crate) struct TorrentStateEdit(std::sync::Mutex<Option<EditFn>>);
+
+type EditFn = Box<dyn FnOnce(&mut rd_core::TorrentJobState) -> bool + Send>;
+
+impl TorrentStateEdit {
+    pub(crate) fn new(
+        edit: impl FnOnce(&mut rd_core::TorrentJobState) -> bool + Send + 'static,
+    ) -> Self {
+        Self(std::sync::Mutex::new(Some(Box::new(edit))))
+    }
+
+    /// Runs the edit; `false` when it declined.
+    pub(crate) fn apply(self, state: &mut rd_core::TorrentJobState) -> bool {
+        self.0
+            .into_inner()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_some_and(|edit| edit(state))
+    }
+}
+
 /// The commands `Writer::handle_downloads` applies.
 // `CreateDownload` outweighs the rest of the area; every message is as large as the largest
 // command, as it was with one flat enum.
@@ -106,6 +131,13 @@ pub(crate) enum DownloadsCommand {
         id: DownloadId,
         state: Box<rd_core::TorrentJobState>,
         reply: Reply<()>,
+    },
+    /// Reads, edits and writes the torrent state blob of one queue row in one step, so no
+    /// other write lands between the read and the write.
+    UpdateDownloadTorrentState {
+        id: DownloadId,
+        edit: TorrentStateEdit,
+        reply: Reply<rd_core::TorrentJobState>,
     },
     PrepareTransfer {
         id: DownloadId,

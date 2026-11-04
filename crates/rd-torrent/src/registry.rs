@@ -79,6 +79,21 @@ impl Registry {
         }
     }
 
+    /// Takes back the mark `ours` set, restoring `previous`, unless another reannounce has
+    /// marked the entry since.
+    pub(crate) fn unmark_reannounce(
+        &mut self,
+        download_id: DownloadId,
+        ours: std::time::Instant,
+        previous: Option<std::time::Instant>,
+    ) {
+        if let Some(entry) = self.entries.get_mut(&download_id)
+            && entry.last_reannounce == Some(ours)
+        {
+            entry.last_reannounce = previous;
+        }
+    }
+
     /// Drops the entry for one queue row, returning it.
     pub(crate) fn forget(&mut self, download_id: DownloadId) -> Option<TorrentEntry> {
         self.entries.remove(&download_id)
@@ -143,6 +158,28 @@ mod tests {
         assert_eq!(entry.phase, TorrentPhase::Downloading);
         assert!(registry.forget(id).is_some());
         assert!(registry.get(id).is_none());
+    }
+
+    #[test]
+    fn a_reannounce_mark_is_taken_back_only_while_it_is_the_latest() {
+        let id = DownloadId::new();
+        let mut registry = Registry::default();
+        registry.register(id, 1, "hash".to_owned(), TorrentPhase::Downloading, 1);
+        let earlier = std::time::Instant::now();
+        let ours = earlier + std::time::Duration::from_secs(1);
+        registry.mark_reannounce(id, ours);
+        registry.unmark_reannounce(id, ours, Some(earlier));
+        assert_eq!(
+            registry.get(id).expect("entry").last_reannounce,
+            Some(earlier)
+        );
+        let later = ours + std::time::Duration::from_secs(1);
+        registry.mark_reannounce(id, later);
+        registry.unmark_reannounce(id, ours, None);
+        assert_eq!(
+            registry.get(id).expect("entry").last_reannounce,
+            Some(later)
+        );
     }
 
     #[test]
