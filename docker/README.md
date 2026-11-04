@@ -123,10 +123,12 @@ Two consequences worth knowing:
   every start. Files already inside keep their owner. For any *additional* mount such as
   `/media/movies`, nothing is changed at all: make sure it is writable by `PUID:PGID` on the
   host, which it usually already is, since it is your own folder.
-- **`no-new-privileges` cannot be used** together with PUID/PGID, because the entrypoint needs
-  root to change the ids. If you would rather never run as root, set `user: "1000:1000"` in
-  compose instead. The entrypoint notices it is already unprivileged and starts the service
-  directly. In that case use **bind mounts, not named volumes**, for `/config`: Docker
+- **The container starts with a reduced capability set.** `compose.yml` drops every capability
+  and adds back only `CHOWN`, `DAC_OVERRIDE`, `SETUID` and `SETGID`, which the entrypoint needs
+  as root to adopt PUID/PGID, and sets `no-new-privileges`; `gosu` is not a setuid binary, so
+  the drop to `PUID:PGID` works with it. If you would rather never run as root, set
+  `user: "1000:1000"` in compose instead. The entrypoint notices it is already unprivileged and
+  starts the service directly. In that case use **bind mounts, not named volumes**, for `/config`: Docker
   initialises a fresh named volume with the image's ownership (uid 10001), which your overridden
   user then cannot write to.
 

@@ -494,3 +494,6 @@ jobs:
           source scripts/lib/script-checks.sh
           rd_script_lint
           rd_workflow_lint
+      # Every `uses:` names a full commit (1.8), checked here as well as in the local preflight.
+      - name: Actions pinned to commits
+        run: scripts/check-actions-pinned.sh

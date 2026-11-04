@@ -33,7 +33,8 @@
     "create_action": "Crear acceso",
     "created": "Acceso creado",
     "saved": "Acceso guardado",
-    "secret_host_changed": "El protocolo, el host o el puerto cambió: la contraseña o la clave guardada no se envía al nuevo servidor. Introdúcela de nuevo."
+    "secret_host_changed": "El protocolo, el host o el puerto cambió: la contraseña o la clave guardada no se envía al nuevo servidor. Introdúcela de nuevo.",
+    "private_key_hint": "Se recomienda una clave Ed25519 (ssh-keygen -t ed25519); las claves RSA también funcionan."
   },
   "protocols": {
     "ftp": "FTP (sin cifrado)",

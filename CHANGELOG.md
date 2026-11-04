@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **CI checks the action pins.** The `scripts` job runs `scripts/check-actions-pinned.sh`, which
+  so far ran only in the local preflight.
+- **Installers fetched by the workflows are checked.** The Homebrew installer in `channels.yml` is
+  verified against its SHA-256 like the Scoop installer; the soak run installs psutil 7.2.2 from
+  `scripts/lib/soak-requirements.txt` with `--require-hashes`.
+- **Dependency notes.** async-executor 1.14.1 replaces the yanked 1.14.0; `deny.toml` documents
+  RUSTSEC-2024-0429 (glib 0.18, GTK3 stack built for no shipped target) and when to review the
+  RUSTSEC-2023-0071 entry; the web lock overrides glob to ^14.0.2 (development dependency only).
+- **SFTP key hint.** Settings › FTP, SFTP and WebDAV recommends an Ed25519 client key.
+- **Tighter defaults for the container and the systemd units.** `docker/compose.yml` drops all
+  capabilities but `CHOWN`, `DAC_OVERRIDE`, `SETUID` and `SETGID`, which the entrypoint needs to
+  adopt PUID/PGID, and sets `no-new-privileges`; both user units add
+  `SystemCallFilter=@system-service` with `SystemCallErrorNumber=EPERM`.
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

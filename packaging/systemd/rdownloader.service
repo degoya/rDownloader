@@ -25,6 +25,10 @@ RestrictSUIDSGID=yes
 LockPersonality=yes
 RestrictRealtime=yes
 SystemCallArchitectures=native
+# The system calls of an ordinary service; anything outside that set fails with EPERM instead of
+# ending the process. Applies to the helpers it starts as well.
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 
 [Install]

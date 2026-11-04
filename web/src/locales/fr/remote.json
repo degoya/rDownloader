@@ -33,7 +33,8 @@
     "create_action": "Créer l'accès",
     "created": "Accès créé",
     "saved": "Accès enregistré",
-    "secret_host_changed": "Le protocole, l’hôte ou le port a changé : le mot de passe ou la clé enregistrés ne sont pas envoyés au nouveau serveur. Saisissez-les à nouveau."
+    "secret_host_changed": "Le protocole, l’hôte ou le port a changé : le mot de passe ou la clé enregistrés ne sont pas envoyés au nouveau serveur. Saisissez-les à nouveau.",
+    "private_key_hint": "Une clé Ed25519 est recommandée (ssh-keygen -t ed25519) ; les clés RSA fonctionnent aussi."
   },
   "protocols": {
     "ftp": "FTP (sans chiffrement)",

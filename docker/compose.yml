@@ -38,9 +38,21 @@ services:
       timeout: 5s
       start_period: 90s
       retries: 3
-    # no-new-privileges is deliberately absent: the entrypoint starts as root to adopt
-    # PUID/PGID and then drops to that user with gosu. Pin `user: "1000:1000"` instead if you
-    # would rather never run as root -- see docker/README.md, which explains what that costs.
+    # Only the capabilities the entrypoint uses while it is still root: CHOWN for /config and
+    # /downloads, DAC_OVERRIDE to walk a /config left behind by an earlier PUID, SETUID and
+    # SETGID for usermod/groupmod and the drop to PUID:PGID with gosu. The service itself runs
+    # unprivileged afterwards. no-new-privileges does not get in the way of that drop: gosu is
+    # not a setuid binary, it changes ids as root. Pin `user: "1000:1000"` instead if you would
+    # rather never run as root -- see docker/README.md, which explains what that costs.
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
 
   # Optional: a virus scanner for finished packages (RD-190-14). Uncomment, then switch on
   # Settings > Post-processing > Scan packages for malware with the address clamav:3310. The

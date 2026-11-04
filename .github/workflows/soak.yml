@@ -73,10 +73,11 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.13"
-      # /proc is read on Linux; elsewhere the process is sampled through psutil.
+      # /proc is read on Linux; elsewhere the process is sampled through psutil, pinned with the
+      # hashes of its wheels.
       - name: Install psutil
         if: runner.os != 'Linux'
-        run: python -m pip install psutil
+        run: python -m pip install --require-hashes --only-binary ":all:" -r scripts/lib/soak-requirements.txt
       - name: Soak
         shell: bash
         run: |
