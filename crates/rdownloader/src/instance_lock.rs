@@ -139,9 +139,39 @@ async fn running(data_directory: &Path) -> Option<rd_api::local_control::Control
     matches!(reached, Ok(Ok(_))).then_some(control)
 }
 
+/// Refuses to go on when a service holds the data directory and this build would migrate its
+/// database. `doctor` opens the database through `Database::open`, which applies pending
+/// migrations; beside a running service of an older build that changed the schema under it,
+/// and the older build then refused its next start. The check reads the file read-only.
+///
+/// # Errors
+///
+/// When migrations are pending under a running service, or the file cannot be read.
+pub(crate) async fn refuse_migration_beside_service(probe: &Probe, database: &Path) -> Result<()> {
+    if !matches!(probe, Probe::Held(_)) || !tokio::fs::try_exists(database).await.unwrap_or(false)
+    {
+        return Ok(());
+    }
+    let schema = rd_db::restore_copy::copy_schema(database)
+        .await
+        .with_context(|| format!("read the applied migrations of {}", database.display()))?;
+    if schema.pending > 0 {
+        bail!(
+            "a running service uses {}, and this build would apply {} pending database \
+             migration(s) to it; the doctor does not migrate beside a running service. Stop the \
+             service first, or run the doctor of the version that is running",
+            database.display(),
+            schema.pending
+        );
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Probe, acquire, locking_unsupported, probe, running};
+    use super::{
+        Probe, acquire, locking_unsupported, probe, refuse_migration_beside_service, running,
+    };
 
     fn control_file(data: &std::path::Path, address: std::net::SocketAddr) {
         let file = rd_api::local_control::ControlFile {
@@ -209,6 +239,33 @@ mod tests {
         acquire(directory.path()).expect_err("no service starts while doctor works");
         drop(held);
         acquire(directory.path()).expect("free again after doctor");
+    }
+
+    /// With a service holding the lock, a database this build would migrate is left as it is.
+    #[tokio::test]
+    async fn doctor_does_not_migrate_beside_a_running_service() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let database = directory.path().join("rdownloader.sqlite3");
+        std::fs::write(&database, b"").expect("an empty database");
+        let service = acquire(directory.path()).expect("the service starts");
+
+        let held = probe(directory.path()).await;
+        let error = refuse_migration_beside_service(&held, &database)
+            .await
+            .expect_err("pending migrations are refused");
+        assert!(error.to_string().contains("pending"), "{error:#}");
+        assert_eq!(
+            std::fs::metadata(&database).expect("metadata").len(),
+            0,
+            "the file is not touched"
+        );
+        drop(held);
+        drop(service);
+
+        let free = probe(directory.path()).await;
+        refuse_migration_beside_service(&free, &database)
+            .await
+            .expect("no service: the doctor may migrate");
     }
 
     /// RA-IN-04: a file system without locking is a warning; other lock errors still refuse.

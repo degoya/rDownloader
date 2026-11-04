@@ -5,17 +5,20 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use rd_core::NotificationDeliveryId;
 use rd_notify::DeliveryState;
-use sqlx::SqliteConnection;
+use sqlx::{Connection, SqliteConnection};
 
 use super::{MAX_DELIVERIES_PER_RULE, NewDelivery, to_name};
 
 /// Queues a delivery. A key that already exists is left alone, which is what makes one
 /// event produce at most one delivery per rule.
+///
+/// Insert and trim run in one transaction (a savepoint when the caller already holds one).
 pub(crate) async fn queue_delivery(
     connection: &mut SqliteConnection,
     input: NewDelivery,
 ) -> Result<bool> {
     let now = Utc::now();
+    let mut tx = connection.begin().await?;
     let inserted = sqlx::query(
         "INSERT INTO notification_deliveries (id, rule_id, target_id, idempotency_key, event, \
          title, body, package_path, state, attempt, created_at, updated_at) \
@@ -32,10 +35,10 @@ pub(crate) async fn queue_delivery(
     .bind(&input.package_path)
     .bind(now)
     .bind(now)
-    .execute(&mut *connection)
+    .execute(&mut *tx)
     .await?;
     if inserted.rows_affected() > 0 {
-        // Trim in the same write, so the table cannot grow between two inserts. Rows the
+        // Trim in the same transaction, so the table cannot grow between two inserts. Rows the
         // worker still owes an attempt are held back: dropping one of those would discard the
         // notification itself rather than only its record.
         sqlx::query(
@@ -47,9 +50,10 @@ pub(crate) async fn queue_delivery(
         .bind(input.rule_id.to_string())
         .bind(input.rule_id.to_string())
         .bind(MAX_DELIVERIES_PER_RULE)
-        .execute(&mut *connection)
+        .execute(&mut *tx)
         .await?;
     }
+    tx.commit().await?;
     Ok(inserted.rows_affected() > 0)
 }
 

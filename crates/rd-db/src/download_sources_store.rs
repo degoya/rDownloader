@@ -11,7 +11,7 @@ use rd_core::{
     CandidateId, ChecksumAlgorithm, ChunkId, DownloadId, DownloadSource, PieceHashes,
     SourceOutcome, SourceProtocol, SourceSet, source_backoff,
 };
-use sqlx::{Row, SqliteConnection, SqlitePool};
+use sqlx::{Connection, Row, SqliteConnection, SqlitePool};
 
 /// What the chunk engine recorded about one chunk beyond its offsets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -144,6 +144,9 @@ pub(crate) async fn record_outcome(
 ) -> Result<()> {
     let id = download_id.to_string();
     let position = i64::from(position);
+    // One transaction: the failure count is read and written back in it, so the update does
+    // not rely on the single writer alone to stay consistent.
+    let mut tx = connection.begin().await?;
     let result = match outcome {
         SourceOutcome::Delivered { bytes } => {
             sqlx::query(
@@ -155,7 +158,7 @@ pub(crate) async fn record_outcome(
             .bind(now)
             .bind(&id)
             .bind(position)
-            .execute(&mut *connection)
+            .execute(&mut *tx)
             .await?
         }
         SourceOutcome::Failed {
@@ -167,7 +170,7 @@ pub(crate) async fn record_outcome(
             )
             .bind(&id)
             .bind(position)
-            .fetch_optional(&mut *connection)
+            .fetch_optional(&mut *tx)
             .await?
             .context("download source not found")?;
             let failures = u32::try_from(failures)
@@ -184,7 +187,7 @@ pub(crate) async fn record_outcome(
             .bind(now)
             .bind(&id)
             .bind(position)
-            .execute(&mut *connection)
+            .execute(&mut *tx)
             .await?
         }
         SourceOutcome::Isolated { code } => {
@@ -197,13 +200,14 @@ pub(crate) async fn record_outcome(
             .bind(now)
             .bind(&id)
             .bind(position)
-            .execute(&mut *connection)
+            .execute(&mut *tx)
             .await?
         }
     };
     if result.rows_affected() == 0 {
         bail!(crate::StoreError::not_found("download source not found"));
     }
+    tx.commit().await?;
     Ok(())
 }
 

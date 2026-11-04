@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Transfer reset in one transaction.** Discarding a download's partial state for a refreshed
+  URL deletes the chunks and clears the committed bytes and validator together; a failure part
+  way keeps the chunk plan instead of leaving a row with committed bytes and no chunks.
+- **Insert-and-trim and read-then-write in transactions.** Plugin executions, notification
+  deliveries, the history prune and compat hide, and a source's recorded outcome each write in
+  one transaction instead of statement by statement.
+- **Database writer outlives a failing command.** A command that panics fails on its own and
+  the writer goes on with the next one; once the writer is gone, `GET /api/v1/health` answers
+  503 with `status: "unavailable"` (`Database::is_writable`).
+- **`doctor` does not migrate beside a running service.** With the instance lock held and
+  migrations pending, `doctor` and `doctor site-rules` stop with an explanation instead of
+  migrating the database under the service; the check reads the file read-only.
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

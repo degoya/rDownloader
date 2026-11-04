@@ -134,6 +134,8 @@ mod pre_migration_tests;
 mod stats_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod writer_integrity_tests;
 
 use std::{
     path::PathBuf,

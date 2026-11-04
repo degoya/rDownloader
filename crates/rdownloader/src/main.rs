@@ -283,6 +283,7 @@ async fn doctor(args: DoctorArgs) -> Result<()> {
     // Held until `doctor` returns when it was free, so no service starts and migrates beside
     // it (RA-IN-03).
     let probe = instance_lock::probe(data_directory).await;
+    instance_lock::refuse_migration_beside_service(&probe, &args.paths.database).await?;
     let database = Database::open(&args.paths.database).await?;
     if matches!(probe, instance_lock::Probe::Free { .. }) {
         database.checkpoint_wal().await?;
@@ -374,7 +375,12 @@ async fn site_rules_selftest(
         .unwrap_or_else(|| std::path::Path::new("."))
         .to_path_buf();
     rd_core::set_data_directory(&data_directory);
+    // Held only while the database opens, so no service starts while it is migrated; the
+    // checks that follow can take a while and do not keep a service from starting.
+    let probe = instance_lock::probe(&data_directory).await;
+    instance_lock::refuse_migration_beside_service(&probe, &paths.database).await?;
     let database = Database::open(&paths.database).await?;
+    drop(probe);
     let secrets =
         rd_secrets::SecretStore::open_with_os_keyring(data_directory.join("secrets")).await?;
     database.install_secret_vault(secrets.clone());

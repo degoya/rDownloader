@@ -9,7 +9,7 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use rd_core::{CandidateId, DownloadId, ReplayConsent, RequestTemplate};
-use sqlx::{Row, SqliteConnection, SqlitePool};
+use sqlx::{Connection, Row, SqliteConnection, SqlitePool};
 
 /// How many pre-resume refreshes one download may spend inside [`REFRESH_WINDOW_HOURS`].
 pub const REPLAY_REFRESH_MAX: i64 = 3;
@@ -169,14 +169,18 @@ pub(crate) async fn claim_replay_refresh(
 /// `prepare_transfer` refuses to replace a chunk plan once bytes are committed, which is the
 /// right guard for the normal path but exactly what has to be overridden when a refresh
 /// produced a URL whose bytes cannot be proven to match the partial.
+///
+/// One transaction: a row whose chunks are gone but whose committed bytes and validator are
+/// still set would look like a resumable partial without a chunk plan.
 pub(crate) async fn reset_transfer(
     connection: &mut SqliteConnection,
     id: DownloadId,
     now: DateTime<Utc>,
 ) -> Result<()> {
+    let mut tx = connection.begin().await?;
     sqlx::query("DELETE FROM chunks WHERE download_id = ?")
         .bind(id.to_string())
-        .execute(&mut *connection)
+        .execute(&mut *tx)
         .await?;
     sqlx::query(
         "UPDATE downloads SET committed_bytes = 0, total_bytes = NULL, etag = NULL, \
@@ -184,7 +188,8 @@ pub(crate) async fn reset_transfer(
     )
     .bind(now)
     .bind(id.to_string())
-    .execute(connection)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
     Ok(())
 }

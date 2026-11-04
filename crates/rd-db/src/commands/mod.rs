@@ -90,6 +90,11 @@ pub(crate) enum WriterCommand {
     Audit(AuditCommand),
     Storage(StorageCommand),
     History(HistoryCommand),
+    /// Panics inside the writer, so a test can check that the writer outlives it.
+    #[cfg(test)]
+    PanicForTest {
+        reply: Reply<()>,
+    },
 }
 
 /// Lets a facade method hand `writer::request` the command of its area as it is.
