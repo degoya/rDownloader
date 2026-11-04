@@ -131,6 +131,8 @@ pub enum AuditAction {
     MfaEnrolled,
     /// A second factor or a passkey was removed, or the authenticator app switched off.
     MfaRemoved,
+    /// A fresh sheet of recovery codes replaced the old one; the `count` detail says how many.
+    MfaRecoveryCodesReissued,
     /// The malware scan found something in a finished package (RD-190-14), which stopped it;
     /// the `signature`, `file` and `findings` details say what, where and how much.
     MalwareDetected,
@@ -181,7 +183,7 @@ pub enum AuditAction {
 
 impl AuditAction {
     /// Every action, in declaration order.
-    pub const ALL: [Self; 59] = [
+    pub const ALL: [Self; 60] = [
         Self::LoginSucceeded,
         Self::LoginFailed,
         Self::Logout,
@@ -227,6 +229,7 @@ impl AuditAction {
         Self::SetupCompleted,
         Self::MfaEnrolled,
         Self::MfaRemoved,
+        Self::MfaRecoveryCodesReissued,
         Self::MalwareDetected,
         Self::IdentityLinked,
         Self::IdentityUnlinked,
@@ -292,6 +295,7 @@ impl AuditAction {
             Self::SetupCompleted => "setup_completed",
             Self::MfaEnrolled => "mfa_enrolled",
             Self::MfaRemoved => "mfa_removed",
+            Self::MfaRecoveryCodesReissued => "mfa_recovery_codes_reissued",
             Self::MalwareDetected => "malware_detected",
             Self::IdentityLinked => "identity_linked",
             Self::IdentityUnlinked => "identity_unlinked",

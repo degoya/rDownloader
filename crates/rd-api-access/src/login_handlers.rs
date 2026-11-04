@@ -4,7 +4,7 @@
 //! from the module they lived in until RD-160-06, and the API contract does not move with a file.
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
@@ -12,6 +12,7 @@ use axum::{
 
 use crate::{
     ApiError, AppState,
+    auth::Granted,
     dto::{
         AuthStatus, CapturePairRequest, CapturePairResponse, LoginRequest, MessageResponse,
         SetupRequest,
@@ -241,8 +242,10 @@ pub async fn login(
 #[utoipa::path(post, path = "/api/v1/capture/pair", tag = "capture", request_body = CapturePairRequest, responses((status = 201, body = CapturePairResponse)))]
 pub async fn pair_capture(
     State(state): State<AppState>,
+    granted: Option<Extension<Granted>>,
     Json(request): Json<CapturePairRequest>,
 ) -> Result<(StatusCode, Json<CapturePairResponse>), ApiError> {
+    within_capture_grant(granted.as_ref().map(|Extension(granted)| granted), &request)?;
     let mut scopes = vec![rd_core::CAPTURE_SCOPE.to_owned()];
     if request.queue_control {
         scopes.push(rd_core::CAPTURE_QUEUE_SCOPE.to_owned());
@@ -260,6 +263,34 @@ pub async fn pair_capture(
     )
     .await?;
     Ok((StatusCode::CREATED, Json(response)))
+}
+
+/// Checks that the caller holds the API area behind each optional capture area it asks for.
+///
+/// The capture areas sit off the API ladder, so the minting ceiling cannot compare them
+/// directly. Each one is matched to the API area that reaches the same service instead:
+/// queue control to `api:queue`, server update to `api:admin`. A signed-in session holds
+/// every API area and is unaffected; a missing grant covers nothing.
+fn within_capture_grant(
+    granted: Option<&Granted>,
+    request: &CapturePairRequest,
+) -> Result<(), ApiError> {
+    let holds = |scope| granted.is_some_and(|granted| granted.holds(scope));
+    let required = [
+        (request.queue_control, rd_core::Scope::Queue),
+        (request.server_update, rd_core::Scope::Admin),
+    ];
+    match required
+        .into_iter()
+        .find(|(asked, scope)| *asked && !holds(*scope))
+    {
+        None => Ok(()),
+        Some((_, scope)) => Err(ApiError::forbidden(
+            "api.scope_exceeds_grant",
+            "A token cannot be given an area the credential handing it out does not hold",
+        )
+        .with_param("scope", scope.as_str())),
+    }
 }
 
 #[utoipa::path(get, path = "/api/v1/capture/agents", tag = "capture", responses((status = 200, body = [rd_core::CaptureToken])))]

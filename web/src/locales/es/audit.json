@@ -86,7 +86,8 @@
     "proxy_profile_changed": "Perfil de proxy modificado",
     "remote_credential_changed": "Acceso remoto modificado",
     "site_rules_cleared": "Todas las reglas de sitios eliminadas",
-    "system_cleanup": "Carpeta de datos limpiada"
+    "system_cleanup": "Carpeta de datos limpiada",
+    "mfa_recovery_codes_reissued": "Códigos de recuperación reemitidos"
   },
   "list": {
     "title": "Registros",
