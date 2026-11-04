@@ -23,6 +23,8 @@ pub(crate) struct Store {
     pub(crate) restore: Cutover,
     /// This service's hold on the data directory; kept until the process ends.
     pub(crate) instance: crate::instance_lock::InstanceLock,
+    /// Writes the captured log lines to the store; finished as the last step of a stop.
+    pub(crate) log_sink: rd_diagnostics::sink::LogSink,
 }
 
 /// Opens the database and the vault, and starts the log sink and the trace exporter.
@@ -77,7 +79,7 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
     }
     // The log sink starts as soon as there is a store to write to; the records from the
     // lines above are waiting in its channel.
-    rd_diagnostics::sink::spawn(telemetry.logs, database.clone());
+    let log_sink = rd_diagnostics::sink::spawn(telemetry.logs, database.clone());
     // The trace exporter reads the settings on every batch, so switching the export on or
     // pointing it elsewhere takes effect without a restart. Nothing is sent until it does.
     rd_diagnostics::otlp::spawn(
@@ -147,6 +149,7 @@ pub(crate) async fn open_store(paths: &CommonPaths, telemetry: Telemetry) -> Res
         secrets,
         restore,
         instance,
+        log_sink,
     })
 }
 

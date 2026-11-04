@@ -5,6 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **A second stop signal ends the service at once.** While a stop is under way, another Ctrl-C or
+  SIGTERM removes the local control file and exits with code 130 instead of waiting out the 60 s
+  stop deadline.
+- **A start that fails late stops in order.** An error while preparing the state (for example a
+  hot folder that cannot start) now runs the ordinary stop sequence for the queue, the torrents,
+  the extraction and the traffic counters before the error is reported.
+- **The last log lines of a stop reach the log store.** The log sink is kept and finished (at most
+  5 s) as the last step of `serve`, so the lines of the stop and of a failed start are stored.
+- **The serve switches read from the environment accept `1`/`0`, `yes`/`no`, `on`/`off`.**
+  `RDOWNLOADER_PLUGIN_DEVELOPMENT_MODE`, `RDOWNLOADER_PLUGIN_ALLOW_LOCAL_TARGETS` and
+  `RDOWNLOADER_INSTALL_ALL_BUNDLED_PLUGINS` no longer refuse to start on anything but
+  `true`/`false`.
+- **Background loops stop with the service.** The power supervisor, automations, subscriptions,
+  sign-in flow sweep and notifications (the latter after the queue) are stopped during `serve`'s
+  stop instead of running until the process ends.
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

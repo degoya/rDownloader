@@ -15,7 +15,7 @@ use anyhow::Result;
 use chrono::{Duration as ChronoDuration, Utc};
 use rd_core::{AuditRetentionSettings, HistoryRetentionSettings, LogRetentionSettings};
 use rd_db::{Database, NewLogRecord, PruneReport};
-use tokio::task::JoinHandle;
+use tokio::{sync::oneshot, task::JoinHandle};
 
 use crate::capture::LogStream;
 
@@ -34,20 +34,53 @@ pub const PRUNE_BATCH: u64 = 2_000;
 /// reason for it to hold the writer for as long.
 pub(crate) const AUDIT_PRUNE_BATCH: u64 = 500;
 
-/// Starts the sink for the life of the process. It ends when every sender is gone.
-pub fn spawn(stream: LogStream, database: Database) -> JoinHandle<()> {
-    tokio::spawn(run(stream, database))
+/// Starts the sink. It ends when every sender is gone or when [`LogSink::finish`] asks it to.
+pub fn spawn(stream: LogStream, database: Database) -> LogSink {
+    let (stop, stopped) = oneshot::channel();
+    LogSink {
+        stop,
+        task: tokio::spawn(run(stream, database, stopped)),
+    }
 }
 
-async fn run(mut stream: LogStream, database: Database) {
+/// The running sink, kept by whoever stops the service so the last lines of the stop reach
+/// the store.
+pub struct LogSink {
+    stop: oneshot::Sender<()>,
+    task: JoinHandle<()>,
+}
+
+impl LogSink {
+    /// Stores what the channel holds right now and ends the sink, waiting at most `within`.
+    /// Answers whether the sink finished in that time. Records captured after this call stay
+    /// on stderr only.
+    pub async fn finish(self, within: Duration) -> bool {
+        // A sink that already ended has nothing left to store.
+        let _ = self.stop.send(());
+        tokio::time::timeout(within, self.task).await.is_ok()
+    }
+}
+
+async fn run(mut stream: LogStream, database: Database, mut stop: oneshot::Receiver<()>) {
     let mut buffer: Vec<NewLogRecord> = Vec::with_capacity(FLUSH_BATCH);
     let mut since_sweep = 0u64;
     let mut flush_tick = tokio::time::interval(FLUSH_INTERVAL);
     let mut sweep_tick = tokio::time::interval(SWEEP_INTERVAL);
     flush_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     sweep_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    // A `LogSink` dropped without `finish` closes the stop channel; the sink then keeps
+    // running until the senders are gone, as it did before there was a way to stop it.
+    let mut stop_open = true;
     loop {
         tokio::select! {
+            asked = &mut stop, if stop_open => {
+                if asked.is_ok() {
+                    buffer.extend(stream.drain_ready());
+                    flush(&database, &mut buffer).await;
+                    return;
+                }
+                stop_open = false;
+            }
             received = stream.receiver.recv() => match received {
                 Some(record) => {
                     buffer.push(record);
