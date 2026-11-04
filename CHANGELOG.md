@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Capture pairing checks the caller's grant.** `POST /api/v1/capture/pair` hands out queue
+  control only to a credential holding `api:queue`, and server update only to one holding
+  `api:admin` (`api.scope_exceeds_grant` otherwise); a signed-in session is unaffected.
+- **Reissuing recovery codes asks for the password again.** `POST /api/v1/mfa/recovery-codes`
+  takes `{ "password" }` like adding or removing a factor, and writes a
+  `mfa_recovery_codes_reissued` audit record.
+
+### Fixed
+
+- **Sign-in callbacks keep `code`, `state` and `iss` out of the request log.** The OIDC and
+  plugin OAuth callback spans redact those values; the same names on other routes stay readable.
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

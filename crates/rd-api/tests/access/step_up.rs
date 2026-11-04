@@ -217,3 +217,44 @@ async fn removing_takes_the_password_again_and_both_ends_are_recorded() {
         "{removed:?}"
     );
 }
+
+/// A fresh sheet of recovery codes takes the password again and is on the record.
+#[tokio::test]
+async fn reissuing_recovery_codes_takes_the_password_again_and_is_recorded() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = harness(directory.path()).await;
+    let session = sign_in(&harness.router, PASSWORD).await;
+
+    let (status, body) = post_json_with_cookie(
+        &harness.router,
+        "/api/v1/mfa/recovery-codes",
+        &session,
+        serde_json::json!({ "password": "not-the-password" }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED, "{body}");
+    assert_eq!(body["code"], "auth.invalid_credentials", "{body}");
+
+    let (status, codes) = post_json_with_cookie(
+        &harness.router,
+        "/api/v1/mfa/recovery-codes",
+        &session,
+        serde_json::json!({ "password": PASSWORD }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{codes}");
+    assert!(
+        codes.as_array().is_some_and(|codes| !codes.is_empty()),
+        "{codes}"
+    );
+
+    let reissued = records_of(&harness.database, "mfa_recovery_codes_reissued").await;
+    assert!(
+        reissued.contains(&("success".to_owned(), None)),
+        "{reissued:?}"
+    );
+    assert!(
+        reissued.contains(&("failure".to_owned(), Some("password".to_owned()))),
+        "{reissued:?}"
+    );
+}

@@ -10,7 +10,7 @@
 //! * Enrolment is two steps. A credential does not gate sign-in until a code from it has been
 //!   accepted once — otherwise someone who scans the QR badly, or scans it into an app they
 //!   then delete, is locked out by the act of trying to be safer.
-//! * Recovery codes are issued with the first factor, not offered afterwards.
+//! * Recovery codes are issued with the first factor; a fresh sheet takes the password again.
 //! * Turning the factor off requires the current password, which is the credential that was
 //!   being protected. Requiring a *code* to switch it off would make a lost phone permanent.
 //!
@@ -338,20 +338,38 @@ pub async fn disable_mfa(
     post,
     path = "/api/v1/mfa/recovery-codes",
     tag = "security",
-    responses((status = 200, body = Vec<String>))
+    request_body = MfaStepUpRequest,
+    responses((status = 200, body = Vec<String>), (status = 401, description = "The password did not match", body = crate::error::ErrorBody))
 )]
 pub async fn regenerate_recovery_codes(
     State(state): State<AppState>,
     audit: crate::audit::AuditContext,
     crate::client::ThisMachine(this_machine): crate::client::ThisMachine,
+    client: crate::client::ClientAddress,
+    Json(request): Json<MfaStepUpRequest>,
 ) -> Result<Json<Vec<String>>, ApiError> {
-    // A fresh sheet replaces the one in the drawer, so a token must not be able to swap it.
-    crate::step_up::require_interactive(&state, &audit, this_machine)?;
+    crate::step_up::require_step_up(
+        &state,
+        &audit,
+        this_machine,
+        client.0,
+        &request.password,
+        rd_core::AuditAction::MfaRecoveryCodesReissued,
+    )
+    .await?;
     let codes = rd_authn::recovery::generate_codes();
     state
         .database
         .replace_recovery_codes(codes.iter().map(|code| code.digest.clone()).collect())
         .await?;
+    crate::audit::record(
+        &state,
+        crate::audit::AuditEvent::success(rd_core::AuditAction::MfaRecoveryCodesReissued)
+            .by(&audit)
+            .client(client.0)
+            .detail("count", codes.len()),
+    )
+    .await;
     Ok(Json(codes.into_iter().map(|code| code.plaintext).collect()))
 }
 

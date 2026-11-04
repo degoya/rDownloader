@@ -10980,6 +10980,16 @@
           "security"
         ],
         "operationId": "regenerate_recovery_codes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaStepUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -10990,6 +11000,16 @@
                   "items": {
                     "type": "string"
                   }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The password did not match",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
                 }
               }
             }
@@ -20046,6 +20066,7 @@
           "setup_completed",
           "mfa_enrolled",
           "mfa_removed",
+          "mfa_recovery_codes_reissued",
           "malware_detected",
           "identity_linked",
           "identity_unlinked",

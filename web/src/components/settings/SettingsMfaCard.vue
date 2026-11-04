@@ -149,11 +149,14 @@ async function regenerate(): Promise<void> {
     destructive: true
   })
   if (!confirmed) return
-  const response = await api.POST('/api/v1/mfa/recovery-codes')
+  const response = await api.POST('/api/v1/mfa/recovery-codes', {
+    body: { password: password.value }
+  })
   if (!response.data) {
     error.value = responseError(response)
     return
   }
+  password.value = ''
   freshCodes.value = response.data
   await load()
 }
@@ -249,7 +252,7 @@ async function copy(value: string): Promise<void> {
         :icon="lowOnCodes ? 'i-lucide-triangle-alert' : 'i-lucide-life-buoy'"
         :description="t('system.mfa.remaining', { count: status?.recovery_codes_remaining ?? 0 })"
       />
-      <UButton size="sm" color="neutral" variant="soft" icon="i-lucide-refresh-cw" :label="t('system.mfa.regenerate.action')" @click="regenerate" />
+      <UButton size="sm" color="neutral" variant="soft" icon="i-lucide-refresh-cw" :label="t('system.mfa.regenerate.action')" :disabled="!password" @click="regenerate" />
 
       <UAlert v-if="freshCodes" color="warning" :title="t('system.mfa.enrol.once')">
         <template #description>

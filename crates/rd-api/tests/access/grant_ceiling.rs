@@ -148,3 +148,89 @@ async fn a_session_still_mints_every_area() {
         "{body}"
     );
 }
+
+async fn pair_capture(
+    harness: &common::Harness,
+    bearer: &str,
+    body: serde_json::Value,
+) -> (StatusCode, serde_json::Value) {
+    post_with_bearer(&harness.router, "/api/v1/capture/pair", bearer, body).await
+}
+
+/// Pairing a capture agent costs `api:secrets`; each optional capture area additionally needs
+/// the API area that reaches the same service on the caller's own credential.
+#[tokio::test]
+async fn capture_pairing_checks_caller_grant_for_optional_areas() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let bearer = bearer_holding(&harness.database, "pair-secrets", &["api:secrets"]).await;
+
+    for (body, missing) in [
+        (
+            serde_json::json!({ "label": "Laptop", "queue_control": true }),
+            "api:queue",
+        ),
+        (
+            serde_json::json!({ "label": "Laptop", "server_update": true }),
+            "api:admin",
+        ),
+    ] {
+        let (status, response) = pair_capture(&harness, &bearer, body.clone()).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{body}: {response}");
+        assert_eq!(
+            response["code"], "api.scope_exceeds_grant",
+            "{body}: {response}"
+        );
+        assert_eq!(response["params"]["scope"], missing, "{body}: {response}");
+    }
+
+    // The plain pairing is unchanged.
+    let (status, response) =
+        pair_capture(&harness, &bearer, serde_json::json!({ "label": "Laptop" })).await;
+    assert_eq!(status, StatusCode::CREATED, "{response}");
+}
+
+/// A credential that holds the matching area may hand it on, and only that one.
+#[tokio::test]
+async fn capture_pairing_passes_on_held_areas() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let bearer = bearer_holding(
+        &harness.database,
+        "pair-queue",
+        &["api:secrets", "api:queue"],
+    )
+    .await;
+
+    let (status, response) = pair_capture(
+        &harness,
+        &bearer,
+        serde_json::json!({ "label": "Laptop", "queue_control": true }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{response}");
+    let (status, response) = pair_capture(
+        &harness,
+        &bearer,
+        serde_json::json!({ "label": "Laptop", "server_update": true }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{response}");
+}
+
+/// The web UI pairs with a session, which holds every area.
+#[tokio::test]
+async fn a_session_still_pairs_capture_with_every_area() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = auth_harness(directory.path()).await;
+    let session = sign_in(&harness.router, PASSWORD).await;
+
+    let (status, body) = common::post_json_with_cookie(
+        &harness.router,
+        "/api/v1/capture/pair",
+        &session,
+        serde_json::json!({ "label": "Laptop", "queue_control": true, "server_update": true }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+}
