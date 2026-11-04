@@ -44,7 +44,7 @@ use crate::{
 pub async fn list_collector_picks(
     State(state): State<AppState>,
 ) -> Result<Json<CollectorPicksResponse>, ApiError> {
-    let pages = match state.crawlers.rules() {
+    let pages = match state.intake.crawlers.rules() {
         Some(rules) => rules.picks().pages().iter().map(page_response).collect(),
         None => Vec::new(),
     };
@@ -156,7 +156,7 @@ pub async fn resolve_collector_pick(
         .map_err(|error| refusal(&rules, &id, error))?;
     if let Some(round) = round {
         let rules = Arc::clone(&rules);
-        let shutdown = state.shutdown.clone();
+        let shutdown = state.runtime.shutdown.clone();
         let delivery = CollectorDelivery {
             state: state.clone(),
         };
@@ -223,7 +223,7 @@ impl PickDelivery for CollectorDelivery {
 
 /// The rules in force, or the refusal an installation without any gives.
 fn rules(state: &AppState) -> Result<Arc<SiteRules>, ApiError> {
-    state.crawlers.rules().cloned().ok_or_else(not_found)
+    state.intake.crawlers.rules().cloned().ok_or_else(not_found)
 }
 
 fn not_found() -> ApiError {

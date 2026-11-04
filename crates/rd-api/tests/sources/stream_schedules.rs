@@ -148,7 +148,7 @@ async fn occurrences_are_planned_and_planning_again_adds_nothing() {
         assert!(planned >= 2, "expected planned occurrences, got {planned}");
         database_path = harness.database_path.clone();
         // Stopped with the service, so no pass of this one can stand in for the restart's.
-        harness.state.stream_monitor.shutdown();
+        harness.state.intake.stream_monitor.shutdown();
     }
 
     // The witness that the restart planned at all (RD-180-12): the last occurrence is taken

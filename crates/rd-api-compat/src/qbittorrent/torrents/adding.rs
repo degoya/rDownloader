@@ -76,7 +76,7 @@ pub(super) async fn add_file(
 ) -> anyhow::Result<()> {
     let (_, packages, _) = crate::torrent_intake::add_torrent_to_collector(
         &state.database,
-        &state.torrent,
+        &state.queue.torrent,
         content,
         rd_core::IngressSource::Api,
         Some("qbittorrent".to_owned()),

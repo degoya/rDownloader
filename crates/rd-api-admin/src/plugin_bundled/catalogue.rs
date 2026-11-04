@@ -30,7 +30,7 @@ impl RepositoryView {
     /// Reads offers, updates and deliveries. A part that cannot be read counts as empty: the
     /// catalogue then shows the bundle as it did before the repositories, and says so in the log.
     pub(super) async fn read(state: &AppState) -> Self {
-        let service = state.plugin_repositories.clone();
+        let service = state.admin.plugin_repositories.clone();
         let offers = service.offers().await.unwrap_or_else(|error| {
             tracing::warn!(%error, "could not read the repository offers for the plugin catalogue");
             Vec::new()

@@ -417,7 +417,7 @@ pub fn service(state: AppState) -> StreamableHttpService<RdMcpServer, LocalSessi
     let config = StreamableHttpServerConfig::default()
         .disable_allowed_hosts()
         .with_max_request_body_bytes(container_upload::BODY_LIMIT_BYTES)
-        .with_cancellation_token(state.shutdown.child_token());
+        .with_cancellation_token(state.runtime.shutdown.child_token());
     StreamableHttpService::new(
         move || Ok(RdMcpServer::new(state.clone())),
         Arc::new(LocalSessionManager::default()),

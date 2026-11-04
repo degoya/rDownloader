@@ -34,7 +34,7 @@ pub async fn revoke_plugin_key(
     state.database.revoke_plugin_key(key_id.clone()).await?;
     // Dropping it from the live verifier stops new installs at once; plugins already
     // installed keep running until the next start, where re-verification skips them.
-    if let Err(error) = state.plugins.verifier().revoke_key(&key_id) {
+    if let Err(error) = state.admin.plugins.verifier().revoke_key(&key_id) {
         tracing::warn!(
             key_id = %key_id,
             error = %format!("{error:#}"),
@@ -42,7 +42,7 @@ pub async fn revoke_plugin_key(
         );
     }
     // Plugins signed with it are skipped from the next start (RD-1240-32).
-    state.restart.record(crate::dto::RestartReason {
+    state.runtime.restart.record(crate::dto::RestartReason {
         code: "plugin_key_revoked".to_owned(),
         plugin_id: None,
         name: Some(key_id.clone()),
@@ -141,6 +141,7 @@ pub async fn revoke_plugin_digest(
     // Nothing already running is torn down; the refusal takes effect at the next load, exactly
     // as a revoked signing key does.
     let newly = match state
+        .admin
         .plugins
         .verifier()
         .revoke_package_digest(target.digest)
@@ -157,7 +158,7 @@ pub async fn revoke_plugin_digest(
         }
     };
     if newly {
-        state.restart.record(pending);
+        state.runtime.restart.record(pending);
     }
     crate::audit::record(
         &state,
@@ -206,7 +207,7 @@ pub async fn unrevoke_plugin_digest(
         )
         .with_param("digest", hex));
     }
-    if let Err(error) = state.plugins.verifier().unrevoke_package_digest(&raw) {
+    if let Err(error) = state.admin.plugins.verifier().unrevoke_package_digest(&raw) {
         tracing::warn!(
             digest = %hex,
             error = %format!("{error:#}"),
@@ -214,7 +215,7 @@ pub async fn unrevoke_plugin_digest(
         );
     }
     // Accepted again from the next start (RD-1240-32).
-    state.restart.record(crate::dto::RestartReason {
+    state.runtime.restart.record(crate::dto::RestartReason {
         code: "plugin_digest_unrevoked".to_owned(),
         plugin_id: None,
         name: None,
@@ -266,6 +267,7 @@ pub(super) async fn resolve_digest(
         return Err(invalid_digest());
     };
     let digest = state
+        .admin
         .plugins
         .installed_package_digest(&id, &version)
         .await?
@@ -278,6 +280,7 @@ pub(super) async fn resolve_digest(
             .with_param("version", version.clone())
         })?;
     let name = state
+        .admin
         .plugins
         .list_installed()
         .await?

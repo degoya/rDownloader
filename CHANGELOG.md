@@ -5,6 +5,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **`AppState` split into parts (RD-1420-06).** The 49-field state is now `database`, `scheduler`,
+  `secrets` and one part per area — `access`, `intake`, `queue`, `admin`, `runtime` — built by
+  `AppStateBuilder` instead of a fourteen-argument constructor. No behaviour, route or API change.
+
+- **Screenshot tool: two more views (RD-1400-02).** `75-settings-security-reverse-proxy` (Security
+  › Reachability & reverse proxy) and `76-settings-notifications-rule-wording` (a notification rule
+  with its own title and the preview) in `scripts/screenshots/views.mjs`, with their alt texts.
+
+- **Release-subscription contract tests read recorded answers (RD-1400-05).** The fixtures in
+  `crates/rd-subscription/tests/fixtures/` are now real, sanitized answers recorded without a
+  token on 2026-11-04 — GitHub's release list of `neovim/neovim`, GitLab's of `gitlab-org/cli` and
+  that project's `checksums.txt` — instead of documents built from the API documentation; what a
+  public list cannot show (a draft, an upload in progress, an upcoming GitLab release, a beta tag)
+  stays as small constructed documents beside the tests. The GitLab adapter tests moved to
+  `git_release_adapter_gitlab_tests.rs`.
+
+- **Sonarr, Radarr and Prowlarr tested live (RD-1400-06).** `docs/compatibility.md` and
+  `docs/support-matrix.md` name the run of 1.42.0 in Docker against Sonarr 4.0.20, Radarr 6.4.4
+  and Prowlarr 2.7.0 and its three adapter findings: the SABnzbd `addfile` part `name`, the
+  qBittorrent form-urlencoded `torrents/add`, and `save_path` equal to `content_path`.
+
 ## [1.42.0] - 2026-11-04
 
 ### Changed

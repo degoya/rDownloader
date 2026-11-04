@@ -72,12 +72,12 @@ pub(super) async fn remove_many_with_cancel(
 async fn remove_together(state: &AppState, ids: &[DownloadId]) -> Vec<anyhow::Result<()>> {
     let mut torrents = Vec::with_capacity(ids.len());
     for &id in ids {
-        torrents.push(state.torrent.locate(id).await);
+        torrents.push(state.queue.torrent.locate(id).await);
     }
     let answers = state.scheduler.remove_many(ids).await;
     for (torrent, answer) in torrents.into_iter().zip(&answers) {
         if answer.is_ok() {
-            state.torrent.forget_located(torrent).await;
+            state.queue.torrent.forget_located(torrent).await;
         }
     }
     answers

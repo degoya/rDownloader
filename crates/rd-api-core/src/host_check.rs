@@ -41,7 +41,7 @@ pub fn proxy_config(
 pub async fn load(state: &AppState) {
     match crate::settings_store::stored_settings(&state.database).await {
         Ok(settings) => match proxy_config(&settings) {
-            Ok(config) => *state.proxy.write().await = config,
+            Ok(config) => *state.access.proxy.write().await = config,
             Err(error) => {
                 tracing::warn!(%error, "the stored proxy configuration is not usable");
             }
@@ -75,7 +75,7 @@ pub async fn require_known_host(
         named.push(value.to_str().unwrap_or_default().to_owned());
     }
     let refused = {
-        let proxy = state.proxy.read().await;
+        let proxy = state.access.proxy.read().await;
         named.into_iter().find(|host| !proxy.host_allowed(host))
     };
     let Some(host) = refused else {

@@ -180,7 +180,11 @@ async fn require_api_token(
                 // qBittorrent's bare `403`; the refusal itself is logged where it is decided.
                 return StatusCode::FORBIDDEN.into_response();
             }
-            state.qbittorrent_sessions.resolve(&sid).unwrap_or(sid)
+            state
+                .access
+                .qbittorrent_sessions
+                .resolve(&sid)
+                .unwrap_or(sid)
         }
         None => bearer(request.headers()).unwrap_or_default(),
     };
@@ -213,7 +217,7 @@ async fn login(
     // SHA-256 and a database lookup, and leaving this door free while the native one is
     // counted makes the counting on the native one decorative: an attacker guesses tokens
     // through whichever door does not answer back.
-    let Ok(_attempt) = state.auth.gate(client.0).await else {
+    let Ok(_attempt) = state.access.auth.gate(client.0).await else {
         // qBittorrent's own answer for a banned address, which its clients already understand.
         return (
             StatusCode::FORBIDDEN,
@@ -234,7 +238,7 @@ async fn login(
     match rd_api_core::auth::compat_access(&state, &password).await {
         rd_api_core::auth::CompatAccess::Granted => {}
         rd_api_core::auth::CompatAccess::Refused => {
-            state.auth.note_failed_login(client.0).await;
+            state.access.auth.note_failed_login(client.0).await;
             return "Fails.".into_response();
         }
         // Not counted as a failed guess: the key was never compared.
@@ -257,7 +261,7 @@ async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Response {
     // The handle dies here, not only in the browser: a cookie a client keeps after logging
     // out must be worth nothing, and clearing it client-side is a request, not a guarantee.
     if let Some(sid) = cookie(&headers) {
-        state.qbittorrent_sessions.forget(&sid);
+        state.access.qbittorrent_sessions.forget(&sid);
     }
     // Cleared at the path it was set at, or the browser keeps the one it already holds.
     // Deliberately without `Secure`, like `AuthService::expired_cookie`: clearing has to work
@@ -282,8 +286,8 @@ async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Response {
 /// decided from the request — a TLS-terminating proxy forwards plain HTTP — so it comes from
 /// the proxy contract the operator configured.
 async fn session_cookie(state: &AppState, token: &str) -> String {
-    let session = state.qbittorrent_sessions.issue(token);
-    let proxy = state.proxy.read().await;
+    let session = state.access.qbittorrent_sessions.issue(token);
+    let proxy = state.access.proxy.read().await;
     let path = if proxy.base_path().is_empty() {
         "/"
     } else {
@@ -299,7 +303,7 @@ async fn session_cookie(state: &AppState, token: &str) -> String {
 
 /// Where the session cookie lives. The mount point, or the origin root when there is none.
 async fn cookie_path(state: &AppState) -> String {
-    let proxy = state.proxy.read().await;
+    let proxy = state.access.proxy.read().await;
     if proxy.base_path().is_empty() {
         "/".to_owned()
     } else {

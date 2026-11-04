@@ -190,9 +190,9 @@ pub(crate) async fn import_content(
     let intake = DlcIntake {
         database: &state.database,
         secrets: &state.secrets,
-        link_check: &state.link_check,
-        media: state.media_settings.read().await.clone(),
-        gallery: state.gallery_settings.read().await.clone(),
+        link_check: &state.intake.link_check,
+        media: state.intake.media_settings.read().await.clone(),
+        gallery: state.intake.gallery_settings.read().await.clone(),
     };
     let options = DlcImportOptions {
         source,
@@ -203,7 +203,7 @@ pub(crate) async fn import_content(
         priority,
     };
     // Followed before the import starts the check, so a check that is over at once is heard.
-    let completed = enqueue.then(|| state.link_check.follow_completed());
+    let completed = enqueue.then(|| state.intake.link_check.follow_completed());
     let outcome = if format == ContainerFormat::RdLinks {
         let document = read_links(&content, passphrase.as_ref()).await?;
         let nzbs = if enqueue {

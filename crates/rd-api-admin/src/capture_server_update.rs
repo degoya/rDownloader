@@ -90,7 +90,7 @@ pub async fn get_capture_server_update(
     State(state): State<AppState>,
     granted: Option<Extension<Granted>>,
 ) -> Json<CaptureServerUpdateResponse> {
-    let status = state.updates.status().await;
+    let status = state.admin.updates.status().await;
     let restart = crate::restart_service::status(&state).await;
     Json(CaptureServerUpdateResponse {
         available: status.available.map(|offer| CaptureServerUpdateOffer {

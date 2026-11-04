@@ -13,7 +13,7 @@ pub(crate) async fn reset_download_file(
     delete_completed_files: bool,
 ) -> anyhow::Result<()> {
     state.scheduler.reset(id, delete_completed_files).await?;
-    state.torrent.forget(id).await;
+    state.queue.torrent.forget(id).await;
     Ok(())
 }
 
@@ -49,17 +49,17 @@ async fn remove_download_discarding(
     id: DownloadId,
     discard: Discard,
 ) -> anyhow::Result<()> {
-    let torrent = state.torrent.locate(id).await;
+    let torrent = state.queue.torrent.locate(id).await;
     match discard {
         Discard::Nothing => {}
         Discard::Unfinished => state.scheduler.discard_partial(id).await?,
         Discard::All => state.scheduler.discard_all(id).await?,
     }
     if discard != Discard::Nothing {
-        state.torrent.discard_located(torrent.clone()).await;
+        state.queue.torrent.discard_located(torrent.clone()).await;
     }
     state.scheduler.remove(id).await?;
-    state.torrent.forget_located(torrent).await;
+    state.queue.torrent.forget_located(torrent).await;
     Ok(())
 }
 

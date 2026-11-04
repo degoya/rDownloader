@@ -14,7 +14,7 @@ pub async fn reconnect_status(
     State(state): State<AppState>,
 ) -> Result<Json<ReconnectStatus>, ApiError> {
     let settings = crate::settings_store::read_settings(&state).await?;
-    let status = state.reconnect.status(&state, &settings).await;
+    let status = state.queue.reconnect.status(&state, &settings).await;
     Ok(Json(status))
 }
 
@@ -53,7 +53,7 @@ pub async fn trigger_reconnect(
             "No reconnect script is configured",
         ));
     }
-    if state.reconnect.busy().await {
+    if state.queue.reconnect.busy().await {
         return Err(ApiError::conflict(
             "reconnect.already_running",
             "A reconnect is already running",
@@ -61,7 +61,7 @@ pub async fn trigger_reconnect(
     }
     // Answered immediately: the attempt takes as long as the router does, which is longer
     // than a request should wait. The status endpoint and the event say how it went.
-    let service = state.reconnect.clone();
+    let service = state.queue.reconnect.clone();
     let background = state.clone();
     tokio::spawn(async move {
         service.run(&background, &settings).await;

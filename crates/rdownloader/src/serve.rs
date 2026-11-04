@@ -243,22 +243,23 @@ async fn assemble_state(
     let crawlers = startup::with_site_rules(crawlers, &database, &secrets, scheduler).await;
     resume_interrupted(&extraction, &native.torrent_service).await;
     sweep_abandoned_uploads(native.remote.object_storage.clone());
-    let state = AppState::new(
+    let state = rd_api::AppStateBuilder {
         database,
-        scheduler.clone(),
+        scheduler: scheduler.clone(),
         secrets,
         plugins,
-        extraction.clone(),
-        native.media_settings,
-        native.media_probe,
-        native.gallery_settings,
-        native.stream_settings,
-        native.torrent_service.clone(),
-        native.torrent_settings,
-        controls.power,
-        controls.quiet_hold,
-        native.remote,
-    )
+        extraction: extraction.clone(),
+        media_settings: native.media_settings,
+        media_probe: native.media_probe,
+        gallery_settings: native.gallery_settings,
+        stream_settings: native.stream_settings,
+        torrent: native.torrent_service.clone(),
+        torrent_settings: native.torrent_settings,
+        power: controls.power,
+        quiet_hold: controls.quiet_hold,
+        remote: native.remote,
+    }
+    .build()
     .with_plugin_transfer_schemes(native.plugin_transfer_schemes)
     .with_intake_parsers(intake_parsers)
     .with_crawlers(crawlers)
@@ -310,14 +311,14 @@ async fn serve_until_stopped(
     // may need them until then) and before the queue: the power supervisor among them, so a
     // queue the stop empties is not read as finished.
     let stop_before_queue = {
-        let stream_monitor = state.stream_monitor.clone();
-        let power_supervisor = state.power_supervisor.clone();
-        let automations = state.automations.clone();
-        let subscriptions = state.subscriptions.clone();
-        let auth_flows = state.auth_flows.clone();
-        let hotfolders = state.hotfolders.clone();
-        let link_check = state.link_check.clone();
-        let remote_jobs = state.remote_jobs.clone();
+        let stream_monitor = state.intake.stream_monitor.clone();
+        let power_supervisor = state.queue.power_supervisor.clone();
+        let automations = state.admin.automations.clone();
+        let subscriptions = state.intake.subscriptions.clone();
+        let auth_flows = state.access.auth_flows.clone();
+        let hotfolders = state.intake.hotfolders.clone();
+        let link_check = state.intake.link_check.clone();
+        let remote_jobs = state.queue.remote_jobs.clone();
         async move {
             stream_monitor.shutdown();
             power_supervisor.shutdown();
@@ -329,8 +330,8 @@ async fn serve_until_stopped(
             remote_jobs.shutdown();
         }
     };
-    let notifications = state.notifications.clone();
-    let restart = state.restart.clone();
+    let notifications = state.admin.notifications.clone();
+    let restart = state.runtime.restart.clone();
     let result = match startup::prepare_state(&state).await {
         Ok(()) => {
             startup::finish_restore(&args.paths, restore);

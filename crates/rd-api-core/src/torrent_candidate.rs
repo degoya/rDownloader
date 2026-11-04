@@ -26,11 +26,16 @@ pub async fn resolve_torrent_candidate(
     candidate: &LinkCandidate,
 ) -> Result<TorrentMetadataInfo> {
     if !matches!(candidate.url.scheme(), "http" | "https") {
-        return state.torrent.resolve_metadata(&candidate.url).await;
+        return state.queue.torrent.resolve_metadata(&candidate.url).await;
     }
     let bytes = fetch(state, candidate).await?;
     let parsed = rd_torrent::parse_torrent(&bytes)?;
-    if let Err(error) = state.torrent.keep_prefetched(candidate.id, &bytes).await {
+    if let Err(error) = state
+        .queue
+        .torrent
+        .keep_prefetched(candidate.id, &bytes)
+        .await
+    {
         // Costs the download a second fetch, nothing more.
         tracing::warn!(%error, "a resolved torrent could not be kept for its download");
     }

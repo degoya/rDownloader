@@ -89,14 +89,14 @@ pub(crate) async fn events(
         from_this_machine,
         granted.scopes().to_vec(),
     );
-    let agents = state.capture_agents.clone();
+    let agents = state.admin.capture_agents.clone();
     let frame = move |event: EventEnvelope| {
         granted
             .may_observe(&event.kind)
             .then(|| full_frame(&with_toast_owner(event, agents.any_connected())))
             .flatten()
     };
-    let stopping = state.shutdown.clone().cancelled_owned();
+    let stopping = state.runtime.shutdown.clone().cancelled_owned();
     Sse::new(
         open(&state.database, &headers, frame)
             .take_until(lapsed)
@@ -116,9 +116,9 @@ pub(crate) async fn capture_events(
     headers: HeaderMap,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let lapsed = rd_api_core::stream_standing::capture_lapsed(state.clone(), headers.clone());
-    let stopping = state.shutdown.clone().cancelled_owned();
+    let stopping = state.runtime.shutdown.clone().cancelled_owned();
     let connection = rd_api_core::capture_agents::connect(&state, &headers).await;
-    let power = state.power.clone();
+    let power = state.queue.power.clone();
     let frame = move |event: EventEnvelope| {
         capture_frame(with_quiet_until(
             event,

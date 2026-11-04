@@ -61,8 +61,8 @@ async fn intake(
     let excluded = crate::collector_exclusions::blocklist(&state.database).await?;
     let (links, skipped) = drop_excluded(state, links, &excluded).await?;
     let settings = crate::settings_store::read_settings(state).await?;
-    let media_settings = state.media_settings.read().await.clone();
-    let gallery_settings = state.gallery_settings.read().await.clone();
+    let media_settings = state.intake.media_settings.read().await.clone();
+    let gallery_settings = state.intake.gallery_settings.read().await.clone();
     let (links, skipped_disabled) =
         drop_disabled(state, links, &settings, &media_settings, &gallery_settings).await?;
     // How far each link may reach (RD-1190-18): one decision, `LinkOrigin::reach`, for every
@@ -109,7 +109,7 @@ async fn intake(
     // Also before the check: the online check of a link somebody else chose keeps to the same
     // address rule as the transfer (RD-150-03).
     hold_to_reach(state, &candidates, &held).await?;
-    state.link_check.check_batch(batch.id).await;
+    state.intake.link_check.check_batch(batch.id).await;
     Ok(CollectorIntakeResponse {
         batch,
         packages,
@@ -217,14 +217,14 @@ async fn add_text_links(
     // Every source a parser states for a file it proposed (RD-150-03). Kept aside until the
     // candidates exist, then attached to the one proposed under the same address.
     let mut source_sets = Vec::new();
-    if !state.intake_parsers.is_empty() && !text.trim().is_empty() {
-        for candidate in state.intake_parsers.parse(text).await {
+    if !state.intake.intake_parsers.is_empty() && !text.trim().is_empty() {
+        for candidate in state.intake.intake_parsers.parse(text).await {
             if links.iter().any(|link| link.url == candidate.url) {
                 continue;
             }
             links.push(CapturedLink::proposed(candidate.url, candidate.file_name));
         }
-        source_sets = state.intake_parsers.source_sets(text).await;
+        source_sets = state.intake.intake_parsers.source_sets(text).await;
     }
     source_sets
 }

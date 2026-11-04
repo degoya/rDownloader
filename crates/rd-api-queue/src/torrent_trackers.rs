@@ -119,7 +119,7 @@ pub async fn put_trackers(
     Path(id): Path<DownloadId>,
     Json(request): Json<TrackerListRequest>,
 ) -> Result<Json<TrackerListResponse>, ApiError> {
-    if !state.torrent.capabilities().tracker_edit {
+    if !state.queue.torrent.capabilities().tracker_edit {
         return Err(crate::torrent_control::unsupported("tracker_edit"));
     }
     require_safe_state(&state, id).await?;
@@ -205,7 +205,7 @@ pub async fn reannounce(
     State(state): State<AppState>,
     Path(id): Path<DownloadId>,
 ) -> Result<Json<crate::dto::MessageResponse>, ApiError> {
-    state.torrent.reannounce(id).await.map_err(|error| {
+    state.queue.torrent.reannounce(id).await.map_err(|error| {
         let message = error.to_string();
         // The reason comes from rd-torrent as a value. Matching the word "wait" in its message
         // meant a reworded refusal quietly turned a documented 429 into a 400.
@@ -248,13 +248,15 @@ pub async fn scrape_trackers(
     State(state): State<AppState>,
     Path(id): Path<DownloadId>,
 ) -> Result<Json<TrackerListResponse>, ApiError> {
-    if !state.torrent.capabilities().tracker_scrape {
+    if !state.queue.torrent.capabilities().tracker_scrape {
         return Err(crate::torrent_control::unsupported("tracker_scrape"));
     }
-    let stored =
-        state.torrent.scrape_trackers(id).await.map_err(|error| {
-            ApiError::bad_request("torrent.scrape_failed", format!("{error:#}"))
-        })?;
+    let stored = state
+        .queue
+        .torrent
+        .scrape_trackers(id)
+        .await
+        .map_err(|error| ApiError::bad_request("torrent.scrape_failed", format!("{error:#}")))?;
     Ok(Json(view(&state, stored.metadata.as_ref())))
 }
 
@@ -271,7 +273,7 @@ fn view(state: &AppState, metadata: Option<&rd_core::TorrentMetadataInfo>) -> Tr
                     .collect()
             })
             .unwrap_or_default(),
-        editable: state.torrent.capabilities().tracker_edit,
+        editable: state.queue.torrent.capabilities().tracker_edit,
     }
 }
 
@@ -344,9 +346,16 @@ pub async fn torrent_stats(
     State(state): State<AppState>,
     Path(id): Path<DownloadId>,
 ) -> Result<Json<rd_core::TorrentAggregateStats>, ApiError> {
-    Ok(Json(state.torrent.aggregate_stats(id).await.map_err(
-        |error| ApiError::bad_request("torrent.stats_unavailable", format!("{error:#}")),
-    )?))
+    Ok(Json(
+        state
+            .queue
+            .torrent
+            .aggregate_stats(id)
+            .await
+            .map_err(|error| {
+                ApiError::bad_request("torrent.stats_unavailable", format!("{error:#}"))
+            })?,
+    ))
 }
 
 /// One page of the peer list.
@@ -366,12 +375,13 @@ pub async fn torrent_peers(
     Path(id): Path<DownloadId>,
     axum::extract::Query(query): axum::extract::Query<PeerPageQuery>,
 ) -> Result<Json<rd_core::TorrentPeerPage>, ApiError> {
-    if !state.torrent.capabilities().peer_stats {
+    if !state.queue.torrent.capabilities().peer_stats {
         return Err(crate::torrent_control::unsupported("peer_stats"));
     }
     let limit = rd_torrent::peer_page_size(query.limit);
     Ok(Json(
         state
+            .queue
             .torrent
             .peer_page(id, limit, query.cursor)
             .await
@@ -397,10 +407,17 @@ pub async fn torrent_pieces(
     State(state): State<AppState>,
     Path(id): Path<DownloadId>,
 ) -> Result<Json<rd_core::TorrentPieceAvailability>, ApiError> {
-    if !state.torrent.capabilities().piece_stats {
+    if !state.queue.torrent.capabilities().piece_stats {
         return Err(crate::torrent_control::unsupported("piece_stats"));
     }
-    Ok(Json(state.torrent.piece_availability(id).await.map_err(
-        |error| ApiError::bad_request("torrent.stats_unavailable", format!("{error:#}")),
-    )?))
+    Ok(Json(
+        state
+            .queue
+            .torrent
+            .piece_availability(id)
+            .await
+            .map_err(|error| {
+                ApiError::bad_request("torrent.stats_unavailable", format!("{error:#}"))
+            })?,
+    ))
 }

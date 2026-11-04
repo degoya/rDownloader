@@ -204,7 +204,7 @@ fn about(build: &BuildInfo) -> AboutResponse {
 
 #[utoipa::path(get, path = "/api/v1/system/about", tag = "system", responses((status = 200, body = AboutResponse)))]
 pub async fn system_about(State(state): State<AppState>) -> Json<AboutResponse> {
-    Json(about(&state.build))
+    Json(about(&state.runtime.build))
 }
 
 #[cfg(test)]

@@ -73,7 +73,7 @@ async fn service(directory: &std::path::Path) -> (rd_testkit::TestServer, String
         std::sync::Arc::new(tokio::sync::RwLock::new(rd_core::RemoteSettings::default())),
         rd_http::SharedNetworkDefaults::default(),
     );
-    let state = rd_api::AppState::new(
+    let state = rd_api::AppStateBuilder {
         database,
         scheduler,
         secrets,
@@ -85,10 +85,11 @@ async fn service(directory: &std::path::Path) -> (rd_testkit::TestServer, String
         stream_settings,
         torrent,
         torrent_settings,
-        rd_power::PowerService::default(),
-        rd_core::PostprocessHold::new(),
+        power: rd_power::PowerService::default(),
+        quiet_hold: rd_core::PostprocessHold::new(),
         remote,
-    );
+    }
+    .build();
     let server = rd_testkit::serve(rd_api::router(state)).await;
     let address = server.url("");
     (server, address, bearer)

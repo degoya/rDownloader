@@ -28,7 +28,7 @@ async fn a_reset_keeps_the_version_in_force_and_waits_for_an_older_run() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = test_harness(directory.path()).await;
     // The engine would otherwise sweep the run this test parks in a state of its choosing.
-    harness.state.automations.shutdown();
+    harness.state.admin.automations.shutdown();
 
     let (status, created) =
         post_json(&harness.router, "/api/v1/automations", definition(true)).await;

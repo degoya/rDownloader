@@ -171,7 +171,7 @@ pub async fn proven_session(state: &AppState) -> Result<Option<String>, ApiError
 /// nothing taken from the request — no `Host`, no `X-Forwarded-*` (O-REDIR). `None` without an
 /// external URL, which is why the provider cannot be switched on without one.
 pub async fn redirect_uri(state: &AppState) -> Option<String> {
-    let proxy = state.proxy.read().await;
+    let proxy = state.access.proxy.read().await;
     proxy
         .origin()
         .map(|origin| format!("{origin}{}{}", proxy.base_path(), oidc::CALLBACK_PATH))

@@ -252,8 +252,8 @@ pub async fn read_capture_agent_settings(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<impl IntoResponse, ApiError> {
-    state.capture_agents.note_report(&headers);
-    let channel = state.updates.settings().await.channel();
+    state.admin.capture_agents.note_report(&headers);
+    let channel = state.admin.updates.settings().await.channel();
     Ok((
         [(rd_update::agent::report::CHANNEL_HEADER, channel.as_str())],
         Json(stored_capture_agent_settings(&state.database).await?),

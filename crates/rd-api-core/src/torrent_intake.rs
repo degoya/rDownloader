@@ -240,6 +240,7 @@ pub async fn checked_torrent_source(
     };
     let url = rd_core::redact_url(&candidate.url);
     match state
+        .queue
         .torrent
         .promote_prefetched(candidate.id, &metadata.info_hash)
         .await
@@ -275,7 +276,7 @@ pub async fn prune_checked_torrents(state: &AppState) {
                 .filter(|candidate| candidate.state != rd_core::LinkCandidateState::Enqueued)
                 .map(|candidate| candidate.id)
                 .collect();
-            state.torrent.prune_prefetched(&open).await;
+            state.queue.torrent.prune_prefetched(&open).await;
         }
         Err(error) => tracing::warn!(%error, "kept torrents could not be pruned"),
     }

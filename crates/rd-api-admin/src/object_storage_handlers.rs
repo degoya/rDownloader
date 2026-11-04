@@ -270,7 +270,12 @@ pub async fn delete_object_storage_profile(
         .ok_or_else(not_found)?;
     // While the credentials still exist: an unfinished upload left behind is billed as stored
     // parts that nothing lists.
-    if let Err(error) = state.object_storage.abort_profile_uploads(&profile).await {
+    if let Err(error) = state
+        .queue
+        .object_storage
+        .abort_profile_uploads(&profile)
+        .await
+    {
         tracing::warn!(%error, "unfinished uploads of a deleted profile could not be aborted");
     }
     let orphaned = state
@@ -297,7 +302,7 @@ pub async fn test_object_storage_profile(
         .object_storage_profile(id)
         .await?
         .ok_or_else(not_found)?;
-    let failure = state.object_storage.test_profile(&profile).await?;
+    let failure = state.queue.object_storage.test_profile(&profile).await?;
     let holds_admin =
         granted.is_some_and(|axum::Extension(granted)| granted.holds(rd_core::Scope::Admin));
     Ok(Json(test_answer(failure, holds_admin)))

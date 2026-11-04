@@ -50,12 +50,13 @@ fn to_api_error(error: rd_tools::ToolError) -> ApiError {
 pub async fn list_managed_tools(
     State(state): State<AppState>,
 ) -> Result<Json<crate::dto::ManagedToolsResponse>, ApiError> {
-    let manifest = state.tools.manifest();
+    let manifest = state.admin.tools.manifest();
     // Falls back to defaults rather than refusing, as before: this only decides what the tool
     // list shows, and the accessor reports a malformed blob.
     let settings: rd_core::ManagedToolSettings =
         state.database.service_settings_or_default().await?;
     let tools = state
+        .admin
         .tools
         .status()
         .await
@@ -83,7 +84,12 @@ pub async fn list_managed_tools(
 pub async fn refresh_tool_manifest(
     State(state): State<AppState>,
 ) -> Result<Json<crate::dto::ManagedToolsResponse>, ApiError> {
-    state.tools.refresh_manifest().await.map_err(to_api_error)?;
+    state
+        .admin
+        .tools
+        .refresh_manifest()
+        .await
+        .map_err(to_api_error)?;
     list_managed_tools(State(state)).await
 }
 
@@ -101,6 +107,7 @@ pub async fn install_managed_tool(
     Json(request): Json<crate::dto::ManagedToolVersionRequest>,
 ) -> Result<Json<crate::dto::ManagedToolsResponse>, ApiError> {
     state
+        .admin
         .tools
         .install(&name, request.version.as_deref())
         .await
@@ -128,6 +135,7 @@ pub async fn activate_managed_tool(
         )
     })?;
     state
+        .admin
         .tools
         .activate(&name, &version)
         .await
@@ -146,7 +154,12 @@ pub async fn rollback_managed_tool(
     State(state): State<AppState>,
     Path(name): Path<String>,
 ) -> Result<Json<crate::dto::ManagedToolsResponse>, ApiError> {
-    state.tools.rollback(&name).await.map_err(to_api_error)?;
+    state
+        .admin
+        .tools
+        .rollback(&name)
+        .await
+        .map_err(to_api_error)?;
     list_managed_tools(State(state)).await
 }
 
@@ -154,7 +167,7 @@ pub async fn rollback_managed_tool(
 pub async fn media_status(
     State(state): State<AppState>,
 ) -> Result<Json<crate::dto::MediaStatusResponse>, ApiError> {
-    let settings = state.media_settings.read().await.clone();
+    let settings = state.intake.media_settings.read().await.clone();
     // Falls back to defaults rather than refusing, as before: this is a status read that must
     // still answer when a setting is broken, and the accessor reports what it rejected.
     let postprocess: rd_core::PostprocessSettings =
@@ -176,10 +189,10 @@ pub async fn media_status(
         "7z",
     );
     let rclone = rd_core::locate_tool(postprocess.rclone_executable.as_deref(), vendor, "rclone");
-    let gallery = state.gallery_settings.read().await.clone();
+    let gallery = state.intake.gallery_settings.read().await.clone();
     let gallery_dl =
         rd_core::locate_tool(gallery.gallery_executable.as_deref(), vendor, "gallery-dl");
-    let streamlink = rd_stream::locate_streamlink(&*state.stream_settings.read().await);
+    let streamlink = rd_stream::locate_streamlink(&*state.intake.stream_settings.read().await);
     // The executable an apprise target may name is per target, so the status shows what a
     // target without one would run.
     let apprise = rd_core::locate_tool(None, vendor, "apprise");
@@ -198,7 +211,7 @@ pub async fn media_status(
     // than another probe: `managed` says whether this application can manage the tool at all,
     // `active_version` which managed version is currently activated. Both are independent of
     // `source`, which says where the binary that would actually run came from.
-    let managed_status = state.tools.status().await;
+    let managed_status = state.admin.tools.status().await;
     let convert = move |status: rd_media::ToolStatus| {
         let managed = managed_status.iter().find(|tool| tool.name == status.name);
         crate::dto::MediaToolStatus {

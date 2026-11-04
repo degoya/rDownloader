@@ -216,10 +216,10 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
             upload_limit: None,
         },
     );
-    let state = rd_api::AppState::new(
-        database.clone(),
-        scheduler.clone(),
-        secrets.clone(),
+    let state = rd_api::AppStateBuilder {
+        database: database.clone(),
+        scheduler: scheduler.clone(),
+        secrets: secrets.clone(),
         plugins,
         extraction,
         media_settings,
@@ -228,15 +228,16 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
         stream_settings,
         torrent,
         torrent_settings,
-        rd_power::PowerService::default(),
-        rd_core::PostprocessHold::new(),
-        rd_api::RemoteServices::new(
+        power: rd_power::PowerService::default(),
+        quiet_hold: rd_core::PostprocessHold::new(),
+        remote: rd_api::RemoteServices::new(
             database.clone(),
             secrets.clone(),
             std::sync::Arc::new(tokio::sync::RwLock::new(rd_core::RemoteSettings::default())),
             rd_http::SharedNetworkDefaults::default(),
         ),
-    );
+    }
+    .build();
     let state = if options.local_capture_fetches {
         state.with_local_capture_fetches()
     } else {
@@ -249,20 +250,21 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
     // No test reaches the network (RD-1260-02): installing a service and preparing an update ask
     // the plugin repositories first, and the official address is a real one. A suite that serves
     // an index replaces this service with one of its own.
-    state.plugin_repositories = rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
-        database.clone(),
-        directory.join("plugin-repositories"),
-        state.plugins.clone(),
-        std::sync::Arc::new(OfflineFetcher),
-        None,
-    );
+    state.admin.plugin_repositories =
+        rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
+            database.clone(),
+            directory.join("plugin-repositories"),
+            state.admin.plugins.clone(),
+            std::sync::Arc::new(OfflineFetcher),
+            None,
+        );
     // Capture intake authenticates with its own token; reading candidates back is a session
     // route, so the default stands in for an installation without an admin password.
-    state.auth.set_disabled(!options.login);
+    state.access.auth.set_disabled(!options.login);
     // A restart follows the environment the process started in (RD-1240-32): under systemd, as
     // on a CI runner, it stops this router, and by hand it launches a relauncher. Here it starts
     // nothing; the restart suite sets the environment of each case itself.
-    state.restart.use_environment(
+    state.runtime.restart.use_environment(
         rd_update::restart::Environment {
             systemd: false,
             relaunchable: true,
@@ -271,8 +273,8 @@ pub async fn harness(directory: &std::path::Path, options: Options) -> Harness {
     );
     Harness {
         router: rd_api::router(state.clone()),
-        link_check: state.link_check.clone(),
-        hotfolders: state.hotfolders.clone(),
+        link_check: state.intake.link_check.clone(),
+        hotfolders: state.intake.hotfolders.clone(),
         state,
         database,
         secrets,

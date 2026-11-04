@@ -58,12 +58,12 @@ async fn prepare(harness: &Harness, body: Value) -> (StatusCode, Value) {
 async fn a_stop_from_this_machine_cancels_the_service_and_is_audited() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::test_harness(directory.path()).await;
-    assert!(!harness.state.shutdown.is_cancelled());
+    assert!(!harness.state.runtime.shutdown.is_cancelled());
     let (status, body) =
         common::post_json(&harness.router, "/api/v1/system/shutdown", json!({})).await;
     assert_eq!(status, StatusCode::ACCEPTED, "{body}");
     assert_eq!(body["stopping"], true);
-    assert!(harness.state.shutdown.is_cancelled());
+    assert!(harness.state.runtime.shutdown.is_cancelled());
     assert_eq!(
         audited(&harness, rd_core::AuditAction::ServiceStopRequested)
             .await
@@ -90,7 +90,7 @@ async fn neither_route_answers_a_caller_on_another_machine_even_with_an_admin_to
         assert_eq!(status, StatusCode::FORBIDDEN, "{uri}: {body}");
         assert_eq!(body["code"], "system.local_only", "{uri}");
     }
-    assert!(!harness.state.shutdown.is_cancelled());
+    assert!(!harness.state.runtime.shutdown.is_cancelled());
     assert!(!rd_backup::pre_update::directory(&data_directory(&harness)).exists());
 }
 
@@ -131,7 +131,7 @@ async fn the_local_control_token_opens_its_two_routes_from_this_machine_and_noth
     )
     .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
-    assert!(!state.shutdown.is_cancelled());
+    assert!(!state.runtime.shutdown.is_cancelled());
 
     // The backup before an update and the stop, from loopback with the token.
     let (status, body) = common::send(
@@ -156,7 +156,7 @@ async fn the_local_control_token_opens_its_two_routes_from_this_machine_and_noth
     )
     .await;
     assert_eq!(status, StatusCode::ACCEPTED, "{body}");
-    assert!(state.shutdown.is_cancelled());
+    assert!(state.runtime.shutdown.is_cancelled());
     let stops = audited(&harness, rd_core::AuditAction::ServiceStopRequested).await;
     assert_eq!(stops.len(), 1);
     assert_eq!(stops[0].actor_kind, rd_core::AuditActorKind::System);
@@ -392,7 +392,7 @@ async fn open_event_streams_do_not_keep_the_service_from_stopping() {
         .await
         .expect("bind");
     let address = listener.local_addr().expect("address");
-    let shutdown = harness.state.shutdown.clone();
+    let shutdown = harness.state.runtime.shutdown.clone();
     let server = tokio::spawn(rd_api::serve_on(harness.state.clone(), listener));
 
     let mut streams = vec![

@@ -112,7 +112,7 @@ impl rd_subscription::ItemArchive for ArchivedItems {
 /// The site rules a watched release page consults, as the poller can hold them (RD-110-21).
 ///
 /// A cell rather than the catalogue itself, because of the order things are built in: the
-/// poll loop starts inside `AppState::new`, and the rules arrive afterwards with the
+/// poll loop starts inside `AppStateBuilder::build`, and the rules arrive afterwards with the
 /// crawlers, which are discovered from the plugin directory rather than configured. Until
 /// they do, nothing is claimed — a poll then finds no release page on the listing, which is
 /// the honest answer for an installation whose rules have not loaded.

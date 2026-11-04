@@ -76,7 +76,7 @@ pub async fn oidc_start(
     client: crate::client::ClientAddress,
     Query(query): Query<OidcStartQuery>,
 ) -> Response {
-    let base = state.proxy.read().await.base_path().to_owned();
+    let base = state.access.proxy.read().await.base_path().to_owned();
     let return_to = oidc::safe_return_path(query.return_to.as_deref());
     match begin(&state, client.0, FlowPurpose::SignIn, &return_to).await {
         Ok(started) => {
@@ -109,7 +109,7 @@ pub(crate) async fn begin(
     purpose: FlowPurpose,
     return_to: &str,
 ) -> Result<Started, ApiError> {
-    let _attempt = state.auth.gate(client).await?;
+    let _attempt = state.access.auth.gate(client).await?;
     let Some(config) = oidc_client::config(state).await? else {
         return Err(not_configured());
     };
@@ -123,6 +123,7 @@ pub(crate) async fn begin(
         return Err(requires_external_url());
     };
     let (metadata, _) = state
+        .access
         .oidc
         .metadata(state, &config.issuer)
         .await
@@ -136,7 +137,7 @@ pub(crate) async fn begin(
         chrono::Utc::now().timestamp(),
     );
     let request = flow.clone();
-    let flow_state = state.oidc.flows.insert(client, flow);
+    let flow_state = state.access.oidc.flows.insert(client, flow);
     let Some(authorization_url) = oidc::authorization_url(
         &metadata,
         &config.client_id,
@@ -145,10 +146,10 @@ pub(crate) async fn begin(
         &flow_state,
         config.group().map(|(claim, _)| claim),
     ) else {
-        state.oidc.flows.take(&flow_state);
+        state.access.oidc.flows.take(&flow_state);
         return Err(provider_error(ProviderFailure::Unreadable));
     };
-    let proxy = state.proxy.read().await;
+    let proxy = state.access.proxy.read().await;
     Ok(Started {
         authorization_url,
         cookie: oidc::binding_cookie(&binding, proxy.cookie_is_secure(), proxy.base_path()),
@@ -175,9 +176,9 @@ pub async fn oidc_callback(
     let flow = query
         .state
         .as_deref()
-        .and_then(|value| state.oidc.flows.take(value));
+        .and_then(|value| state.access.oidc.flows.take(value));
     let (base, cleared) = {
-        let proxy = state.proxy.read().await;
+        let proxy = state.access.proxy.read().await;
         (
             proxy.base_path().to_owned(),
             oidc::expired_binding_cookie(proxy.base_path()),
@@ -234,10 +235,15 @@ pub(crate) async fn provider_logout_url(state: &AppState) -> Option<String> {
         .flatten()
         .filter(|config| config.provider_logout)?;
     let back = {
-        let proxy = state.proxy.read().await;
+        let proxy = state.access.proxy.read().await;
         format!("{}{}/", proxy.origin()?, proxy.base_path())
     };
-    let (metadata, _) = state.oidc.metadata(state, &config.issuer).await.ok()?;
+    let (metadata, _) = state
+        .access
+        .oidc
+        .metadata(state, &config.issuer)
+        .await
+        .ok()?;
     let mut url = url::Url::parse(
         metadata
             .additional_metadata()

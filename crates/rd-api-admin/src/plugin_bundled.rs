@@ -40,7 +40,7 @@ const MAX_SERVICES_PER_REQUEST: usize = 256;
 /// The newest installed version of every installed plugin.
 async fn installed_versions(state: &AppState) -> Result<HashMap<PluginId, String>, ApiError> {
     let mut versions: HashMap<PluginId, Vec<String>> = HashMap::new();
-    for manifest in state.plugins.list_installed().await? {
+    for manifest in state.admin.plugins.list_installed().await? {
         versions
             .entry(manifest.id)
             .or_default()
@@ -119,7 +119,7 @@ pub async fn list_bundled_services(
     let language = language(query.locale.as_deref());
     let installed = installed_versions(&state).await?;
     let view = RepositoryView::read(&state).await;
-    let catalogue = state.plugins.bundled_services();
+    let catalogue = state.admin.plugins.bundled_services();
     let services = catalogue
         .iter()
         .map(|service| service_response(service, &installed, &language, &view))
@@ -185,7 +185,7 @@ pub async fn install_bundled_services(
     audit: crate::audit::AuditContext,
     Json(request): Json<BundledInstallRequest>,
 ) -> Result<Json<BundledInstallResponse>, ApiError> {
-    let catalogue = state.plugins.bundled_services();
+    let catalogue = state.admin.plugins.bundled_services();
     let chosen = chosen_services(&catalogue, &request.services)?;
     let installed = installed_versions(&state).await?;
     // Installed ones are skipped, and so is a plugin two named services share.
@@ -206,7 +206,7 @@ pub async fn install_bundled_services(
     if wanted {
         // The wizard runs before the first scheduled refresh; without a network this fails
         // and every plugin comes from the bundle.
-        state.plugin_repositories.ensure_index().await;
+        state.admin.plugin_repositories.ensure_index().await;
     }
     for service in chosen {
         for package in &service.packages {
@@ -264,10 +264,15 @@ async fn install_package(
     audit: &crate::audit::AuditContext,
     package: &rd_plugin_host::BundledPackage,
 ) -> Result<(rd_plugin_host::InstalledPackage, bool, PluginOrigin), ApiError> {
-    if let Some((offer, bytes)) = state.plugin_repositories.fetch_replacement(package).await {
-        match state.plugins.install_bytes(bytes).await {
+    if let Some((offer, bytes)) = state
+        .admin
+        .plugin_repositories
+        .fetch_replacement(package)
+        .await
+    {
+        match state.admin.plugins.install_bytes(bytes).await {
             Ok(installed) => {
-                if let Err(error) = state.plugin_repositories.record_install(&offer).await {
+                if let Err(error) = state.admin.plugin_repositories.record_install(&offer).await {
                     // As for an update: only a later withdrawal by a third-party repository
                     // loses its reach over this version.
                     tracing::warn!(%error, "could not record which repository a plugin came from");
@@ -284,6 +289,7 @@ async fn install_package(
         }
     }
     let installed = state
+        .admin
         .plugins
         .install(package.path.clone())
         .await
@@ -341,9 +347,9 @@ pub async fn remove_bundled_services(
     audit: crate::audit::AuditContext,
     Json(request): Json<BundledRemoveRequest>,
 ) -> Result<Json<BundledRemoveResponse>, ApiError> {
-    let catalogue = state.plugins.bundled_services();
+    let catalogue = state.admin.plugins.bundled_services();
     let chosen = chosen_services(&catalogue, &request.services)?;
-    let installed = state.plugins.list_installed().await?;
+    let installed = state.admin.plugins.list_installed().await?;
     let mut response = BundledRemoveResponse {
         code: String::new(),
         message: String::new(),
@@ -403,7 +409,7 @@ pub async fn remove_bundled_services(
     }
     if changed {
         // Now, as in the plugin manager: the accounts step must not offer a removed provider.
-        state.plugins.refresh_providers().await;
+        state.admin.plugins.refresh_providers().await;
     }
     let result = if response.failed.is_empty() {
         MessageResponse::new(

@@ -61,7 +61,7 @@ pub async fn import_torrent(
         .map_err(|error| ApiError::bad_request("torrent.file_invalid", format!("{error:#}")))?;
     let (batch, packages, candidates) = add_torrent_to_collector(
         &state.database,
-        &state.torrent,
+        &state.queue.torrent,
         &content,
         rd_core::IngressSource::Manual,
         source_label,

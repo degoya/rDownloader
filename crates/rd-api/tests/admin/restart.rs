@@ -35,7 +35,7 @@ fn installed_as(
     kind: rd_update::InstallKind,
     environment: Environment,
 ) -> Arc<Mutex<Vec<RestartPlan>>> {
-    harness.state.updates.use_installation(
+    harness.state.admin.updates.use_installation(
         kind,
         directory.to_path_buf(),
         Arc::new(|_: &Journal| -> anyhow::Result<()> { Ok(()) }),
@@ -48,6 +48,7 @@ fn installed_as(
     });
     harness
         .state
+        .runtime
         .restart
         .use_environment(environment, relauncher);
     plans
@@ -93,6 +94,7 @@ async fn a_plugin_installed_after_the_start_makes_a_restart_pending_until_the_ne
     install_package(directory.path(), "1.0.0");
     harness
         .state
+        .admin
         .plugins
         .record_started_versions()
         .await
@@ -124,6 +126,7 @@ async fn a_plugin_installed_after_the_start_makes_a_restart_pending_until_the_ne
     // What the next start does: it records 2.0.0 as loaded, and nothing waits any more.
     harness
         .state
+        .admin
         .plugins
         .record_started_versions()
         .await
@@ -196,7 +199,7 @@ async fn the_restart_is_refused_without_its_scope() {
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
     assert!(plans.lock().expect("plans").is_empty());
-    assert!(!harness.state.restart.restarting());
+    assert!(!harness.state.runtime.restart.restarting());
     let (status, read) = get_with_bearer(
         &harness.router,
         "/api/v1/capture/server-update",
@@ -266,11 +269,11 @@ async fn under_a_supervisor_the_restart_stops_the_service_with_exit_code_75() {
     assert_eq!(body["how"], "supervisor", "{body}");
     assert_eq!(body["supervisor"], "systemd", "{body}");
     assert!(
-        harness.state.shutdown.is_cancelled(),
+        harness.state.runtime.shutdown.is_cancelled(),
         "the graceful stop began"
     );
     assert_eq!(
-        harness.state.restart.exit_code(),
+        harness.state.runtime.restart.exit_code(),
         Some(rd_update::RESTART_EXIT_CODE)
     );
     assert!(plans.lock().expect("plans").is_empty(), "no relauncher");
@@ -318,8 +321,12 @@ async fn by_hand_the_relauncher_gets_the_plan_and_a_failed_one_is_taken_back() {
     let failing: Relauncher = Arc::new(|_: &RestartPlan| -> anyhow::Result<()> {
         anyhow::bail!("the test refuses to start a relauncher")
     });
-    harness.state.restart.use_environment(by_hand(), failing);
-    harness.state.updates.use_installation(
+    harness
+        .state
+        .runtime
+        .restart
+        .use_environment(by_hand(), failing);
+    harness.state.admin.updates.use_installation(
         rd_update::InstallKind::Portable,
         directory.path().to_path_buf(),
         Arc::new(|_: &Journal| -> anyhow::Result<()> { Ok(()) }),
@@ -327,8 +334,8 @@ async fn by_hand_the_relauncher_gets_the_plan_and_a_failed_one_is_taken_back() {
     let (status, body) = post_json(&harness.router, STATUS, json!({})).await;
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
     assert_eq!(body["code"], "restart.relaunch_failed", "{body}");
-    assert!(!harness.state.restart.restarting(), "taken back");
-    assert!(!harness.state.shutdown.is_cancelled());
+    assert!(!harness.state.runtime.restart.restarting(), "taken back");
+    assert!(!harness.state.runtime.shutdown.is_cancelled());
 
     let plans = installed_as(
         &harness,
@@ -343,10 +350,10 @@ async fn by_hand_the_relauncher_gets_the_plan_and_a_failed_one_is_taken_back() {
     assert_eq!(plans.len(), 1);
     assert_eq!(plans[0].version, env!("CARGO_PKG_VERSION"));
     assert_eq!(plans[0].service_pid, std::process::id());
-    assert_eq!(plans[0].data_dir, harness.state.updates.data_dir());
-    assert_eq!(harness.state.restart.exit_code(), None);
+    assert_eq!(plans[0].data_dir, harness.state.admin.updates.data_dir());
+    assert_eq!(harness.state.runtime.restart.exit_code(), None);
     assert!(
-        !harness.state.shutdown.is_cancelled(),
+        !harness.state.runtime.shutdown.is_cancelled(),
         "the relauncher stops it"
     );
 }
@@ -435,14 +442,14 @@ async fn the_automatic_restart_waits_for_quiet_and_the_window() {
             .await,
         Tick::Waiting(Wait::OutsideWindow)
     );
-    assert!(!harness.state.shutdown.is_cancelled());
+    assert!(!harness.state.runtime.shutdown.is_cancelled());
     assert_eq!(
         restarter
             .tick(&harness.state, now + Duration::minutes(61))
             .await,
         Tick::Started("supervisor".to_owned())
     );
-    assert!(harness.state.shutdown.is_cancelled());
+    assert!(harness.state.runtime.shutdown.is_cancelled());
     let stops: Vec<_> = harness
         .database
         .query_audit_records(&rd_db::AuditQuery {

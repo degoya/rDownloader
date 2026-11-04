@@ -183,7 +183,7 @@ pub async fn connect(state: &AppState, headers: &HeaderMap) -> Option<Connection
     let token = crate::auth::bearer_token(headers)?;
     let digest = crate::auth::digest_of(token);
     match state.database.capture_token_identity(&digest).await {
-        Ok(Some((id, _, _, _))) => Some(state.capture_agents.connect(
+        Ok(Some((id, _, _, _))) => Some(state.admin.capture_agents.connect(
             id,
             reported_version(headers),
             digest,

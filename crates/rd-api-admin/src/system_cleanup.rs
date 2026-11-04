@@ -168,7 +168,7 @@ async fn clean_up(state: &AppState, pass: Pass) -> Result<CleanupSummary, ApiErr
     let dry_run = pass == Pass::Preview;
     // First, so a plugin folder that cannot be read ends the pass before it removed anything:
     // pruned by an empty list, the cache would lose every installed plugin's code.
-    let installed = state.plugins.installed_component_digests().await?;
+    let installed = state.admin.plugins.installed_component_digests().await?;
     let data = crate::backup_service::data_directory(state);
     let settings: rd_update::UpdateSettings = state.database.service_settings_or_default().await?;
     let retention_days = settings.backup_retention_days();

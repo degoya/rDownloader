@@ -35,7 +35,7 @@ static STARTING: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync
 
 /// Where a pending restart stands, as every caller reads it.
 pub async fn status(state: &AppState) -> RestartStatusResponse {
-    let restart = &state.restart;
+    let restart = &state.runtime.restart;
     let mut reasons: Vec<RestartReason> = derived(state)
         .await
         .into_iter()
@@ -50,7 +50,7 @@ pub async fn status(state: &AppState) -> RestartStatusResponse {
             reasons.push(recorded);
         }
     }
-    let (how, supervisor) = restart.how(state.updates.install_kind());
+    let (how, supervisor) = restart.how(state.admin.updates.install_kind());
     let blocked_reason = blocked(state).map(str::to_owned);
     RestartStatusResponse {
         pending: !reasons.is_empty(),
@@ -60,7 +60,7 @@ pub async fn status(state: &AppState) -> RestartStatusResponse {
         supervisor: supervisor.map(|supervisor| supervisor.as_str().to_owned()),
         blocked_reason,
         restarting: restart.restarting(),
-        automatic: state.updates.settings().await.restart_when_needed,
+        automatic: state.admin.updates.settings().await.restart_when_needed,
         started_at: restart.started_at().to_rfc3339(),
     }
 }
@@ -68,12 +68,16 @@ pub async fn status(state: &AppState) -> RestartStatusResponse {
 /// Keeps what the derivation finds now as what a restart does not change. Called once at the
 /// start, before anything could be installed.
 pub async fn remember_baseline(state: &AppState) {
-    state.restart.remember_baseline(derived(state).await);
+    state
+        .runtime
+        .restart
+        .remember_baseline(derived(state).await);
 }
 
 /// The installed name of plugin `id`, for a reason a route records.
 pub(crate) async fn plugin_name(state: &AppState, id: &str) -> Option<String> {
     state
+        .admin
         .plugins
         .list_installed()
         .await
@@ -87,15 +91,16 @@ pub(crate) async fn plugin_name(state: &AppState, id: &str) -> Option<String> {
 pub(crate) async fn record_plugin(state: &AppState, code: &str, id: &str, version: Option<&str>) {
     let name = plugin_name(state, id).await;
     state
+        .runtime
         .restart
         .record(RestartReason::plugin(code, id, name.as_deref(), version));
 }
 
 /// Why a restart cannot begin now, if it cannot.
 fn blocked(state: &AppState) -> Option<&'static str> {
-    if state.restart.restarting() {
+    if state.runtime.restart.restarting() {
         Some("restart.already_restarting")
-    } else if state.updates.install_busy() {
+    } else if state.admin.updates.install_busy() {
         Some("restart.update_running")
     } else {
         None
@@ -120,6 +125,7 @@ async fn derived(state: &AppState) -> Vec<RestartReason> {
         }
     };
     let names: BTreeMap<String, String> = state
+        .admin
         .plugins
         .list_installed()
         .await
@@ -183,9 +189,12 @@ pub async fn begin(
         )
         .with_param("count", active));
     }
-    let (how, supervisor) = state.restart.how(state.updates.install_kind());
+    let (how, supervisor) = state
+        .runtime
+        .restart
+        .how(state.admin.updates.install_kind());
     let reasons = status(state).await.reasons;
-    if !state.restart.begin(how) {
+    if !state.runtime.restart.begin(how) {
         return Err(ApiError::conflict(
             "restart.already_restarting",
             "rDownloader is restarting already",
@@ -212,9 +221,9 @@ pub async fn begin(
     tracing::info!(how = how.as_str(), automatic, "rDownloader restarts");
     match how {
         RestartHow::Relaunch => {
-            let launched = plan(state).and_then(|plan| state.restart.relaunch(&plan));
+            let launched = plan(state).and_then(|plan| state.runtime.restart.relaunch(&plan));
             if let Err(error) = launched {
-                state.restart.abandon();
+                state.runtime.restart.abandon();
                 tracing::error!(error = %format!("{error:#}"), "the relauncher could not be started; rDownloader keeps running");
                 return Err(ApiError::conflict(
                     "restart.relaunch_failed",
@@ -224,7 +233,7 @@ pub async fn begin(
         }
         // The graceful stop lets the request that asked finish; `serve` then ends with the
         // restart's exit code, and the supervisor starts it again.
-        RestartHow::Supervisor | RestartHow::Manual => state.shutdown.cancel(),
+        RestartHow::Supervisor | RestartHow::Manual => state.runtime.shutdown.cancel(),
     }
     Ok(RestartStartedResponse {
         how: how.as_str().to_owned(),
@@ -244,9 +253,9 @@ fn plan(state: &AppState) -> anyhow::Result<RestartPlan> {
         })
         .collect::<anyhow::Result<Vec<_>>>()?;
     Ok(RestartPlan {
-        version: state.updates.current_version().to_owned(),
+        version: state.admin.updates.current_version().to_owned(),
         executable: std::path::absolute(&executable).unwrap_or(executable),
-        data_dir: state.updates.data_dir(),
+        data_dir: state.admin.updates.data_dir(),
         service_pid: std::process::id(),
         service_args,
         service_cwd: std::env::current_dir()?,

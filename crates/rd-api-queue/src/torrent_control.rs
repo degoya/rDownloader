@@ -245,7 +245,7 @@ pub async fn get_candidate_torrent(
         &stored.plan,
         stored.metadata_state,
         stored.metadata_error,
-        state.torrent.capabilities(),
+        state.queue.torrent.capabilities(),
     )))
 }
 
@@ -269,7 +269,7 @@ pub async fn put_candidate_torrent_plan(
 ) -> Result<Json<TorrentDetailResponse>, ApiError> {
     let mut stored = candidate_state(&state, id).await?;
     let metadata = stored.metadata.clone().ok_or_else(metadata_pending)?;
-    stored.plan = request.apply(&metadata, stored.plan, state.torrent.capabilities())?;
+    stored.plan = request.apply(&metadata, stored.plan, state.queue.torrent.capabilities())?;
     state
         .database
         .set_candidate_torrent_state(id, stored.clone())
@@ -279,7 +279,7 @@ pub async fn put_candidate_torrent_plan(
         &stored.plan,
         stored.metadata_state,
         stored.metadata_error,
-        state.torrent.capabilities(),
+        state.queue.torrent.capabilities(),
     )))
 }
 
@@ -307,7 +307,7 @@ pub async fn resolve_candidate_torrent(
             &stored.plan,
             stored.metadata_state,
             stored.metadata_error,
-            state.torrent.capabilities(),
+            state.queue.torrent.capabilities(),
         )));
     }
     let candidate =
@@ -336,7 +336,7 @@ pub async fn resolve_candidate_torrent(
         &stored.plan,
         stored.metadata_state,
         stored.metadata_error,
-        state.torrent.capabilities(),
+        state.queue.torrent.capabilities(),
     )))
 }
 
@@ -362,9 +362,9 @@ pub async fn get_download_torrent(
             &stored.plan,
             metadata_state(&stored),
             None,
-            state.torrent.capabilities(),
+            state.queue.torrent.capabilities(),
         )
-        .with_row(&stored, state.torrent.is_relocating(id).await),
+        .with_row(&stored, state.queue.torrent.is_relocating(id).await),
     ))
 }
 
@@ -393,9 +393,9 @@ pub async fn put_download_torrent_plan(
             &stored.plan,
             TorrentMetadataState::Ready,
             None,
-            state.torrent.capabilities(),
+            state.queue.torrent.capabilities(),
         )
-        .with_row(&stored, state.torrent.is_relocating(id).await),
+        .with_row(&stored, state.queue.torrent.is_relocating(id).await),
     ))
 }
 
@@ -409,7 +409,7 @@ pub async fn apply_download_plan(
     request: TorrentPlanRequest,
 ) -> Result<(TorrentMetadataInfo, TorrentJobState), ApiError> {
     require_download_state(state, id).await?;
-    let capabilities = state.torrent.capabilities();
+    let capabilities = state.queue.torrent.capabilities();
     // Validated and folded in inside the database writer, against the stored state as it is
     // at that moment, so a concurrent write of another field is not lost.
     let (stored, metadata) = state
@@ -421,6 +421,7 @@ pub async fn apply_download_plan(
         })
         .await??;
     state
+        .queue
         .torrent
         .push_plan(id, &stored)
         .await

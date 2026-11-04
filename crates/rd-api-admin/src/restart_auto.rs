@@ -56,7 +56,7 @@ pub fn start(state: &AppState) {
 impl AutoRestarter {
     /// One look at `now`: restarts when the time has come.
     pub async fn tick(&mut self, state: &AppState, now: DateTime<Utc>) -> Tick {
-        let settings = state.updates.settings().await;
+        let settings = state.admin.updates.settings().await;
         let status = crate::restart_service::status(state).await;
         let moment = RestartMoment {
             enabled: settings.restart_when_needed,

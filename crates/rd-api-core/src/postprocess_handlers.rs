@@ -95,7 +95,7 @@ pub fn validate_script_name(value: Option<String>) -> Result<Option<String>, Api
 pub async fn list_postprocess_queue(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<PostprocessQueueEntry>>, ApiError> {
-    let pending = state.extraction.pending().await;
+    let pending = state.queue.extraction.pending().await;
     let entries = state
         .database
         .list_packages()
@@ -121,7 +121,7 @@ pub async fn list_postprocess_queue(
 pub async fn list_postprocess_scripts(
     State(state): State<AppState>,
 ) -> Result<Json<PostprocessScriptsResponse>, ApiError> {
-    let directory = state.extraction.scripts_directory().await?;
+    let directory = state.queue.extraction.scripts_directory().await?;
     let mut scripts = Vec::new();
     if let Ok(mut entries) = tokio::fs::read_dir(&directory).await {
         while let Ok(Some(entry)) = entries.next_entry().await {
@@ -153,6 +153,7 @@ pub struct PostprocessPluginStep {
 pub async fn list_plugin_steps(State(state): State<AppState>) -> Json<Vec<PostprocessPluginStep>> {
     Json(
         state
+            .admin
             .plugin_steps
             .list()
             .into_iter()
@@ -180,6 +181,7 @@ pub async fn list_upload_destinations(
 ) -> Json<Vec<UploadDestination>> {
     Json(
         state
+            .admin
             .storage_destinations
             .list()
             .into_iter()

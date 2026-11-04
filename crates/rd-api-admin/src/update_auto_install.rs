@@ -64,7 +64,7 @@ impl AutoInstaller {
     /// come.
     pub async fn tick(&mut self, state: &AppState, now: DateTime<Utc>) -> Tick {
         self.announce_outcome(state).await;
-        let updates = &state.updates;
+        let updates = &state.admin.updates;
         let settings = updates.settings().await;
         let offered = updates
             .status()
@@ -102,10 +102,10 @@ impl AutoInstaller {
     /// Announces the end of the install the status shows, once per version: the new version
     /// running, or one that did not go ahead or was taken back.
     async fn announce_outcome(&mut self, state: &AppState) {
-        let Some(status) = state.updates.install_status() else {
+        let Some(status) = state.admin.updates.install_status() else {
             return;
         };
-        let current = state.updates.current_version();
+        let current = state.admin.updates.current_version();
         let notice = match status.state.as_str() {
             "done" => Notice::update_installed(&status.target_version, &status.from_version),
             "failed" | "rolled_back" => Notice::update_failed(
@@ -129,7 +129,7 @@ async fn install(state: &AppState, version: &str) -> Tick {
         actor: Actor::system(),
         trace: None,
     };
-    let current = state.updates.current_version().to_owned();
+    let current = state.admin.updates.current_version().to_owned();
     tracing::info!(target = %version, "nothing has run for a while; installing the update automatically");
     // Queued before the start: the updater stops this service soon after, and the delivery
     // after the restart finds it waiting.
@@ -177,7 +177,8 @@ async fn refused(state: &AppState, version: &str, current: &str, error: &ApiErro
 /// queue that cannot be read counts as running. The automatic restart (RD-1240-32,
 /// `restart_auto`) asks the same.
 pub(crate) async fn busy(state: &AppState) -> bool {
-    if !state.scheduler.transfer_rates().is_empty() || !state.extraction.pending().await.is_empty()
+    if !state.scheduler.transfer_rates().is_empty()
+        || !state.queue.extraction.pending().await.is_empty()
     {
         return true;
     }

@@ -43,7 +43,7 @@ pub async fn world_with(options: common::Options, external_url: bool) -> World {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::harness(directory.path(), options.login()).await;
     if external_url {
-        *harness.state.proxy.write().await =
+        *harness.state.access.proxy.write().await =
             rd_authn::ProxyConfig::parse(&[], Some(EXTERNAL_URL), rd_authn::CookieSecurity::Auto)
                 .expect("the external URL");
     }

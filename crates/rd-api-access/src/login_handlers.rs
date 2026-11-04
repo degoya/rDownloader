@@ -27,7 +27,7 @@ pub async fn auth_status(
 ) -> Result<Json<AuthStatus>, ApiError> {
     // A caller elsewhere is told the truth about the login it has to pass: the switch only
     // lets this machine in.
-    if state.auth.disabled_for(from_this_machine) {
+    if state.access.auth.disabled_for(from_this_machine) {
         return Ok(Json(AuthStatus {
             setup_required: false,
             authenticated: true,
@@ -38,8 +38,8 @@ pub async fn auth_status(
             password_login: true,
         }));
     }
-    let configured = state.auth.is_configured(&state).await?;
-    let authenticated = configured && state.auth.authenticated(&state, &headers).await;
+    let configured = state.access.auth.is_configured(&state).await?;
+    let authenticated = configured && state.access.auth.authenticated(&state, &headers).await;
     // The same reasoning as for the passkey below: the button has to be known to be drawn, and
     // the start route would tell anybody who asked that a provider is configured.
     let provider = crate::oidc_handlers::offered_provider(&state).await?;
@@ -64,7 +64,7 @@ pub async fn setup(
     client: crate::client::ClientAddress,
     Json(request): Json<SetupRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    state.auth.setup(&state, &request.password).await?;
+    state.access.auth.setup(&state, &request.password).await?;
     // Who set the first password, and from where: until this moment the installation belonged
     // to whoever reached it first, so the address is the one fact worth having afterwards.
     crate::audit::record(
@@ -116,7 +116,7 @@ pub async fn login(
     // telling a locked-out caller "invalid credentials" would leave them guessing at why a
     // password they know is right keeps failing.
     // Held until the verdict is recorded: until then the attempt counts as a failure.
-    let _attempt = match state.auth.gate(client.0).await {
+    let _attempt = match state.access.auth.gate(client.0).await {
         Ok(attempt) => attempt,
         Err(refusal) => {
             note_failed_login_audit(&state, client.0, "locked_out").await;
@@ -143,6 +143,7 @@ pub async fn login(
     // take the same path and the same time. Refusing early on the password would make the two
     // distinguishable, and an attacker who can tell which half failed has halved the problem.
     let password_ok = state
+        .access
         .auth
         .password_matches(&state, &request.password)
         .await?;
@@ -169,7 +170,7 @@ pub async fn login(
                 ));
             }
             None => {
-                state.auth.note_failed_login(client.0).await;
+                state.access.auth.note_failed_login(client.0).await;
                 note_failed_login_audit(&state, client.0, "password").await;
                 return Err(crate::error_codes::invalid_credentials());
             }
@@ -185,7 +186,7 @@ pub async fn login(
                 let code_ok = password_ok
                     && crate::mfa_handlers::consume_second_factor(&state, matched).await?;
                 if !code_ok {
-                    state.auth.note_failed_login(client.0).await;
+                    state.access.auth.note_failed_login(client.0).await;
                     // Deliberately the same reason either way. The refusal does not tell the
                     // caller which half failed, and neither does the record: an audit log a
                     // caller cannot read is still one an attacker who gains it could.
@@ -195,12 +196,13 @@ pub async fn login(
             }
         }
     } else if !password_ok {
-        state.auth.note_failed_login(client.0).await;
+        state.access.auth.note_failed_login(client.0).await;
         note_failed_login_audit(&state, client.0, "password").await;
         return Err(crate::error_codes::invalid_credentials());
     }
 
     let opened = state
+        .access
         .auth
         .open_session(&state, client.0, user_agent)
         .await?;
@@ -224,7 +226,7 @@ pub async fn login(
     response.headers_mut().insert(
         header::SET_COOKIE,
         HeaderValue::from_str(&{
-            let proxy = state.proxy.read().await;
+            let proxy = state.access.proxy.read().await;
             crate::AuthService::cookie(
                 &opened.token,
                 proxy.cookie_is_secure(),

@@ -17,7 +17,7 @@ async fn a_key_the_database_could_not_revoke_stays_trusted_and_the_refusal_says_
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = test_harness(directory.path()).await;
     let author = rd_plugin_host::generate_signing_key();
-    let verifier = harness.state.plugins.verifier();
+    let verifier = harness.state.admin.plugins.verifier();
     verifier
         .trust_key_base64(KEY.to_owned(), &author.public_base64)
         .expect("trust the key");

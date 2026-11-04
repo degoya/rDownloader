@@ -252,6 +252,7 @@ async fn prepare_plugins(
     let contracts = match contracts.filter(|contracts| !contracts.is_empty()) {
         Some(contracts) => contracts,
         None => state
+            .admin
             .updates
             .stored()
             .await
@@ -270,6 +271,7 @@ async fn prepare_plugins(
         return answer;
     }
     let outcome = state
+        .admin
         .plugin_repositories
         .prepare_update(rd_plugin_host::repository::UpdateTarget {
             version: target,

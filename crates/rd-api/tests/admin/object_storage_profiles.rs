@@ -143,7 +143,7 @@ async fn an_upload_target_names_an_existing_profile_and_only_its_bound_bucket() 
                 assert_eq!(status, StatusCode::OK, "{remote}: {body}");
                 // Saving the settings re-reads the login switch, which this harness keeps off
                 // by hand.
-                harness.state.auth.set_disabled(true);
+                harness.state.access.auth.set_disabled(true);
             }
         }
     }

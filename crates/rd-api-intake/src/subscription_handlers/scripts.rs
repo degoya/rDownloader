@@ -194,7 +194,7 @@ pub(super) async fn ensure_script_exists(
         return Ok(());
     }
     let name = input.url.path();
-    let directory = state.extraction.scripts_directory().await?;
+    let directory = state.queue.extraction.scripts_directory().await?;
     if tokio::fs::metadata(directory.join(name))
         .await
         .is_ok_and(|meta| meta.is_file())

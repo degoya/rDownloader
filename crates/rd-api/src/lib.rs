@@ -40,9 +40,10 @@ pub use rd_api_admin::{
     update_auto_install,
 };
 pub use rd_api_core::{
-    ApiError, AppState, AuthService, BuildInfo, HotFolderService, LinkCheckService, RUNTIME_FIELDS,
-    RefusedSetting, RemoteJobChoiceOutcome, RemoteJobDiscardOutcome, RemoteJobRefused,
-    RemoteJobService, RemoteJobSubmitOutcome, RemoteServices, audit, diagnosed_settings,
+    AccessState, AdminState, ApiError, AppState, AppStateBuilder, AuthService, BuildInfo,
+    HotFolderService, IntakeState, LinkCheckService, QueueState, RUNTIME_FIELDS, RefusedSetting,
+    RemoteJobChoiceOutcome, RemoteJobDiscardOutcome, RemoteJobRefused, RemoteJobService,
+    RemoteJobSubmitOutcome, RemoteServices, RuntimeState, audit, diagnosed_settings,
     dto::SettingsResponse, local_control, oidc_client, password_reset, policy_rows, required_scope,
     runtime_settings, service_switches, startup_settings,
 };
@@ -100,7 +101,7 @@ pub fn router(state: AppState) -> Router {
     // Removes finished packages on a delay, for the same reason and in the same place.
     auto_remove_service::start(state.clone());
     // Watches for free downloads stuck behind an address limit.
-    state.reconnect.clone().start(state.clone());
+    state.queue.reconnect.clone().start(state.clone());
     // Thins the persistent transfer statistics, and dates the uptime metric (RD-110-01).
     stats_retention_service::start(state.clone());
     // Runs the scheduled full backup, after marking a run the last stop interrupted (RD-160-01).
@@ -357,20 +358,20 @@ pub fn router(state: AppState) -> Router {
 /// peer. A cut-off response is what a client sees of a service that went away anyway.
 pub const CONNECTION_DRAIN: std::time::Duration = std::time::Duration::from_secs(10);
 
-/// Runs the service on `address` until `state.shutdown` is cancelled.
+/// Runs the service on `address` until `state.runtime.shutdown` is cancelled.
 pub async fn serve(state: AppState, address: SocketAddr) -> Result<()> {
     let listener = tokio::net::TcpListener::bind(address).await?;
     serve_on(state, listener).await
 }
 
-/// Runs the service on a bound `listener` until `state.shutdown` is cancelled -- by a signal,
+/// Runs the service on a bound `listener` until `state.runtime.shutdown` is cancelled -- by a signal,
 /// by `POST /api/v1/system/shutdown`, or by the updater through that route (RD-180-02).
 ///
 /// Returns once every connection ended, or [`CONNECTION_DRAIN`] after the stop at the latest.
 pub async fn serve_on(state: AppState, listener: tokio::net::TcpListener) -> Result<()> {
-    state.auth.load(&state).await?;
+    state.access.auth.load(&state).await?;
     rd_api_core::host_check::load(&state).await;
-    if state.auth.disabled() {
+    if state.access.auth.disabled() {
         tracing::warn!(
             "administrator login is disabled in the settings; every client on this machine is \
              trusted, every other one has to sign in"
@@ -378,7 +379,7 @@ pub async fn serve_on(state: AppState, listener: tokio::net::TcpListener) -> Res
     }
     let bound = listener.local_addr()?;
     tracing::info!(address = %bound, "rDownloader listening");
-    let shutdown = state.shutdown.clone();
+    let shutdown = state.runtime.shutdown.clone();
     // With connect info, so a handler can see who is actually calling. Without it the peer
     // address is unreachable anywhere in the application, which makes both rate limiting and
     // the session inventory impossible to do honestly — the first would have nothing to key

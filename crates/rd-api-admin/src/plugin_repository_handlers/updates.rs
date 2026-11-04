@@ -10,7 +10,7 @@ use super::*;
 /// [`STARTUP_DELAY`](rd_plugin_host::repository::STARTUP_DELAY), so fetching an index never
 /// delays the start, and a failed refresh never stops anything else.
 pub async fn prepare_plugin_repositories(state: &AppState) {
-    state.plugin_repositories.load().await;
+    state.admin.plugin_repositories.load().await;
     let state = state.clone();
     tokio::spawn(async move {
         use rd_plugin_host::repository::STARTUP_DELAY;
@@ -20,7 +20,7 @@ pub async fn prepare_plugin_repositories(state: &AppState) {
         tokio::time::sleep(STARTUP_DELAY).await;
         let mut last = None::<std::time::Instant>;
         loop {
-            let hours = u64::from(state.plugin_repositories.refresh_hours().await);
+            let hours = u64::from(state.admin.plugin_repositories.refresh_hours().await);
             let due = last
                 .is_none_or(|last| last.elapsed() >= std::time::Duration::from_secs(hours * 3600));
             if due {
@@ -36,8 +36,8 @@ pub async fn prepare_plugin_repositories(state: &AppState) {
 /// automatic. Called by the refresh route and by the background loop; never fails, because
 /// every outcome is recorded on its repository's row.
 pub(crate) async fn refresh_and_update(state: &AppState, actor: Actor) {
-    state.plugin_repositories.refresh_all().await;
-    let updates = match state.plugin_repositories.updates().await {
+    state.admin.plugin_repositories.refresh_all().await;
+    let updates = match state.admin.plugin_repositories.updates().await {
         Ok(updates) => updates,
         Err(error) => {
             tracing::warn!(%error, "could not compute plugin updates");
@@ -65,6 +65,7 @@ pub(crate) async fn refresh_and_update(state: &AppState, actor: Actor) {
     for update in updates {
         let offer = update.offer;
         let outcome = match state
+            .admin
             .plugin_repositories
             .download(
                 &offer.repository_id,
@@ -113,6 +114,7 @@ pub(super) async fn install_offer(
     confirmed_key: Option<String>,
 ) -> Result<MessageResponse, ApiError> {
     let installed = state
+        .admin
         .plugins
         .install_bytes(bytes)
         .await
@@ -123,7 +125,7 @@ pub(super) async fn install_offer(
     rd_core::failpoint!("plugin.before_install_recorded", || ApiError::from(
         anyhow::anyhow!("crash point")
     ));
-    if let Err(error) = state.plugin_repositories.record_install(offer).await {
+    if let Err(error) = state.admin.plugin_repositories.record_install(offer).await {
         // The install stands; only a later withdrawal by a third-party repository loses its
         // reach over this version, which is the narrower of the two failures.
         tracing::warn!(%error, "could not record which repository a plugin came from");

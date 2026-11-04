@@ -29,6 +29,7 @@ pub(crate) async fn activate_first_install(state: &AppState, installed: &Install
     };
     if live {
         state
+            .admin
             .plugins
             .record_started_version(&id.to_string(), &manifest.version);
     } else if manifest.plugin_type == PluginType::Resolver {
@@ -42,6 +43,7 @@ pub(crate) async fn activate_first_install(state: &AppState, installed: &Install
 fn loaded(state: &AppState, installed: &InstalledPackage) -> bool {
     let id = installed.manifest.id;
     state
+        .admin
         .plugins
         .started_versions()
         .is_some_and(|started| started.contains_key(&id.to_string()))
@@ -52,6 +54,7 @@ async fn join(state: &AppState, installed: &InstalledPackage) -> bool {
     let manifest = &installed.manifest;
     let id = manifest.id;
     let package = match state
+        .admin
         .plugins
         .load_installed_version(&id.to_string(), &manifest.version)
         .await
@@ -76,5 +79,9 @@ async fn join(state: &AppState, installed: &InstalledPackage) -> bool {
             .await
             .is_ok_and(|joined| joined > 0);
     }
-    state.auth_flows.activate_first_install(registry, id).await
+    state
+        .access
+        .auth_flows
+        .activate_first_install(registry, id)
+        .await
 }

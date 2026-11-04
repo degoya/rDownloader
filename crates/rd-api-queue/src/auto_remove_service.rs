@@ -44,7 +44,7 @@ async fn run_once(state: &AppState) -> anyhow::Result<()> {
     }
     let packages = state.database.list_packages().await?;
     let downloads = state.database.list_downloads().await?;
-    let pending = state.extraction.pending().await;
+    let pending = state.queue.extraction.pending().await;
     let due = due_packages(&packages, &downloads, &pending, &settings, Utc::now());
     if due.is_empty() {
         return Ok(());

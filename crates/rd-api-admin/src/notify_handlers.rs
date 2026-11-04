@@ -161,7 +161,7 @@ pub async fn test_target(
                 "Notification target not found",
             )
         })?;
-    let attempt = state.notifications.test_target(&target).await;
+    let attempt = state.admin.notifications.test_target(&target).await;
     Ok(Json(TargetTestResponse {
         ok: attempt.ok,
         status: attempt.status,
@@ -327,6 +327,7 @@ async fn check_plugin_destination(
         .and_then(serde_json::Value::as_str)
         .unwrap_or_default();
     match state
+        .admin
         .notifications
         .notifiers()
         .await
@@ -352,6 +353,7 @@ async fn check_plugin_destination(
     // value it does not offer, would otherwise be dropped silently on every delivery.
     let checked = match rd_plugin_host::extension::settings_from_config(config) {
         Ok(settings) => state
+            .admin
             .notifications
             .notifiers()
             .await

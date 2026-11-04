@@ -1,57 +1,74 @@
-//! Building the [`AppState`] and the services it carries, and the builder steps after it.
+//! The shared [`AppState`] (RD-1420-06): the ground every area reads, one part per area, built
+//! by [`AppStateBuilder`] and finished by the `with_*` steps after it.
+
+mod parts;
+mod services;
+
+pub use parts::{AccessState, AdminState, IntakeState, QueueState, RuntimeState};
 
 use super::*;
 
-impl RemoteServices {
-    /// Builds the transports on the scheduler's network defaults, so a proxy and a custom
-    /// CA reach them exactly as they reach HTTP. Byte pacing is not passed here: the queue
-    /// hands each runner a limiter scoped to the transfer it is about to start.
-    #[must_use]
-    pub fn new(
-        database: Database,
-        secrets: rd_secrets::SecretStore,
-        settings: rd_ftp::SharedRemoteSettings,
-        network_defaults: rd_http::SharedNetworkDefaults,
-    ) -> Self {
-        Self {
-            ftp: rd_ftp::FtpService::new(
-                database.clone(),
-                secrets.clone(),
-                settings.clone(),
-                network_defaults.clone(),
-            ),
-            object_storage: rd_object_storage::ObjectStorageService::new(
-                database.clone(),
-                secrets.clone(),
-                settings.clone(),
-                network_defaults,
-            ),
-            sftp: rd_sftp::SftpService::new(database, secrets, settings.clone()),
-            settings,
-        }
-    }
+/// Shared state cloned into request handlers.
+///
+/// The database, the scheduler and the vault are what every area reads; everything else lives
+/// in the part of the area that owns it, so a handler reaches it as `state.<part>.<field>`
+/// (RD-1420-06).
+#[derive(Clone)]
+pub struct AppState {
+    pub database: Database,
+    pub scheduler: SchedulerHandle,
+    pub secrets: rd_secrets::SecretStore,
+    /// Sign-in, sessions, the proxy contract and the ceremonies in flight.
+    pub access: AccessState,
+    /// The online check, hot folders, subscriptions and the installed parsers and crawlers.
+    pub intake: IntakeState,
+    /// Unpacking, the torrent engine, the remote transports, power and reconnects.
+    pub queue: QueueState,
+    /// Plugins, managed tools, the update, notifications and automations.
+    pub admin: AdminState,
+    /// The build, the local control token, the stop and the restart.
+    pub runtime: RuntimeState,
 }
 
-impl AppState {
-    /// Creates API state from initialized service components.
+/// The services the binary initialised, by name, from which [`Self::build`] starts the
+/// background services the [`AppState`] carries.
+pub struct AppStateBuilder {
+    pub database: Database,
+    pub scheduler: SchedulerHandle,
+    pub secrets: rd_secrets::SecretStore,
+    pub plugins: rd_plugin_host::PluginInstaller,
+    pub extraction: rd_extract::ExtractionService,
+    pub media_settings: rd_media::SharedMediaSettings,
+    pub media_probe: std::sync::Arc<dyn rd_media::MediaProbe>,
+    pub gallery_settings: rd_gallery::SharedGallerySettings,
+    pub stream_settings: rd_stream::SharedStreamSettings,
+    pub torrent: rd_torrent::TorrentService,
+    pub torrent_settings: rd_torrent::SharedTorrentSettings,
+    pub power: rd_power::PowerService,
+    pub quiet_hold: rd_core::PostprocessHold,
+    pub remote: RemoteServices,
+}
+
+impl AppStateBuilder {
+    /// Starts the background services and assembles the state from them.
     #[must_use]
-    #[expect(clippy::too_many_arguments)]
-    pub fn new(
-        database: Database,
-        scheduler: SchedulerHandle,
-        secrets: rd_secrets::SecretStore,
-        plugins: rd_plugin_host::PluginInstaller,
-        extraction: rd_extract::ExtractionService,
-        media_settings: rd_media::SharedMediaSettings,
-        media_probe: std::sync::Arc<dyn rd_media::MediaProbe>,
-        gallery_settings: rd_gallery::SharedGallerySettings,
-        stream_settings: rd_stream::SharedStreamSettings,
-        torrent: rd_torrent::TorrentService,
-        torrent_settings: rd_torrent::SharedTorrentSettings,
-        power: rd_power::PowerService,
-        quiet_hold: rd_core::PostprocessHold,
-        remote: RemoteServices,
-    ) -> Self {
+    pub fn build(self) -> AppState {
+        let Self {
+            database,
+            scheduler,
+            secrets,
+            plugins,
+            extraction,
+            media_settings,
+            media_probe,
+            gallery_settings,
+            stream_settings,
+            torrent,
+            torrent_settings,
+            power,
+            quiet_hold,
+            remote,
+        } = self;
         // Built before the hotfolders: a `.dlc` dropped into a folder is checked through the
         // same service a pasted batch goes through.
         let link_check = link_check_service::LinkCheckService::start(
@@ -81,7 +98,7 @@ impl AppState {
             stream_settings.clone(),
         );
         let site_rule_claims = subscription_service::SharedSiteRules::default();
-        let subscription_adapters = subscription_adapters(
+        let subscription_adapters = services::subscription_adapters(
             &database,
             &media_probe,
             &scheduler,
@@ -128,8 +145,8 @@ impl AppState {
                 gallery_settings: gallery_settings.clone(),
             },
         );
-        let tools = managed_tools(&database);
-        let plugin_repositories = plugin_repositories(&database, &plugins);
+        let tools = services::managed_tools(&database);
+        let plugin_repositories = services::plugin_repositories(&database, &plugins);
         let capture_agents = capture_agents::CaptureAgents::default();
         let updates = update_service::UpdateService::new(database.clone(), capture_agents.clone());
         let power_supervisor = power_service::PowerSupervisor::start(
@@ -139,59 +156,58 @@ impl AppState {
             power.clone(),
             quiet_hold.clone(),
         );
-        Self {
+        AppState {
             database,
             scheduler,
-            auth: AuthService::default(),
-            proxy: std::sync::Arc::new(tokio::sync::RwLock::new(rd_authn::ProxyConfig::default())),
-            passkey_registrations: std::sync::Arc::new(rd_authn::CeremonyStore::new()),
-            passkey_authentications: std::sync::Arc::new(rd_authn::CeremonyStore::new()),
-            oidc: oidc_client::OidcClient::default(),
-            qbittorrent_sessions: std::sync::Arc::default(),
-            hotfolders,
             secrets,
-            plugins,
-            extraction,
-            link_check,
-            media_settings,
-            gallery_settings,
-            stream_settings,
-            stream_monitor,
-            tools,
-            plugin_repositories,
-            updates,
-            subscriptions,
-            torrent,
-            torrent_settings,
-            power,
-            quiet_hold,
-            power_supervisor,
-            notifications,
-            auth_flows,
-            remote_jobs,
-            reconnect: reconnect_service::ReconnectService::default(),
-            browser_sessions: browser_session::BrowserSessions::default(),
-            capture_agents,
-            automations,
-            ftp: remote.ftp,
-            sftp: remote.sftp,
-            object_storage: remote.object_storage,
-            remote_settings: remote.settings,
-            plugin_transfer_schemes: std::sync::Arc::new(Vec::new()),
-            intake_parsers: std::sync::Arc::new(rd_plugin_ext::IntakeParsers::none()),
-            crawlers: std::sync::Arc::new(rd_plugin_ext::FolderCrawlers::none()),
-            site_rule_claims,
-            plugin_steps: std::sync::Arc::new(rd_plugin_ext::PluginSteps::none()),
-            storage_destinations: std::sync::Arc::new(rd_plugin_ext::StorageDestinations::none()),
-            build: std::sync::Arc::default(),
-            local_capture_fetches: false,
-            local_control: local_control::LocalControl::default(),
-            shutdown: tokio_util::sync::CancellationToken::new(),
-            restart: restart_state::RestartState::default(),
-            stream_recheck: stream_standing::STREAM_RECHECK,
+            access: AccessState::new(auth_flows),
+            intake: IntakeState {
+                hotfolders,
+                link_check,
+                media_settings,
+                gallery_settings,
+                stream_settings,
+                stream_monitor,
+                subscriptions,
+                plugin_transfer_schemes: std::sync::Arc::new(Vec::new()),
+                intake_parsers: std::sync::Arc::new(rd_plugin_ext::IntakeParsers::none()),
+                crawlers: std::sync::Arc::new(rd_plugin_ext::FolderCrawlers::none()),
+                site_rule_claims,
+                local_capture_fetches: false,
+            },
+            queue: QueueState {
+                extraction,
+                torrent,
+                torrent_settings,
+                ftp: remote.ftp,
+                sftp: remote.sftp,
+                object_storage: remote.object_storage,
+                remote_settings: remote.settings,
+                power,
+                quiet_hold,
+                power_supervisor,
+                remote_jobs,
+                reconnect: reconnect_service::ReconnectService::default(),
+            },
+            admin: AdminState {
+                plugins,
+                tools,
+                plugin_repositories,
+                updates,
+                notifications,
+                automations,
+                plugin_steps: std::sync::Arc::new(rd_plugin_ext::PluginSteps::none()),
+                storage_destinations: std::sync::Arc::new(
+                    rd_plugin_ext::StorageDestinations::none(),
+                ),
+                capture_agents,
+            },
+            runtime: RuntimeState::new(),
         }
     }
+}
 
+impl AppState {
     /// Reads the managed tool store from disk and makes it the managed stage of the tool
     /// lookup (RD-102-02).
     ///
@@ -201,15 +217,15 @@ impl AppState {
     /// so no job can see a half-loaded store. A test that never calls this simply has no
     /// managed stage, which is exactly the behaviour of an installation that manages nothing.
     pub async fn prepare_managed_tools(&self, settings: rd_core::ManagedToolSettings) {
-        self.tools.apply_settings(settings);
-        self.tools.load().await;
-        rd_core::set_managed_tool_resolver(std::sync::Arc::new(self.tools.clone()));
+        self.admin.tools.apply_settings(settings);
+        self.admin.tools.load().await;
+        rd_core::set_managed_tool_resolver(std::sync::Arc::new(self.admin.tools.clone()));
     }
 
     /// Records the installed post-processing step plugins.
     #[must_use]
     pub fn with_plugin_steps(mut self, steps: std::sync::Arc<rd_plugin_ext::PluginSteps>) -> Self {
-        self.plugin_steps = steps;
+        self.admin.plugin_steps = steps;
         self
     }
 
@@ -219,7 +235,7 @@ impl AppState {
         mut self,
         destinations: std::sync::Arc<rd_plugin_ext::StorageDestinations>,
     ) -> Self {
-        self.storage_destinations = destinations;
+        self.admin.storage_destinations = destinations;
         self
     }
 
@@ -231,7 +247,7 @@ impl AppState {
         providers: rd_plugin_ext::AuthProviders,
         oauth: rd_plugin_ext::OAuthProviders,
     ) -> Self {
-        self.auth_flows.preload(providers, oauth);
+        self.access.auth_flows.preload(providers, oauth);
         self
     }
 
@@ -245,7 +261,7 @@ impl AppState {
         mut self,
         parsers: std::sync::Arc<rd_plugin_ext::IntakeParsers>,
     ) -> Self {
-        self.intake_parsers = parsers;
+        self.intake.intake_parsers = parsers;
         self
     }
 
@@ -260,9 +276,10 @@ impl AppState {
     ) -> Self {
         // The same rules the crawler selection uses, so a watched listing and a pasted
         // address never disagree about which links are release pages (RD-110-21).
-        self.site_rule_claims
+        self.intake
+            .site_rule_claims
             .set(crawlers.rules().map(std::sync::Arc::clone));
-        self.crawlers = crawlers;
+        self.intake.crawlers = crawlers;
         self
     }
 
@@ -272,21 +289,21 @@ impl AppState {
     /// compiles them in, and a test router simply has none.
     #[must_use]
     pub fn with_build_info(mut self, build: BuildInfo) -> Self {
-        self.build = std::sync::Arc::new(build);
+        self.runtime.build = std::sync::Arc::new(build);
         self
     }
 
     /// Records the local control token this start issued (RD-180-02).
     #[must_use]
     pub fn with_local_control(mut self, control: local_control::LocalControl) -> Self {
-        self.local_control = control;
+        self.runtime.local_control = control;
         self
     }
 
     /// Records the token that stops the service, the one the binary's signal handler cancels.
     #[must_use]
     pub fn with_shutdown(mut self, shutdown: tokio_util::sync::CancellationToken) -> Self {
-        self.shutdown = shutdown;
+        self.runtime.shutdown = shutdown;
         self
     }
 
@@ -296,7 +313,7 @@ impl AppState {
     /// backends are compiled at startup, and a service with none behaves exactly as before.
     #[must_use]
     pub fn with_plugin_transfer_schemes(mut self, schemes: Vec<String>) -> Self {
-        self.plugin_transfer_schemes = std::sync::Arc::new(schemes);
+        self.intake.plugin_transfer_schemes = std::sync::Arc::new(schemes);
         self
     }
 
@@ -308,7 +325,7 @@ impl AppState {
     #[doc(hidden)]
     #[must_use]
     pub fn with_local_capture_fetches(mut self) -> Self {
-        self.local_capture_fetches = true;
+        self.intake.local_capture_fetches = true;
         self
     }
 
@@ -319,89 +336,7 @@ impl AppState {
     #[doc(hidden)]
     #[must_use]
     pub fn with_stream_recheck(mut self, every: std::time::Duration) -> Self {
-        self.stream_recheck = every;
+        self.runtime.stream_recheck = every;
         self
     }
-}
-
-/// The sources a subscription can watch.
-///
-/// The media adapter reuses the existing probe rather than talking to yt-dlp a second
-/// way; RD-080-10, RD-080-11, RD-110-21, RD-130-19 and RD-190-13 add their adapters to
-/// this same list.
-fn subscription_adapters(
-    database: &Database,
-    media_probe: &std::sync::Arc<dyn rd_media::MediaProbe>,
-    scheduler: &SchedulerHandle,
-    secrets: &rd_secrets::SecretStore,
-    extraction: &rd_extract::ExtractionService,
-    site_rule_claims: &subscription_service::SharedSiteRules,
-) -> Vec<std::sync::Arc<dyn rd_subscription::SourceAdapter>> {
-    vec![
-        std::sync::Arc::new(rd_subscription::MediaAdapter::new(media_probe.clone())),
-        std::sync::Arc::new(rd_subscription::FeedAdapter::new(std::sync::Arc::new(
-            subscription_service::HttpFeedFetcher::new(scheduler.clone()),
-        ))),
-        std::sync::Arc::new(rd_subscription::IndexerAdapter::new(
-            std::sync::Arc::new(subscription_service::HttpFeedFetcher::new(
-                scheduler.clone(),
-            )),
-            std::sync::Arc::new(subscription_service::VaultSecretResolver::new(
-                secrets.clone(),
-            )),
-            // Where a poll meets what it already has, so it pages no further (RD-1150-05).
-            std::sync::Arc::new(subscription_service::ArchivedItems::new(database.clone())),
-        )),
-        // A watched release or series page (RD-110-21): the listing is fetched
-        // conditionally like a feed, and which of its links are release pages is the
-        // rules' answer rather than a guess.
-        std::sync::Arc::new(rd_subscription::RuleAdapter::new(
-            std::sync::Arc::new(subscription_service::HttpFeedFetcher::new(
-                scheduler.clone(),
-            )),
-            std::sync::Arc::new(site_rule_claims.clone()),
-        )),
-        // An administrator's script whose output lines are links (RD-130-19), run through
-        // the same sandbox as every other user script.
-        std::sync::Arc::new(rd_subscription::ScriptAdapter::new(std::sync::Arc::new(
-            subscription_service::SandboxScriptRunner::new(extraction.clone()),
-        ))),
-        // The releases of a GitHub or GitLab repository (RD-190-13), read through the
-        // forge's API with the subscription's token from the vault, when it has one.
-        std::sync::Arc::new(rd_subscription::GitReleaseAdapter::new(
-            std::sync::Arc::new(subscription_service::HttpApiFetcher::new(scheduler.clone())),
-            std::sync::Arc::new(subscription_service::VaultSecretResolver::new(
-                secrets.clone(),
-            )),
-        )),
-    ]
-}
-
-/// The managed tool store.
-///
-/// Rooted at the data directory when the binary registered one. `data/` is the same
-/// default the CLI uses, so a test that never sets one reads an empty store rather
-/// than an absolute path from somewhere else.
-fn managed_tools(database: &Database) -> rd_tools::ManagedToolService {
-    rd_tools::ManagedToolService::new(
-        database.clone(),
-        rd_tools::store_root(
-            rd_core::data_directory().unwrap_or_else(|| std::path::Path::new("data")),
-        ),
-        rd_core::ManagedToolSettings::default(),
-    )
-}
-
-/// The plugin repositories, kept beside the data directory.
-fn plugin_repositories(
-    database: &Database,
-    plugins: &rd_plugin_host::PluginInstaller,
-) -> rd_plugin_host::repository::PluginRepositoryService {
-    rd_plugin_host::repository::PluginRepositoryService::new(
-        database.clone(),
-        rd_core::data_directory()
-            .unwrap_or_else(|| std::path::Path::new("data"))
-            .join(rd_plugin_host::repository::DIRECTORY),
-        plugins.clone(),
-    )
 }

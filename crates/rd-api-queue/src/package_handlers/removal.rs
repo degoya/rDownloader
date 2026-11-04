@@ -97,7 +97,7 @@ pub(crate) async fn remove_packages_discarding(
     let pending = if force {
         HashSet::new()
     } else {
-        state.extraction.pending().await
+        state.queue.extraction.pending().await
     };
     let mut removed = 0_usize;
     let mut errors = Vec::new();

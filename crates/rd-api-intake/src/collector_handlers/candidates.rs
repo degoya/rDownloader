@@ -89,7 +89,7 @@ pub async fn check_candidates(
             .collect(),
     };
     let count = ids.len();
-    state.link_check.check(ids).await;
+    state.intake.link_check.check(ids).await;
     Ok((
         StatusCode::ACCEPTED,
         Json(

@@ -119,8 +119,8 @@ pub async fn capture_file(
     let (bytes, file_name) = match body {
         CaptureFileBody::Multipart(multipart) => read_multipart(multipart).await?,
         CaptureFileBody::Json(request) => {
-            let guard =
-                (!state.local_capture_fetches).then(|| state.scheduler.remote_address_policy(true));
+            let guard = (!state.intake.local_capture_fetches)
+                .then(|| state.scheduler.remote_address_policy(true));
             read_json(&state, request, guard.as_ref()).await?
         }
     };
@@ -277,7 +277,7 @@ async fn import(
             .map_err(|error| ApiError::bad_request("torrent.file_invalid", format!("{error:#}")))?;
         let (batch, packages, candidates) = crate::torrent_intake::add_torrent_to_collector(
             &state.database,
-            &state.torrent,
+            &state.queue.torrent,
             &bytes,
             source,
             file_name,

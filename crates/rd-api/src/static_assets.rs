@@ -56,7 +56,7 @@ pub(crate) async fn serve(
     method: Method,
     uri: Uri,
 ) -> Response {
-    let base = state.proxy.read().await.base_path().to_owned();
+    let base = state.access.proxy.read().await.base_path().to_owned();
     serve_with_base(&method, &uri, &base)
 }
 

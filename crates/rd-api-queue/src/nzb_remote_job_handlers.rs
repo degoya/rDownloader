@@ -138,13 +138,20 @@ async fn hand_over(
             )
         })?;
     let provider = account.provider.to_ascii_lowercase();
-    if !state.remote_jobs.providers().await?.contains(&provider) {
+    if !state
+        .queue
+        .remote_jobs
+        .providers()
+        .await?
+        .contains(&provider)
+    {
         return Err(ApiError::bad_request(
             "nzb.remote_job_not_remote_account",
             "No installed plugin runs remote jobs on this account's provider",
         ));
     }
     if !state
+        .queue
         .remote_jobs
         .providers_accepting(NZB)
         .await?
@@ -170,6 +177,7 @@ async fn hand_over(
         .with_param("max_mib", max_mib));
     }
     let outcome = state
+        .queue
         .remote_jobs
         .submit_named(
             account_id,

@@ -59,7 +59,7 @@ pub async fn shutdown_service(
     .await;
     tracing::info!("a graceful stop was requested over the API");
     // The graceful shutdown lets this request finish before the listener closes.
-    state.shutdown.cancel();
+    state.runtime.shutdown.cancel();
     Ok((
         StatusCode::ACCEPTED,
         Json(ServiceStopResponse { stopping: true }),

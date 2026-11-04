@@ -155,8 +155,8 @@ pub(crate) async fn backup_sources(
         .map_err(|error| BackupError::new("backup.settings_failed", error.to_string()))?;
     Ok(BackupSources {
         settings_bundle,
-        torrent_session: Some(state.torrent.session_directory()),
-        torrent_files: Some(state.torrent.torrent_file_directory()),
+        torrent_session: Some(state.queue.torrent.session_directory()),
+        torrent_files: Some(state.queue.torrent.torrent_file_directory()),
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
         instance_id: instance_id.to_owned(),
     })

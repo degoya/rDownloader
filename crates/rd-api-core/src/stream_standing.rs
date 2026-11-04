@@ -33,13 +33,13 @@ pub(crate) async fn standing_scopes(
     headers: &HeaderMap,
     from_this_machine: bool,
 ) -> Vec<Scope> {
-    if state.auth.disabled_for(from_this_machine) {
+    if state.access.auth.disabled_for(from_this_machine) {
         return Scope::API.to_vec();
     }
     if let Some(token) = auth::session_token(headers) {
         match state
             .database
-            .session_for_digest(&auth::digest_of(token), state.auth.session_limits())
+            .session_for_digest(&auth::digest_of(token), state.access.auth.session_limits())
             .await
         {
             Ok(Some(_)) => return Scope::API.to_vec(),
@@ -76,7 +76,7 @@ pub async fn api_lapsed(
     opened_with: Vec<Scope>,
 ) {
     let (state, headers, opened_with) = (&state, &headers, &opened_with);
-    until_lapsed(state.stream_recheck, move || async move {
+    until_lapsed(state.runtime.stream_recheck, move || async move {
         let now = standing_scopes(state, headers, from_this_machine).await;
         opened_with.iter().all(|scope| now.contains(scope))
     })
@@ -87,7 +87,7 @@ pub async fn api_lapsed(
 /// Completes once the capture token on `headers` is no longer a live capture token.
 pub async fn capture_lapsed(state: AppState, headers: HeaderMap) {
     let (state, headers) = (&state, &headers);
-    until_lapsed(state.stream_recheck, move || async move {
+    until_lapsed(state.runtime.stream_recheck, move || async move {
         let Some(token) = auth::bearer_token(headers) else {
             return false;
         };

@@ -220,6 +220,7 @@ pub async fn extract_downloads(
     let count = packages.len();
     for package_id in packages {
         state
+            .queue
             .extraction
             .request(package_id, rd_extract::ExtractionTrigger::Manual)
             .await?;

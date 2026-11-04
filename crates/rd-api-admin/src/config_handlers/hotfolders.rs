@@ -93,7 +93,7 @@ pub async fn create_hotfolder(
         .create_hotfolder(input)
         .await
         .map_err(|error| store_duplicate(&error, TAKEN, TAKEN_MESSAGE))?;
-    state.hotfolders.start(value.clone()).await?;
+    state.intake.hotfolders.start(value.clone()).await?;
     Ok((StatusCode::CREATED, Json(value)))
 }
 
@@ -119,8 +119,8 @@ pub async fn update_hotfolder(
             )
         })?;
     // The watcher holds the old path and enabled flag, so it has to be recreated.
-    state.hotfolders.stop(id).await;
-    state.hotfolders.start(value.clone()).await?;
+    state.intake.hotfolders.stop(id).await;
+    state.intake.hotfolders.start(value.clone()).await?;
     Ok(Json(value))
 }
 
@@ -139,7 +139,7 @@ pub async fn delete_hotfolder(
             "The hotfolder is still in use",
         )
     })?;
-    state.hotfolders.stop(id).await;
+    state.intake.hotfolders.stop(id).await;
     Ok(Json(crate::dto::MessageResponse::new(
         "hotfolder.deleted",
         "Hotfolder deleted",

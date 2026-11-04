@@ -202,7 +202,7 @@ async fn check_plugin(
     if area != LogDebugArea::Plugin || !rd_core::is_directive_safe_plugin_id(plugin_id) {
         return Err(refused());
     }
-    let installed = state.plugins.list_installed().await?;
+    let installed = state.admin.plugins.list_installed().await?;
     if !installed
         .iter()
         .any(|manifest| manifest.id.to_string() == plugin_id)

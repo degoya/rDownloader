@@ -171,6 +171,7 @@ pub(crate) async fn apply_settings_reporting(
     crate::log_level_handlers::apply_level(settings.log_level);
     // Every running watcher re-arms its ticker on this; nothing is restarted (RD-110-31).
     state
+        .intake
         .hotfolders
         .set_poll_interval(crate::hotfolder_service::poll_interval_of(&settings));
     // The thresholds live in the same blob, so the capacity service reloads right away
@@ -181,6 +182,7 @@ pub(crate) async fn apply_settings_reporting(
     let timezone = rd_limits::parse_timezone(&settings.bandwidth_timezone)
         .unwrap_or(rd_limits::default_timezone());
     state
+        .queue
         .power
         .apply(
             rd_power::PowerSettings {
@@ -199,16 +201,23 @@ pub(crate) async fn apply_settings_reporting(
             timezone,
         )
         .await;
-    state.auth.set_disabled(settings.admin_login_disabled);
+    state
+        .access
+        .auth
+        .set_disabled(settings.admin_login_disabled);
     // Every following request is measured against these, the sessions already open included.
-    state.auth.set_session_limits(rd_core::SessionLimits {
-        idle_hours: settings.session_idle_hours,
-        max_hours: settings.session_max_hours,
-    });
+    state
+        .access
+        .auth
+        .set_session_limits(rd_core::SessionLimits {
+            idle_hours: settings.session_idle_hours,
+            max_hours: settings.session_max_hours,
+        });
     // Validated above, so this cannot fail; falling back to the safe default rather than
     // unwrapping keeps a future refactor of the validator from turning into a panic.
-    *state.proxy.write().await = crate::host_check::proxy_config(&settings).unwrap_or_default();
-    *state.media_settings.write().await = rd_core::MediaSettings {
+    *state.access.proxy.write().await =
+        crate::host_check::proxy_config(&settings).unwrap_or_default();
+    *state.intake.media_settings.write().await = rd_core::MediaSettings {
         media_ytdlp_executable: settings.media_ytdlp_executable.clone(),
         media_ffmpeg_executable: settings.media_ffmpeg_executable.clone(),
         media_default_variant: settings.media_default_variant.clone(),
@@ -221,24 +230,27 @@ pub(crate) async fn apply_settings_reporting(
         media_sleep_interval_seconds: settings.media_sleep_interval_seconds,
         vendor_directory: settings.vendor_directory.clone(),
     };
-    *state.gallery_settings.write().await = rd_core::GallerySettings {
+    *state.intake.gallery_settings.write().await = rd_core::GallerySettings {
         gallery_executable: settings.gallery_executable.clone(),
         gallery_hosts: settings.gallery_hosts.clone(),
         gallery_max_parallel: settings.gallery_max_parallel,
         vendor_directory: settings.vendor_directory.clone(),
     };
-    state.tools.apply_settings(rd_core::ManagedToolSettings {
-        managed_tools_enabled: settings.managed_tools_enabled,
-        managed_tools_manifest_url: settings.managed_tools_manifest_url.clone(),
-        tool_compatibility_overrides: settings.tool_compatibility_overrides.clone(),
-    });
-    *state.remote_settings.write().await = rd_core::RemoteSettings {
+    state
+        .admin
+        .tools
+        .apply_settings(rd_core::ManagedToolSettings {
+            managed_tools_enabled: settings.managed_tools_enabled,
+            managed_tools_manifest_url: settings.managed_tools_manifest_url.clone(),
+            tool_compatibility_overrides: settings.tool_compatibility_overrides.clone(),
+        });
+    *state.queue.remote_settings.write().await = rd_core::RemoteSettings {
         remote_max_parallel: settings.remote_max_parallel,
         remote_timeout_seconds: settings.remote_timeout_seconds,
         remote_ssh_auto_trust: settings.remote_ssh_auto_trust,
     }
     .sanitized();
-    *state.stream_settings.write().await = rd_core::StreamSettings {
+    *state.intake.stream_settings.write().await = rd_core::StreamSettings {
         record_streamlink_executable: settings.record_streamlink_executable.clone(),
         record_default_quality: settings.record_default_quality.clone(),
         record_poll_interval_seconds: settings.record_poll_interval_seconds,
@@ -246,7 +258,7 @@ pub(crate) async fn apply_settings_reporting(
         vendor_directory: settings.vendor_directory.clone(),
     };
     // Ratio/time/seeding apply live; port and rate limits on the next session start.
-    *state.torrent_settings.write().await = rd_core::TorrentSettings {
+    *state.queue.torrent_settings.write().await = rd_core::TorrentSettings {
         torrent_listen_port: settings.torrent_listen_port,
         torrent_seed_ratio: settings.torrent_seed_ratio,
         torrent_seed_time_minutes: settings.torrent_seed_time_minutes,
@@ -269,7 +281,7 @@ pub(crate) async fn apply_settings_reporting(
     };
     // Rate limits are applied in place; a changed listen port rebuilds the session. A
     // failed rebuild keeps the previous engine running, so it is reported, not fatal.
-    let torrent_refused = match state.torrent.reconfigure().await {
+    let torrent_refused = match state.queue.torrent.reconfigure().await {
         Ok(()) => None,
         Err(error) => {
             let reason = format!("{error:#}");
@@ -283,7 +295,7 @@ pub(crate) async fn apply_settings_reporting(
         }
     };
     // A lowered seed limit ends the surplus seeds now rather than at the next tick.
-    state.torrent.nudge_seeding();
+    state.queue.torrent.nudge_seeding();
     Ok((settings, torrent_refused))
 }
 

@@ -192,6 +192,13 @@ export const VIEWS = [
   view('main', '74-automation-storage-threshold', '/automation', async (page) => {
     await rowButton(page, 'Tell Home Assistant the media library has room', 'Edit')
     await center(page, '[data-testid="automation-form"]', 'start')
+  }),
+  settings('75-settings-security-reverse-proxy', '/settings/security?tab=proxy'),
+  settings('76-settings-notifications-rule-wording', '/settings/notifications', async (page) => {
+    // A rule in its own words: the title filled, so the preview shows it with sample data.
+    await rowButton(page, 'Finished packages', 'Edit')
+    await page.locator('[data-testid="notification-template"] input').first().fill('{package} finished at {time}')
+    await center(page, '[data-testid="notification-template"]')
   })
 ]
 

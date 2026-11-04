@@ -103,12 +103,12 @@ impl RdMcpServer {
                 match (&params.candidate_ids, &params.batch_id) {
                     (Some(ids), _) if !ids.is_empty() => {
                         let ids = parse_ids(ids)?;
-                        self.state.link_check.check(ids.clone()).await;
+                        self.state.intake.link_check.check(ids.clone()).await;
                         ids
                     }
                     (_, Some(batch_id)) => {
                         let batch_id: rd_core::BatchId = parse_id(batch_id)?;
-                        self.state.link_check.check_batch(batch_id).await;
+                        self.state.intake.link_check.check_batch(batch_id).await;
                         self.state
                             .database
                             .list_candidates()

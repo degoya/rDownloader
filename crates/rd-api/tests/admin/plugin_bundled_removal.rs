@@ -104,7 +104,7 @@ async fn removing_a_service_removes_all_of_its_plugins_for_good() {
 
     // The next start: once the first one ran, a start only updates what is installed.
     let report = rd_plugin_host::sync_bundled(
-        &harness.state.plugins,
+        &harness.state.admin.plugins,
         &directory.path().join("bundle"),
         rd_plugin_host::BundledPolicy::InstalledOnly,
     )

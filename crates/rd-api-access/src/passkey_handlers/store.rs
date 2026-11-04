@@ -34,7 +34,7 @@ pub(super) async fn relying_party(
     let request_origin = headers
         .get(header::ORIGIN)
         .and_then(|value| value.to_str().ok());
-    let proxy = state.proxy.read().await;
+    let proxy = state.access.proxy.read().await;
     rd_authn::relying_party(&proxy, request_origin)
         .map_err(|error| ApiError::conflict("mfa.passkey_origin_unknown", error.to_string()))
 }

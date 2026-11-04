@@ -19,7 +19,7 @@ use crate::AppState;
 ///
 /// Ends when the check service's sender is dropped, which happens with the application state.
 pub fn start(state: AppState) {
-    let mut completed = state.link_check.follow_completed();
+    let mut completed = state.intake.link_check.follow_completed();
     tokio::spawn(async move {
         loop {
             let batch_id = match completed.recv().await {

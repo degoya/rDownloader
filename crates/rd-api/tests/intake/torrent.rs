@@ -1109,7 +1109,7 @@ async fn auto_remove_takes_the_torrent_out_of_the_session() {
     let (status, body) = send(&router, json_request("PUT", "/api/v1/settings", settings)).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     // Saving the settings re-reads the login switch, which this harness keeps off by hand.
-    state.auth.set_disabled(true);
+    state.access.auth.set_disabled(true);
     // Finished two hours ago: no API writes a past finish time, so the row is aged directly.
     let pool = sqlx::SqlitePool::connect(&format!("sqlite://{}", harness.database_path.display()))
         .await
