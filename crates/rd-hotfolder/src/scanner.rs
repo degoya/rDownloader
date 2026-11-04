@@ -60,7 +60,9 @@ impl Scanner<'_> {
         {
             return Ok(());
         }
-        let Ok(metadata) = tokio::fs::metadata(&path).await else {
+        // `symlink_metadata` so a link is seen as a link and skipped, exactly as the scan in
+        // `list_files` skips it; following it would import whatever file it points at.
+        let Ok(metadata) = tokio::fs::symlink_metadata(&path).await else {
             self.observed.remove(&path);
             return Ok(());
         };

@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **`doctor` warns about an archive tool whose version cannot be read.** unrar and 7-Zip have a
+  minimum version extraction relies on; a version that cannot be read was listed as fine, and is
+  now a warning that says the minimum is not enforced.
+
+### Fixed
+
+- **A hot folder skips a symbolic link reported by a file event, as its scan already did.**
+  `inspect` reads `symlink_metadata` instead of following the link.
+- **Archive member names are checked per segment on Windows.** `safe_relative` refuses a `:`,
+  a trailing dot or space and a reserved device name there, and a NUL byte everywhere, in line
+  with the backup manifest's member names.
+
 ## [1.41.0] - 2026-11-02
 
 ### Added

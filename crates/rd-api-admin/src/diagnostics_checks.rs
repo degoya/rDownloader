@@ -103,6 +103,14 @@ async fn tool_check(tool: &str, found: &rd_core::ResolvedTool) -> Check {
     if let Some(upgrade) = assessment.upgrade() {
         check.status = CheckStatus::Warning;
         check = check.note(format!("upgrade: {upgrade}"));
+    } else if assessment.warns() {
+        // A rule sets a minimum for this tool, and the version needed to check it could not
+        // be read: for unrar and 7-Zip that minimum guards extraction, which still runs.
+        check.status = CheckStatus::Warning;
+        check = check.note(
+            "check: the version could not be read, so its minimum version is not enforced; \
+             point the setting at the tool's own binary rather than a wrapper",
+        );
     }
     check
 }
@@ -210,4 +218,27 @@ fn proxy_checks(input: &SystemChecksInput) -> Vec<Check> {
         ));
     }
     checks
+}
+
+#[cfg(test)]
+mod tests {
+    use rd_diagnostics::CheckStatus;
+
+    use super::tool_check;
+
+    /// An archive tool whose version cannot be read is extracted with all the same; `doctor`
+    /// says so instead of reporting it as fine.
+    #[tokio::test]
+    async fn an_archive_tool_with_an_unreadable_version_is_a_warning() {
+        let found = rd_core::ResolvedTool {
+            path: std::path::PathBuf::from("rd-doctor-test-missing").join("unrar"),
+            source: rd_core::ToolSource::Explicit,
+        };
+        let check = tool_check("unrar", &found).await;
+        assert_eq!(check.status, CheckStatus::Warning, "{check:?}");
+        assert!(
+            check.notes.iter().any(|note| note.starts_with("check:")),
+            "{check:?}"
+        );
+    }
 }
