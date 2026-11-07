@@ -313,7 +313,7 @@ jobs:
       # application's.
       - name: Generate SHA-256 checksums
         run: scripts/release-assets.sh sums release-assets plugin-assets
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
       - name: Sign checksum manifests with Sigstore
         shell: bash
         run: |
@@ -495,6 +495,6 @@ jobs:
           tags: ${{ steps.image.outputs.tags }}
           provenance: mode=max
           sbom: true
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
       - name: Sign multiarch image with Sigstore
         run: cosign sign --yes "${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}"
