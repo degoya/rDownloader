@@ -58,6 +58,6 @@ runs:
         shared-key: rust-tests
         save-if: ${{ inputs.save == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development') }}
     - if: inputs.nextest == 'true'
-      uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+      uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
       with:
         tool: nextest@0.9.146

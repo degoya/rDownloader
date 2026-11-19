@@ -238,7 +238,7 @@ jobs:
       # `sqlite-unbundled` build this replaced, and `prepare --check` needs no more).
       - name: Install SQLx CLI
         if: runner.os == 'Linux'
-        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
         with:
           tool: sqlx-cli@0.9.0
       - name: Check SQLx offline metadata
@@ -459,7 +459,7 @@ jobs:
       - name: Tool pins agree
         run: scripts/tool-versions.sh --check
       # A stale entry in deny.toml's duplicate skip list fails, so the list only shrinks (RD-150-21).
-      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+      - uses: EmbarkStudios/cargo-deny-action@70f81531115945ba6eb6b941ec9d39d063438eb9 # v2.1.2
         with:
           command: check
           command-arguments: -D unmatched-skip -D unnecessary-skip
