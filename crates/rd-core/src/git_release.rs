@@ -61,6 +61,12 @@ pub enum GitArchitecture {
     X86,
     /// 32-bit ARM: `armv7`, `armhf`, `arm`.
     Arm,
+    /// 64-bit IBM Z: `s390x`.
+    S390x,
+    /// 64-bit little-endian POWER: `ppc64le`, `ppc64el`, `powerpc64le`.
+    Ppc64le,
+    /// 64-bit RISC-V: `riscv64`, `riscv64gc`.
+    Riscv64,
 }
 
 /// Which assets of a release a git-release subscription downloads.

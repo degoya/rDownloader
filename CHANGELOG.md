@@ -5,6 +5,150 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.43.0] - 2026-11-19
+
+### Changed
+
+- **`AppState` split into parts (RD-1420-06).** The 49-field state is now `database`, `scheduler`,
+  `secrets` and one part per area — `access`, `intake`, `queue`, `admin`, `runtime` — built by
+  `AppStateBuilder` instead of a fourteen-argument constructor. No behaviour, route or API change.
+
+- **Screenshot tool: two more views (RD-1400-02).** `75-settings-security-reverse-proxy` (Security
+  › Reachability & reverse proxy) and `76-settings-notifications-rule-wording` (a notification rule
+  with its own title and the preview) in `scripts/screenshots/views.mjs`, with their alt texts.
+
+- **Release-subscription contract tests read recorded answers (RD-1400-05).** The fixtures in
+  `crates/rd-subscription/tests/fixtures/` are now real, sanitized answers recorded without a
+  token on 2026-11-04 — GitHub's release list of `neovim/neovim`, GitLab's of `gitlab-org/cli` and
+  that project's `checksums.txt` — instead of documents built from the API documentation; what a
+  public list cannot show (a draft, an upload in progress, an upcoming GitLab release, a beta tag)
+  stays as small constructed documents beside the tests. The GitLab adapter tests moved to
+  `git_release_adapter_gitlab_tests.rs`.
+
+- **Sonarr, Radarr and Prowlarr tested live (RD-1400-06).** `docs/compatibility.md` and
+  `docs/support-matrix.md` name the run of 1.42.0 in Docker against Sonarr 4.0.20, Radarr 6.4.4
+  and Prowlarr 2.7.0 and its three adapter findings: the SABnzbd `addfile` part `name`, the
+  qBittorrent form-urlencoded `torrents/add`, and `save_path` equal to `content_path`.
+
+- **GitHub Actions updated (Dependabot #40, RD-1430-01).** `taiki-e/install-action` 2.90.1,
+  `sigstore/cosign-installer` 4.1.3 and `pnpm/action-setup` 6.1.1, pinned by commit SHA; the SDK's
+  `sdk/ci/plugin.yml`, which Dependabot does not read, carries the same `install-action` pin.
+
+- **Dependencies current for 1.43 (RD-1430-02).** 26 crates semver-compatibly (among them `rmcp`
+  3.9, which clears the Streamable HTTP body-buffering advisory, `zip` 9.5, `notify` 8.2.2, `uuid`
+  1.29.2, `jiff` 0.2.41, `psl` 2.1.249), the lock's `windows-sys` edges kept as they were; web:
+  `vue` 3.5.45, `vue-i18n` 11.4.18, `tailwindcss` 4.3.5, `vite` 8.3.6, `playwright` 1.65.0,
+  `oxlint` 1.92.0. `notify-rust` stays below 4.19 (`Cargo.toml`, `dependabot.yml`): 4.19 takes
+  zbus 6 while `secret-service` still links zbus 5. `deny.toml` ignores RUSTSEC-2026-0459 (bundled
+  SQLite 3.53) with its reason until `sqlx` allows `libsqlite3-sys` 0.39.
+
+- **Nuxt UI 4.13.0 and GitHub Actions (Dependabot #41, RD-1430-02).** `@nuxt/ui` 4.12.0 → 4.13.0,
+  taken under a `minimumReleaseAgeExclude` entry in `web/pnpm-workspace.yaml` (released
+  2026-11-18). An override lifts `editorconfig`'s `minimatch` to 11 (GHSA-g3hv-75wg-m249, test
+  tooling under `@vue/test-utils` only); `pnpm audit` finds nothing. The rest of #41 that #40 had
+  not already brought: `taiki-e/install-action` 2.90.3, `softprops/action-gh-release` 3.0.4,
+  `docker/login-action` 4.8.0, pinned by commit SHA, `sdk/ci/plugin.yml` included.
+
+- **Dependencies current for 1.43, second round (RD-1430-02).** 88 crates semver-compatibly (among
+  them `clap` 4.6.8, `wasmtime` 50.0.2, `sqlx` 0.9.1, `rmcp` 3.11, `zip` 9.7.3); `zip`'s
+  macOS/BSD `nix` edge stays on 0.31 instead of adding `nix` 0.32, the `windows-sys` edges as
+  before. `sqlx` 0.9.1 takes `libsqlite3-sys` 0.40, which fixes RUSTSEC-2026-0459, so its ignore
+  is gone; `deny.toml` instead ignores the new "unmaintained" notices for `chrono`, `chrono-tz`
+  and `humantime` with their reason (no flaw reported, leaving chrono is a migration). `russh`
+  stays 0.65.1: 0.65.2 needs the final `rsa` 0.10.0, which `crypto-glue` (via `webauthn-rs`)
+  cannot take yet. Web: `driver.js` 1.14.0, `vue-i18n` 11.4.22, `vue-router` 5.5.1, `vite` 8.3.8,
+  `vitest` 5.1.1, `playwright` 1.65.1, `oxlint` 1.94.0 and four more; the `esbuild` override is
+  dropped, nothing asks for an older esbuild any more. Docker base images on current digests.
+  The majors (TypeScript 7, jsdom 31, `sevenz-rust2`/`lzma-rust2` 0.25, `global-hotkey` 0.10)
+  become jobs RD-1440-01 to -04. `offcloud-cloud` 0.1.16, `sha256-postprocess` 0.9.16
+
+- **Plugin versions.** The versions this release raises: `metadata-enricher` 0.1.15; `box-crawler`,
+  `box-oauth`, `dropbox-crawler`, `dropbox-oauth`, `google-drive-oauth`, `hitfile`,
+  `offcloud-cloud`, `onedrive-crawler`, `pcloud-crawler`, `putio-oauth`, `torbox-auth` and
+  `turbobit` 0.1.16; `box`, `dropbox`, `google-drive`, `mediafire`, `mediafire-crawler`,
+  `nextcloud-crawler`, `offcloud`, `onedrive`, `pcloud`, `peeplink-crawler` and `seedr-jobs` 0.1.17;
+  `krakenfiles`, `mega`, `mega-auth`, `mega-crawler`, `pixeldrain`, `putio`, `putio-transfers`,
+  `seedr` and `torbox` 0.1.18; `xfs-generic` 0.1.19; `emby-notifier`, `jellyfin-notifier` and
+  `plex-notifier` 0.2.4; `realdebrid-auth` 0.2.13; `realdebrid-torrents` 0.2.14;
+  `premiumize-transfers`, `realdebrid` and `torbox-jobs` 0.2.15; `alldebrid`, `debridlink`,
+  `keep2share`, `linksnappy`, `nitroflare` and `rapidgator` 0.7.19; `onefichier` 0.7.20;
+  `premiumize` 0.7.21; `filejoker` 0.7.22; `crawljob-intake` and `sponsorblock-enricher` 0.9.15;
+  `debridlink-auth`, `premiumize-auth`, `sha256-postprocess` and `webdav-storage` 0.9.16;
+  `md5-postprocess` 0.9.17; `rename-postprocess` 0.9.18; `katfile` 0.9.22; `metalink-intake`
+  0.10.12; `ddownload` 0.10.26.
+
+### Fixed
+
+- **Sonarr and Radarr work with the SABnzbd and qBittorrent adapters (RD-1430-12).** The three
+  findings of the live run (RD-1400-06): SABnzbd `addfile` also reads the NZB from the multipart
+  part `name` when it carries a file (after `nzbfile` and `file`); qBittorrent `torrents/add`
+  takes `application/x-www-form-urlencoded` (`urls`, `category`, `paused`) beside multipart, with
+  the same checks, any other type still `415`; `torrents/info` and `torrents/properties` report
+  `save_path` as the folder the content lies in and `content_path` as the content (the package
+  folder, or a single-file torrent's file), `download_path` empty. New suite
+  `crates/rd-api/tests/sources/compat_arr_live.rs`.
+
+- **`integrate.sh` asks for unbumped plugins after building the components (RD-1430-10).** Step 5
+  asked `build-plugins.sh --list-unbumped` before building the stale components, so it compared the
+  previous state's: a merge that changed components only through `Cargo.lock` passed, and the
+  detached check started on 60 plugins changed under their signed version. The question now comes
+  after the build, once; its answer stops the run before the check, one line per plugin, with
+  `scripts/plugin-bump.sh --cascade`. `scripts/tests/integrate.sh` covers it.
+
+- **A branch check after a lock-file update asks about every plugin (RD-1430-11).** `check.sh`'s
+  version gate (`scripts/lib/components.sh`) asked `--list-unbumped` on the branch level only for
+  the plugins the change touched, so a change to `Cargo.lock` alone said "no plugin in the change
+  set" although every component's stamp includes the packages it pins; only `--full` found the 60
+  plugins of 1.43-w2. `Cargo.lock` now widens the question to every plugin, like the WIT or a
+  linked crate. New script test `scripts/tests/components-scope.sh`.
+
+- **Categories and System fit a 390 px window (RD-1430-03).** The category list grouped by storage
+  location was 531 px wide in a 358 px card and its flat rows ran 7 px past it, cutting off the
+  badges and *Duplicate*, *Edit*, *Delete*: the rows and the accordion now carry `min-w-0`, the row
+  measures itself as an account row does (*Duplicate* keeps only its icon below `@sm`, the status
+  badges wrap under the name), and a group header cuts its path before its name. The three buttons
+  in the header of Settings › System wrap instead of running past the window. Nothing changes at
+  1440 px.
+
+- **A wrong HTTP method answers 405 (RD-1430-04).** A known route asked for a method it does not
+  have — `DELETE` on a `GET`-only route — answered 403 `scope.route_unclassified`, because the
+  scope check wraps the router's method fallback; it now answers 405 with the router's `Allow`
+  header and the code `request.method_not_allowed`, with and without a sign-in, on the public
+  routes too (`scope_policy::method_not_allowed`, `auth::method_refusal`). A path the policy
+  table does not know still fails closed with 403. New access suite `wrong_method`.
+
+- **`{budget_left}` counts the package that just finished (RD-1430-05).** The budget
+  placeholders read the counters the fifteen-second bandwidth cycle books, so a package finished
+  between two cycles was named against the budget before it, and "budget exhausted" could still
+  report traffic left. `BandwidthService::budget_reading` now adds what the queue committed since
+  the last cycle on a copy of the counters; the next cycle books those bytes once, no faster tick.
+  The `list_notification_placeholders` MCP description says so.
+
+- **`queue_finished` after a very quick download (RD-1430-06).** The queue's moments are read
+  off a five-second tick, and "ran empty" needed a tick that saw the queue busy; a download queued,
+  run and post-processed in between never was, so neither the notification nor the automation
+  trigger fired. A file that finished or failed since the last tick now counts as work
+  (`queue_state::QueueStateWatch`): one `finished`, none again on an unchanged queue.
+
+- **Git-release subscriptions know `s390x`, `ppc64le` and `riscv64` (RD-1430-07).**
+  `GitArchitecture` gains `S390x`, `Ppc64le` and `Riscv64`, read from `s390x`, `ppc64le`/`ppc64el`/
+  `powerpc64le` and `riscv64`/`riscv64gc`. Such a file used to name no architecture and so passed
+  every architecture filter — an `x86_64` subscription to `gitlab-org/cli` downloaded the IBM Z and
+  POWER builds too. The subscription form offers the three, the MCP tool description names them.
+
+- **The capture agent's Linux configuration has a folder of its own (RD-1430-08).** `capture.json`,
+  the settings copy and `server-update.json` now live in `$XDG_CONFIG_HOME/rdownloader-capture/`
+  instead of the generic `~/.config/capture/`, which `directories` made of the application name
+  alone. Windows (`rDownloader\Capture`) and macOS (`org.rDownloader.Capture`) are unchanged; the
+  old folder is not migrated.
+
+- **gallery-dl's version is read again (RD-1430-09).** gallery-dl prints its bare version
+  (`1.32.15`, a dev build `1.32.11-dev:2026.09.04`), while the parser expected `gallery-dl 1.27.1`:
+  `rdownloader doctor` showed the version and called it unreadable in the same breath, the minimum
+  of 1.25.0 was never enforced, and the settings flagged the tool. Both forms are read now, and the
+  tool list (`GET /api/v1/system/media`, `version`) shows the same normalised version as the
+  verdict and the doctor instead of the tool's whole first line.
+
 ## [1.42.0] - 2026-11-04
 
 ### Changed

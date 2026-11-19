@@ -11,6 +11,15 @@ use crate::ApiError;
 
 pub const INTERNAL_ERROR: &str = "internal.error";
 
+/// `405` for a known route asked for a method it does not have (RD-1430-04).
+#[must_use]
+pub fn wrong_method() -> ApiError {
+    ApiError::method_not_allowed(
+        "request.method_not_allowed",
+        "This route does not accept this HTTP method",
+    )
+}
+
 /// `404` for a package id that does not exist.
 #[must_use]
 pub fn package_not_found() -> ApiError {

@@ -28,7 +28,7 @@ pub(super) async fn finish(
     };
     let deny = |stage: &'static str, code: &'static str| refuse(state, client, action, stage, code);
 
-    if let rd_authn::Decision::Locked { .. } = state.auth.throttle_check(client).await {
+    if let rd_authn::Decision::Locked { .. } = state.access.auth.throttle_check(client).await {
         return Err(deny("locked_out", "auth.too_many_attempts").await);
     }
     // Cancelled at the provider: a decision, not an attack. Nothing recorded, nothing counted.
@@ -163,11 +163,11 @@ pub(super) fn not_the_administrator(refusal: Refusal, label: Option<String>) -> 
 /// started on this machine while its login is switched off holds only as long as that switch.
 pub(super) async fn requester_signed_in(state: &AppState, session: &str) -> bool {
     if session == THIS_MACHINE {
-        return state.auth.disabled();
+        return state.access.auth.disabled();
     }
     match state
         .database
-        .list_sessions(state.auth.session_limits())
+        .list_sessions(state.access.auth.session_limits())
         .await
     {
         Ok(open) => open.iter().any(|open| open.id.to_string() == session),
@@ -185,7 +185,7 @@ pub(super) async fn redeem_and_verify(
     code: &str,
     redirect_uri: &str,
 ) -> Result<rd_authn::oidc::IdentityClaims, ProviderFailure> {
-    let (metadata, algorithms) = state.oidc.metadata(state, &config.issuer).await?;
+    let (metadata, algorithms) = state.access.oidc.metadata(state, &config.issuer).await?;
     let secret = state
         .secrets
         .get(&config.secret_ref)
@@ -195,6 +195,7 @@ pub(super) async fn redeem_and_verify(
             ProviderFailure::Unreadable
         })?;
     let token = state
+        .access
         .oidc
         .redeem(
             state,
@@ -214,7 +215,11 @@ pub(super) async fn redeem_and_verify(
         now: chrono::Utc::now().timestamp(),
         algorithms: &algorithms,
     };
-    state.oidc.verify(state, &metadata, &token, &expect).await
+    state
+        .access
+        .oidc
+        .verify(state, &metadata, &token, &expect)
+        .await
 }
 
 pub(super) async fn open_session(
@@ -231,6 +236,7 @@ pub(super) async fn open_session(
         .and_then(|value| value.to_str().ok())
         .and_then(rd_core::truncate_user_agent);
     let opened = state
+        .access
         .auth
         .open_session(state, client, user_agent)
         .await
@@ -255,7 +261,7 @@ pub(super) async fn open_session(
             .detail("method", "oidc"),
     )
     .await;
-    let proxy = state.proxy.read().await;
+    let proxy = state.access.proxy.read().await;
     Ok(Finished::SignedIn {
         session_cookie: crate::AuthService::cookie(
             &opened.token,
@@ -275,7 +281,7 @@ pub(super) async fn refuse(
     stage: &'static str,
     code: &'static str,
 ) -> Refusal {
-    state.auth.note_failed_login(client).await;
+    state.access.auth.note_failed_login(client).await;
     crate::audit::record(
         state,
         crate::audit::AuditEvent::failure(action)

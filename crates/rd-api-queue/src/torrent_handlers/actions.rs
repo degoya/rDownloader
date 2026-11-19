@@ -189,7 +189,7 @@ pub async fn move_torrent(
     // Within one filesystem the files are renamed and need no space; across two they are
     // copied, and the copy must fit and leave the root's free-space threshold.
     if rd_files::same_file_system(&from, root.path()) != Some(true) {
-        let required = state.torrent.relocation_bytes(id).await?;
+        let required = state.queue.torrent.relocation_bytes(id).await?;
         let verdict = state
             .scheduler
             .capacity()
@@ -205,6 +205,7 @@ pub async fn move_torrent(
         }
     }
     state
+        .queue
         .torrent
         .start_relocation(id, target)
         .await
@@ -236,7 +237,7 @@ async fn torrent_row(state: &AppState, id: DownloadId) -> Result<DownloadFile, A
 
 /// Neither action runs while the torrent's files are on their way to another folder.
 async fn refuse_while_moving(state: &AppState, id: DownloadId) -> Result<(), ApiError> {
-    if state.torrent.is_relocating(id).await {
+    if state.queue.torrent.is_relocating(id).await {
         return Err(ApiError::conflict(
             "torrent.relocation_running",
             "The torrent's files are being moved",
@@ -247,6 +248,7 @@ async fn refuse_while_moving(state: &AppState, id: DownloadId) -> Result<(), Api
 
 async fn recheck(state: &AppState, id: DownloadId) -> Result<bool, ApiError> {
     state
+        .queue
         .torrent
         .recheck(id)
         .await

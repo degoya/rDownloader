@@ -53,10 +53,14 @@ updates:
     # x11rb follows arboard and global-hotkey, lzma-rust2 follows sevenz-rust2: each stays on the
     # version those crates pull in, so the build carries one copy, not two (1.40). They move when
     # their holders move.
+    # notify-rust 4.19 takes zbus 6 while secret-service still links zbus 5 (RD-1430-02): held at
+    # 4.18 until the keyring side moves.
     ignore:
       - dependency-name: wasmparser
       - dependency-name: x11rb
       - dependency-name: lzma-rust2
+      - dependency-name: notify-rust
+        versions: [">= 4.19"]
     groups:
       cargo-compatible:
         update-types: [minor, patch]

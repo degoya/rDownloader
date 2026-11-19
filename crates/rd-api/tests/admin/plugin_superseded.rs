@@ -207,6 +207,7 @@ async fn the_loaded_version_never_goes_and_a_chosen_one_stays() {
     install_first(directory.path(), &["1.0.0"]);
     harness
         .state
+        .admin
         .plugins
         .record_started_versions()
         .await

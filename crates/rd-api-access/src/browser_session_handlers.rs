@@ -63,7 +63,7 @@ pub async fn begin_browser_session(
                 "This provider takes no session from a browser",
             )
         })?;
-    let response = state.browser_sessions.begin(
+    let response = state.access.browser_sessions.begin(
         Request {
             account_id: account.id,
             account_label: account.label,
@@ -85,6 +85,7 @@ pub async fn get_browser_session(
     Path(id): Path<rd_core::AccountId>,
 ) -> Result<Json<BrowserSessionResponse>, ApiError> {
     state
+        .access
         .browser_sessions
         .status(id, chrono::Utc::now())
         .map(Json)
@@ -97,7 +98,7 @@ pub async fn cancel_browser_session(
     State(state): State<AppState>,
     Path(id): Path<rd_core::AccountId>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    if !state.browser_sessions.cancel(id) {
+    if !state.access.browser_sessions.cancel(id) {
         return Err(no_request());
     }
     Ok(Json(MessageResponse::new(
@@ -111,7 +112,7 @@ pub async fn cancel_browser_session(
 pub async fn list_capture_browser_sessions(
     State(state): State<AppState>,
 ) -> Json<Vec<CaptureBrowserSession>> {
-    Json(state.browser_sessions.waiting(chrono::Utc::now()))
+    Json(state.access.browser_sessions.waiting(chrono::Utc::now()))
 }
 
 /// The extension's answer: the scope's cookies, stored on the account exactly as cookies
@@ -129,11 +130,12 @@ pub async fn deliver_capture_browser_session(
         "Cookies",
     )?;
     let handover = state
+        .access
         .browser_sessions
         .claim(id, chrono::Utc::now())
         .map_err(refused)?;
     let stored = store(&state, &handover, request.cookies).await;
-    state.browser_sessions.finish(id, stored.is_ok());
+    state.access.browser_sessions.finish(id, stored.is_ok());
     let count = stored?;
     Ok(Json(
         MessageResponse::new(
@@ -155,6 +157,7 @@ pub async fn decline_capture_browser_session(
     Path(id): Path<Uuid>,
 ) -> Result<Json<MessageResponse>, ApiError> {
     state
+        .access
         .browser_sessions
         .decline(id, chrono::Utc::now())
         .map_err(refused)?;

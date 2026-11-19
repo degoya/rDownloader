@@ -75,6 +75,13 @@ impl ApiError {
         Self::with_status(StatusCode::NOT_FOUND, code, message)
     }
 
+    /// Creates a "this route has no such method" error (RD-1430-04). The router adds the
+    /// `Allow` header naming the methods the route has.
+    #[must_use]
+    pub fn method_not_allowed(code: &'static str, message: impl Into<String>) -> Self {
+        Self::with_status(StatusCode::METHOD_NOT_ALLOWED, code, message)
+    }
+
     /// Creates a conflict error.
     #[must_use]
     pub fn conflict(code: &'static str, message: impl Into<String>) -> Self {

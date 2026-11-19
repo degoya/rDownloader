@@ -261,8 +261,17 @@ pub(crate) fn config_directory() -> Result<PathBuf> {
     project_dirs().map(|paths| paths.config_dir().to_owned())
 }
 
+/// The agent's own directories: `rDownloader\Capture` under the roaming application data on
+/// Windows, `org.rDownloader.Capture` on macOS, and `rdownloader-capture` — the binary's name —
+/// under `$XDG_CONFIG_HOME` elsewhere. On Linux `ProjectDirs::from` drops the qualifier and the
+/// organisation and keeps only the lowercased application, which made it the generic
+/// `~/.config/capture` any other program may claim as well (RD-1430-08).
 fn project_dirs() -> Result<ProjectDirs> {
-    ProjectDirs::from("org", "rDownloader", "Capture").context("locate capture directories")
+    #[cfg(any(windows, target_os = "macos"))]
+    let directories = ProjectDirs::from("org", "rDownloader", "Capture");
+    #[cfg(not(any(windows, target_os = "macos")))]
+    let directories = ProjectDirs::from_path(PathBuf::from("rdownloader-capture"));
+    directories.context("locate capture directories")
 }
 
 /// The one place a service address is checked for being one this agent can speak to.

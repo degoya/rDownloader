@@ -378,6 +378,7 @@ pub async fn trial_staged_plugin_version(
         ));
     };
     let loaded = state
+        .admin
         .plugins
         .version_choices()
         .get(&id)

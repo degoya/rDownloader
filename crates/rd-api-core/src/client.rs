@@ -32,7 +32,7 @@ impl FromRequestParts<AppState> for ClientAddress {
             // test does exactly that. Attributing those to the unspecified address keeps them
             // out of any real address's counters instead of borrowing loopback's.
             .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
-        let proxy = state.proxy.read().await.clone();
+        let proxy = state.access.proxy.read().await.clone();
         let forwarded_for = header_lines(&parts.headers, rd_authn::client_ip::X_FORWARDED_FOR);
         let forwarded = header_lines(&parts.headers, rd_authn::client_ip::FORWARDED);
         let resolved = rd_authn::resolve_client_address(
@@ -148,7 +148,7 @@ pub async fn strip_base_path(
     mut request: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
-    let base = state.proxy.read().await.base_path().to_owned();
+    let base = state.access.proxy.read().await.base_path().to_owned();
     if base.is_empty() {
         return next.run(request).await;
     }

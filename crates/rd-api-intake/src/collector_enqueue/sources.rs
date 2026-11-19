@@ -185,6 +185,7 @@ pub(super) fn held_to_reach(
 /// Whether an installed transfer backend claims this URL scheme.
 pub(super) fn claims_scheme(state: &AppState, scheme: &str) -> bool {
     state
+        .intake
         .plugin_transfer_schemes
         .iter()
         .any(|claimed| claimed.eq_ignore_ascii_case(scheme))

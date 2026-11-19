@@ -23,8 +23,10 @@
 #   4. The generators once, after the last merge (api-contract, mcp-coverage, web-declarations,
 #      licenses when a lock file changed, and archive-jobs, which archives finished jobs and recounts the job
 #      index), committed as one chore(generated) commit.
-#   5. Components: a plugin changed under its old version stops the run (it goes back to its
-#      branch); stale or missing ones are built with --components-only.
+#   5. Components: stale or missing ones are built with --components-only, then a plugin
+#      changed under its old version stops the run (it goes back to its branch). After the
+#      build, not before (RD-1430-10): a merge that changes components only through Cargo.lock
+#      leaves the previous components in place, and asking those let 60 changed plugins through.
 #   6. scripts/check.sh --windows, then scripts/check.sh --full — the minute first, the hour only
 #      after it is green — detached, so an editor crash does not kill them, with their logs, a
 #      PID file, a status file and the failure list under /tmp/claude-<uid>/<integration-branch>/.
@@ -205,12 +207,6 @@ if [[ "$tree" != "$MAIN" && ! -e target/wasm32-unknown-unknown && -d "$MAIN/targ
     ln -s "$MAIN/target/wasm32-unknown-unknown" target/wasm32-unknown-unknown
     echo "    linked target/wasm32-unknown-unknown to the main checkout's"
 fi
-unbumped="$(scripts/build-plugins.sh --list-unbumped)"
-if [[ -n "$unbumped" ]]; then
-    echo "!! plugins that changed under a version already signed — raise it on their branch:" >&2
-    echo "     $(tr '\n' ' ' <<< "$unbumped")" >&2
-    exit 1
-fi
 build="$( (scripts/build-plugins.sh --list-missing; scripts/build-plugins.sh --list-stale) | sort -u)"
 if [[ -n "$build" ]]; then
     mapfile -t names <<< "$build"
@@ -219,6 +215,23 @@ if [[ -n "$build" ]]; then
 else
     echo "    every component is current"
 fi
+# Only now (RD-1430-10): --list-unbumped compares the components that exist with the signed
+# package of their version, and before the build those are the previous state's. In 1.43-w2 a
+# lock-file update changed 60 components, the question before the build found none, and --windows,
+# --full and public-ci.sh started on them. Asked once, here: for components that were current the
+# build above built nothing, so a question before it would only save a build that is a no-op.
+unbumped="$(scripts/build-plugins.sh --list-unbumped)"
+if [[ -n "$unbumped" ]]; then
+    echo "!! these plugins changed under a version already signed — raise it on their branch:" >&2
+    while read -r name version member package; do
+        echo "     $name $version — $member differs from $package" >&2
+    done <<< "$unbumped"
+    echo "   On the branch that changed them (for a lock-file update, the one owning Cargo.lock)," >&2
+    echo "   with its components built, scripts/plugin-bump.sh --cascade raises exactly these;" >&2
+    echo "   then run this again, which merges the raise. The detached check has not started." >&2
+    exit 1
+fi
+echo "    no plugin changed under a version already signed"
 [[ "$stop_after" != components ]] || { echo "==> --no-check: stopped before the check"; exit 0; }
 
 # --- 6. the check, detached ------------------------------------------------------------------

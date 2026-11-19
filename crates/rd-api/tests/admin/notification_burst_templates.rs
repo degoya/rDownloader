@@ -309,7 +309,7 @@ async fn a_burst_queued_again_after_a_restart_reaches_the_rule_once_in_the_same_
     })
     .await;
     // Stopping queues the open burst at once (`flush_bursts(true)`).
-    first.state.notifications.shutdown();
+    first.state.admin.notifications.shutdown();
     let worded = common::eventually(BURST, "the burst was not queued", || async move {
         let deliveries = delivered(database, NotificationEvent::LinksAdded).await;
         (!deliveries.is_empty()).then_some(deliveries)
@@ -351,7 +351,7 @@ async fn a_burst_queued_again_after_a_restart_reaches_the_rule_once_in_the_same_
             .then_some(())
     })
     .await;
-    second.state.notifications.shutdown();
+    second.state.admin.notifications.shutdown();
     let start = common::eventually(BURST, "the start was not queued", || async move {
         let deliveries = delivered(database, NotificationEvent::DownloadStarted).await;
         (!deliveries.is_empty()).then_some(deliveries)

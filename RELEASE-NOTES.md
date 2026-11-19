@@ -12,9 +12,20 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.43.0
+## 1.44.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.43.0
+
+- The category list and the header of the System settings now fit a phone-width window instead of cutting off buttons and badges.
+- Release subscriptions recognise IBM Z, POWER and RISC-V builds, so a subscription for 64-bit Intel or AMD no longer downloads them as well.
+- "Queue finished" notifications and automations now also fire after a very quick download, and the remaining budget counts the package that just finished.
+- gallery-dl's version is read correctly again, so the doctor and the settings agree and its minimum version is enforced.
+- On Linux the capture agent keeps its settings in a folder named after it; settings in the old generic folder are not moved.
+- An API request with the wrong method now answers "method not allowed" instead of a permission error.
+- Sonarr and Radarr work with rDownloader as their Usenet and torrent client: NZB grabs, magnet links and the import of finished torrents no longer fail.
+- Updated components, among them a fix for a reported issue in the MCP server's request handling.
 
 ## 1.42.0
 

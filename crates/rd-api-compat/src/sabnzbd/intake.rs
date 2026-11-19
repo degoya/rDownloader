@@ -18,6 +18,8 @@ pub(crate) async fn add_file(
         return error("no nzb file");
     };
     let mut content: Option<axum::body::Bytes> = None;
+    // The preference rank of the part `content` came from; a better one replaces it.
+    let mut taken: Option<usize> = None;
     let mut name = query
         .nzbname
         .clone()
@@ -25,29 +27,32 @@ pub(crate) async fn add_file(
     loop {
         match multipart.next_field().await {
             Ok(Some(field)) => {
-                // SABnzbd clients name the part `nzbfile`; some send `name` alongside it.
                 let field_name = field.name().unwrap_or_default().to_owned();
                 let file_name = field.file_name().map(str::to_owned);
-                match field_name.as_str() {
-                    "nzbfile" | "file" => {
-                        if query.nzbname.is_none()
-                            && let Some(file_name) = file_name
-                        {
-                            name = file_name;
-                        }
-                        match field.bytes().await {
-                            Ok(bytes) => content = Some(bytes),
-                            Err(failure) => return error(&failure.to_string()),
-                        }
+                let is_file = file_name
+                    .as_deref()
+                    .is_some_and(|file_name| !file_name.is_empty());
+                if let Some(rank) = nzb_part_rank(&field_name, is_file) {
+                    if taken.is_some_and(|taken| taken <= rank) {
+                        continue;
                     }
-                    "nzbname" => {
-                        if let Ok(text) = field.text().await
-                            && !text.trim().is_empty()
-                        {
-                            name = text.trim().to_owned();
-                        }
+                    if query.nzbname.is_none()
+                        && let Some(file_name) = file_name
+                    {
+                        name = file_name;
                     }
-                    _ => {}
+                    match field.bytes().await {
+                        Ok(bytes) => {
+                            content = Some(bytes);
+                            taken = Some(rank);
+                        }
+                        Err(failure) => return error(&failure.to_string()),
+                    }
+                } else if field_name == "nzbname"
+                    && let Ok(text) = field.text().await
+                    && !text.trim().is_empty()
+                {
+                    name = text.trim().to_owned();
                 }
             }
             Ok(None) => break,
@@ -153,4 +158,40 @@ async fn resolve_category(
         .into_iter()
         .find(|category| category.name.eq_ignore_ascii_case(name))
         .map(|category| category.id))
+}
+
+/// Where a multipart part stands among those that may carry the NZB, `0` first; `None` for a
+/// part that carries none.
+///
+/// SABnzbd takes the file as `nzbfile`, `file` or `name`. Sonarr 4 and Radarr 6 send it as
+/// `name="name"; filename="<release>.nzb"` (RD-1430-12), so `name` counts when it is a file;
+/// as a plain text field it is a value of another mode and carries nothing here.
+fn nzb_part_rank(field_name: &str, is_file: bool) -> Option<usize> {
+    match field_name {
+        "nzbfile" => Some(0),
+        "file" => Some(1),
+        "name" if is_file => Some(2),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::nzb_part_rank;
+
+    #[test]
+    fn the_nzb_parts_rank_nzbfile_then_file_then_name() {
+        assert_eq!(nzb_part_rank("nzbfile", true), Some(0));
+        assert_eq!(nzb_part_rank("nzbfile", false), Some(0));
+        assert_eq!(nzb_part_rank("file", true), Some(1));
+        // Sonarr's and Radarr's spelling (RD-1430-12).
+        assert_eq!(nzb_part_rank("name", true), Some(2));
+    }
+
+    #[test]
+    fn a_name_part_without_a_file_and_any_other_part_carry_no_nzb() {
+        assert_eq!(nzb_part_rank("name", false), None);
+        assert_eq!(nzb_part_rank("nzbname", true), None);
+        assert_eq!(nzb_part_rank("cat", false), None);
+    }
 }

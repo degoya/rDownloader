@@ -122,6 +122,7 @@ async fn view(state: &AppState, headers: &HeaderMap) -> Result<OidcSettings, Api
         None => None,
     };
     let current = state
+        .access
         .auth
         .current_session(state, headers)
         .await
@@ -262,10 +263,11 @@ pub async fn put_oidc_settings(
     // Another provider starts from an empty cache, so the discovery below is the one that
     // stays; forgetting after it would throw the fresh document and key set away again.
     if provider_changed {
-        state.oidc.forget().await;
+        state.access.oidc.forget().await;
     }
     // Checked before anything is written: a provider that cannot be used is refused now.
     state
+        .access
         .oidc
         .discover(&state, &issuer)
         .await
@@ -353,7 +355,7 @@ pub async fn delete_oidc_settings(
     if let Err(error) = state.secrets.remove(&config.secret_ref).await {
         tracing::warn!(%error, "the removed provider's client secret could not be removed");
     }
-    state.oidc.forget().await;
+    state.access.oidc.forget().await;
     crate::audit::record(
         &state,
         crate::audit::AuditEvent::success(rd_core::AuditAction::SettingsChanged)

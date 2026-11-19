@@ -113,11 +113,12 @@ pub async fn list_remote_job_providers(
     let providers = match query.container.as_deref().map(str::trim) {
         Some(format) if !format.is_empty() => {
             state
+                .queue
                 .remote_jobs
                 .providers_accepting(&format.to_ascii_lowercase())
                 .await?
         }
-        _ => state.remote_jobs.providers().await?,
+        _ => state.queue.remote_jobs.providers().await?,
     };
     Ok(Json(providers.into_iter().collect()))
 }
@@ -137,7 +138,7 @@ pub struct RemoteJobProvidersQuery {
 pub async fn list_remote_jobs(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<RemoteJob>>, ApiError> {
-    Ok(Json(state.remote_jobs.jobs().await?))
+    Ok(Json(state.queue.remote_jobs.jobs().await?))
 }
 
 /// Hands a magnet, a plain address or a container file to one account's provider.
@@ -183,6 +184,7 @@ pub async fn submit_remote_job(
         return Err(invalid());
     }
     let outcome = state
+        .queue
         .remote_jobs
         .submit_named(
             id,
@@ -214,7 +216,7 @@ pub async fn choose_remote_job_entries(
     Path(id): Path<RemoteJobId>,
     Json(request): Json<RemoteJobChoiceRequest>,
 ) -> Result<Json<RemoteJob>, ApiError> {
-    match state.remote_jobs.choose(id, &request.entries).await? {
+    match state.queue.remote_jobs.choose(id, &request.entries).await? {
         ChoiceOutcome::Chosen(job) => Ok(Json(*job)),
         ChoiceOutcome::Refused(refusal) => Err(refused(refusal)),
     }
@@ -230,7 +232,12 @@ pub async fn discard_remote_job(
     Path(id): Path<RemoteJobId>,
     Json(request): Json<DiscardRemoteJobRequest>,
 ) -> Result<Json<RemoteJob>, ApiError> {
-    match state.remote_jobs.discard(id, request.confirmed).await? {
+    match state
+        .queue
+        .remote_jobs
+        .discard(id, request.confirmed)
+        .await?
+    {
         DiscardOutcome::Discarded(job) => Ok(Json(*job)),
         DiscardOutcome::Refused(refusal) => Err(refused(refusal)),
     }
@@ -242,7 +249,7 @@ pub async fn forget_remote_job(
     State(state): State<AppState>,
     Path(id): Path<RemoteJobId>,
 ) -> Result<Json<crate::dto::MessageResponse>, ApiError> {
-    if !state.remote_jobs.forget(id).await? {
+    if !state.queue.remote_jobs.forget(id).await? {
         return Err(ApiError::not_found(
             "remote_job.not_found",
             "there is no such remote job",

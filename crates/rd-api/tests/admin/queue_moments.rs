@@ -61,7 +61,7 @@ async fn a_pause_by_hand_is_one_notification_and_its_end_another() {
     assert_eq!(status, StatusCode::CREATED, "{created}");
     // The power supervisor's first read only learns the state, a start being no moment: the
     // pause comes after one, which read the queue unpaused.
-    let supervisor = &harness.state.power_supervisor;
+    let supervisor = &harness.state.queue.power_supervisor;
     common::eventually(
         Duration::from_secs(20),
         "the power supervisor never read the queue",

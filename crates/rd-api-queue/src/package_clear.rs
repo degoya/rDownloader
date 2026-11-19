@@ -184,7 +184,7 @@ async fn stop_members(state: &AppState, downloads: &[DownloadFile], targets: &[P
         .filter(|file| targets.contains(&file.package_id))
     {
         let stopped = if file.state == DownloadState::Seeding {
-            state.torrent.stop_seeding(file.id).await.map(|_| ())
+            state.queue.torrent.stop_seeding(file.id).await.map(|_| ())
         } else if must_cancel(file.state) {
             state.scheduler.cancel(file.id).await
         } else {
@@ -229,14 +229,14 @@ pub async fn clear_packages(
     }
     let packages = state.database.list_packages().await?;
     let downloads = state.database.list_downloads().await?;
-    let pending = state.extraction.pending().await;
+    let pending = state.queue.extraction.pending().await;
     let mut plan = clear_targets(&packages, &downloads, &pending, request.scope);
     if everything {
         stop_members(&state, &downloads, &plan.targets).await;
         // A file that finished while the others were being stopped may have started its
         // package's pipeline; that package stays now, like any other being post-processed.
         let packages = state.database.list_packages().await?;
-        let pending = state.extraction.pending().await;
+        let pending = state.queue.extraction.pending().await;
         plan.targets.retain(|id| {
             let Some(package) = packages.iter().find(|package| package.id == *id) else {
                 return true;

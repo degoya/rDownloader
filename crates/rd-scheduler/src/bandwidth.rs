@@ -419,12 +419,7 @@ impl SchedulerHandle {
     /// The stored odometer, `None` before the first sample. A database error is the caller's
     /// rather than a missing value (audit Q2).
     async fn load_budget_baseline(&self) -> Result<Option<u64>> {
-        Ok(self
-            .database
-            .get_setting(BUDGET_BASELINE_KEY)
-            .await?
-            .as_ref()
-            .and_then(baseline_of))
+        load_baseline(&self.database).await
     }
 
     async fn store_budget_baseline(&self, total: u64) -> Result<()> {
@@ -477,6 +472,15 @@ mod manual;
 mod reading;
 #[path = "bandwidth_window.rs"]
 mod window;
+
+/// The stored odometer of `database`, `None` before the first sample.
+async fn load_baseline(database: &rd_db::Database) -> Result<Option<u64>> {
+    Ok(database
+        .get_setting(BUDGET_BASELINE_KEY)
+        .await?
+        .as_ref()
+        .and_then(baseline_of))
+}
 
 /// The odometer a stored value holds; any other shape is logged and reads as none.
 fn baseline_of(value: &serde_json::Value) -> Option<u64> {

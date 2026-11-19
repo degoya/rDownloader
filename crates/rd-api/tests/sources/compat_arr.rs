@@ -285,9 +285,18 @@ async fn the_qbittorrent_download_client_sequence_completes() {
         .as_array()
         .and_then(|items| items.iter().find(|item| item["hash"] == HASH))
         .unwrap_or_else(|| panic!("the torrent the client just added is missing: {body}"));
-    for field in ["name", "state", "progress", "save_path", "size"] {
+    for field in [
+        "name",
+        "state",
+        "progress",
+        "save_path",
+        "content_path",
+        "size",
+    ] {
         assert!(!entry[field].is_null(), "info.{field}: {body}");
     }
+    // The import refuses a torrent whose content path is its save path (RD-1430-12).
+    assert_ne!(entry["content_path"], entry["save_path"], "{body}");
     assert_eq!(entry["category"], "tv-sonarr", "info.category: {body}");
     let (_, body) = send(
         &harness.router,
@@ -368,7 +377,11 @@ async fn both_adapters_serve_the_same_installation_at_once() {
 
 /// Creates the category an *arr client is configured with, as the user does under
 /// Settings -> Storage & rules.
-async fn seed_category(harness: &common::Harness, directory: &std::path::Path, name: &str) {
+pub(crate) async fn seed_category(
+    harness: &common::Harness,
+    directory: &std::path::Path,
+    name: &str,
+) {
     let root = harness
         .database
         .create_storage_root(
@@ -409,7 +422,7 @@ async fn seed_category(harness: &common::Harness, directory: &std::path::Path, n
         .expect("category");
 }
 
-fn minimal_nzb(name: &str) -> String {
+pub(crate) fn minimal_nzb(name: &str) -> String {
     format!(
         r#"<?xml version="1.0" encoding="iso-8859-1" ?>
 <nzb xmlns="http://www.newzbin.com/DTD/2003/nzb">

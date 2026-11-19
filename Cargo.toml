@@ -165,7 +165,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.42.0"
+version = "1.43.0"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.99"
@@ -249,7 +249,9 @@ num-bigint = "0.5"
 # Desktop toasts for the capture agent. `z` selects the pure-Rust zbus backend on Linux
 # instead of the default libdbus binding, so no C library has to be present for the
 # cross-builds; Windows and macOS use their own backends regardless.
-notify-rust = { version = "4", default-features = false, features = ["z"] }
+# Held below 4.19 (RD-1430-02): 4.19 moves to zbus 6 while secret-service and the keyring store
+# still pull zbus 5, so the build would carry both (RD-150-21). Lift it when they move.
+notify-rust = { version = ">=4, <4.19", default-features = false, features = ["z"] }
 # S3-compatible object storage (RD-150-04): signing, multipart and the credential providers of
 # the Apache Arrow project, on the reqwest, rustls and aws-lc-rs this workspace already links.
 # Azure and GCS are features of the same crate, which RD-150-05 switches on.

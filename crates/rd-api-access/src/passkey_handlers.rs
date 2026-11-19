@@ -139,7 +139,10 @@ pub async fn enrol_passkey(
     // No row is written yet. A registration the user abandons — closes the dialog, has no
     // authenticator to hand — should leave nothing behind to clean up, and a row that exists
     // before the key does is a row whose `material_ref` points at nothing.
-    let ceremony_id = state.passkey_registrations.insert(client.0, registration);
+    let ceremony_id = state
+        .access
+        .passkey_registrations
+        .insert(client.0, registration);
     Ok(Json(PasskeyChallenge {
         ceremony_id,
         options: serde_json::to_value(options).map_err(encoding_failed)?,
@@ -166,7 +169,11 @@ pub async fn confirm_passkey(
 ) -> Result<(StatusCode, Json<rd_core::MfaCredential>), ApiError> {
     crate::step_up::require_interactive(&state, &audit, this_machine)?;
     let webauthn = relying_party(&state, &headers).await?;
-    let Some(registration) = state.passkey_registrations.take(&request.ceremony_id) else {
+    let Some(registration) = state
+        .access
+        .passkey_registrations
+        .take(&request.ceremony_id)
+    else {
         return Err(ApiError::bad_request(
             "mfa.passkey_ceremony_expired",
             "That passkey setup has expired. Start it again.",
@@ -241,7 +248,7 @@ pub async fn passkey_challenge(
     // Metered like the sign-in it starts. This endpoint is public — it has to be — and it
     // allocates server state for an anonymous caller, so an address the limiter has already
     // locked out must not be able to keep starting ceremonies while it waits.
-    let _attempt = state.auth.gate(client.0).await?;
+    let _attempt = state.access.auth.gate(client.0).await?;
 
     let webauthn = relying_party(&state, &headers).await?;
     let passkeys = load_passkeys(&state).await?;
@@ -270,6 +277,7 @@ pub async fn passkey_challenge(
     // out the oldest entry in the store, which was the one the legitimate user was in the
     // middle of answering.
     let ceremony_id = state
+        .access
         .passkey_authentications
         .insert(client.0, authentication);
     Ok(Json(PasskeyChallenge {
@@ -301,10 +309,14 @@ pub async fn passkey_login(
     // Both halves of the gate: honouring only the lockout left the distributed case -- every
     // attempt from a fresh address, so the per-address counter never builds -- metered on the
     // password login and free here, which is the door an attacker picks.
-    let _attempt = state.auth.gate(client.0).await?;
+    let _attempt = state.access.auth.gate(client.0).await?;
 
     let webauthn = relying_party(&state, &headers).await?;
-    let Some(authentication) = state.passkey_authentications.take(&request.ceremony_id) else {
+    let Some(authentication) = state
+        .access
+        .passkey_authentications
+        .take(&request.ceremony_id)
+    else {
         return Err(ApiError::unauthorized(
             "mfa.passkey_ceremony_expired",
             "That sign-in attempt has expired. Try again.",
@@ -321,7 +333,7 @@ pub async fn passkey_login(
         Ok(result) => result,
         Err(error) => {
             tracing::warn!(error = %error, "passkey sign-in did not verify");
-            state.auth.note_failed_login(client.0).await;
+            state.access.auth.note_failed_login(client.0).await;
             return Err(crate::error_codes::invalid_credentials());
         }
     };
@@ -334,7 +346,7 @@ pub async fn passkey_login(
         .into_iter()
         .find(|(_, passkey)| passkey.cred_id() == result.cred_id())
     else {
-        state.auth.note_failed_login(client.0).await;
+        state.access.auth.note_failed_login(client.0).await;
         return Err(crate::error_codes::invalid_credentials());
     };
 
@@ -365,6 +377,7 @@ pub async fn passkey_login(
         .and_then(|value| value.to_str().ok())
         .and_then(rd_core::truncate_user_agent);
     let opened = state
+        .access
         .auth
         .open_session(&state, client.0, user_agent)
         .await?;
@@ -381,7 +394,7 @@ pub async fn passkey_login(
     response.headers_mut().insert(
         header::SET_COOKIE,
         axum::http::HeaderValue::from_str(&{
-            let proxy = state.proxy.read().await;
+            let proxy = state.access.proxy.read().await;
             crate::AuthService::cookie(
                 &opened.token,
                 proxy.cookie_is_secure(),

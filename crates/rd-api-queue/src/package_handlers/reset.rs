@@ -34,7 +34,7 @@ pub async fn reset_package(
         .get_package(id)
         .await?
         .ok_or_else(crate::error_codes::package_not_found)?;
-    let pending = state.extraction.pending().await;
+    let pending = state.queue.extraction.pending().await;
     if let Some(code) = crate::package_clear::postprocess_code(&package, &pending) {
         return Err(crate::package_clear::busy_error(code, &package.name));
     }

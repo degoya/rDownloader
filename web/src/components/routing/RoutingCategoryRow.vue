@@ -33,25 +33,38 @@ function cleanupSummary(category: Category): string {
 </script>
 
 <template>
-  <div class="p-3" :class="editingRowClass(props.editing)" data-category-row>
+  <!--
+    The row measures its own width (`@container`, RD-1430-03), as an account row does: in a
+    phone's column *Duplicate* keeps only its icon, the badges wrap under the name instead of
+    pushing the actions out, and the name is cut, never an action. `min-w-0` lets the row
+    shrink to its list's width — without it the list grew to the row's content, 531 px in a
+    358 px card.
+  -->
+  <div class="@container min-w-0 p-3" :class="editingRowClass(props.editing)" data-category-row>
     <div class="flex items-center gap-2">
-      <span class="size-2" :style="{ backgroundColor: props.category.color }" />
-      <p class="min-w-0 flex-1 truncate text-sm font-medium text-highlighted">{{ props.category.name }}</p>
-      <UBadge v-if="props.editing" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
-      <UBadge v-if="props.category.is_default" size="sm" color="primary" variant="subtle">{{ t('routing.category.default_badge') }}</UBadge>
-      <UBadge v-if="props.category.selectable === false" size="sm" color="neutral" variant="outline" icon="i-lucide-eye-off" :title="t('routing.category.hidden_badge_title')" data-testid="category-hidden-badge">{{ t('routing.category.hidden_badge') }}</UBadge>
-      <UButton
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-copy-plus"
-        :label="t('common.actions.duplicate')"
-        :title="t('common.duplicate_hint')"
-        :loading="props.duplicating"
-        @click="emit('duplicate')"
-      />
-      <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="emit('edit')" />
-      <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" :loading="props.deleting" @click="emit('remove')" />
+      <span class="size-2 shrink-0" :style="{ backgroundColor: props.category.color }" />
+      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1" data-category-title>
+        <p class="min-w-0 grow truncate text-sm font-medium text-highlighted">{{ props.category.name }}</p>
+        <UBadge v-if="props.editing" size="sm" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
+        <UBadge v-if="props.category.is_default" size="sm" color="primary" variant="subtle">{{ t('routing.category.default_badge') }}</UBadge>
+        <UBadge v-if="props.category.selectable === false" size="sm" color="neutral" variant="outline" icon="i-lucide-eye-off" :title="t('routing.category.hidden_badge_title')" data-testid="category-hidden-badge">{{ t('routing.category.hidden_badge') }}</UBadge>
+      </div>
+      <div class="flex shrink-0 items-center gap-2" data-category-actions>
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-copy-plus"
+          :label="t('common.actions.duplicate')"
+          :aria-label="t('common.actions.duplicate')"
+          :title="t('common.duplicate_hint')"
+          :ui="{ label: '@max-sm:hidden' }"
+          :loading="props.duplicating"
+          @click="emit('duplicate')"
+        />
+        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('common.actions.edit')" :title="t('common.actions.edit')" @click="emit('edit')" />
+        <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('common.actions.delete')" :title="t('common.actions.delete')" :loading="props.deleting" @click="emit('remove')" />
+      </div>
     </div>
     <p class="mt-1 truncate font-mono text-2xs text-muted">{{ props.location }}</p>
     <div class="mt-2 flex flex-wrap items-center gap-1">

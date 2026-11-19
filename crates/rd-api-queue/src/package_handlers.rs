@@ -279,7 +279,7 @@ async fn queue_extraction(
         if !has_completed {
             continue;
         }
-        state.extraction.request(id, trigger).await?;
+        state.queue.extraction.request(id, trigger).await?;
         queued += 1;
     }
     if queued == 0 {

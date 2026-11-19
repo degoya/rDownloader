@@ -62,6 +62,7 @@ fn package(directory: &str) -> Vec<u8> {
 async fn install(harness: &common::Harness, directory: &str) {
     harness
         .state
+        .admin
         .plugins
         .install_bytes(package(directory))
         .await

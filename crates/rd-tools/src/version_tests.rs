@@ -97,6 +97,22 @@ fn streamlink_and_gallery_dl_output_matrix() {
         parse_output("gallery-dl", "gallery-dl 1.28.0-dev"),
         Some(version("1.28.0-dev"))
     );
+    // What gallery-dl really prints (RD-1430-09): the bare version, a release or a dev build.
+    assert_eq!(
+        parse_output("gallery-dl", "1.32.15\n").map(|found| found.text().to_owned()),
+        Some("1.32.15".to_owned())
+    );
+    let dev = parse_output("gallery-dl", "1.32.11-dev:2026.09.04").expect("a dev build");
+    assert_eq!(dev.text(), "1.32.11-dev:2026.09.04");
+    assert!(dev.is_pre_release());
+    assert!(dev > version("1.25.0") && dev < version("1.32.11"));
+    assert_eq!(
+        parse_output("gallery-dl", "1.32.15-dev"),
+        Some(version("1.32.15-dev"))
+    );
+    // A usage line or an error stays unread.
+    assert!(parse_output("gallery-dl", "usage: gallery-dl [OPTION]... URL...").is_none());
+    assert!(parse_output("gallery-dl", "gallery-dl: error: unknown option").is_none());
     assert!(parse_output("streamlink", "streamlink: error: no such option").is_none());
     assert!(parse_output("streamlink", "").is_none());
     // A different program answering on that path must not be read as this one.

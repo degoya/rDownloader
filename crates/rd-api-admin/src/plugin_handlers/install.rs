@@ -45,6 +45,7 @@ pub async fn install_plugin(
         confirm_signing_key(&state, &bytes, confirmed).await?;
     }
     let installed = state
+        .admin
         .plugins
         .install_bytes(bytes.to_vec())
         .await
@@ -106,7 +107,7 @@ pub(crate) async fn register_installed(
     {
         // A plugin whose provider cannot be registered would sit on disk doing nothing and
         // still show up as installed, so undo the write before reporting the conflict.
-        if let Err(cleanup) = state.plugins.remove_installed(&installed.path).await {
+        if let Err(cleanup) = state.admin.plugins.remove_installed(&installed.path).await {
             tracing::warn!(
                 path = %installed.path.display(),
                 error = %cleanup,
@@ -122,7 +123,7 @@ pub(crate) async fn register_installed(
 
     // The whole set is rebuilt rather than added to: a plugin declaring a secret fragment
     // host is live immediately, for the same reason its provider row is (RD-110-38).
-    state.plugins.refresh_providers().await;
+    state.admin.plugins.refresh_providers().await;
     let running = crate::plugin_live::activate_first_install(state, installed).await;
 
     announce_plugin(state, &installed.manifest.id.to_string(), "installed");
@@ -136,7 +137,7 @@ pub(crate) async fn confirm_signing_key(
     bytes: &Bytes,
     confirmed: &str,
 ) -> Result<(), ApiError> {
-    let verifier = state.plugins.verifier().clone();
+    let verifier = state.admin.plugins.verifier().clone();
     let payload = bytes.to_vec();
     let outcome = tokio::task::spawn_blocking(move || verifier.verify_bytes(&payload))
         .await
@@ -165,6 +166,7 @@ pub(crate) async fn confirm_signing_key(
         ));
     }
     state
+        .admin
         .plugins
         .verifier()
         .trust_key_base64(key_id.clone(), &public_key)

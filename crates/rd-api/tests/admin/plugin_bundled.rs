@@ -96,7 +96,7 @@ pub(crate) async fn offer_packages(
         std::fs::write(bundle.join(name), package).expect("write");
     }
     let report = rd_plugin_host::sync_bundled(
-        &harness.state.plugins,
+        &harness.state.admin.plugins,
         &bundle,
         rd_plugin_host::BundledPolicy::InstalledOnly,
     )
@@ -277,6 +277,7 @@ async fn a_bundled_resolver_runs_at_once_on_real_components() {
     // What a start does: nothing is installed yet, and that is what it loaded.
     harness
         .state
+        .admin
         .plugins
         .record_started_versions()
         .await
@@ -285,7 +286,7 @@ async fn a_bundled_resolver_runs_at_once_on_real_components() {
     std::fs::create_dir_all(&bundle).expect("bundle dir");
     std::fs::write(bundle.join("ddownload.rdplug"), ddownload_package()).expect("write");
     let report = rd_plugin_host::sync_bundled(
-        &harness.state.plugins,
+        &harness.state.admin.plugins,
         &bundle,
         rd_plugin_host::BundledPolicy::InstalledOnly,
     )

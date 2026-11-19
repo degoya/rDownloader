@@ -198,8 +198,17 @@ pub(crate) fn parse_output(tool: &str, output: &str) -> Option<ToolVersion> {
     match tool {
         // yt-dlp prints the bare version and nothing else.
         "yt-dlp" => ToolVersion::parse(tokens.first()?),
-        // `gallery-dl 1.27.1`, `streamlink 6.7.4`, `rclone v1.66.0`, `Apprise v1.13.1`.
-        "gallery-dl" | "streamlink" | "rclone" | "apprise" => {
+        // gallery-dl prints the bare version as well — `1.32.15`, a dev build
+        // `1.32.11-dev:2026.09.04` — and nothing else on its line. Reading it as `gallery-dl
+        // 1.27.1` left every real build unparsed: shown, yet "could not be read" and its minimum
+        // never enforced (RD-1430-09). The named form is still read.
+        "gallery-dl" => match tokens.as_slice() {
+            [name, version, ..] if names(name, tool) => ToolVersion::parse(version),
+            [version] => ToolVersion::parse(version),
+            _ => None,
+        },
+        // `streamlink 6.7.4`, `rclone v1.66.0`, `Apprise v1.13.1`.
+        "streamlink" | "rclone" | "apprise" => {
             names(tokens.first()?, tool).then_some(())?;
             ToolVersion::parse(tokens.get(1)?)
         }

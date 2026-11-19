@@ -10,7 +10,7 @@ import type { GitReleaseOptions } from '@/api/types'
 export const FORGE_FROM_ADDRESS = 'auto'
 
 export const PLATFORMS = ['linux', 'windows', 'macos'] as const
-export const ARCHITECTURES = ['x86_64', 'aarch64', 'x86', 'arm'] as const
+export const ARCHITECTURES = ['x86_64', 'aarch64', 'x86', 'arm', 's390x', 'ppc64le', 'riscv64'] as const
 
 /** Names that read the same in every language, so they are not translated. */
 export const PLATFORM_LABELS: Record<(typeof PLATFORMS)[number], string> = {

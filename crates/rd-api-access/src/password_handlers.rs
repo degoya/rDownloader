@@ -54,7 +54,7 @@ pub async fn change_password(
     // with a bounded, expiring lockout and a global delay that can never become a refusal,
     // which is what stops the protection from turning into the attack. A counter of its own
     // here would be a second, weaker copy of that reasoning.
-    let _attempt = match state.auth.gate(client.0).await {
+    let _attempt = match state.access.auth.gate(client.0).await {
         Ok(attempt) => attempt,
         Err(refusal) => {
             note_refusal(&state, &audit, client.0, "locked_out").await;
@@ -69,12 +69,13 @@ pub async fn change_password(
     crate::auth::validate_password(&request.new_password)?;
 
     let current_ok = state
+        .access
         .auth
         .password_matches(&state, &request.current_password)
         .await?;
     if !current_ok {
         // Exactly the sign-in's refusal, counted in exactly the sign-in's limiter.
-        state.auth.note_failed_login(client.0).await;
+        state.access.auth.note_failed_login(client.0).await;
         note_refusal(&state, &audit, client.0, "current_password").await;
         return Err(crate::error_codes::invalid_credentials());
     }
@@ -83,6 +84,7 @@ pub async fn change_password(
     // Worth refusing: the reason to be on this screen at all is usually that the password in
     // force is the one that leaked, and "changed" without a change is the worst outcome.
     if state
+        .access
         .auth
         .password_matches(&state, &request.new_password)
         .await?
@@ -94,6 +96,7 @@ pub async fn change_password(
     }
 
     state
+        .access
         .auth
         .store_password(&state, &request.new_password)
         .await?;
@@ -114,6 +117,7 @@ pub async fn change_password(
             .and_then(rd_core::truncate_user_agent);
         Some(
             state
+                .access
                 .auth
                 .open_session(&state, client.0, user_agent)
                 .await?,
@@ -140,7 +144,7 @@ pub async fn change_password(
     .into_response();
     if let Some(opened) = reopened.as_ref() {
         let cookie = {
-            let proxy = state.proxy.read().await;
+            let proxy = state.access.proxy.read().await;
             crate::AuthService::cookie(
                 &opened.token,
                 proxy.cookie_is_secure(),

@@ -29,8 +29,9 @@ pub enum Placeholder {
     Title,
     /// The built-in text.
     Message,
-    /// The active profile's traffic budget, read when the delivery is queued (RD-1290-02): how
-    /// much of it is used, as `{size}` writes a size; empty without an active budget.
+    /// The active profile's traffic budget, read when the delivery is queued (RD-1290-02), the
+    /// traffic since the last bandwidth cycle included (RD-1430-05): how much of it is used, as
+    /// `{size}` writes a size; empty without an active budget.
     BudgetUsed,
     /// What is left of it.
     BudgetLeft,

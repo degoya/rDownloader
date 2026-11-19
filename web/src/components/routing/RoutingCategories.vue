@@ -393,15 +393,16 @@ async function remove(category: Category): Promise<void> {
             v-model="openRoots"
             type="multiple"
             :items="sections"
-            :ui="{ body: 'grid gap-2 pb-3' }"
+            :ui="{ label: 'min-w-0', body: 'grid gap-2 pb-3' }"
+            class="min-w-0"
             data-testid="category-groups"
           >
             <template #default="{ item }">
               <span class="flex min-w-0 flex-1 items-center gap-2">
                 <span class="truncate text-sm font-medium text-highlighted">{{ item.label }}</span>
-                <span class="truncate font-mono text-2xs text-muted">{{ item.path }}</span>
-                <UBadge v-if="item.hasDefault" size="sm" color="primary" variant="subtle">{{ t('routing.category.default_badge') }}</UBadge>
-                <UBadge size="sm" color="neutral" variant="outline" class="ms-auto">{{ t('routing.category.group_count', { count: item.count }, item.count) }}</UBadge>
+                <span class="shrink-4 truncate font-mono text-2xs text-muted">{{ item.path }}</span>
+                <UBadge v-if="item.hasDefault" size="sm" color="primary" variant="subtle" class="shrink-0">{{ t('routing.category.default_badge') }}</UBadge>
+                <UBadge size="sm" color="neutral" variant="outline" class="ms-auto shrink-0">{{ t('routing.category.group_count', { count: item.count }, item.count) }}</UBadge>
               </span>
             </template>
             <template #body="{ item }">

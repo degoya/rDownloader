@@ -60,7 +60,7 @@ pub(crate) async fn begin(
     automatic: bool,
 ) -> Result<UpdateInstallStatus, ApiError> {
     let _starting = STARTING.lock().await;
-    let updates = &state.updates;
+    let updates = &state.admin.updates;
     let kind = updates.install_kind();
     let install_dir = installing_dir(state)?;
     if updates.install_busy() {
@@ -105,7 +105,7 @@ pub(crate) async fn begin(
     let task_state = state.clone();
     let task_audit = audit.clone();
     tokio::spawn(async move {
-        let updates = &task_state.updates;
+        let updates = &task_state.admin.updates;
         let release = Release {
             version: &target,
             artifact: &artifact,
@@ -120,6 +120,7 @@ pub(crate) async fn begin(
         }
     });
     state
+        .admin
         .updates
         .install_status()
         .ok_or_else(|| ApiError::from(anyhow::anyhow!("the update's progress was not recorded")))
@@ -140,13 +141,14 @@ pub async fn start_download(state: &AppState) -> Result<UpdateDownloadStatus, Ap
         version, artifact, ..
     } = offered(state).await?;
     tracing::info!(target = %version, "downloading an update in the background");
-    Ok(state.updates.start_download(&version, &artifact))
+    Ok(state.admin.updates.start_download(&version, &artifact))
 }
 
 /// The program folder an update replaces; refused for every kind that does not install itself.
 fn installing_dir(state: &AppState) -> Result<PathBuf, ApiError> {
-    let kind = state.updates.install_kind();
+    let kind = state.admin.updates.install_kind();
     state
+        .admin
         .updates
         .install_dir()
         .filter(|_| kind.installs_itself())
@@ -170,7 +172,7 @@ struct Offered {
 }
 
 async fn offered(state: &AppState) -> Result<Offered, ApiError> {
-    let updates = &state.updates;
+    let updates = &state.admin.updates;
     let Some(offered) = updates.status().await.available else {
         return Err(ApiError::conflict(
             "update.none_available",
@@ -211,7 +213,7 @@ async fn run(
     audit: &AuditContext,
 ) -> Result<(), ApiError> {
     let (target, artifact) = (release.version, release.artifact);
-    let updates = &state.updates;
+    let updates = &state.admin.updates;
     let file = updates
         .fetch_artifact(target, artifact)
         .await
@@ -271,7 +273,7 @@ fn plan(
     install_dir: PathBuf,
     database_copy: &str,
 ) -> Result<Plan, ApiError> {
-    let updates = &state.updates;
+    let updates = &state.admin.updates;
     let kind = updates.install_kind();
     let absolute =
         |path: &std::path::Path| std::path::absolute(path).unwrap_or_else(|_| path.to_owned());

@@ -16,6 +16,70 @@ pub(crate) struct TorrentView {
     /// Reported back as it is, because a client filters `torrents/info` by the category it
     /// configured and expects to find its own torrents there.
     pub category: String,
+    /// The path of the torrent's only file below the package folder, when the metadata is
+    /// known and lists exactly one; `None` for a torrent of several files or before a magnet
+    /// has resolved.
+    pub single_file: Option<Vec<String>>,
+}
+
+/// `content_path` and `save_path` as qBittorrent means them (RD-1430-12).
+///
+/// qBittorrent's `content_path` is the torrent's content -- the file of a single-file
+/// torrent, the root folder of any other -- and `save_path` the folder that content lies in.
+/// Here a torrent's files sit directly in its package folder, which itself sits directly in
+/// the folder its category resolved to (`rd_files::package_directory`). So the content is the
+/// package folder, or the one file inside it, and `save_path` is its parent.
+///
+/// The two must differ: Sonarr and Radarr refuse to import a torrent whose `content_path`
+/// equals its `save_path` ("Path matches client base download directory"), which is what
+/// reporting the package folder in both did up to 1.42.
+#[must_use]
+pub(crate) fn content_paths(view: &TorrentView) -> ContentPaths {
+    paths_below(&view.package.destination, view.single_file.as_deref())
+}
+
+/// [`content_paths`] of a package folder and the sole file's path inside it.
+fn paths_below(destination: &str, single_file: Option<&[String]>) -> ContentPaths {
+    let folder = std::path::Path::new(destination);
+    let content = single_file
+        .and_then(relative_path)
+        .map_or_else(|| folder.to_path_buf(), |file| folder.join(file));
+    let save = content
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map_or_else(|| content.clone(), std::path::Path::to_path_buf);
+    ContentPaths {
+        content_path: content.to_string_lossy().into_owned(),
+        save_path: save.to_string_lossy().into_owned(),
+    }
+}
+
+/// See [`content_paths`].
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct ContentPaths {
+    pub content_path: String,
+    pub save_path: String,
+}
+
+/// Joins path components that are each one plain name, the same refusal the engine applies
+/// to a file list (`rd_torrent`'s `relative_path`); `None` for anything else, which reports the
+/// package folder rather than a path outside it.
+fn relative_path(components: &[String]) -> Option<std::path::PathBuf> {
+    if components.is_empty() {
+        return None;
+    }
+    let mut path = std::path::PathBuf::new();
+    for component in components {
+        let mut parts = std::path::Path::new(component).components();
+        if !matches!(
+            (parts.next(), parts.next()),
+            (Some(std::path::Component::Normal(_)), None)
+        ) {
+            return None;
+        }
+        path.push(component);
+    }
+    Some(path)
 }
 
 /// qBittorrent's `state` word for one of our downloads.
@@ -96,7 +160,50 @@ pub(crate) fn normalize_hash(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{hash_from_magnet, normalize_hash};
+    use super::{ContentPaths, hash_from_magnet, normalize_hash, paths_below};
+
+    #[test]
+    fn a_torrent_of_several_files_is_its_package_folder_inside_the_category_folder() {
+        // Sonarr's and Radarr's refusal (RD-1430-12): content and save path must differ.
+        let paths = paths_below("/downloads/tv-sonarr/Some.Show.S01", None);
+        assert_eq!(
+            paths,
+            ContentPaths {
+                content_path: "/downloads/tv-sonarr/Some.Show.S01".to_owned(),
+                save_path: "/downloads/tv-sonarr".to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn a_single_file_torrent_is_the_file_inside_its_package_folder() {
+        let folder = "/downloads/movies/Some.Movie.2024.mkv";
+        let file = vec!["Some.Movie.2024.mkv".to_owned()];
+        let paths = paths_below(folder, Some(&file));
+        assert_eq!(
+            paths,
+            ContentPaths {
+                content_path: std::path::Path::new(folder)
+                    .join("Some.Movie.2024.mkv")
+                    .to_string_lossy()
+                    .into_owned(),
+                save_path: folder.to_owned(),
+            }
+        );
+    }
+
+    #[test]
+    fn a_file_path_that_would_leave_the_package_folder_reports_the_folder() {
+        for components in [
+            vec!["..".to_owned(), "escape.mkv".to_owned()],
+            vec!["a/b.mkv".to_owned()],
+            Vec::new(),
+        ] {
+            let paths = paths_below("/downloads/tv/Show", Some(&components));
+            assert_eq!(paths.content_path, "/downloads/tv/Show", "{components:?}");
+            assert_eq!(paths.save_path, "/downloads/tv", "{components:?}");
+        }
+    }
 
     #[test]
     fn a_v1_magnet_hash_is_recognised_before_metadata_arrives() {

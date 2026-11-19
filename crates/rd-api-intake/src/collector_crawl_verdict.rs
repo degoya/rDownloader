@@ -149,6 +149,7 @@ pub(crate) fn claim(
     Claim {
         provider,
         transfer_scheme: state
+            .intake
             .plugin_transfer_schemes
             .iter()
             .any(|scheme| scheme.eq_ignore_ascii_case(url.scheme())),

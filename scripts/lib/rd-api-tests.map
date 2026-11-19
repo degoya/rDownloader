@@ -44,7 +44,7 @@
 ^crates/rd-db/migrations/                                                                 all
 
 # --- every route, every MCP tool -------------------------------------------------------------
-^crates/rd-api(-[a-z]+)?/src/(.*_handlers\.rs|routes/)                                    + scope_matrix mcp
+^crates/rd-api(-[a-z]+)?/src/(.*_handlers\.rs|routes/)                                    + scope_matrix mcp wrong_method
 ^crates/rd-api-mcp/src/                                                                   mcp
 # The page mcp_coverage::doc_tests include_str!s: a library test, and rd-api --lib always runs.
 ^crates/rd-api/mcp-coverage\.md$                                                          -
@@ -85,8 +85,8 @@
 ^crates/rd-api(-[a-z]+)?/src/(capture_fetch|capture_file|nzb_zip)(\.rs$|/)                    capture_file capture_container capture_fetch_network
 ^crates/rd-api(-[a-z]+)?/src/capture_click_and_load(\.rs$|/)                                 capture_click_and_load
 ^crates/rd-api(-[a-z]+)?/src/(collector_[a-z_]+|routes/collector)(\.rs$|/)                    capture_intake capture_boundary containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens source_sets git_releases collector_pages capture_pick address_rule
-^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions(\.rs$|/)   compat_qbittorrent compat_arr
-^crates/rd-api-compat/src/(lib\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr history
+^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions(\.rs$|/)   compat_qbittorrent compat_arr compat_arr_live
+^crates/rd-api-compat/src/(lib\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr compat_arr_live history
 ^crates/rd-api-compat/src/(lib\.rs|aria2/)                                                compat_aria2 scope_matrix scope_matrix_compat
 ^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)(\.rs$|/)        containers container_json dlc capture_file capture_container package_export package_export_nzb
 # Exporting packages as a link file, taking one back in, and re-resolving (RD-1210-01).
@@ -159,7 +159,7 @@
 # A pending restart and the restart itself (RD-1240-32): its routes, the tray's, the scope rows.
 ^crates/rd-api(-[a-z]+)?/src/(restart_service|restart_auto|restart_state|restart_handlers)(\.rs$|/)   restart capture_server_update scope_matrix
 ^crates/rd-api(-[a-z]+)?/src/capture_agents(\.rs$|/)                                         updates
-^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)(\.rs$|/)                        torrent compat_qbittorrent compat_arr container_json service_switches capture_file torrent_resolve
+^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)(\.rs$|/)                        torrent compat_qbittorrent compat_arr compat_arr_live container_json service_switches capture_file torrent_resolve
 ^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)(\.rs$|/)                         nzb_paused nzb_remote_job container_json indexers compat_sabnzbd unique_names unreadable_secrets usenet_connections
 ^crates/rd-api(-[a-z]+)?/src/nzb_remote_job_handlers(\.rs$|/)                                nzb_remote_job
 
@@ -215,7 +215,7 @@
 ^crates/rd-core/src/toolpath(\.rs$|/)                                                         managed_tools
 ^crates/rd-core/src/history(\.rs$|/)                                                          history compat_sabnzbd mcp
 ^crates/rd-update/                                                                        updates capture_server_update update_auto_install restart
-^crates/rd-core/src/torrent/                                                              torrent compat_qbittorrent compat_arr container_json service_switches mcp
+^crates/rd-core/src/torrent/                                                              torrent compat_qbittorrent compat_arr compat_arr_live container_json service_switches mcp
 ^crates/rd-core/src/package_names(\.rs$|/)                                                   package_names mcp
 ^crates/rd-core/src/usenet(\.rs$|/)                                                           nzb_paused nzb_remote_job container_json indexers compat_sabnzbd mcp
 

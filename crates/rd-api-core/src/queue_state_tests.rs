@@ -205,3 +205,58 @@ fn a_paused_queue_never_finishes() {
     let done = now_in(&last, DownloadState::Completed);
     assert_eq!(tick(&mut watch, &done, None, false), ["finished"]);
 }
+
+/// RD-1430-06: a download queued, run and finished between two ticks was never busy in a
+/// sample and announced nothing. The file that finished since the last tick is the trace it left:
+/// one `finished`, and none on the next tick of the same queue.
+#[test]
+fn a_download_finished_before_any_tick_saw_it_is_finished_once() {
+    let mut watch = QueueStateWatch::default();
+    let earlier = file(DownloadState::Completed);
+    assert!(tick(&mut watch, std::slice::from_ref(&earlier), None, false).is_empty());
+    let quick = vec![earlier.clone(), file(DownloadState::Completed)];
+    assert_eq!(tick(&mut watch, &quick, None, false), ["finished"]);
+    assert!(tick(&mut watch, &quick, None, false).is_empty(), "once");
+
+    // One that failed at once ends the queue's work too, as a failure after a seen tick does.
+    let failed = vec![
+        earlier.clone(),
+        quick[1].clone(),
+        file(DownloadState::Failed),
+    ];
+    assert_eq!(tick(&mut watch, &failed, None, false), ["finished"]);
+
+    // A paused file resumed and finished between ticks is work as well.
+    let held = file(DownloadState::Paused);
+    let mut queue = failed.clone();
+    queue.push(held.clone());
+    assert!(tick(&mut watch, &queue, None, false).is_empty());
+    let resumed = now_in(std::slice::from_ref(&held), DownloadState::Completed);
+    let mut queue = failed;
+    queue.extend(resumed);
+    assert_eq!(tick(&mut watch, &queue, None, false), ["finished"]);
+}
+
+/// The first tick after a start only learns the state, finished files included; a quick file
+/// that finished while the queue is paused, or while another still runs, finishes nothing.
+#[test]
+fn an_unseen_finish_is_no_moment_at_start_while_paused_or_while_busy() {
+    let mut watch = QueueStateWatch::default();
+    assert!(tick(&mut watch, &[file(DownloadState::Completed)], None, false).is_empty());
+
+    let mut watch = QueueStateWatch::default();
+    tick(&mut watch, &[], Some(PauseReason::Manual), false);
+    let quick = vec![file(DownloadState::Completed)];
+    assert!(tick(&mut watch, &quick, Some(PauseReason::Manual), false).is_empty());
+
+    let mut watch = QueueStateWatch::default();
+    let running = file(DownloadState::Downloading);
+    tick(&mut watch, std::slice::from_ref(&running), None, false);
+    let beside = vec![running.clone(), file(DownloadState::Completed)];
+    assert!(
+        tick(&mut watch, &beside, None, false).is_empty(),
+        "still busy"
+    );
+    let done = now_in(&beside, DownloadState::Completed);
+    assert_eq!(tick(&mut watch, &done, None, false), ["finished"]);
+}

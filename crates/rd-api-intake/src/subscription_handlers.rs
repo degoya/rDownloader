@@ -386,7 +386,7 @@ pub async fn poll_subscription(
     )?;
     // Spawned rather than awaited: a poll contacts somebody else's server and can take the
     // configured timeout, which is far longer than a request should hold a connection.
-    let service = state.subscriptions.clone();
+    let service = state.intake.subscriptions.clone();
     tokio::spawn(async move {
         if let Err(error) = service.poll_now(id).await {
             tracing::warn!(%error, "manual subscription poll failed");

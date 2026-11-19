@@ -32,13 +32,14 @@ pub async fn list_sessions(
     headers: HeaderMap,
 ) -> Result<Json<Vec<rd_core::Session>>, ApiError> {
     let current = state
+        .access
         .auth
         .current_session(&state, &headers)
         .await
         .map(|session| session.id);
     let mut sessions = state
         .database
-        .list_sessions(state.auth.session_limits())
+        .list_sessions(state.access.auth.session_limits())
         .await?;
     mark_current(&mut sessions, current);
     Ok(Json(sessions))
@@ -123,11 +124,12 @@ pub async fn logout(
 
     // Read before the session is closed; afterwards there is nothing left to name.
     let session = state
+        .access
         .auth
         .current_session(&state, &headers)
         .await
         .map(|session| session.id);
-    state.auth.logout(&state, &headers).await?;
+    state.access.auth.logout(&state, &headers).await?;
     // Only for a caller that had a session: an anonymous request to this public route learns
     // nothing about the provider from it.
     let provider_logout_url = match session {
@@ -145,7 +147,7 @@ pub async fn logout(
         event = event.detail("provider", true);
     }
     crate::audit::record(&state, event).await;
-    let expired = crate::AuthService::expired_cookie(state.proxy.read().await.base_path());
+    let expired = crate::AuthService::expired_cookie(state.access.proxy.read().await.base_path());
     let mut response = Json(LogoutResponse {
         message: "Signed out".to_owned(),
         code: "auth.logged_out".to_owned(),

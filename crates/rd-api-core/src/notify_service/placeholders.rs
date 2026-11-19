@@ -6,7 +6,8 @@
 //! at. A row gone in the meantime leaves its placeholders empty, never the delivery unqueued. An
 //! error is redacted like every failure the service shows, so no address with a key in it
 //! reaches a chat. The traffic budget is the one of the moment the delivery is queued, read from
-//! the bandwidth state (RD-1290-02), and a retry sends what the first attempt did. A burst of
+//! the bandwidth state with the traffic since its last cycle counted in (RD-1290-02,
+//! RD-1430-05), and a retry sends what the first attempt did. A burst of
 //! starts or of added links is filled when it closes, from the burst itself (RD-1291-01).
 
 use rd_notify::{Placeholder as P, Values};
@@ -27,7 +28,7 @@ impl NotificationService {
         // Time and date in the service's own zone, the one its schedules are read in.
         let at = event.occurred_at.with_timezone(&chrono::Local);
         let mut values = Values::stamped(kind, &at);
-        set_budget(&mut values, self.inner.bandwidth.budget_reading().await);
+        set_budget(&mut values, self.budget_reading().await?);
         self.fill_values(kind, &event.payload, &mut values).await?;
         Ok(Some(values))
     }
@@ -43,7 +44,7 @@ impl NotificationService {
             return Ok(None);
         }
         let mut values = burst.values(&chrono::Local);
-        set_budget(&mut values, self.inner.bandwidth.budget_reading().await);
+        set_budget(&mut values, self.budget_reading().await?);
         if burst.single()
             && let Some(id) = burst.package_id
             && let Some(package) = self.inner.database.get_package(id).await?
@@ -54,6 +55,15 @@ impl NotificationService {
             }
         }
         Ok(Some(values))
+    }
+
+    /// The budget of the moment, with the traffic since the last bandwidth cycle counted in
+    /// (RD-1430-05).
+    async fn budget_reading(&self) -> anyhow::Result<Option<rd_limits::BudgetReading>> {
+        self.inner
+            .bandwidth
+            .budget_reading(&self.inner.database)
+            .await
     }
 
     /// Whether a rule that wants the event words its notifications itself.

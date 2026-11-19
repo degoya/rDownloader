@@ -35,12 +35,12 @@ pub(super) async fn expand_crawled_links(
     links: Vec<CapturedLink>,
     own_hand: bool,
 ) -> Result<Crawled, ApiError> {
-    if state.crawlers.is_empty() {
+    if state.intake.crawlers.is_empty() {
         return Ok(Crawled::untouched(links));
     }
     let accounts = crawl_accounts(state).await;
-    let media_settings = state.media_settings.read().await.clone();
-    let gallery_settings = state.gallery_settings.read().await.clone();
+    let media_settings = state.intake.media_settings.read().await.clone();
+    let gallery_settings = state.intake.gallery_settings.read().await.clone();
     let mut expanded: Vec<CapturedLink> = Vec::with_capacity(links.len());
     let mut refusal: Option<(String, String)> = None;
     let mut listed: Option<(String, rd_plugin_ext::PickSummary)> = None;
@@ -62,7 +62,7 @@ pub(super) async fn expand_crawled_links(
             expanded.push(link);
             continue;
         }
-        match state.crawlers.expand(&link.url, &accounts).await {
+        match state.intake.crawlers.expand(&link.url, &accounts).await {
             rd_plugin_ext::CrawlOutcome::NotClaimed => expanded.push(link),
             rd_plugin_ext::CrawlOutcome::Links(found) => {
                 crawled_any = true;
@@ -344,7 +344,7 @@ fn share_password(crawled: &url::Url) -> Option<String> {
 /// naming an account it has no business knowing, so it names its provider and gets whatever
 /// this finds — or nothing, which is right for a public share.
 async fn crawl_accounts(state: &AppState) -> std::collections::HashMap<String, rd_core::AccountId> {
-    let providers = state.crawlers.providers();
+    let providers = state.intake.crawlers.providers();
     if providers.is_empty() {
         return std::collections::HashMap::new();
     }

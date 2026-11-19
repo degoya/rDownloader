@@ -97,6 +97,7 @@ async fn case(id: &str, slug: &str) -> Case {
     let repository = rd_plugin_host::generate_signing_key();
     harness
         .state
+        .admin
         .plugins
         .verifier()
         .trust_key_base64(KEY_ID.to_owned(), &author.public_base64)
@@ -109,7 +110,7 @@ async fn case(id: &str, slug: &str) -> Case {
     )
     .expect("write");
     let report = rd_plugin_host::sync_bundled(
-        &harness.state.plugins,
+        &harness.state.admin.plugins,
         &bundle,
         rd_plugin_host::BundledPolicy::InstalledOnly,
     )
@@ -126,10 +127,10 @@ async fn case(id: &str, slug: &str) -> Case {
         )
         .expect("trust the repository");
     let mut state = harness.state.clone();
-    state.plugin_repositories = PluginRepositoryService::with_fetcher(
+    state.admin.plugin_repositories = PluginRepositoryService::with_fetcher(
         harness.database.clone(),
         directory.path().join("plugin-repositories"),
-        state.plugins.clone(),
+        state.admin.plugins.clone(),
         fetcher.clone(),
         Some(trust),
     );

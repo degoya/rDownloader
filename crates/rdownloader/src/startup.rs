@@ -475,6 +475,7 @@ pub(crate) async fn prepare_state(state: &AppState) -> Result<()> {
     // loop, whose first run waits so it never competes with the start.
     // Automatic updates follow the policy the plugin manager stores per plugin (RD-140-02).
     state
+        .admin
         .plugin_repositories
         .set_update_policy(std::sync::Arc::new(rd_api::VersionChoicePolicy::new(
             state.database.clone(),
@@ -482,7 +483,7 @@ pub(crate) async fn prepare_state(state: &AppState) -> Result<()> {
     rd_api::prepare_plugin_repositories(state).await;
     // The application update check (RD-180-01): spawned, its first run minutes after the start,
     // so it never holds the start up.
-    state.updates.start();
+    state.admin.updates.start();
     // The automatic install (RD-1240-27): a look a minute, which does nothing while the
     // setting is off or this installation does not install itself.
     rd_api::update_auto_install::start(state);
@@ -492,6 +493,6 @@ pub(crate) async fn prepare_state(state: &AppState) -> Result<()> {
     // Old update backups and compiled plugin code nothing uses (RD-1240-34): ten minutes on, once
     // the start's compiles are recorded and an update the updater proves is proven.
     rd_api::system_cleanup::start(state);
-    state.hotfolders.start_existing().await?;
+    state.intake.hotfolders.start_existing().await?;
     Ok(())
 }

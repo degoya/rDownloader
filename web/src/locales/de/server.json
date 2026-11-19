@@ -1339,7 +1339,8 @@
     "postprocess.malware_scanner_failed": "clamd unter {address} war nicht erreichbar",
     "captcha.endpoint_plain_http": "Der Endpoint des Löserdienstes nutzt unverschlüsseltes http, über das der API-Schlüssel offen übertragen würde: nutze https oder erlaube http in den Captcha-Einstellungen",
     "extract.tool_version_unknown": "Die Version von {tool} ließ sich nicht lesen, und die Einstellungen lehnen ein solches Werkzeug zum Entpacken ab: Ob es mindestens {minimum} ist – darunter schreiben Verknüpfungen im Archiv außerhalb des Zielordners –, lässt sich nicht prüfen. Richte den Programmpfad direkt auf {tool} oder aktualisiere es.",
-    "postprocess.rar_test_skipped_version_unknown": "Übersprungen: Die Version des RAR-Werkzeugs ließ sich nicht lesen"
+    "postprocess.rar_test_skipped_version_unknown": "Übersprungen: Die Version des RAR-Werkzeugs ließ sich nicht lesen",
+    "request.method_not_allowed": "Diese Adresse nimmt diese HTTP-Methode nicht an"
   },
   "capabilities": {
     "media_download": "Mediendownloads",

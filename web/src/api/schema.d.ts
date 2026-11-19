@@ -10965,7 +10965,7 @@ export interface components {
          * @description A processor architecture a release file can be built for.
          * @enum {string}
          */
-        GitArchitecture: "x86_64" | "aarch64" | "x86" | "arm";
+        GitArchitecture: "x86_64" | "aarch64" | "x86" | "arm" | "s390x" | "ppc64le" | "riscv64";
         /**
          * @description Which API a repository speaks.
          * @enum {string}
@@ -17597,8 +17597,9 @@ export interface components {
              *     (`github`|`gitlab`, needed for a host other than github.com and gitlab.com),
              *     `asset_patterns` (`*`/`?` wildcards, case-insensitive, at most 32 of at most 200
              *     characters), `platforms` (`linux`|`windows`|`macos`), `architectures`
-             *     (`x86_64`|`aarch64`|`x86`|`arm`), `prereleases` and `source_archives`. Drafts are never
-             *     downloaded. Only a git-release subscription takes them; its read-only token is `api_key`.
+             *     (`x86_64`|`aarch64`|`x86`|`arm`|`s390x`|`ppc64le`|`riscv64`), `prereleases` and
+             *     `source_archives`. Drafts are never downloaded. Only a git-release subscription takes them;
+             *     its read-only token is `api_key`.
              */
             git_release?: components["schemas"]["GitReleaseOptions"];
             indexer_id?: components["schemas"]["IndexerId"] | null;

@@ -309,7 +309,7 @@ async fn candidate_url(state: &AppState, id: CandidateId) -> Result<url::Url, Ap
 
 /// What the installed tools allow.
 async fn capabilities(state: &AppState) -> MediaCapabilities {
-    let settings = state.media_settings.read().await.clone();
+    let settings = state.intake.media_settings.read().await.clone();
     let complete = FfmpegTools::resolve(&settings).is_complete();
     MediaCapabilities {
         can_merge: complete,

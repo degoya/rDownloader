@@ -469,9 +469,8 @@ async fn a_version_installed_after_the_start_runs_only_after_a_restart() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = parked_harness(directory.path()).await;
     install_package(directory.path(), "1.0.0");
-    harness
-        .state
-        .plugins
+    let plugins = &harness.state.admin.plugins;
+    plugins
         .record_started_versions()
         .await
         .expect("the start records what it loads");

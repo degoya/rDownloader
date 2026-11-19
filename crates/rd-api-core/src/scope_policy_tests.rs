@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use super::{Method, ROUTE_POLICY, Requirement, Scope, requirement};
+use super::{Method, ROUTE_POLICY, Requirement, Scope, method_not_allowed, requirement};
 
 /// A sorted table makes a diff show the addition rather than a reshuffle.
 #[test]
@@ -291,4 +291,15 @@ fn an_unknown_route_has_no_requirement() {
     assert_eq!(requirement("/api/v1/nothing", &Method::GET), None);
     // Right path, wrong method: still no decision, rather than the other method's.
     assert_eq!(requirement("/api/v1/health", &Method::DELETE), None);
+}
+
+/// A known path asked for a method it does not have is a method error, not a policy gap
+/// (RD-1430-04); an unknown path, a method the path has and `HEAD` beside a `GET` are not.
+#[test]
+fn only_a_known_path_with_a_missing_method_is_a_method_error() {
+    assert!(method_not_allowed("/api/v1/health", &Method::DELETE));
+    assert!(method_not_allowed("/api/v1/queue/search", &Method::POST));
+    assert!(!method_not_allowed("/api/v1/queue/search", &Method::GET));
+    assert!(!method_not_allowed("/api/v1/nothing", &Method::DELETE));
+    assert!(!method_not_allowed("/api/v1/queue/search", &Method::HEAD));
 }

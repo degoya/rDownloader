@@ -25,7 +25,7 @@ pub(crate) async fn protected_directories(
     if let Some(data) = rd_core::data_directory() {
         protected.push(ProtectedDirectory::new("data", data));
     }
-    match state.extraction.scripts_directory().await {
+    match state.queue.extraction.scripts_directory().await {
         Ok(scripts) => protected.push(ProtectedDirectory::new("scripts", scripts)),
         Err(error) => tracing::warn!(%error, "the scripts directory could not be resolved"),
     }
@@ -48,8 +48,11 @@ pub(crate) async fn protected_directories(
             ProtectedDirectory::new("vendor", vendor)
         });
     }
-    protected.push(ProtectedDirectory::new("tools", state.tools.root()));
-    protected.push(ProtectedDirectory::new("plugins", state.plugins.root()));
+    protected.push(ProtectedDirectory::new("tools", state.admin.tools.root()));
+    protected.push(ProtectedDirectory::new(
+        "plugins",
+        state.admin.plugins.root(),
+    ));
     protected
 }
 

@@ -55,6 +55,7 @@ pub async fn list_plugins(
         .filter_map(|(id, count)| id.parse::<rd_core::PluginId>().ok().map(|id| (id, count)))
         .collect();
     let installed: Vec<InstalledPluginResponse> = state
+        .admin
         .plugins
         .list_installed()
         .await?
@@ -72,6 +73,7 @@ pub async fn list_plugins(
         })
         .collect();
     let incompatible = state
+        .admin
         .plugins
         .list_incompatible()
         .await?
@@ -144,6 +146,7 @@ pub async fn remove_plugin_version(
     // Named before it goes: the last version removed takes the name with it.
     let name = crate::restart_service::plugin_name(&state, &id).await;
     let removed = state
+        .admin
         .plugins
         .remove_version(&id, &version)
         .await
@@ -162,15 +165,18 @@ pub async fn remove_plugin_version(
     // the accounts list offers, and offering a provider whose plugin was just removed would
     // let an account be created that nothing can serve. Installing has always registered its
     // row immediately; removing simply never took it back.
-    state.plugins.refresh_providers().await;
+    state.admin.plugins.refresh_providers().await;
     crate::plugin_lifecycle::forget_version(&state, &id, &version).await?;
     // It runs until the next start (RD-1240-32).
-    state.restart.record(crate::dto::RestartReason::plugin(
-        "plugin_removed",
-        &id,
-        name.as_deref(),
-        Some(&version),
-    ));
+    state
+        .runtime
+        .restart
+        .record(crate::dto::RestartReason::plugin(
+            "plugin_removed",
+            &id,
+            name.as_deref(),
+            Some(&version),
+        ));
     announce_plugin(&state, &id, "removed");
     crate::audit::record(
         &state,
@@ -240,6 +246,7 @@ pub(crate) async fn remove_installed_version(
 ) -> Result<bool, ApiError> {
     let id = manifest.id.to_string();
     let removed = state
+        .admin
         .plugins
         .remove_version(&id, &manifest.version)
         .await
@@ -336,11 +343,11 @@ pub async fn set_plugin_enabled(
             serde_json::to_value(&settings).map_err(anyhow::Error::new)?,
         )
         .await?;
-    state.plugins.set_disabled(settings.disabled_plugins);
+    state.admin.plugins.set_disabled(settings.disabled_plugins);
     // A switched-off plugin contributes no provider, the same way startup filters it out. Doing
     // it here too means the accounts list stops offering it at once instead of at the next
     // start — and switching it back on brings it straight back.
-    state.plugins.refresh_providers().await;
+    state.admin.plugins.refresh_providers().await;
     // Loaded or left out at the next start (RD-1240-32).
     crate::restart_service::record_plugin(
         &state,
@@ -386,6 +393,6 @@ pub async fn plugin_messages(
             "Locale must be a two-letter language tag",
         ));
     }
-    let bundle = state.plugins.locale_bundle(locale).await?;
+    let bundle = state.admin.plugins.locale_bundle(locale).await?;
     Ok(Json(bundle))
 }

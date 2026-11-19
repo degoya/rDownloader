@@ -10,6 +10,7 @@ mod common;
 
 mod compat_aria2;
 mod compat_arr;
+mod compat_arr_live;
 mod compat_qbittorrent;
 mod compat_sabnzbd;
 mod feeds;

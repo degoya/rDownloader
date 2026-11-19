@@ -100,8 +100,9 @@ pub async fn remove_superseded(
             .into_iter()
             .map(|entry| (entry.plugin_id.clone(), entry))
             .collect();
-    let running_choices = state.plugins.version_choices();
+    let running_choices = state.admin.plugins.version_choices();
     let installed: Vec<rd_plugin_host::PluginManifest> = state
+        .admin
         .plugins
         .list_installed()
         .await?
@@ -158,7 +159,7 @@ pub async fn remove_superseded(
     if !removed.is_empty() {
         // Once for the whole batch, as the bundled removal does: the accounts list must not
         // offer a provider whose last version just went.
-        state.plugins.refresh_providers().await;
+        state.admin.plugins.refresh_providers().await;
     }
     let result = if removed.is_empty() && kept.is_empty() {
         MessageResponse::new("plugin.superseded_none", "No superseded plugin versions")

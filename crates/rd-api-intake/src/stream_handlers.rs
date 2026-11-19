@@ -130,7 +130,7 @@ pub async fn record_now(
         // address, so a saved channel's splitting and sidecars still apply.
         recording: rd_core::RecordingPolicy::default(),
     })?;
-    let settings = state.stream_settings.read().await.clone();
+    let settings = state.intake.stream_settings.read().await.clone();
     let package = crate::stream_monitor::start_recording(
         &state.database,
         &state.scheduler,

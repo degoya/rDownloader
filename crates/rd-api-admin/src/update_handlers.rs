@@ -19,7 +19,7 @@ use crate::{AppState, error::ApiError};
 
 #[utoipa::path(get, path = "/api/v1/system/update", tag = "system", responses((status = 200, body = UpdateStatusResponse)))]
 pub async fn get_update_status(State(state): State<AppState>) -> Json<UpdateStatusResponse> {
-    Json(state.updates.status().await)
+    Json(state.admin.updates.status().await)
 }
 
 /// Checks now and answers with the status. A manifest that was refused or could not be reached
@@ -37,8 +37,8 @@ pub async fn get_update_status(State(state): State<AppState>) -> Json<UpdateStat
 pub async fn check_for_updates(
     State(state): State<AppState>,
 ) -> Result<Json<UpdateStatusResponse>, ApiError> {
-    match state.updates.check().await {
-        Ok(_) => Ok(Json(state.updates.status().await)),
+    match state.admin.updates.check().await {
+        Ok(_) => Ok(Json(state.admin.updates.status().await)),
         Err(rd_update::UpdateError::NotConfigured) => Err(ApiError::conflict(
             "update.not_configured",
             "This build carries no update signing key; the update check is not configured",

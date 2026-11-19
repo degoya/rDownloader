@@ -213,6 +213,7 @@ impl ReconnectService {
             .filter(|name| !name.is_empty())
             .ok_or_else(|| anyhow::anyhow!("no reconnect script is configured"))?;
         let ok = app
+            .queue
             .extraction
             .run_named_script(
                 name,

@@ -139,7 +139,11 @@ const systems = computed(() => [
           level="page"
         />
       </div>
-      <div class="flex shrink-0 flex-wrap gap-2">
+      <!--
+        Not `shrink-0` (RD-1430-03): on a line of their own at 390 px the three buttons must be
+        allowed to wrap; held at their one-line width they ran past the window.
+      -->
+      <div class="flex min-w-0 flex-wrap gap-2" data-testid="system-header-actions">
         <UButton
           icon="i-lucide-rotate-ccw"
           color="error"

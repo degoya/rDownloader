@@ -225,3 +225,42 @@ async fn merging_is_not_offered_without_a_location() {
     assert!(!capabilities.can_merge);
     assert!(!capabilities.can_transcode_audio);
 }
+
+/// What gallery-dl really prints — a release and a dev build — reads as one version in the
+/// tool list (`tool_status`, behind `GET /api/v1/system/media`) and in `rdownloader doctor`
+/// (`rd_tools::compat::assess`), and is judged against gallery-dl's floor instead of "could not
+/// be read" (RD-1430-09).
+#[cfg(unix)]
+#[tokio::test]
+async fn gallery_dl_reports_one_version_in_the_tool_list_and_the_doctor() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = tempfile::tempdir().expect("tempdir");
+    for (index, line) in ["1.32.15", "1.32.11-dev:2026.09.04"]
+        .into_iter()
+        .enumerate()
+    {
+        // A folder each, since the version cache is keyed by the path.
+        let folder = directory.path().join(index.to_string());
+        std::fs::create_dir_all(&folder).expect("folder");
+        let path = folder.join("gallery-dl");
+        std::fs::write(&path, format!("#!/bin/sh\necho '{line}'\n")).expect("script");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        let resolved = ResolvedTool {
+            path: path.clone(),
+            source: ToolSource::Vendor,
+        };
+
+        let listed = super::tool_status("gallery-dl", Some(&resolved)).await;
+        let doctor = rd_tools::compat::assess("gallery-dl", &path).await;
+        assert_eq!(listed.version.as_deref(), Some(line));
+        assert_eq!(listed.compatibility.version.as_deref(), Some(line));
+        assert_eq!(doctor.version.as_deref(), Some(line));
+        assert_eq!(
+            doctor.verdict,
+            rd_tools::compat::Verdict::Supported,
+            "{line}"
+        );
+        assert!(!doctor.warns(), "{line}");
+    }
+}

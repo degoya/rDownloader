@@ -25,7 +25,7 @@ pub(super) async fn sign_in_through_provider(
     scan: &mut Scan,
 ) {
     let router = &harness.router;
-    *harness.state.proxy.write().await = rd_authn::ProxyConfig::parse(
+    *harness.state.access.proxy.write().await = rd_authn::ProxyConfig::parse(
         &[],
         Some("https://canary.example.com"),
         rd_authn::CookieSecurity::Auto,

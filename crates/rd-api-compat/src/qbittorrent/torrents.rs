@@ -33,12 +33,17 @@ async fn views(state: &AppState) -> Result<Vec<map::TorrentView>, Box<Response>>
     };
     let (packages, downloads, torrent_states, categories) =
         read.await.map_err(|error| Box::new(unavailable(&error)))?;
-    let hashes: std::collections::HashMap<rd_core::DownloadId, String> = torrent_states
+    // The hash and, for a torrent of one file, that file's path inside the package folder.
+    type Known = (String, Option<Vec<String>>);
+    let known: std::collections::HashMap<rd_core::DownloadId, Known> = torrent_states
         .into_iter()
         .filter_map(|(id, job)| {
-            job.metadata
-                .as_ref()
-                .map(|metadata| (id, map::normalize_hash(&metadata.info_hash)))
+            let metadata = job.metadata?;
+            let single_file = match metadata.files.as_slice() {
+                [file] => Some(file.path.clone()),
+                _ => None,
+            };
+            Some((id, (map::normalize_hash(&metadata.info_hash), single_file)))
         })
         .collect();
     let packages: std::collections::HashMap<rd_core::PackageId, rd_core::DownloadPackage> =
@@ -49,10 +54,10 @@ async fn views(state: &AppState) -> Result<Vec<map::TorrentView>, Box<Response>>
     Ok(downloads
         .into_iter()
         .filter_map(|download| {
-            let hash = hashes
+            let (hash, single_file) = known
                 .get(&download.id)
                 .cloned()
-                .or_else(|| map::hash_from_magnet(&download.source))?;
+                .or_else(|| Some((map::hash_from_magnet(&download.source)?, None)))?;
             let package = packages.get(&download.package_id)?.clone();
             let category = categories
                 .iter()
@@ -64,6 +69,7 @@ async fn views(state: &AppState) -> Result<Vec<map::TorrentView>, Box<Response>>
                 download,
                 hash,
                 category,
+                single_file,
             })
         })
         .collect())
@@ -151,6 +157,7 @@ fn category_of(view: &map::TorrentView) -> &str {
 fn entry(view: &map::TorrentView) -> serde_json::Value {
     let total = view.download.total_bytes.map_or(0, rd_core::ByteCount::get);
     let done = view.download.committed_bytes.get();
+    let paths = map::content_paths(view);
     serde_json::json!({
         "hash": view.hash,
         "name": view.package.name,
@@ -164,9 +171,11 @@ fn entry(view: &map::TorrentView) -> serde_json::Value {
         "state": map::state(&view.package, &view.download),
         "category": category_of(view),
         "tags": "",
-        "save_path": view.package.destination,
-        "content_path": view.package.destination,
-        "download_path": view.package.destination,
+        "save_path": paths.save_path,
+        "content_path": paths.content_path,
+        // qBittorrent's folder for incomplete downloads, empty while it is not in use; a
+        // torrent here is written where it ends up (`app/preferences`: `temp_path_enabled`).
+        "download_path": "",
         "dlspeed": 0,
         "upspeed": 0,
         "priority": 0,
@@ -204,7 +213,8 @@ pub(crate) async fn properties(
     };
     let total = view.download.total_bytes.map_or(0, rd_core::ByteCount::get);
     axum::Json(serde_json::json!({
-        "save_path": view.package.destination,
+        "save_path": map::content_paths(view).save_path,
+        "download_path": "",
         "creation_date": view.package.created_at.timestamp(),
         "piece_size": 0,
         "comment": "",

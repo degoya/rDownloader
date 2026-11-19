@@ -28,7 +28,7 @@ pub(crate) async fn destination_context(state: &AppState) -> DestinationContext 
         }
     };
     DestinationContext {
-        object_storage: state.object_storage.clone(),
+        object_storage: state.queue.object_storage.clone(),
         rclone_executable: postprocess.rclone_executable,
         vendor_directory: postprocess.vendor_directory,
         bandwidth: state.scheduler.bandwidth().upload_limiter(),

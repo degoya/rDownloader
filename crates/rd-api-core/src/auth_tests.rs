@@ -260,6 +260,31 @@ fn an_unclassified_route_fails_closed() {
     );
 }
 
+/// A known route asked for a method it does not have earns `405`, not the policy gap
+/// (RD-1430-04); the response's status and its `Allow` header are `tests/access/wrong_method.rs`.
+#[test]
+fn a_wrong_method_on_a_known_route_is_a_method_error() {
+    let refusal = super::method_refusal(Some(&facts("/api/v1/queue/search", Method::DELETE)));
+    assert_eq!(
+        refusal.map(|error| error.code().to_owned()),
+        Some("request.method_not_allowed".to_owned())
+    );
+    assert!(super::method_refusal(Some(&facts("/api/v1/queue/search", Method::GET))).is_none());
+    assert!(super::method_refusal(None).is_none());
+}
+
+/// The method check does not soften the gap: a path the table does not know is no method
+/// error, and the scope check still refuses it as unclassified.
+#[test]
+fn an_unknown_path_is_no_method_error_and_stays_unclassified() {
+    let unknown = facts("/api/v1/invented", Method::DELETE);
+    assert!(super::method_refusal(Some(&unknown)).is_none());
+    assert_eq!(
+        super::scope_refusal(Some(&unknown), Scope::API).map(|error| error.code().to_owned()),
+        Some("scope.route_unclassified".to_owned())
+    );
+}
+
 /// A request that matched no route is not a policy question, and must not be refused as one.
 #[test]
 fn an_unmatched_request_is_left_to_the_fallback() {

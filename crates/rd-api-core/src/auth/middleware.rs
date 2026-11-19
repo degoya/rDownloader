@@ -103,12 +103,12 @@ pub(super) async fn resolve(
     via: AuditChannel,
 ) -> Resolved {
     let full = rd_core::Scope::API.to_vec();
-    if state.auth.disabled_for(from_this_machine) {
+    if state.access.auth.disabled_for(from_this_machine) {
         // Nobody signed in, and every caller on this machine is an administrator. "Anonymous"
         // is the honest word for that, and it is worth being able to filter an audit log by it.
         return Resolved::of(full, crate::audit::Actor::anonymous().through(via));
     }
-    if let Some(session) = state.auth.current_session(state, headers).await {
+    if let Some(session) = state.access.auth.current_session(state, headers).await {
         return Resolved::of(
             full,
             crate::audit::Actor::session(session.id.to_string()).through(via),
@@ -205,6 +205,9 @@ pub async fn require_session(
 ) -> Result<Response, ApiError> {
     // Captured before anything is awaited; see [`RequestFacts`].
     let facts = RequestFacts::of(&request);
+    if let Some(refusal) = method_refusal(facts.as_ref()) {
+        return Err(refusal);
+    }
     if let Some(facts) = facts.as_ref() {
         refuse_foreign_site(&state, &facts.method, facts.host.as_deref(), &facts.headers).await?;
     }
@@ -235,7 +238,7 @@ pub async fn require_session(
         // revocable bearer is a credential in its own right, and a machine client must not
         // start failing because the administrator password of an unattended service was
         // never set.
-        if !state.auth.is_configured(&state).await? {
+        if !state.access.auth.is_configured(&state).await? {
             return Err(ApiError::unauthorized(
                 "auth.setup_pending",
                 "Setup has not been completed yet",
@@ -329,7 +332,7 @@ pub(super) async fn refuse_foreign(
             let site = site.trim();
             !site.eq_ignore_ascii_case("same-origin") && !site.eq_ignore_ascii_case("none")
         });
-    let external_origin = state.proxy.read().await.origin().map(str::to_owned);
+    let external_origin = state.access.proxy.read().await.origin().map(str::to_owned);
     let foreign = rd_authn::origin::foreign_request(
         sec_fetch_site.as_deref(),
         origin.as_deref(),
@@ -362,13 +365,27 @@ pub(super) fn local_control_grant(
     let bearer = bearer_token(&facts.headers)?;
     (facts.from_this_machine
         && crate::local_control::covers(&facts.path, &facts.method)
-        && state.local_control.accepts(bearer))
+        && state.runtime.local_control.accepts(bearer))
     .then(|| {
         (
             vec![rd_core::Scope::Admin],
             crate::audit::Actor::local_control(),
         )
     })
+}
+
+/// `405` for a known route asked for a method it does not have (RD-1430-04).
+///
+/// This layer wraps the router's method fallback too, so without this the policy gap below
+/// answered first and a typo in the method read as missing rights. Taken before any credential
+/// is read, as the router would: the answer is the same with and without a sign-in, and it
+/// reveals nothing a `401` on the same path does not. It is still a refusal, never a pass to
+/// the next layer, so a handler without a scope decision cannot be reached this way either.
+/// The router adds the `Allow` header to it.
+pub(super) fn method_refusal(facts: Option<&RequestFacts>) -> Option<ApiError> {
+    let facts = facts?;
+    scope_policy::method_not_allowed(&facts.path, &facts.method)
+        .then(crate::error_codes::wrong_method)
 }
 
 /// The refusal this route's requirement produces for these scopes, if any.

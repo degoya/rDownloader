@@ -68,8 +68,9 @@ pub struct SubscriptionRequest {
     /// (`github`|`gitlab`, needed for a host other than github.com and gitlab.com),
     /// `asset_patterns` (`*`/`?` wildcards, case-insensitive, at most 32 of at most 200
     /// characters), `platforms` (`linux`|`windows`|`macos`), `architectures`
-    /// (`x86_64`|`aarch64`|`x86`|`arm`), `prereleases` and `source_archives`. Drafts are never
-    /// downloaded. Only a git-release subscription takes them; its read-only token is `api_key`.
+    /// (`x86_64`|`aarch64`|`x86`|`arm`|`s390x`|`ppc64le`|`riscv64`), `prereleases` and
+    /// `source_archives`. Drafts are never downloaded. Only a git-release subscription takes them;
+    /// its read-only token is `api_key`.
     #[serde(default)]
     pub git_release: rd_core::GitReleaseOptions,
     /// A defined indexer to take over (RD-180-20): its address when `url` is empty (else `url`

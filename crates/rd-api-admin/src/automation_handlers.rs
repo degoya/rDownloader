@@ -212,6 +212,7 @@ pub async fn dry_run_automations(
     };
     let Some(draft) = request.draft else {
         return state
+            .admin
             .automations
             .dry_run(request.trigger, request.package_id, None)
             .await
@@ -223,6 +224,7 @@ pub async fn dry_run_automations(
     rd_automation::validate_condition(&draft.condition)
         .map_err(|error| ApiError::bad_request(error.code(), error.to_string()))?;
     let matched = state
+        .admin
         .automations
         .dry_run_draft(request.trigger, request.package_id, draft)
         .await

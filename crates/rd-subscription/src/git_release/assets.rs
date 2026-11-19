@@ -132,10 +132,17 @@ pub fn platform_of(name_lowercase: &str) -> Option<GitPlatform> {
 }
 
 /// The architecture a file name names. The 64-bit spellings are tried first, because the
-/// 32-bit ones are their prefixes (`x86` in `x86_64`, `arm` in `arm64`).
+/// 32-bit ones are their prefixes (`x86` in `x86_64`, `arm` in `arm64`); a token only counts as
+/// a whole word, so `ppc64le` is never read as `x64` or anything shorter.
 #[must_use]
 pub fn architecture_of(name_lowercase: &str) -> Option<GitArchitecture> {
     const TABLE: &[(GitArchitecture, &[&str])] = &[
+        (GitArchitecture::S390x, &["s390x"]),
+        (
+            GitArchitecture::Ppc64le,
+            &["powerpc64le", "ppc64le", "ppc64el"],
+        ),
+        (GitArchitecture::Riscv64, &["riscv64gc", "riscv64"]),
         (GitArchitecture::Aarch64, &["aarch64", "arm64", "armv8"]),
         (
             GitArchitecture::X86_64,

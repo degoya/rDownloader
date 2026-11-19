@@ -92,6 +92,29 @@ pub fn requirement(path: &str, method: &Method) -> Option<Requirement> {
         .map(|entry| entry.requires)
 }
 
+/// Whether a request asked a route the table knows for a method that route does not have
+/// (RD-1430-04): no entry for `path` and `method`, but one for `path` and another method.
+///
+/// That is a typo in the method rather than a policy gap, and it earns the `405` the router
+/// would have answered, not `scope.route_unclassified`. It is a refusal either way: the caller
+/// answers it itself and never runs the request on. A path the table does not know at all stays
+/// the gap it was. So does `HEAD` on a route with a `GET`, which the router serves with the
+/// `GET` handler: a `405` there would contradict the `Allow` header that lists `HEAD`.
+#[must_use]
+pub fn method_not_allowed(path: &str, method: &Method) -> bool {
+    if requirement(path, method).is_some() {
+        return false;
+    }
+    let mut known = ROUTE_POLICY
+        .iter()
+        .filter(|entry| entry.path == path)
+        .peekable();
+    if known.peek().is_none() {
+        return false;
+    }
+    !(*method == Method::HEAD && known.any(|entry| entry.method == Method::GET))
+}
+
 /// The scope string a route costs, or `None` for a route that needs no credential.
 ///
 /// Exposed for the conformance test in `crates/rd-api/tests/access/scope_matrix.rs`, which walks the

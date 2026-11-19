@@ -148,6 +148,7 @@ async fn collect_input(state: &AppState) -> Result<BundleInput, ApiError> {
     let settings = crate::settings_store::stored_settings(&state.database).await?;
     let configuration = serde_json::to_value(&settings).map_err(anyhow::Error::new)?;
     let plugins = state
+        .admin
         .plugins
         .list_installed()
         .await?

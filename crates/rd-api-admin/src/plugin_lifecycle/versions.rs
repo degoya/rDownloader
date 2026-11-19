@@ -18,7 +18,7 @@ pub(crate) async fn loadable_versions(
         .filter_map(|entry| Some((entry.plugin_id?, entry.version?)))
         .collect();
     let mut versions: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for manifest in state.plugins.list_installed().await? {
+    for manifest in state.admin.plugins.list_installed().await? {
         let id = manifest.id.to_string();
         if withdrawn.contains(&(id.clone(), manifest.version.clone())) {
             continue;
@@ -64,10 +64,10 @@ pub(super) fn loaded_at_start(
 /// The version of plugin `id` new work runs on right now: this start's choice over the
 /// versions this start loaded.
 pub(super) fn running_version(state: &AppState, id: &str, versions: &[String]) -> Option<String> {
-    let started = state.plugins.started_versions();
+    let started = state.admin.plugins.started_versions();
     effective(
         &loaded_at_start(started.as_ref(), id, versions),
-        state.plugins.version_choices().get(id),
+        state.admin.plugins.version_choices().get(id),
     )
 }
 
@@ -83,8 +83,8 @@ pub(crate) async fn lifecycles(
         .into_iter()
         .map(|row| (row.plugin_id.clone(), row))
         .collect();
-    let running = state.plugins.version_choices();
-    let started = state.plugins.started_versions();
+    let running = state.admin.plugins.version_choices();
+    let started = state.admin.plugins.started_versions();
     Ok(versions
         .iter()
         .map(|(id, installed)| {
@@ -167,7 +167,12 @@ pub(super) async fn healthy(
     id: &str,
     version: &str,
 ) -> Result<rd_plugin_host::PluginManifest, ApiError> {
-    match state.plugins.verify_installed_version(id, version).await {
+    match state
+        .admin
+        .plugins
+        .verify_installed_version(id, version)
+        .await
+    {
         Ok(Some(manifest)) => Ok(manifest),
         Ok(None) => Err(ApiError::not_found(
             "plugin.version_not_installed",

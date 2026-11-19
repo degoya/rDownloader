@@ -150,3 +150,26 @@ describe('SettingsSystemTab import history', () => {
     expect(order.at(-1)).toBe('import-history-retention')
   })
 })
+
+/**
+ * RD-1430-03: at 390 px the header's three buttons ran past the window. Held at their one-line
+ * width (`shrink-0`) they could not wrap on the line of their own they get on a phone; jsdom lays
+ * nothing out, so the test pins the classes, the widths were measured in a browser.
+ */
+describe('SettingsSystemTab header at 390 px', () => {
+  beforeEach(() => {
+    vi.mocked(api.GET).mockReset()
+    vi.mocked(api.GET).mockResolvedValue({ data: [] } as never)
+  })
+
+  it('lets the header buttons wrap within the window', () => {
+    const { container } = mount()
+
+    const actions = container.querySelector('[data-testid="system-header-actions"]') as HTMLElement
+    expect(actions.closest('header')).not.toBeNull()
+    expect(actions.classList).toContain('flex-wrap')
+    expect(actions.classList).toContain('min-w-0')
+    expect(actions.classList).not.toContain('shrink-0')
+    expect(actions.querySelectorAll('button')).toHaveLength(3)
+  })
+})

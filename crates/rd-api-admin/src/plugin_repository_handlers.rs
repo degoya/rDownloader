@@ -70,6 +70,7 @@ pub async fn add_plugin_repository(
     Json(request): Json<AddPluginRepositoryRequest>,
 ) -> Result<(StatusCode, Json<PluginRepositoryResponse>), ApiError> {
     let probe = state
+        .admin
         .plugin_repositories
         .probe(&request.url, &request.public_key)
         .await
@@ -103,6 +104,7 @@ pub async fn add_plugin_repository(
     let fingerprint = probe.fingerprint.clone();
     let key_id = probe.key_id.clone();
     let repository = state
+        .admin
         .plugin_repositories
         .add(name, probe)
         .await
@@ -119,7 +121,7 @@ pub async fn add_plugin_repository(
             .detail("confirmed_key", fingerprint),
     )
     .await;
-    let expires = state.plugin_repositories.index_expiry(&repository.id);
+    let expires = state.admin.plugin_repositories.index_expiry(&repository.id);
     Ok((
         StatusCode::CREATED,
         Json(PluginRepositoryResponse::from_row(repository, expires)),
@@ -186,6 +188,7 @@ pub async fn remove_plugin_repository(
         ));
     }
     if !state
+        .admin
         .plugin_repositories
         .remove(&id)
         .await
@@ -243,6 +246,7 @@ pub async fn set_plugin_repository_settings(
         .with_param("max", REFRESH_HOURS_RANGE.end()));
     }
     state
+        .admin
         .plugin_repositories
         .set_refresh_hours(request.refresh_hours)
         .await?;
@@ -254,7 +258,7 @@ pub async fn set_plugin_repository_settings(
 pub async fn list_plugin_updates(
     State(state): State<AppState>,
 ) -> Result<Json<PluginOffersResponse>, ApiError> {
-    let service = &state.plugin_repositories;
+    let service = &state.admin.plugin_repositories;
     let updates = service.updates().await?;
     let (installed, available): (Vec<_>, Vec<_>) = service
         .offers()
@@ -310,6 +314,7 @@ pub async fn preview_repository_package(
     Json(request): Json<RepositoryPackageRequest>,
 ) -> Result<Json<PluginPreviewResponse>, ApiError> {
     let (offer, bytes) = state
+        .admin
         .plugin_repositories
         .download(&id, &request.plugin_id, &request.version)
         .await
@@ -338,6 +343,7 @@ pub async fn install_repository_package(
     Json(request): Json<RepositoryPackageRequest>,
 ) -> Result<(StatusCode, Json<MessageResponse>), ApiError> {
     let (offer, bytes) = state
+        .admin
         .plugin_repositories
         .download(&id, &request.plugin_id, &request.version)
         .await
@@ -357,7 +363,7 @@ pub async fn install_repository_package(
 }
 
 async fn preview(state: &AppState, bytes: Vec<u8>) -> Result<PluginPreviewResponse, ApiError> {
-    let verifier = state.plugins.verifier().clone();
+    let verifier = state.admin.plugins.verifier().clone();
     let preview = tokio::task::spawn_blocking(move || {
         rd_plugin_host::preview::preview_package(&bytes, &verifier)
     })
@@ -372,6 +378,7 @@ async fn preview(state: &AppState, bytes: Vec<u8>) -> Result<PluginPreviewRespon
     })?;
     let id = preview.id.to_string();
     let installed = state
+        .admin
         .plugins
         .list_installed()
         .await?
@@ -386,7 +393,7 @@ async fn preview(state: &AppState, bytes: Vec<u8>) -> Result<PluginPreviewRespon
 }
 
 async fn repositories(state: &AppState) -> Result<PluginRepositoriesResponse, ApiError> {
-    let service = &state.plugin_repositories;
+    let service = &state.admin.plugin_repositories;
     let repositories = state
         .database
         .list_plugin_repositories()

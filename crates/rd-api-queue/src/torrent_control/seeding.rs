@@ -80,7 +80,7 @@ pub async fn get_download_seeding(
 ) -> Result<Json<SeedingPolicyResponse>, ApiError> {
     let stored = require_download_state(&state, id).await?;
     Ok(Json(SeedingPolicyResponse {
-        effective: state.torrent.effective_policy(id).await,
+        effective: state.queue.torrent.effective_policy(id).await,
         torrent_override: (!stored.seeding.is_empty()).then_some(stored.seeding),
     }))
 }
@@ -105,7 +105,7 @@ pub async fn put_download_seeding(
 ) -> Result<Json<SeedingPolicyResponse>, ApiError> {
     let stored = apply_download_seeding(&state, id, request).await?;
     Ok(Json(SeedingPolicyResponse {
-        effective: state.torrent.effective_policy(id).await,
+        effective: state.queue.torrent.effective_policy(id).await,
         torrent_override: (!stored.seeding.is_empty()).then_some(stored.seeding),
     }))
 }
@@ -130,7 +130,7 @@ pub async fn apply_download_seeding(
         .await?
         .unwrap_or_else(|never| match never {});
     // A lowered limit must end a running seed now, not at the next tick.
-    state.torrent.nudge_seeding();
+    state.queue.torrent.nudge_seeding();
     Ok(stored)
 }
 
@@ -158,9 +158,9 @@ pub async fn delete_download_seeding(
         })
         .await?
         .unwrap_or_else(|never| match never {});
-    state.torrent.nudge_seeding();
+    state.queue.torrent.nudge_seeding();
     Ok(Json(SeedingPolicyResponse {
-        effective: state.torrent.effective_policy(id).await,
+        effective: state.queue.torrent.effective_policy(id).await,
         torrent_override: None,
     }))
 }
@@ -189,7 +189,7 @@ pub async fn put_category_seeding(
         .set_category_seeding_policy(id, Some(policy))
         .await
         .map_err(|_| ApiError::not_found("category.not_found", "Category not found"))?;
-    state.torrent.nudge_seeding();
+    state.queue.torrent.nudge_seeding();
     Ok(Json(crate::dto::MessageResponse::new(
         "torrent.seeding_policy_saved",
         "Seeding policy saved",
@@ -216,7 +216,7 @@ pub async fn delete_category_seeding(
         .set_category_seeding_policy(id, None)
         .await
         .map_err(|_| ApiError::not_found("category.not_found", "Category not found"))?;
-    state.torrent.nudge_seeding();
+    state.queue.torrent.nudge_seeding();
     Ok(Json(crate::dto::MessageResponse::new(
         "torrent.seeding_policy_cleared",
         "Seeding policy cleared",

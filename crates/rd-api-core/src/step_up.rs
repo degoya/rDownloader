@@ -29,7 +29,8 @@ pub fn require_interactive(
     audit: &AuditContext,
     this_machine: bool,
 ) -> Result<(), ApiError> {
-    if audit.actor.kind == rd_core::AuditActorKind::Session || state.auth.disabled_for(this_machine)
+    if audit.actor.kind == rd_core::AuditActorKind::Session
+        || state.access.auth.disabled_for(this_machine)
     {
         return Ok(());
     }
@@ -72,7 +73,7 @@ pub async fn require_confirmed(
     password: Option<&str>,
     action: rd_core::AuditAction,
 ) -> Result<(), ApiError> {
-    if state.auth.disabled_for(this_machine) {
+    if state.access.auth.disabled_for(this_machine) {
         return Ok(());
     }
     if audit.actor.kind != rd_core::AuditActorKind::Session {
@@ -93,15 +94,15 @@ async fn confirm_password(
     password: &str,
     action: rd_core::AuditAction,
 ) -> Result<(), ApiError> {
-    let _attempt = match state.auth.gate(client).await {
+    let _attempt = match state.access.auth.gate(client).await {
         Ok(attempt) => attempt,
         Err(refusal) => {
             note_refusal(state, audit, client, action, "locked_out").await;
             return Err(refusal);
         }
     };
-    if !state.auth.password_matches(state, password).await? {
-        state.auth.note_failed_login(client).await;
+    if !state.access.auth.password_matches(state, password).await? {
+        state.access.auth.note_failed_login(client).await;
         note_refusal(state, audit, client, action, "password").await;
         return Err(crate::error_codes::invalid_credentials());
     }

@@ -103,6 +103,7 @@ pub async fn clear_remote_jobs(
         states: request.states,
     };
     let report = state
+        .queue
         .remote_jobs
         .clear(&filter, request.at_provider)
         .await?;

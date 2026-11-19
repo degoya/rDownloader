@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.42.0"
+    "version": "1.43.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -29378,7 +29378,10 @@
           "x86_64",
           "aarch64",
           "x86",
-          "arm"
+          "arm",
+          "s390x",
+          "ppc64le",
+          "riscv64"
         ]
       },
       "GitForge": {
@@ -44181,7 +44184,7 @@
           },
           "git_release": {
             "$ref": "#/components/schemas/GitReleaseOptions",
-            "description": "Which release files a `git_release` subscription downloads (RD-190-13): `forge`\n(`github`|`gitlab`, needed for a host other than github.com and gitlab.com),\n`asset_patterns` (`*`/`?` wildcards, case-insensitive, at most 32 of at most 200\ncharacters), `platforms` (`linux`|`windows`|`macos`), `architectures`\n(`x86_64`|`aarch64`|`x86`|`arm`), `prereleases` and `source_archives`. Drafts are never\ndownloaded. Only a git-release subscription takes them; its read-only token is `api_key`."
+            "description": "Which release files a `git_release` subscription downloads (RD-190-13): `forge`\n(`github`|`gitlab`, needed for a host other than github.com and gitlab.com),\n`asset_patterns` (`*`/`?` wildcards, case-insensitive, at most 32 of at most 200\ncharacters), `platforms` (`linux`|`windows`|`macos`), `architectures`\n(`x86_64`|`aarch64`|`x86`|`arm`|`s390x`|`ppc64le`|`riscv64`), `prereleases` and\n`source_archives`. Drafts are never downloaded. Only a git-release subscription takes them;\nits read-only token is `api_key`."
           },
           "indexer_id": {
             "oneOf": [

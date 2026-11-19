@@ -154,37 +154,34 @@ async fn the_refresh_installs_only_automatic_updates_that_ask_for_nothing_new() 
     let harness = common::test_harness(directory.path()).await;
     let repository = rd_plugin_host::generate_signing_key();
     let author = rd_plugin_host::generate_signing_key();
-    harness
-        .state
-        .plugins
+    let plugins = &harness.state.admin.plugins;
+    plugins
         .verifier()
         .trust_key_base64("update-fixture-v1".to_owned(), &author.public_base64)
         .expect("trust the author");
     for id in [AUTOMATIC, WIDER, MANUAL] {
-        harness
-            .state
-            .plugins
+        plugins
             .install_bytes(update_fixture(&author, id, "1.0.0", r#""example.test""#))
             .await
             .expect("install 1.0.0");
     }
-    harness
-        .state
-        .plugins
+    plugins
         .record_started_versions()
         .await
         .expect("the start records what it loads");
 
     let fetcher = std::sync::Arc::new(MapFetcher::default());
     let mut state = harness.state.clone();
-    state.plugin_repositories = rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
-        harness.database.clone(),
-        directory.path().join("plugin-repositories"),
-        state.plugins.clone(),
-        fetcher.clone(),
-        None,
-    );
+    state.admin.plugin_repositories =
+        rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
+            harness.database.clone(),
+            directory.path().join("plugin-repositories"),
+            state.admin.plugins.clone(),
+            fetcher.clone(),
+            None,
+        );
     state
+        .admin
         .plugin_repositories
         .set_update_policy(std::sync::Arc::new(rd_api::VersionChoicePolicy::new(
             harness.database.clone(),
@@ -324,31 +321,30 @@ async fn the_switch_for_all_plugins_installs_updates_of_manual_plugins() {
     let harness = common::test_harness(directory.path()).await;
     let repository = rd_plugin_host::generate_signing_key();
     let author = rd_plugin_host::generate_signing_key();
-    harness
-        .state
-        .plugins
+    let plugins = &harness.state.admin.plugins;
+    plugins
         .verifier()
         .trust_key_base64("update-fixture-v1".to_owned(), &author.public_base64)
         .expect("trust the author");
     for id in [MANUAL, WIDER] {
-        harness
-            .state
-            .plugins
+        plugins
             .install_bytes(update_fixture(&author, id, "1.0.0", r#""example.test""#))
             .await
             .expect("install 1.0.0");
     }
     let fetcher = std::sync::Arc::new(MapFetcher::default());
     let mut state = harness.state.clone();
-    state.plugin_repositories = rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
-        harness.database.clone(),
-        directory.path().join("plugin-repositories"),
-        state.plugins.clone(),
-        fetcher.clone(),
-        None,
-    );
+    state.admin.plugin_repositories =
+        rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
+            harness.database.clone(),
+            directory.path().join("plugin-repositories"),
+            state.admin.plugins.clone(),
+            fetcher.clone(),
+            None,
+        );
     let source = rd_api::VersionChoicePolicy::new(harness.database.clone());
     state
+        .admin
         .plugin_repositories
         .set_update_policy(std::sync::Arc::new(rd_api::VersionChoicePolicy::new(
             harness.database.clone(),
@@ -460,37 +456,34 @@ async fn the_refresh_announces_a_failed_automatic_update_and_a_waiting_one_once(
     let harness = common::test_harness(directory.path()).await;
     let repository = rd_plugin_host::generate_signing_key();
     let author = rd_plugin_host::generate_signing_key();
-    harness
-        .state
-        .plugins
+    let plugins = &harness.state.admin.plugins;
+    plugins
         .verifier()
         .trust_key_base64("update-fixture-v1".to_owned(), &author.public_base64)
         .expect("trust the author");
     for id in [AUTOMATIC, MANUAL] {
-        harness
-            .state
-            .plugins
+        plugins
             .install_bytes(update_fixture(&author, id, "1.0.0", r#""example.test""#))
             .await
             .expect("install 1.0.0");
     }
-    harness
-        .state
-        .plugins
+    plugins
         .record_started_versions()
         .await
         .expect("the start records what it loads");
 
     let fetcher = std::sync::Arc::new(MapFetcher::default());
     let mut state = harness.state.clone();
-    state.plugin_repositories = rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
-        harness.database.clone(),
-        directory.path().join("plugin-repositories"),
-        state.plugins.clone(),
-        fetcher.clone(),
-        None,
-    );
+    state.admin.plugin_repositories =
+        rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
+            harness.database.clone(),
+            directory.path().join("plugin-repositories"),
+            state.admin.plugins.clone(),
+            fetcher.clone(),
+            None,
+        );
     state
+        .admin
         .plugin_repositories
         .set_update_policy(std::sync::Arc::new(rd_api::VersionChoicePolicy::new(
             harness.database.clone(),
@@ -580,15 +573,12 @@ mod stopped_updates {
         let harness = common::test_harness(directory).await;
         let repository = rd_plugin_host::generate_signing_key();
         let author = rd_plugin_host::generate_signing_key();
-        harness
-            .state
-            .plugins
+        let plugins = &harness.state.admin.plugins;
+        plugins
             .verifier()
             .trust_key_base64("update-fixture-v1".to_owned(), &author.public_base64)
             .expect("trust the author");
-        harness
-            .state
-            .plugins
+        plugins
             .install_bytes(update_fixture(
                 &author,
                 AUTOMATIC,
@@ -597,9 +587,7 @@ mod stopped_updates {
             ))
             .await
             .expect("install 1.0.0");
-        harness
-            .state
-            .plugins
+        plugins
             .record_started_versions()
             .await
             .expect("the start records what it loads");
@@ -619,15 +607,16 @@ mod stopped_updates {
 
         let fetcher = std::sync::Arc::new(MapFetcher::default());
         let mut state = harness.state.clone();
-        state.plugin_repositories =
+        state.admin.plugin_repositories =
             rd_plugin_host::repository::PluginRepositoryService::with_fetcher(
                 harness.database.clone(),
                 directory.join("plugin-repositories"),
-                state.plugins.clone(),
+                state.admin.plugins.clone(),
                 fetcher.clone(),
                 None,
             );
         state
+            .admin
             .plugin_repositories
             .set_update_policy(std::sync::Arc::new(rd_api::VersionChoicePolicy::new(
                 harness.database.clone(),
@@ -659,6 +648,7 @@ mod stopped_updates {
     async fn assert_installed_and_unchosen(directory: &std::path::Path, harness: &common::Harness) {
         let mut versions: Vec<String> = harness
             .state
+            .admin
             .plugins
             .list_installed()
             .await

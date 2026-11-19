@@ -14,8 +14,11 @@ use crate::select::MediaCapabilities;
 pub struct ToolStatus {
     pub name: String,
     pub path: Option<String>,
-    /// The first line the tool printed, verbatim. Kept raw because a line no parser
-    /// recognised is still the most useful thing to put in front of a person.
+    /// The version the tool reports: the parsed token when its line was read, else that line
+    /// verbatim, because a line no parser recognised is still the most useful thing to put in
+    /// front of a person. The same text the compatibility verdict and `rdownloader doctor`
+    /// name (RD-1430-09) — not the whole banner, which said `UNRAR 7.23 freeware  Copyright …`
+    /// where the verdict beside it said `7.23`.
     pub version: Option<String>,
     /// Explicit setting, vendor folder or `PATH`; `None` when the tool was not found.
     pub source: Option<ToolSource>,
@@ -272,7 +275,7 @@ pub async fn tool_status(name: &str, tool: Option<&ResolvedTool>) -> ToolStatus 
     ToolStatus {
         name: name.to_owned(),
         path: Some(tool.path.to_string_lossy().into_owned()),
-        version: detected.raw,
+        version: detected.display(),
         source: Some(tool.source),
         compatibility,
     }

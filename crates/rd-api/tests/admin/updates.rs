@@ -69,7 +69,7 @@ async fn served(directory: &std::path::Path) -> (common::Harness, MemoryFetcher)
     trust
         .trust(KEY_ID.to_owned(), key().verifying_key())
         .expect("trust");
-    harness.state.updates.use_source(
+    harness.state.admin.updates.use_source(
         Arc::new(fetcher.clone()),
         Sources {
             stable: url::Url::parse(STABLE).expect("url"),
@@ -317,7 +317,7 @@ async fn installable_from(
     let recorded = Arc::clone(&launched);
     let program = directory.join("program");
     std::fs::create_dir_all(&program).expect("program folder");
-    harness.state.updates.use_installation(
+    harness.state.admin.updates.use_installation(
         kind,
         program,
         Arc::new(move |journal: &Journal| -> anyhow::Result<()> {
@@ -509,7 +509,7 @@ async fn nothing_offered_is_nothing_to_install() {
     let directory = tempfile::tempdir().expect("tempdir");
     let (harness, fetcher) = served(directory.path()).await;
     fetcher.serve(STABLE, signed(&manifest("0.1.0", 10), &key()));
-    harness.state.updates.use_installation(
+    harness.state.admin.updates.use_installation(
         rd_update::InstallKind::Portable,
         directory.path().to_path_buf(),
         Arc::new(|_: &Journal| -> anyhow::Result<()> { Ok(()) }),
@@ -604,7 +604,7 @@ async fn a_kept_download_that_changed_on_disk_is_fetched_again() {
     .await;
     post_json(&harness.router, "/api/v1/system/update/download", json!({})).await;
     download_reaches(&harness, "ready").await;
-    let kept = rd_update::install::update_dir(&harness.state.updates.data_dir())
+    let kept = rd_update::install::update_dir(&harness.state.admin.updates.data_dir())
         .join(rd_update::install::DOWNLOAD_DIR);
     for file in std::fs::read_dir(&kept).expect("kept") {
         std::fs::write(file.expect("entry").path(), b"tampered with, same length").expect("write");

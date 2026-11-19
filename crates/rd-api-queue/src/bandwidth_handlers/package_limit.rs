@@ -107,6 +107,6 @@ async fn view(state: &AppState, id: PackageId) -> Result<PackageSpeedLimitRespon
             .package_speed_limit(id)
             .await?
             .and_then(|rate| ByteCount::new(rate).ok()),
-        supported: !holds_torrent || state.torrent.capabilities().per_torrent_limits,
+        supported: !holds_torrent || state.queue.torrent.capabilities().per_torrent_limits,
     })
 }

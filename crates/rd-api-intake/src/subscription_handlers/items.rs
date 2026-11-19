@@ -190,6 +190,7 @@ pub(super) async fn item_download_address(
     item: &rd_core::SubscriptionItem,
 ) -> Result<url::Url, ApiError> {
     state
+        .intake
         .subscriptions
         .download_address(subscription, &item.url)
         .await
@@ -212,9 +213,9 @@ pub(super) async fn hand_item_to_intake(
     let category_id = subscription.category_for(item.source_category.as_deref());
     let intake = crate::subscription_service::SubscriptionIntake {
         database: &state.database,
-        link_check: &state.link_check,
-        media_settings: &state.media_settings,
-        gallery_settings: &state.gallery_settings,
+        link_check: &state.intake.link_check,
+        media_settings: &state.intake.media_settings,
+        gallery_settings: &state.intake.gallery_settings,
     };
     crate::subscription_service::hand_urls_to_intake(
         &intake,

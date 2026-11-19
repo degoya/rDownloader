@@ -1,5 +1,6 @@
-//! The git-release adapter against a fake forge answering sanitized documents in the shape
-//! GitHub and GitLab document (`tests/fixtures/`). No request leaves the process.
+//! The git-release adapter against a fake forge answering the release lists recorded from
+//! GitHub and GitLab (`tests/fixtures/`, how they were recorded: `git_release_tests.rs`). No
+//! request leaves the process.
 
 use std::{
     collections::BTreeMap,
@@ -8,7 +9,7 @@ use std::{
 
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
-use rd_core::{FilterReason, GitForge, GitReleaseOptions, Subscription};
+use rd_core::{FilterReason, GitReleaseOptions, Subscription};
 use url::Url;
 
 use super::{ApiFetcher, ApiResponse, GitReleaseAdapter, rate_limit_pause};
@@ -18,8 +19,6 @@ use crate::{
 };
 
 const GITHUB: &str = include_str!("../tests/fixtures/github-releases.json");
-const GITLAB: &str = include_str!("../tests/fixtures/gitlab-releases.json");
-const SUMS: &str = include_str!("../tests/fixtures/github-sha256sums.txt");
 const TOKEN: &str = "github_pat_example_never_shown";
 
 /// One recorded request: its address and its headers.
@@ -99,9 +98,8 @@ impl SecretResolver for Vault {
     }
 }
 
-const GITHUB_LIST: &str = "https://api.github.com/repos/example/tool/releases?per_page=10";
-const GITLAB_LIST: &str =
-    "https://gitlab.example.test/api/v4/projects/group%2Fsub%2Fapp/releases?per_page=10";
+const REPOSITORY: &str = "https://github.com/neovim/neovim";
+const GITHUB_LIST: &str = "https://api.github.com/repos/neovim/neovim/releases?per_page=10";
 
 fn subscription(url: &str, options: GitReleaseOptions) -> Subscription {
     Subscription {
@@ -133,117 +131,111 @@ fn header<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str> {
 async fn every_file_of_a_published_release_is_an_item_and_the_unwanted_ones_say_why() {
     let forge = Arc::new(FakeForge::default());
     forge.answer(GITHUB_LIST, 200, Some(GITHUB), &[("etag", "W/\"list-1\"")]);
-    forge.answer(
-        "https://github.com/example/tool/releases/download/v1.2.0/SHA256SUMS",
-        200,
-        Some(SUMS),
-        &[],
-    );
     let outcome = adapter(&forge)
-        .poll(&subscription(
-            "https://github.com/example/tool",
-            linux_x64(),
-        ))
+        .poll(&subscription(REPOSITORY, linux_x64()))
         .await
         .expect("poll");
 
     assert_eq!(outcome.etag.as_deref(), Some("W/\"list-1\""));
-    // The draft and the pre-release are not releases; v1.2.0 has five finished files, v1.1.0 one.
-    let names: Vec<&str> = outcome
-        .items
+    // The nightly is a pre-release; v0.12.6, `stable` and v0.12.5 have twelve files each.
+    assert_eq!(outcome.items.len(), 36);
+    let names: Vec<&str> = outcome.items[..12]
         .iter()
         .map(|item| item.title.as_str())
         .collect();
     assert_eq!(
         names,
         [
-            "tool-1.2.0-linux-x86_64.tar.gz",
-            "tool-1.2.0-linux-aarch64.tar.gz",
-            "tool-1.2.0-windows-x86_64.zip",
-            "Tool-1.2.0-universal.dmg",
-            "SHA256SUMS",
-            "tool-1.1.0-linux-x86_64.tar.gz",
+            "nvim-linux-arm64.appimage",
+            "nvim-linux-arm64.appimage.zsync",
+            "nvim-linux-arm64.tar.gz",
+            "nvim-linux-x86_64.appimage",
+            "nvim-linux-x86_64.appimage.zsync",
+            "nvim-linux-x86_64.tar.gz",
+            "nvim-macos-arm64.tar.gz",
+            "nvim-macos-x86_64.tar.gz",
+            "nvim-win-arm64.msi",
+            "nvim-win-arm64.zip",
+            "nvim-win64.msi",
+            "nvim-win64.zip",
         ]
     );
-    let wanted: Vec<&str> = outcome
+    assert_eq!(outcome.items[0].refused, Some(FilterReason::AssetNotWanted));
+    let wanted: Vec<(&str, &str)> = outcome
         .items
         .iter()
         .filter(|item| item.refused.is_none())
-        .map(|item| item.title.as_str())
+        .map(|item| {
+            (
+                item.attributes.get("release").map_or("", String::as_str),
+                item.title.as_str(),
+            )
+        })
         .collect();
-    assert_eq!(
-        wanted,
-        [
-            "tool-1.2.0-linux-x86_64.tar.gz",
-            "tool-1.1.0-linux-x86_64.tar.gz"
-        ]
-    );
-    assert_eq!(outcome.items[1].refused, Some(FilterReason::AssetNotWanted));
+    let mut expected = Vec::new();
+    for release in ["v0.12.6", "stable", "v0.12.5"] {
+        for name in [
+            "nvim-linux-x86_64.appimage",
+            "nvim-linux-x86_64.appimage.zsync",
+            "nvim-linux-x86_64.tar.gz",
+        ] {
+            expected.push((release, name));
+        }
+    }
+    assert_eq!(wanted, expected);
 
-    let first = &outcome.items[0];
+    let tarball = outcome
+        .items
+        .iter()
+        .find(|item| item.title == "nvim-linux-x86_64.tar.gz")
+        .expect("the newest Linux tarball");
     assert_eq!(
-        first.source_id.as_deref(),
-        Some("github:release:3001:asset:9101")
+        tarball.source_id.as_deref(),
+        Some("github:release:408064517:asset:625399155")
     );
     assert_eq!(
-        first.url.as_str(),
-        "https://github.com/example/tool/releases/download/v1.2.0/tool-1.2.0-linux-x86_64.tar.gz"
+        tarball.url.as_str(),
+        "https://github.com/neovim/neovim/releases/download/v0.12.6/nvim-linux-x86_64.tar.gz"
     );
     assert_eq!(
-        first.attributes.get("release").map(String::as_str),
-        Some("v1.2.0")
+        tarball.attributes.get("release").map(String::as_str),
+        Some("v0.12.6")
     );
     assert_eq!(
-        first.attributes.get("size").map(String::as_str),
-        Some("4000000")
+        tarball.attributes.get("size").map(String::as_str),
+        Some("11404582")
     );
-    // The digest GitHub states, without a request for the list.
+    // The digest GitHub states, without a request for a list.
     assert_eq!(
-        first.attributes.get("sha256").map(String::as_str),
-        Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        tarball.attributes.get("sha256").map(String::as_str),
+        Some("474430d53e6264f6d6dd18db42d6dc9df3a1b56ca9e88a325bbf860e1a811d87")
     );
-    assert!(first.published_at.is_some());
-    // v1.1.0 states no digest and carries no list.
-    assert!(!outcome.items[5].attributes.contains_key("sha256"));
+    assert!(tarball.published_at.is_some());
 }
 
 #[tokio::test]
-async fn a_checksum_list_is_fetched_only_for_files_the_forge_states_no_digest_for() {
+async fn a_digest_the_forge_states_spares_every_further_request() {
     let forge = Arc::new(FakeForge::default());
     forge.answer(GITHUB_LIST, 200, Some(GITHUB), &[]);
-    forge.answer(
-        "https://github.com/example/tool/releases/download/v1.2.0/SHA256SUMS",
-        200,
-        Some(SUMS),
-        &[],
-    );
     let everything = GitReleaseOptions::default();
     let outcome = adapter(&forge)
-        .poll(&subscription("https://github.com/example/tool", everything))
+        .poll(&subscription(REPOSITORY, everything))
         .await
         .expect("poll");
-    let aarch64 = outcome
-        .items
-        .iter()
-        .find(|item| item.title == "tool-1.2.0-linux-aarch64.tar.gz")
-        .expect("aarch64 file");
-    assert_eq!(
-        aarch64.attributes.get("sha256").map(String::as_str),
-        Some("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+    assert!(
+        outcome
+            .items
+            .iter()
+            .all(|item| item.attributes.contains_key("sha256"))
     );
-    let lists = forge
-        .requests()
-        .iter()
-        .filter(|(url, _)| url.ends_with("SHA256SUMS"))
-        .count();
-    assert_eq!(lists, 1);
+    assert_eq!(forge.requests().len(), 1, "the list and nothing else");
 }
 
 #[tokio::test]
 async fn an_unchanged_list_costs_one_conditional_request_and_nothing_else() {
     let forge = Arc::new(FakeForge::default());
     forge.answer(GITHUB_LIST, 304, None, &[("etag", "W/\"list-1\"")]);
-    let mut polled = subscription("https://github.com/example/tool", linux_x64());
+    let mut polled = subscription(REPOSITORY, linux_x64());
     polled.etag = Some("W/\"list-1\"".to_owned());
     let outcome = adapter(&forge).poll(&polled).await.expect("poll");
 
@@ -280,10 +272,7 @@ async fn a_rate_limit_pauses_until_the_named_time_instead_of_failing() {
         ],
     );
     let error = adapter(&forge)
-        .poll(&subscription(
-            "https://github.com/example/tool",
-            linux_x64(),
-        ))
+        .poll(&subscription(REPOSITORY, linux_x64()))
         .await
         .expect_err("refused");
     let limited = error.downcast_ref::<RateLimited>().expect("a rate limit");
@@ -299,7 +288,7 @@ async fn a_forbidden_repository_is_a_failure_and_not_a_rate_limit() {
         Some("{}"),
         &[("x-ratelimit-remaining", "4999")],
     );
-    let mut private = subscription("https://github.com/example/tool", linux_x64());
+    let mut private = subscription(REPOSITORY, linux_x64());
     private.secret_ref = Some("vault://subscription/token".to_owned());
     let error = adapter(&forge).poll(&private).await.expect_err("refused");
     assert!(error.downcast_ref::<RateLimited>().is_none());
@@ -362,7 +351,7 @@ async fn a_private_repository_is_read_with_the_token_and_its_files_resolved_when
     let forge = Arc::new(FakeForge::default());
     forge.answer(GITHUB_LIST, 200, Some(GITHUB), &[]);
     let mut private = subscription(
-        "https://github.com/example/tool",
+        REPOSITORY,
         GitReleaseOptions {
             asset_patterns: vec!["*linux-x86_64*".to_owned()],
             ..GitReleaseOptions::default()
@@ -378,14 +367,19 @@ async fn a_private_repository_is_read_with_the_token_and_its_files_resolved_when
         Some(format!("Bearer {TOKEN}"))
     );
     // Archived under the API address, the only one a private repository answers.
-    let file = &outcome.items[0];
+    let file = outcome
+        .items
+        .iter()
+        .find(|item| item.refused.is_none())
+        .expect("a wanted file");
+    assert_eq!(file.title, "nvim-linux-x86_64.appimage");
     assert_eq!(
         file.url.as_str(),
-        "https://api.github.com/repos/example/tool/releases/assets/9101"
+        "https://api.github.com/repos/neovim/neovim/releases/assets/625399159"
     );
 
     // Handed over as the short-lived address the API redirects to, which needs no token.
-    let signed: Url = "https://release-assets.example.test/9101?sig=abc"
+    let signed: Url = "https://release-assets.example.test/625399159?sig=abc"
         .parse()
         .expect("url");
     *forge.located.lock().expect("located") = Some(signed.clone());
@@ -404,7 +398,7 @@ async fn a_private_repository_is_read_with_the_token_and_its_files_resolved_when
     assert!(adapter.download_address(&private, &file.url).await.is_err());
 
     // A public file is handed over as it was archived, without a request.
-    let public: Url = "https://github.com/example/tool/releases/download/v1.2.0/x"
+    let public: Url = "https://github.com/neovim/neovim/releases/download/v0.12.6/x"
         .parse()
         .expect("url");
     let before = forge.requests().len();
@@ -416,71 +410,6 @@ async fn a_private_repository_is_read_with_the_token_and_its_files_resolved_when
         public
     );
     assert_eq!(forge.requests().len(), before);
-}
-
-#[tokio::test]
-async fn gitlab_pre_releases_and_source_archives_come_only_when_asked_for() {
-    let forge = Arc::new(FakeForge::default());
-    forge.answer(GITLAB_LIST, 200, Some(GITLAB), &[]);
-    forge.answer(
-        "https://downloads.example.test/app/2.1.0/app-linux-amd64.sha256",
-        200,
-        Some("9999999999999999999999999999999999999999999999999999999999999999\n"),
-        &[],
-    );
-    let project = "https://gitlab.example.test/group/sub/app";
-    let mut options = GitReleaseOptions {
-        forge: Some(GitForge::Gitlab),
-        platforms: vec![rd_core::GitPlatform::Linux],
-        ..GitReleaseOptions::default()
-    };
-    let adapter = adapter(&forge);
-    let outcome = adapter
-        .poll(&subscription(project, options.clone()))
-        .await
-        .expect("poll");
-    let wanted: Vec<&str> = outcome
-        .items
-        .iter()
-        .filter(|item| item.refused.is_none())
-        .map(|item| item.title.as_str())
-        .collect();
-    // The upcoming release is a draft and the beta a pre-release: only v2.1.0's Linux file.
-    assert_eq!(wanted, ["app-2.1.0-linux-amd64"]);
-    let linux = &outcome.items[0];
-    assert_eq!(
-        linux.source_id.as_deref(),
-        Some("gitlab:release:v2.1.0:asset:501")
-    );
-    assert_eq!(
-        linux.attributes.get("sha256").map(String::as_str),
-        Some("9999999999999999999999999999999999999999999999999999999999999999"),
-        "the file's own .sha256 next to it"
-    );
-
-    options.prereleases = true;
-    options.source_archives = true;
-    let outcome = adapter
-        .poll(&subscription(project, options))
-        .await
-        .expect("poll");
-    let titles: Vec<&str> = outcome
-        .items
-        .iter()
-        .filter(|item| item.refused.is_none())
-        .map(|item| item.title.as_str())
-        .collect();
-    assert_eq!(
-        titles,
-        [
-            "app-2.2.0-beta.1-linux-amd64",
-            "app-v2.2.0-beta.1.zip",
-            "app-v2.2.0-beta.1.tar.gz",
-            "app-2.1.0-linux-amd64",
-            "app-v2.1.0.zip",
-            "app-v2.1.0.tar.gz",
-        ]
-    );
 }
 
 #[tokio::test]
@@ -496,3 +425,6 @@ async fn an_address_that_names_no_repository_fails_before_any_request() {
     assert!(error.to_string().contains("git.example.test"), "{error}");
     assert!(forge.requests().is_empty());
 }
+
+#[path = "git_release_adapter_gitlab_tests.rs"]
+mod gitlab;

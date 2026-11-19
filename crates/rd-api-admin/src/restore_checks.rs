@@ -293,7 +293,7 @@ pub(crate) async fn torrent_sources(
     findings: &mut Findings,
 ) -> Result<(), ApiError> {
     let cells = restore_copy::read_cells(copy, &[DOWNLOAD_SOURCE]).await?;
-    let directory = state.torrent.torrent_file_directory();
+    let directory = state.queue.torrent.torrent_file_directory();
     let directory = std::path::absolute(&directory).unwrap_or(directory);
     let (mut missing, mut count) = (Vec::new(), 0);
     for cell in cells.into_iter().flatten() {

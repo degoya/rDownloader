@@ -49,6 +49,7 @@ pub async fn switch_password_login_off(
         None => None,
     };
     let current = state
+        .access
         .auth
         .current_session(&state, &headers)
         .await

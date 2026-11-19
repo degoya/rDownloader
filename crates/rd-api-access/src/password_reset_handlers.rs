@@ -49,7 +49,7 @@ pub async fn reset_password_locally(
     }
     // The owner has usually locked their own address out by now; a new password they cannot
     // try yet is no way back in.
-    state.auth.reset_throttle().await;
+    state.access.auth.reset_throttle().await;
     crate::audit::record(
         &state,
         password_reset::audit_event(

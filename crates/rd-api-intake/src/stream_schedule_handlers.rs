@@ -131,7 +131,7 @@ pub async fn create_stream_schedule(
     let created = state.database.create_stream_schedule(input).await?;
     // Planned at once, so the upcoming occurrences are visible immediately rather than
     // after the monitor's next tick.
-    state.stream_monitor.plan_now().await;
+    state.intake.stream_monitor.plan_now().await;
     Ok((StatusCode::CREATED, Json(created)))
 }
 
@@ -159,7 +159,7 @@ pub async fn update_stream_schedule(
         .await
         .map_err(not_found)?;
     // The edit dropped the not-yet-started occurrences; this is what puts the new ones back.
-    state.stream_monitor.plan_now().await;
+    state.intake.stream_monitor.plan_now().await;
     Ok(Json(updated))
 }
 

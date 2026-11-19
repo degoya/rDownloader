@@ -14,9 +14,12 @@
 //!
 //! "Ran empty" is what the completion action waits for: nothing waiting, moving or in
 //! post-processing, after something was — once, not again while it stays empty, and never while
-//! the queue is paused, whose files wait without moving.
+//! the queue is paused, whose files wait without moving. "Something was" includes work no tick
+//! saw (RD-1430-06): a download queued, run and post-processed within one tick's five seconds
+//! was never busy in a sample, so a file that finished or failed since the last tick, new or from
+//! another state, counts as the queue having been busy.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use rd_core::{DownloadFile, DownloadId, DownloadState};
 
@@ -40,6 +43,8 @@ struct Seen {
     busy: bool,
     /// The files that were waiting or moving.
     moving: HashSet<DownloadId>,
+    /// Every file's state, to tell a file that finished since this tick (RD-1430-06).
+    states: HashMap<DownloadId, DownloadState>,
     /// "Pause all" stopped every file that was moving.
     paused_by_hand: bool,
 }
@@ -84,10 +89,24 @@ impl QueueStateWatch {
             (None, false) => paused_by_hand.then_some("manual"),
         };
         let busy = sample.postprocessing || !moving.is_empty();
+        // Work that started and ended between two ticks (RD-1430-06): no sample saw it busy, but
+        // it left a file finished or failed that was not, or not there, the tick before.
+        let ended_unseen = self.seen.as_ref().is_some_and(|before| {
+            sample.downloads.iter().any(|file| {
+                matches!(file.state, DownloadState::Completed | DownloadState::Failed)
+                    && before.states.get(&file.id) != Some(&file.state)
+            })
+        });
+        let states = sample
+            .downloads
+            .iter()
+            .map(|file| (file.id, file.state))
+            .collect();
         let now = Seen {
             paused,
             busy,
             moving,
+            states,
             paused_by_hand,
         };
         let Some(before) = self.seen.replace(now) else {
@@ -101,7 +120,7 @@ impl QueueStateWatch {
             (Some(_), None) => changes.push(serde_json::json!({ "state": "resumed" })),
             _ => {}
         }
-        if before.busy && !busy && paused.is_none() {
+        if (before.busy || ended_unseen) && !busy && paused.is_none() {
             changes.push(serde_json::json!({ "state": "finished" }));
         }
         changes

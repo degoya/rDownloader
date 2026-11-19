@@ -1,53 +1,63 @@
 //! `torrents/add`: a torrent file or a link handed over by an *arr client.
 
+use axum::extract::FromRequest;
+
 use super::*;
+
+/// What one `torrents/add` call asks for, whichever of the two encodings it came in.
+#[derive(Default)]
+struct AddRequest {
+    files: Vec<axum::body::Bytes>,
+    urls: Vec<String>,
+    category: Option<String>,
+    paused: bool,
+}
+
+impl AddRequest {
+    /// One text field. Both encodings go through here, so they differ only in how a field is
+    /// read, never in what it means or how it is checked.
+    fn text_field(&mut self, name: &str, value: &str) {
+        match name {
+            "urls" => self.urls.extend(
+                value
+                    .lines()
+                    .map(str::trim)
+                    .filter(|line| !line.is_empty())
+                    .map(str::to_owned),
+            ),
+            "category" => self.category = Some(value.to_owned()),
+            "paused" | "stopped" => self.paused = value.trim().eq_ignore_ascii_case("true"),
+            // `savepath`, `tags`, `sequentialDownload` and the rest are read by qBittorrent
+            // and ignored here: categories and routing rules decide where a download lands.
+            _ => {}
+        }
+    }
+}
 
 /// `POST /api/v2/torrents/add`: a `.torrent` upload, a magnet, or both.
 ///
 /// qBittorrent queues immediately, so this bypasses the LinkGrabber review the native
 /// upload keeps — an automation client has already decided what it wants and polls for the
-/// torrent to appear. It answers `Ok.`, which is the only body clients check.
-pub(crate) async fn add(State(state): State<AppState>, multipart: Option<Multipart>) -> Response {
-    let Some(mut multipart) = multipart else {
+/// torrent to appear. It answers an empty 200, as older qBittorrent does; clients fail only on
+/// `Fails.`.
+///
+/// The body is `multipart/form-data` or `application/x-www-form-urlencoded`, as qBittorrent
+/// takes it: Sonarr and Radarr send a magnet as a plain form (`urls`, `category`, `paused`) and
+/// only a `.torrent` upload as multipart (RD-1430-12). A file travels in multipart only; any
+/// other content type is refused like an unreadable torrent.
+pub(crate) async fn add(
+    State(state): State<AppState>,
+    request: axum::extract::Request,
+) -> Response {
+    let Some(AddRequest {
+        files,
+        urls,
+        category,
+        paused,
+    }) = read_request(&state, request).await
+    else {
         return failure();
     };
-    let mut files: Vec<axum::body::Bytes> = Vec::new();
-    let mut urls: Vec<String> = Vec::new();
-    let mut category: Option<String> = None;
-    let mut paused = false;
-    loop {
-        match multipart.next_field().await {
-            Ok(Some(field)) => {
-                let name = field.name().unwrap_or_default().to_owned();
-                match name.as_str() {
-                    "torrents" | "fileselect[]" => match field.bytes().await {
-                        Ok(bytes) => files.push(bytes),
-                        Err(_) => return failure(),
-                    },
-                    "urls" => {
-                        if let Ok(text) = field.text().await {
-                            urls.extend(
-                                text.lines()
-                                    .map(str::trim)
-                                    .filter(|line| !line.is_empty())
-                                    .map(str::to_owned),
-                            );
-                        }
-                    }
-                    "category" => category = field.text().await.ok(),
-                    "paused" | "stopped" => {
-                        paused = field
-                            .text()
-                            .await
-                            .is_ok_and(|value| value.trim().eq_ignore_ascii_case("true"));
-                    }
-                    _ => {}
-                }
-            }
-            Ok(None) => break,
-            Err(_) => return failure(),
-        }
-    }
     if files.is_empty() && urls.is_empty() {
         return failure();
     }
@@ -68,6 +78,44 @@ pub(crate) async fn add(State(state): State<AppState>, multipart: Option<Multipa
     ok()
 }
 
+/// Reads the body by its media type; `None` for any other type or a body that cannot be read.
+async fn read_request(state: &AppState, request: axum::extract::Request) -> Option<AddRequest> {
+    let media_type = request
+        .headers()
+        .get(axum::http::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .map(|value| value.trim().to_ascii_lowercase())?;
+    match media_type.as_str() {
+        "multipart/form-data" => {
+            let multipart = Multipart::from_request(request, state).await.ok()?;
+            read_multipart(multipart).await
+        }
+        "application/x-www-form-urlencoded" => {
+            let body = axum::body::Bytes::from_request(request, state).await.ok()?;
+            let mut add = AddRequest::default();
+            for (name, value) in url::form_urlencoded::parse(&body) {
+                add.text_field(&name, &value);
+            }
+            Some(add)
+        }
+        _ => None,
+    }
+}
+
+async fn read_multipart(mut multipart: Multipart) -> Option<AddRequest> {
+    let mut add = AddRequest::default();
+    while let Some(field) = multipart.next_field().await.ok()? {
+        let name = field.name().unwrap_or_default().to_owned();
+        if matches!(name.as_str(), "torrents" | "fileselect[]") {
+            add.files.push(field.bytes().await.ok()?);
+        } else if let Ok(text) = field.text().await {
+            add.text_field(&name, &text);
+        }
+    }
+    Some(add)
+}
+
 pub(super) async fn add_file(
     state: &AppState,
     content: &[u8],
@@ -76,7 +124,7 @@ pub(super) async fn add_file(
 ) -> anyhow::Result<()> {
     let (_, packages, _) = crate::torrent_intake::add_torrent_to_collector(
         &state.database,
-        &state.torrent,
+        &state.queue.torrent,
         content,
         rd_core::IngressSource::Api,
         Some("qbittorrent".to_owned()),

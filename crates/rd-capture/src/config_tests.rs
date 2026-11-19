@@ -5,6 +5,48 @@ use super::{
     read_public_config, store_token, stored_service_in, write_public_config,
 };
 
+/// Linux has a folder of the agent's own, not the generic `capture` (RD-1430-08).
+#[cfg(target_os = "linux")]
+#[test]
+fn the_linux_configuration_lives_in_a_folder_named_after_the_agent() {
+    let directory = super::config_directory().expect("a home directory");
+    assert_eq!(
+        directory.file_name(),
+        Some(std::ffi::OsStr::new("rdownloader-capture")),
+        "{}",
+        directory.display()
+    );
+}
+
+/// Windows keeps `rDownloader\Capture` (RD-1430-08 changed only Linux).
+#[cfg(windows)]
+#[test]
+fn the_windows_configuration_stays_under_rdownloader_capture() {
+    let directory = super::config_directory().expect("a profile directory");
+    assert!(
+        directory.ends_with(
+            std::path::Path::new("rDownloader")
+                .join("Capture")
+                .join("config")
+        ),
+        "{}",
+        directory.display()
+    );
+}
+
+/// macOS keeps `org.rDownloader.Capture` (RD-1430-08 changed only Linux).
+#[cfg(target_os = "macos")]
+#[test]
+fn the_macos_configuration_stays_under_its_bundle_name() {
+    let directory = super::config_directory().expect("a home directory");
+    assert_eq!(
+        directory.file_name(),
+        Some(std::ffi::OsStr::new("org.rDownloader.Capture")),
+        "{}",
+        directory.display()
+    );
+}
+
 fn service(address: &str) -> Url {
     Url::parse(address).expect("a valid service URL")
 }

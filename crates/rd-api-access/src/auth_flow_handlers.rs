@@ -28,6 +28,7 @@ pub async fn begin_auth(
 ) -> Result<Json<rd_core::AuthFlow>, ApiError> {
     let account = account(&state, id).await?;
     if let Some(entrance) = state
+        .access
         .auth_flows
         .oauth_providers()
         .await
@@ -43,18 +44,24 @@ pub async fn begin_auth(
         let started = match entrance {
             OAuthFlowManifest::Device => {
                 state
+                    .access
                     .auth_flows
                     .begin_oauth_device(id, &account.provider)
                     .await
             }
             OAuthFlowManifest::Redirect => {
-                state.auth_flows.begin_oauth(id, &account.provider).await
+                state
+                    .access
+                    .auth_flows
+                    .begin_oauth(id, &account.provider)
+                    .await
             }
         };
         let flow = started.map_err(|error| auth_failed(&account.provider, &error))?;
         return Ok(Json(flow));
     }
     if !state
+        .access
         .auth_flows
         .providers()
         .await
@@ -69,6 +76,7 @@ pub async fn begin_auth(
         ));
     }
     let flow = state
+        .access
         .auth_flows
         .begin(id, &account.provider)
         .await
@@ -128,6 +136,7 @@ pub async fn oauth_callback(
     Query(callback): Query<OAuthCallback>,
 ) -> Redirect {
     if let Err(error) = state
+        .access
         .auth_flows
         .complete_oauth(&callback.state, &callback.code)
         .await
@@ -143,7 +152,7 @@ pub async fn get_auth(
     Path(id): Path<rd_core::AccountId>,
 ) -> Result<Json<Option<rd_core::AuthFlow>>, ApiError> {
     account(&state, id).await?;
-    Ok(Json(state.auth_flows.flow(id).await?))
+    Ok(Json(state.access.auth_flows.flow(id).await?))
 }
 
 #[utoipa::path(delete, path = "/api/v1/accounts/{id}/auth", tag = "configuration", params(("id" = rd_core::AccountId, Path)), responses((status = 200, body = crate::dto::MessageResponse), (status = 404)))]
@@ -152,7 +161,7 @@ pub async fn cancel_auth(
     Path(id): Path<rd_core::AccountId>,
 ) -> Result<Json<crate::dto::MessageResponse>, ApiError> {
     account(&state, id).await?;
-    state.auth_flows.cancel(id).await?;
+    state.access.auth_flows.cancel(id).await?;
     Ok(Json(crate::dto::MessageResponse::new(
         "account.auth_cancelled",
         "Sign-in cancelled",

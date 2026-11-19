@@ -56,7 +56,10 @@ rd_component_gates() {
     # plugins link (rd_plugin_linked_crates: rd-plugin-api, rd-plugin-types and what they pull
     # in) can change any component, so each of them asks about all of them, and so does --full. The
     # linked crates were missing until 1.2.3: rd-plugin-api changed in 1.2.2, 72 components
-    # with it, and the branch check said "no plugin in the change set".
+    # with it, and the branch check said "no plugin in the change set". Cargo.lock likewise
+    # (RD-1430-11): every stamp records the registry packages it pins (deps_hash in
+    # lib/plugin-stamp.sh), and in 1.43 a lock-file update changed 60 components that the branch
+    # check, asking only about the plugins it touched, never named.
     step "plugin content against the signed package of the same version"
     unbumped_scope="the plugins this change touches"
     linked_touched=""
@@ -72,6 +75,8 @@ rd_component_gates() {
         unbumped_scope="every plugin"
     elif [[ -n "$linked_touched" ]]; then
         unbumped_scope="every plugin, since the change touches ${linked_touched%/}, which plugins link"
+    elif touches '^Cargo\.lock$'; then
+        unbumped_scope="every plugin, since the change touches Cargo.lock, which every component's stamp includes"
     else
         while read -r directory; do
             [[ -n "$directory" ]] || continue

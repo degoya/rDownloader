@@ -45,6 +45,7 @@ pub async fn list_destinations(
 ) -> Json<Vec<NotificationDestination>> {
     Json(
         state
+            .admin
             .notifications
             .notifiers()
             .await

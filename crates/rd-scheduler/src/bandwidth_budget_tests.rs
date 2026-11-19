@@ -182,3 +182,75 @@ async fn a_profile_counting_for_the_first_time_is_not_charged_for_earlier_traffi
     sample(&scheduler, &database, id, 5400).await;
     assert_eq!(used_today(&scheduler).await, 400);
 }
+
+/// What a notification reads: booked traffic plus what the queue committed since the last
+/// sample (RD-1430-05).
+async fn read(scheduler: &SchedulerHandle, database: &rd_db::Database) -> rd_limits::BudgetReading {
+    scheduler
+        .bandwidth()
+        .budget_reading(database)
+        .await
+        .expect("reading")
+        .expect("an active budget")
+}
+
+/// RD-1430-05: a package that finished after the last sample is named against the budget with
+/// its traffic, the reading books nothing, and the next sample counts the bytes once.
+#[tokio::test]
+async fn a_reading_counts_the_traffic_since_the_last_sample_without_booking_it() {
+    let directory = tempfile::tempdir().expect("temp");
+    let (scheduler, database) = scheduler_over(directory.path()).await;
+    let id = file(&scheduler, directory.path()).await;
+    capped(&scheduler, &database, 1000).await;
+    sample(&scheduler, &database, id, 300).await;
+    sample(&scheduler, &database, id, 800).await;
+    assert_eq!(read(&scheduler, &database).await.used_bytes, 500);
+
+    // The package finishes between two samples: 300 bytes the cycle has not booked.
+    database
+        .set_download_progress(id, 1100, None)
+        .await
+        .expect("progress");
+    let reading = read(&scheduler, &database).await;
+    assert_eq!(
+        reading.used_bytes, 800,
+        "booked 500 plus 300 since the sample"
+    );
+    assert_eq!(reading.left_bytes(), 200);
+    assert_eq!(
+        used_today(&scheduler).await,
+        500,
+        "the reading books nothing"
+    );
+
+    // The next sample books the 300 once, as it would have without the reading.
+    scheduler.supervise_bandwidth().await.expect("supervise");
+    assert_eq!(used_today(&scheduler).await, 800);
+    assert_eq!(read(&scheduler, &database).await.used_bytes, 800);
+
+    // Past the limit before the cycle noticed: nothing left, not the booked remainder.
+    database
+        .set_download_progress(id, 1600, None)
+        .await
+        .expect("progress");
+    let reading = read(&scheduler, &database).await;
+    assert_eq!(reading.used_bytes, 1300);
+    assert_eq!(reading.left_bytes(), 0);
+    scheduler.supervise_bandwidth().await.expect("supervise");
+    assert_eq!(used_today(&scheduler).await, 1300);
+}
+
+/// A profile the cycle has not counted yet reads from the stored odometer, not from zero.
+#[tokio::test]
+async fn a_profile_not_sampled_yet_reads_from_the_odometer() {
+    let directory = tempfile::tempdir().expect("temp");
+    let (scheduler, database) = scheduler_over(directory.path()).await;
+    let id = file(&scheduler, directory.path()).await;
+    sample(&scheduler, &database, id, 5000).await;
+    capped(&scheduler, &database, 1000).await;
+    database
+        .set_download_progress(id, 5400, None)
+        .await
+        .expect("progress");
+    assert_eq!(read(&scheduler, &database).await.used_bytes, 400);
+}

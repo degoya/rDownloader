@@ -292,7 +292,7 @@ async fn take_torrent(
         .map_err(|error| ApiError::bad_request("torrent.file_invalid", format!("{error:#}")))?;
     let (_, packages, _) = crate::torrent_intake::add_torrent_to_collector(
         &state.database,
-        &state.torrent,
+        &state.queue.torrent,
         bytes,
         rd_core::IngressSource::Manual,
         Some(indexer.name.clone()),
@@ -337,6 +337,6 @@ async fn take_magnet(
             source_attributes: Vec::new(),
         })
         .await?;
-    state.link_check.check_batch(batch.id).await;
+    state.intake.link_check.check_batch(batch.id).await;
     Ok(Grabbed::Torrent(packages))
 }

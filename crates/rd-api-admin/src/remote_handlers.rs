@@ -248,8 +248,8 @@ pub async fn test_remote_credential(
     // A failure here is an answer, not an error: "unknown host key" in particular is the
     // normal first result and carries the fingerprint the user then confirms.
     let failure = match credential.protocol.family() {
-        rd_core::RemoteFamily::Ftp => state.ftp.test_credential(&credential).await?,
-        rd_core::RemoteFamily::Sftp => state.sftp.test_credential(&credential).await?,
+        rd_core::RemoteFamily::Ftp => state.queue.ftp.test_credential(&credential).await?,
+        rd_core::RemoteFamily::Sftp => state.queue.sftp.test_credential(&credential).await?,
         rd_core::RemoteFamily::Webdav => {
             return Err(ApiError::bad_request(
                 "remote.webdav_uses_auth_profiles",

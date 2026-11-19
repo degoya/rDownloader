@@ -16,7 +16,8 @@
 # --public-ci the public CI's Windows run and the release workflows beside them (RD-1120-06,
 # RD-1270-10), and Linux on GitHub after --full only when no local Rust green covers the tree
 # (RD-1280-14); a run.sh in the log directory that integrate.sh did not write is moved aside with a
-# warning (RD-1270-17).
+# warning (RD-1270-17); components that differ from their signed package only once the stale
+# ones are built stop the run before the detached check, naming them (RD-1430-10).
 #
 #   scripts/tests/integrate.sh
 set -euo pipefail
@@ -86,7 +87,17 @@ stub mcp-coverage.sh
 stub web-declarations.sh
 stub licenses.sh
 stub archive-jobs.sh 'echo "| Job Inventory | 2 |" > docs/roadmap/jobs/README.md'
-stub build-plugins.sh
+# build-plugins.sh: --list-stale names what $FAKE/stale lists, --components-only builds it, after
+# which --list-unbumped names what $FAKE/drift-after-build lists — components that differ from
+# their signed package only once they are built (RD-1430-10); before the build it names nothing.
+stub build-plugins.sh '
+case "$1" in
+    --list-stale) cat "$FAKE/stale" 2> /dev/null || true ;;
+    --components-only)
+        rm -f "$FAKE/stale"
+        if [[ -f "$FAKE/drift-after-build" ]]; then cp "$FAKE/drift-after-build" "$FAKE/drift"; fi ;;
+    --list-unbumped) cat "$FAKE/drift" 2> /dev/null || true ;;
+esac'
 stub prune-target.sh
 stub public-ci.sh 'if [[ -f "$FAKE/public-ci-red" ]]; then exit 1; fi'
 git -C "$MAIN" add -A
@@ -215,6 +226,23 @@ expect "the preflight and the gate first, then the generators, archive-jobs amon
     "$(grep -E '^(check|api-contract|mcp-coverage|web-declarations|archive-jobs)' "$FAKE/calls" | paste -sd'|' -)"
 expect_true "archive-jobs' rewrite is in the generated commit" \
     'git -C "$TREE3" log -1 --format=%s | grep -q "^chore(generated)" && git -C "$TREE3" show --name-only HEAD | grep -qx "docs/roadmap/jobs/README.md"'
+
+# Components that only differ once built (RD-1430-10): a lock-file update leaves the previous
+# components in place, so the question goes after the build, and its answer stops the run before
+# the detached check, naming the plugins and the raise.
+printf 'alpha\nbeta\n' > "$FAKE/stale"
+printf '%s\n' "alpha 0.1.0 component alpha-0.1.0.rdplugin" "beta 0.2.0 component beta-0.2.0.rdplugin" \
+    > "$FAKE/drift-after-build"
+rm -f "$FAKE/calls" "$FAKE/drift"
+run_status "$MAIN/scripts/integrate.sh" integration/w3 feat/one --no-gate
+expect_status "components that differ only once built stop the run" 1
+expect "built first, asked after" "build-plugins.sh --components-only alpha beta|build-plugins.sh --list-unbumped" \
+    "$(grep -E '^build-plugins.sh --(components-only|list-unbumped)' "$FAKE/calls" | paste -sd'|' -)"
+expect_output "naming each plugin" "alpha 0.1.0 — component differs from alpha-0.1.0.rdplugin"
+expect_output "and the other" "beta 0.2.0 — component differs from beta-0.2.0.rdplugin"
+expect_output "and the raise" "scripts/plugin-bump.sh --cascade raises exactly these"
+expect_true "before the detached check" '! grep -qE "^check.sh --(windows|full)" "$FAKE/calls" && [[ ! -f "$RD_INTEGRATE_LOGS/run.sh" ]]'
+rm -f "$FAKE/stale" "$FAKE/drift-after-build" "$FAKE/drift"
 
 # The detached check: --windows first, --full only after it is green.
 wait_status() {

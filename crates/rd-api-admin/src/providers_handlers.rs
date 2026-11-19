@@ -11,8 +11,8 @@ use crate::{AppState, dto::ProviderResponse};
 
 #[utoipa::path(get, path = "/api/v1/providers", tag = "configuration", responses((status = 200, body = [ProviderResponse])))]
 pub async fn list_providers(State(state): State<AppState>) -> Json<Vec<ProviderResponse>> {
-    let device = state.auth_flows.providers().await;
-    let oauth = state.auth_flows.oauth_providers().await;
+    let device = state.access.auth_flows.providers().await;
+    let oauth = state.access.auth_flows.oauth_providers().await;
     // One flag for the form, two plugin types behind it. What the accounts form needs to know
     // is whether there is a sign-in to offer instead of a field to type in; which of the two
     // worlds runs it is the service's business, not the client's.

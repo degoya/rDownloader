@@ -12,7 +12,7 @@
 # Every base image is pinned by its tag and the digest of its multi-platform index (RD-191-09), so
 # a tag moved upstream changes nothing here until Dependabot's `docker` update moves both.
 
-FROM node:24-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS web
+FROM node:24-bookworm-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS web
 WORKDIR /src/web
 # pnpm in the version web/package.json pins (`packageManager`), through Corepack (RD-150-14).
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -22,7 +22,7 @@ RUN pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm run build
 
-FROM rust:1.99.1-bookworm@sha256:c9155318d07341301a78b45ecdd81af2e43b8b297d64e8fd4c5e80d7735607c3 AS builder
+FROM rust:1.99.1-bookworm@sha256:e6f2cff35d0f309acf8433b4f05878ed77092602c5065cc81801177da0bb3a9c AS builder
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
@@ -50,7 +50,7 @@ RUN cargo build --locked --release ${RD_BUILD_JOBS:+-j ${RD_BUILD_JOBS}} -p rdow
 # it on ubuntu-24.04 (glibc 2.39), and a binary linked against a newer glibc than the image has
 # does not start ("GLIBC_2.xx not found"). Moving the release runners to a newer Ubuntu therefore
 # means checking this line first; the `--version` guard below fails the build if it was not.
-FROM debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS runtime-base
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS runtime-base
 # The Python tools — yt-dlp, streamlink, gallery-dl, apprise — and every dependency, pinned with
 # their hashes in docker/requirements.txt, which scripts/docker-tools.sh compiles from
 # docker/requirements.in (RD-191-09). `--bump` there moves them; yt-dlp in particular ages fast.

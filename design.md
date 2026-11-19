@@ -1206,6 +1206,10 @@ recognised as drifting.
   browser*, the test and traffic badges) goes to a second line under the name, drawn only when
   there is something on it. The row measures itself (`@container`): below `@sm` *Test* keeps
   its icon, with the name as `aria-label` and `title`, and the name is cut, not the actions.
+  A category row does the same with *Duplicate*, and its status badges (*Default*, *Hidden*)
+  wrap under the name instead of pushing the actions out (RD-1430-03). A row in a `grid` list
+  carries `min-w-0`: without it the track grows to the row's content — the grouped category
+  list was 531 px wide in a 358 px card.
 - **The two queue lists are built in one order** (RD-1230-02, owner 2026-10-09). The row right
   above the list (`QueueListBar`) starts with *Select all* — its label what is selected, packages
   and files apart (see *A selection is counted in packages and files* below) — and open/close all; then the list's

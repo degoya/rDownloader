@@ -77,7 +77,7 @@ fn parse_rule(body: &serde_json::Value) -> Result<Rule, ApiError> {
 /// Puts the rules that are now stored into the selection, so a change takes effect on the
 /// next paste rather than after a restart.
 async fn reload(state: &AppState) {
-    let Some(rules) = state.crawlers.rules() else {
+    let Some(rules) = state.intake.crawlers.rules() else {
         return;
     };
     rules.replace(site_rules_service::catalogue(&state.database).await);
@@ -314,8 +314,8 @@ pub async fn test_site_rule(
     };
     // Exactly the judgement the intake applies to a crawled address (RD-110-07), asked here
     // rather than rebuilt, so the trial run cannot disagree with what a real paste would do.
-    let media = state.media_settings.read().await.clone();
-    let gallery = state.gallery_settings.read().await.clone();
+    let media = state.intake.media_settings.read().await.clone();
+    let gallery = state.intake.gallery_settings.read().await.clone();
     let deadline = std::time::Instant::now() + crate::collector_crawl_verdict::PROBE_BUDGET;
     // A rule's find keeps to the public internet, as in a real paste (RD-1190-18); the trial
     // probed it without the rule (RD-1190-22).
@@ -376,7 +376,7 @@ pub async fn test_site_rule(
 /// is one somebody asked for, in front of the interface that can show them the challenge, so
 /// a captcha step is answered rather than reported as blocked.
 fn trial_runner(state: &AppState) -> std::sync::Arc<dyn rd_plugin_ext::RuleRunner> {
-    if let Some(rules) = state.crawlers.rules() {
+    if let Some(rules) = state.intake.crawlers.rules() {
         return rules.runner();
     }
     std::sync::Arc::new(
