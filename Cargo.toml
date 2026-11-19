@@ -211,7 +211,7 @@ futures-util = "0.3"
 fs4 = { version = "1.1", default-features = false }
 # System-wide shortcuts for the capture agent's tray commands (RD-1180-03); the same family as
 # `tray-icon`. Linux registers under X11 only, through x11rb, which `arboard` links already.
-global-hotkey = "0.9"
+global-hotkey = "0.10"
 governor = "0.10"
 hex = "0.4"
 hmac = "0.13"
@@ -300,7 +300,7 @@ security-framework = "3.7.0"
 subtle = "2.6"
 zeroize = "1.9"
 semver = "1"
-sevenz-rust2 = "0.24"
+sevenz-rust2 = "0.25"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_path_to_error = "0.1.20"
