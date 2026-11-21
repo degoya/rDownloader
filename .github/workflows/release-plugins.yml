@@ -38,7 +38,7 @@ jobs:
       # Makes each core module a component (RD-1110-08), and reads the imports for the check
       # scripts/build-plugins.sh runs on every component it builds and the one below over all of
       # them; the version the script requires, as in ci-components.yml whose cache this run reads.
-      - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519 # v2.90.5
+      - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
         with:
           tool: wasm-tools@1.261.0
       - name: Collect the bundled plugins
