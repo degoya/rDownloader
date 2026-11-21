@@ -47,9 +47,8 @@ pub(crate) async fn run(harness: &Harness) -> rd_db::BackupRun {
 /// a run takes most of a second itself, so this is the rest of it, where a fixed 1.1 s sleep
 /// always waited the whole of one (RD-1120-08).
 async fn after_the_second_of(previous: &rd_db::BackupRun) {
-    use chrono::SubsecRound as _;
-    let next = previous.started_at.trunc_subsecs(0) + chrono::Duration::seconds(1);
-    if let Ok(rest) = (next - chrono::Utc::now()).to_std() {
+    let next = previous.started_at.trunc_subsecs(0) + rd_core::SignedDuration::from_secs(1);
+    if let Ok(rest) = std::time::Duration::try_from(next - rd_core::Timestamp::now()) {
         tokio::time::sleep(rest).await;
     }
 }
@@ -376,7 +375,7 @@ async fn a_failed_scheduled_verification_is_announced() {
     assert_eq!(
         rd_api_admin::backup_verify_service::tick(
             &harness.state,
-            due + chrono::Duration::minutes(1)
+            due + rd_core::SignedDuration::from_mins(1)
         )
         .await,
         1

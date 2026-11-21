@@ -1,8 +1,7 @@
 //! Category routing rules: create, list, edit, delete and the routing configuration.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{CategoryId, CategoryRule, CategoryRuleId, EventEnvelope, EventKind};
+use rd_core::{CategoryId, CategoryRule, CategoryRuleId, EventEnvelope, EventKind, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use super::{NewCategoryRule, config_event};
@@ -28,7 +27,7 @@ pub(crate) async fn create_category_rule(
         category_id: input.category_id,
         enabled: input.enabled,
     };
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = config_event(EventKind::CategoryChanged, "category_rule", value.id);
     let source = value.source.map(enum_string).transpose()?;
     let name_target = enum_string(value.name_target)?;
@@ -128,7 +127,7 @@ pub(crate) async fn update_category_rule(
     .bind(&name_target)
     .bind(value.category_id.to_string())
     .bind(value.enabled)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await?;

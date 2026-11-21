@@ -177,7 +177,8 @@ pub(crate) const EVENT_PURGE_BATCH: i64 = 2_000;
 /// Deletes at most [`EVENT_PURGE_BATCH`] events past their retention, oldest first, through
 /// `events_occurred_idx`.
 async fn purge_old_events(connection: &mut sqlx::SqliteConnection) -> Result<u64> {
-    let cutoff = chrono::Utc::now() - chrono::Duration::days(EVENT_RETENTION_DAYS);
+    let cutoff =
+        rd_core::Timestamp::now() - rd_core::SignedDuration::from_hours(24 * EVENT_RETENTION_DAYS);
     let result = sqlx::query(
         "DELETE FROM events WHERE rowid IN (SELECT rowid FROM events WHERE occurred_at < ? \
          ORDER BY occurred_at LIMIT ?)",

@@ -24,7 +24,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_files::durable::{exists, remove_any, sync_directory};
 use serde::{Deserialize, Serialize};
 
@@ -136,11 +136,11 @@ pub enum Phase {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct PendingRestore {
     pub phase: Phase,
-    pub staged_at: DateTime<Utc>,
+    pub staged_at: Timestamp,
     /// The archive's file name, for the interface.
     pub archive_name: String,
     /// When the backup was made, and by which version.
-    pub backup_created_at: DateTime<Utc>,
+    pub backup_created_at: Timestamp,
     pub app_version: String,
     /// References this restore put into the secret store; removed again if it never starts.
     #[serde(default)]
@@ -150,7 +150,7 @@ pub struct PendingRestore {
 /// Why a restored state was put aside.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct FailedRestore {
-    pub failed_at: DateTime<Utc>,
+    pub failed_at: Timestamp,
     pub reason: String,
     pub archive_name: Option<String>,
 }
@@ -355,7 +355,7 @@ pub fn roll_back(layout: &Layout, reason: &str) -> Result<Option<PendingRestore>
     }
     sync_directory(layout.data());
     let record = FailedRestore {
-        failed_at: Utc::now(),
+        failed_at: Timestamp::now(),
         reason: reason.to_owned(),
         archive_name: pending.as_ref().map(|pending| pending.archive_name.clone()),
     };

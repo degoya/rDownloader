@@ -7,9 +7,8 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-chrono.workspace = true
-chrono-tz.workspace = true
 governor.workspace = true
+jiff.workspace = true
 rd-core = { path = "../rd-core" }
 serde.workspace = true
 tokio.workspace = true

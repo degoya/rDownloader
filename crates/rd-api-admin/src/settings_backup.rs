@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::hash::Hash;
 
 use axum::{Json, extract::State};
-use chrono::Utc;
 use rd_api_core::input_checks::BundleHeader;
+use rd_core::Timestamp;
 
 use crate::{
     ApiError, AppState,

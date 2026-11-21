@@ -107,7 +107,7 @@ async fn each_moment_of_a_day_is_one_delivery() {
         database.broadcast(event);
     }
     // A countdown starting and cancelled.
-    let runs_at = chrono::Utc::now() + chrono::Duration::seconds(60);
+    let runs_at = rd_core::Timestamp::now() + rd_core::SignedDuration::from_secs(60);
     database.broadcast(EventEnvelope::new(
         EventKind::PowerChanged,
         json!({ "state": "pending", "pending": "shutdown", "runs_at": runs_at }),

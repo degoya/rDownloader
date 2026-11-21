@@ -96,7 +96,7 @@ impl NotificationService {
             .bursts
             .lock()
             .await
-            .push(occurrence, chrono::Utc::now());
+            .push(occurrence, rd_core::Timestamp::now());
         Ok(())
     }
 
@@ -112,7 +112,7 @@ impl NotificationService {
             if all {
                 bursts.drain()
             } else {
-                bursts.due(chrono::Utc::now())
+                bursts.due(rd_core::Timestamp::now())
             }
         };
         for burst in closed {

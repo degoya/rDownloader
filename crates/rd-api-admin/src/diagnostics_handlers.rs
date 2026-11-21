@@ -14,8 +14,7 @@ use axum::{
     http::{HeaderValue, header},
     response::{IntoResponse, Response},
 };
-use chrono::{DateTime, Utc};
-use rd_core::{LogLevel, LogRetentionSettings};
+use rd_core::{LogLevel, LogRetentionSettings, Timestamp};
 use rd_db::LogQuery;
 use rd_diagnostics::{BundleInput, activity, bundle};
 
@@ -45,19 +44,17 @@ fn bundle_directory() -> Result<PathBuf, ApiError> {
         })
 }
 
-fn parse_moment(value: Option<&str>, name: &str) -> Result<Option<DateTime<Utc>>, ApiError> {
+fn parse_moment(value: Option<&str>, name: &str) -> Result<Option<Timestamp>, ApiError> {
     let Some(text) = value.map(str::trim).filter(|text| !text.is_empty()) else {
         return Ok(None);
     };
-    DateTime::parse_from_rfc3339(text)
-        .map(|moment| Some(moment.with_timezone(&Utc)))
-        .map_err(|_| {
-            ApiError::bad_request(
-                "diagnostics.invalid_query",
-                "A log filter value could not be read",
-            )
-            .with_param("field", name)
-        })
+    Timestamp::parse_rfc3339(text).map(Some).map_err(|_| {
+        ApiError::bad_request(
+            "diagnostics.invalid_query",
+            "A log filter value could not be read",
+        )
+        .with_param("field", name)
+    })
 }
 
 /// Turns the query string into the store's query, refusing what it cannot mean.
@@ -100,7 +97,7 @@ fn to_response(record: rd_db::LogRecord) -> LogRecordResponse {
         id: record.id,
         recorded_at: record
             .recorded_at
-            .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            .to_rfc3339_opts(rd_core::SecondsFormat::Millis, true),
         level: record.level,
         component: record.component,
         code: record.code,
@@ -177,7 +174,8 @@ async fn collect_input(state: &AppState) -> Result<BundleInput, ApiError> {
     let notifications = state
         .database
         .notification_diagnostics(
-            Utc::now() - chrono::Duration::days(activity::DELIVERY_WINDOW_DAYS),
+            Timestamp::now()
+                - rd_core::SignedDuration::from_hours(24 * activity::DELIVERY_WINDOW_DAYS),
             activity::RECENT_DELIVERIES_LIMIT as u32,
         )
         .await?;
@@ -265,11 +263,11 @@ pub async fn create_diagnostic_bundle(
             "Select at least one entry to include",
         ));
     }
-    let built = bundle::build(&input, &request.entries, Utc::now()).map_err(|error| {
+    let built = bundle::build(&input, &request.entries, Timestamp::now()).map_err(|error| {
         ApiError::bad_request("diagnostics.invalid_query", error.to_string())
             .with_param("field", "entries")
     })?;
-    let file_name = bundle::file_name(Utc::now());
+    let file_name = bundle::file_name(Timestamp::now());
     tokio::fs::create_dir_all(&directory)
         .await
         .map_err(anyhow::Error::new)?;

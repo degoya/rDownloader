@@ -5,8 +5,9 @@
 //! [`super::packages`] stay readable next to the statements they run.
 
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
-use rd_core::{ByteCount, DownloadFile, DownloadId, DownloadState, EventEnvelope, EventKind};
+use rd_core::{
+    ByteCount, DownloadFile, DownloadId, DownloadState, EventEnvelope, EventKind, Timestamp,
+};
 use sqlx::{Connection, Row};
 
 use crate::error::StoreError;
@@ -43,7 +44,7 @@ impl Writer {
         &mut self,
         package: NewPackage,
     ) -> Result<rd_core::DownloadPackage> {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let position: i64 =
             sqlx::query_scalar("SELECT COALESCE(MAX(position), 0) + 1 FROM packages")
                 .fetch_one(&mut self.connection)
@@ -112,7 +113,7 @@ impl Writer {
         ) {
             bail!("new download must start queued, paused or skipped");
         }
-        let now = Utc::now();
+        let now = Timestamp::now();
         let mut tx = self.connection.begin().await?;
         let position = insert_download_row(&mut tx, &download, now).await?;
         attach_download_records(&mut tx, &download, sources.as_deref(), now).await?;
@@ -167,7 +168,7 @@ impl Writer {
     pub(super) async fn join_queue(
         &mut self,
         id: DownloadId,
-        created_at: chrono::DateTime<Utc>,
+        created_at: rd_core::Timestamp,
     ) -> Result<DownloadFile> {
         let event = EventEnvelope::new(
             EventKind::DownloadState,
@@ -273,7 +274,7 @@ impl Writer {
 async fn insert_download_row(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     download: &NewDownload,
-    now: chrono::DateTime<Utc>,
+    now: rd_core::Timestamp,
 ) -> Result<i64> {
     let (algorithm, checksum) = download
         .expected_checksum
@@ -346,7 +347,7 @@ async fn attach_download_records(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     download: &NewDownload,
     sources: Option<&rd_core::SourceSet>,
-    now: chrono::DateTime<Utc>,
+    now: rd_core::Timestamp,
 ) -> Result<()> {
     // The download row, its template and the hand-over of the candidate's body
     // reference commit together. A crash between them would leave ciphertext in the
@@ -390,7 +391,7 @@ async fn attach_download_records(
 fn new_download_file(
     download: NewDownload,
     position: i64,
-    now: chrono::DateTime<Utc>,
+    now: rd_core::Timestamp,
 ) -> DownloadFile {
     DownloadFile {
         recording: None,

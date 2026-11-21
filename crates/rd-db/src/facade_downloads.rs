@@ -65,7 +65,7 @@ impl Database {
     pub async fn join_queue(
         &self,
         id: DownloadId,
-        created_at: chrono::DateTime<chrono::Utc>,
+        created_at: rd_core::Timestamp,
     ) -> Result<DownloadFile> {
         writer::request(&self.writer, |reply| DownloadsCommand::JoinQueue {
             id,
@@ -358,7 +358,7 @@ impl Database {
         &self,
         id: DownloadId,
         failure: rd_core::Failure,
-        retry_at: Option<chrono::DateTime<chrono::Utc>>,
+        retry_at: Option<rd_core::Timestamp>,
     ) -> Result<DownloadFile> {
         writer::request(&self.writer, |reply| DownloadsCommand::RecordFailure {
             id,

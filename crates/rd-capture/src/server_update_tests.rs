@@ -1,4 +1,4 @@
-use chrono::{Duration, TimeZone, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use reqwest::StatusCode;
 use url::Url;
 
@@ -29,7 +29,7 @@ fn installing(state: &str, reason: Option<&str>) -> Installing {
     }
 }
 
-fn pending_since(requested_at: chrono::DateTime<Utc>) -> Pending {
+fn pending_since(requested_at: Timestamp) -> Pending {
     Pending {
         target: "1.25.0".to_owned(),
         requested_at,
@@ -116,7 +116,7 @@ fn while_it_installs_the_entry_and_the_server_line_say_so() {
     );
     assert!(matches!(choose(Some(&reading), None), Choice::Tell(_)));
 
-    let pending = pending_since(Utc::now());
+    let pending = pending_since(Timestamp::now());
     let away = view(Some(&offered("install", true)), Some(&pending));
     assert_eq!(away.updating.as_deref(), Some("1.25.0"));
 
@@ -128,10 +128,7 @@ fn while_it_installs_the_entry_and_the_server_line_say_so() {
 /// for that version; an outcome of another version is not this one's.
 #[test]
 fn the_outcome_is_announced_for_the_version_this_agent_started() {
-    let now = Utc
-        .with_ymd_and_hms(2026, 10, 10, 12, 0, 0)
-        .single()
-        .expect("time");
+    let now = Timestamp::from_ymd_hms(2026, 10, 10, 12, 0, 0).expect("time");
     let pending = pending_since(now);
     let mut reading = offered("install", true);
     assert_eq!(resolve(&pending, Some(&reading), now), Resolution::Waiting);
@@ -163,7 +160,7 @@ fn the_outcome_is_announced_for_the_version_this_agent_started() {
     reading.install = Some(other);
     assert_eq!(resolve(&pending, Some(&reading), now), Resolution::Waiting);
     assert!(matches!(
-        resolve(&pending, Some(&reading), now + Duration::minutes(31)),
+        resolve(&pending, Some(&reading), now + SignedDuration::from_mins(31)),
         Resolution::Ended(text) if text.starts_with("No word from the server update to 1.25.0")
     ));
 }
@@ -227,7 +224,7 @@ fn the_reading_parses_the_service_answer() {
         reading.install.map(|install| install.state).as_deref(),
         Some("preparing")
     );
-    let pending = pending_since(Utc::now());
+    let pending = pending_since(Timestamp::now());
     let stored = serde_json::to_vec(&pending).expect("writes");
     assert_eq!(
         serde_json::from_slice::<Pending>(&stored).expect("reads back"),

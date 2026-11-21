@@ -2,8 +2,7 @@
 //! one row per confirmed part.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::ObjectStorageProfileId;
+use rd_core::{ObjectStorageProfileId, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 /// One multipart (or single-request) upload of one local file.
@@ -21,8 +20,8 @@ pub struct ObjectUpload {
     /// The service's multipart id; `None` for a file that goes up in one request.
     pub upload_id: Option<String>,
     pub checksums: bool,
-    pub completed_at: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
+    pub completed_at: Option<Timestamp>,
+    pub created_at: Timestamp,
     /// The parts the service confirmed, by part number.
     pub parts: Vec<ObjectUploadPart>,
 }
@@ -67,7 +66,7 @@ pub(crate) async fn upload(
 pub(crate) async fn uploads(
     pool: &SqlitePool,
     profile_id: Option<ObjectStorageProfileId>,
-    before: Option<DateTime<Utc>>,
+    before: Option<Timestamp>,
 ) -> Result<Vec<ObjectUpload>> {
     let rows = sqlx::query_as::<_, UploadRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {UPLOAD_COLUMNS} FROM object_uploads \
@@ -172,7 +171,7 @@ pub(crate) async fn record_part(
 pub(crate) async fn complete_upload(connection: &mut SqliteConnection, id: &str) -> Result<()> {
     let mut tx = connection.begin().await?;
     sqlx::query("UPDATE object_uploads SET completed_at = ?, upload_id = NULL WHERE id = ?")
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id)
         .execute(&mut *tx)
         .await?;
@@ -215,8 +214,8 @@ struct UploadRow {
     part_size: i64,
     upload_id: Option<String>,
     checksums: bool,
-    completed_at: Option<DateTime<Utc>>,
-    created_at: DateTime<Utc>,
+    completed_at: Option<Timestamp>,
+    created_at: Timestamp,
 }
 
 impl TryFrom<UploadRow> for ObjectUpload {

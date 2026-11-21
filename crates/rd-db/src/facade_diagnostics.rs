@@ -2,7 +2,7 @@
 //! (RD-1291-04). Reads only; see `diagnostics_store` for what they leave out.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use crate::{
     Database, diagnostics_store,
@@ -14,7 +14,7 @@ impl Database {
     /// since `since` per event and state, and the newest `recent` deliveries.
     pub async fn notification_diagnostics(
         &self,
-        since: DateTime<Utc>,
+        since: Timestamp,
         recent: u32,
     ) -> Result<NotificationDiagnostics> {
         diagnostics_store::notification_diagnostics(&self.readers, since, recent).await

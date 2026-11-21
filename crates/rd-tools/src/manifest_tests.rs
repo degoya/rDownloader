@@ -19,7 +19,7 @@ fn manifest(tools: Vec<ToolEntry>) -> ToolManifest {
     ToolManifest {
         schema_version: TOOL_MANIFEST_SCHEMA_VERSION,
         sequence: 1,
-        issued_at: Utc::now(),
+        issued_at: Timestamp::now(),
         not_after: None,
         tools,
         compatibility: Vec::new(),
@@ -84,7 +84,7 @@ fn a_plain_http_url_is_refused() {
 /// ships broken.
 #[test]
 fn the_embedded_manifest_verifies_against_the_compiled_in_root() {
-    let manifest = embedded(Utc::now()).expect("embedded manifest verifies");
+    let manifest = embedded(Timestamp::now()).expect("embedded manifest verifies");
     assert_eq!(manifest.schema_version, TOOL_MANIFEST_SCHEMA_VERSION);
 }
 
@@ -93,7 +93,7 @@ fn the_embedded_manifest_verifies_against_the_compiled_in_root() {
 /// somebody tries to install it.
 #[test]
 fn every_entry_of_the_embedded_manifest_validates() {
-    let manifest = embedded(Utc::now()).expect("embedded manifest verifies");
+    let manifest = embedded(Timestamp::now()).expect("embedded manifest verifies");
     assert!(
         !manifest.tools.is_empty(),
         "the shipped manifest has to carry the builds it promises"
@@ -113,7 +113,7 @@ fn every_entry_of_the_embedded_manifest_validates() {
 /// that name by the installer itself, so only archives can get it wrong.
 #[test]
 fn every_archive_entry_names_its_program_for_its_platform() {
-    let manifest = embedded(Utc::now()).expect("embedded manifest verifies");
+    let manifest = embedded(Timestamp::now()).expect("embedded manifest verifies");
     for entry in &manifest.tools {
         if entry.archive == ArchiveFormat::Raw {
             continue;
@@ -143,10 +143,8 @@ fn every_archive_entry_names_its_program_for_its_platform() {
 /// `scripts/tools-manifest-check.sh`'s question, asked weekly in CI.
 #[test]
 fn every_btbn_entry_is_pinned_to_a_month_end_release() {
-    use chrono::{Datelike, NaiveDate};
-
     const BTBN: &str = "https://github.com/BtbN/FFmpeg-Builds/releases/download/";
-    let manifest = embedded(Utc::now()).expect("embedded manifest verifies");
+    let manifest = embedded(Timestamp::now()).expect("embedded manifest verifies");
     for entry in &manifest.tools {
         let Some(release) = entry.url.strip_prefix(BTBN) else {
             continue;
@@ -154,7 +152,7 @@ fn every_btbn_entry_is_pinned_to_a_month_end_release() {
         let date = release
             .strip_prefix("autobuild-")
             .and_then(|tag| tag.get(..10))
-            .and_then(|date| NaiveDate::parse_from_str(date, "%Y-%m-%d").ok());
+            .and_then(|date| date.parse::<rd_core::Date>().ok());
         let Some(date) = date else {
             panic!(
                 "{} on {} is not a dated autobuild: {}",
@@ -162,8 +160,7 @@ fn every_btbn_entry_is_pinned_to_a_month_end_release() {
             );
         };
         assert!(
-            date.succ_opt()
-                .is_some_and(|next| next.month() != date.month()),
+            date.as_jiff() == date.as_jiff().last_of_month(),
             "{} on {} is pinned to {date}, a daily build BtbN deletes after 14 days",
             entry.name,
             entry.platform
@@ -175,7 +172,7 @@ fn every_btbn_entry_is_pinned_to_a_month_end_release() {
 /// matrix in `docs/external-tools.md` cannot drift away from the document.
 #[test]
 fn the_embedded_manifest_covers_the_platforms_the_documentation_claims() {
-    let manifest = embedded(Utc::now()).expect("embedded manifest verifies");
+    let manifest = embedded(Timestamp::now()).expect("embedded manifest verifies");
     let application = env!("CARGO_PKG_VERSION");
     for platform in ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"] {
         for tool in ["yt-dlp", "ffmpeg", "ffprobe"] {

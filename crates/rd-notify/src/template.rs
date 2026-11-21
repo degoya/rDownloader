@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, TimeZone};
+use jiff::Zoned;
 
 use crate::{
     model::{NotificationEvent, NotificationRule, Severity},
@@ -169,12 +169,9 @@ pub struct Values(BTreeMap<Placeholder, String>);
 
 impl Values {
     /// The event, its severity and the moment, as `HH:MM` and `YYYY-MM-DD` in `at`'s zone: the
-    /// service passes its own (`chrono::Local`).
+    /// service passes its own (`Zoned::now()`, the system zone).
     #[must_use]
-    pub fn stamped<Tz: TimeZone>(event: NotificationEvent, at: &DateTime<Tz>) -> Self
-    where
-        Tz::Offset: std::fmt::Display,
-    {
+    pub fn stamped(event: NotificationEvent, at: &Zoned) -> Self {
         let severity = match event.severity() {
             Severity::Info => "info",
             Severity::Warning => "warning",
@@ -183,8 +180,8 @@ impl Values {
         Self::default()
             .with(Placeholder::Event, event.code())
             .with(Placeholder::Severity, severity)
-            .with(Placeholder::Time, at.format("%H:%M").to_string())
-            .with(Placeholder::Date, at.format("%Y-%m-%d").to_string())
+            .with(Placeholder::Time, at.strftime("%H:%M").to_string())
+            .with(Placeholder::Date, at.strftime("%Y-%m-%d").to_string())
     }
 
     /// Sets one value; an empty one is left unset, which reads the same.

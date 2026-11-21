@@ -97,7 +97,7 @@ impl TorrentService {
 
     /// Closes the seed clock of one row, folding the running stretch into the total.
     pub(crate) async fn close_seed_clock(&self, id: DownloadId) {
-        self.record_job_state(id, |state| state.seed.stop(chrono::Utc::now()))
+        self.record_job_state(id, |state| state.seed.stop(rd_core::Timestamp::now()))
             .await;
     }
 
@@ -217,17 +217,19 @@ pub(crate) async fn supervise(service: TorrentService) {
             // differ from the global settings and from every other seed in the loop.
             let policy = service.effective_policy(download_id).await;
             let seeded_seconds = match service
-                .update_job_state(download_id, |state| state.seed.start(chrono::Utc::now()))
+                .update_job_state(download_id, |state| {
+                    state.seed.start(rd_core::Timestamp::now())
+                })
                 .await
             {
-                Ok(state) => state.seed.seeded_seconds(chrono::Utc::now()),
+                Ok(state) => state.seed.seeded_seconds(rd_core::Timestamp::now()),
                 Err(error) => {
                     tracing::warn!(download_id = %download_id, %error, "writing torrent state failed");
                     service
                         .job_state(download_id)
                         .await
                         .seed
-                        .seeded_seconds(chrono::Utc::now())
+                        .seeded_seconds(rd_core::Timestamp::now())
                 }
             };
             let ratio_reached = policy.ratio_reached(stats.uploaded_bytes, stats.total_bytes);

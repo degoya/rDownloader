@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::Result;
-use rd_core::{DownloadId, DownloadState, Failure, FailureKind, PackageId};
+use rd_core::{DownloadId, DownloadState, Failure, FailureKind, PackageId, Timestamp};
 use tokio_util::sync::CancellationToken;
 
 use crate::{BlockReason, ExternalRunner, SchedulerHandle, rates, worker};
@@ -135,8 +135,7 @@ impl SchedulerHandle {
         let result = if self.dispatch_held().await {
             Ok(())
         } else {
-            self.dispatch_pass(chrono::Utc::now(), &mut host_waits)
-                .await
+            self.dispatch_pass(Timestamp::now(), &mut host_waits).await
         };
         self.active
             .lock()
@@ -152,7 +151,7 @@ impl SchedulerHandle {
     /// `dispatch_selection.rs` (RD-1250-07).
     pub(crate) async fn dispatch_pass(
         &self,
-        now: chrono::DateTime<chrono::Utc>,
+        now: Timestamp,
         host_waits: &mut HashMap<DownloadId, String>,
     ) -> Result<()> {
         let active_limit = self.active_limit().await;

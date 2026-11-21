@@ -5,12 +5,12 @@
 
 use std::path::Path;
 
-use chrono::Utc;
 use rd_backup::{
     BackupKey, BackupSources,
     pre_update::{self, UpdatePlan},
 };
 use rd_core::BackupOrigin;
+use rd_core::Timestamp;
 use rd_db::{Database, NewBackupRun};
 use tempfile::TempDir;
 
@@ -19,7 +19,7 @@ fn plan(data: &Path) -> UpdatePlan<'_> {
         data_directory: data,
         from_version: "1.8.0-beta.1",
         target_version: "1.8.0-beta.2",
-        at: Utc::now(),
+        at: Timestamp::now(),
     }
 }
 
@@ -51,7 +51,7 @@ async fn live(data: &Path) -> Database {
         .begin_backup_run(NewBackupRun {
             id: "live".to_owned(),
             origin: BackupOrigin::Manual,
-            started_at: Utc::now(),
+            started_at: Timestamp::now(),
             destination_id: None,
             destination: None,
         })

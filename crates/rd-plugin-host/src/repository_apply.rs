@@ -114,7 +114,7 @@ impl PluginRepositoryService {
                     fingerprint: key.fingerprint.clone(),
                     key_id: key.key_id.clone(),
                     repository_id: repository.id.clone(),
-                    withdrawn_at: chrono::Utc::now().to_rfc3339(),
+                    withdrawn_at: rd_core::Timestamp::now().to_rfc3339(),
                 })
                 .await;
             if let Err(error) = recorded {

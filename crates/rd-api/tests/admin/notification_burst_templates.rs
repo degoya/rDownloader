@@ -319,13 +319,15 @@ async fn a_burst_queued_again_after_a_restart_reaches_the_rule_once_in_the_same_
     let (rule_id, title, body) = worded[0].clone();
     assert_eq!(rule_id, own);
     assert_eq!(title, "12 via clipboard, API");
-    let at = imports[0].occurred_at.with_timezone(&chrono::Local);
+    let at = imports[0]
+        .occurred_at
+        .to_zoned(jiff::tz::TimeZone::system());
     assert_eq!(
         body,
         format!(
             "3 imports at {} on {}: 12 links arrived in the LinkGrabber from: clipboard, API.",
-            at.format("%H:%M"),
-            at.format("%Y-%m-%d")
+            at.strftime("%H:%M"),
+            at.strftime("%Y-%m-%d")
         )
     );
 

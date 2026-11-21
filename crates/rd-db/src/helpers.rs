@@ -21,8 +21,8 @@ pub(crate) fn enum_string<T: serde::Serialize>(value: T) -> Result<String> {
 
 /// An instant as the audit, log, collision and storage-operation tables store it: RFC 3339 in
 /// UTC with milliseconds, so the text sorts the way the instants do.
-pub(crate) fn timestamp(value: &chrono::DateTime<chrono::Utc>) -> String {
-    value.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+pub(crate) fn timestamp(value: &rd_core::Timestamp) -> String {
+    value.to_rfc3339_opts(rd_core::SecondsFormat::Millis, true)
 }
 
 /// `LIKE` treats `%` and `_` as wildcards; a person searching for `100%` means the characters.
@@ -34,10 +34,8 @@ pub(crate) fn escape_like(value: &str) -> String {
 }
 
 /// Reads back an instant [`timestamp`] stored.
-pub(crate) fn parse_time(value: &str) -> Result<chrono::DateTime<chrono::Utc>> {
-    Ok(chrono::DateTime::parse_from_rfc3339(value)
-        .context("parse stored timestamp")?
-        .with_timezone(&chrono::Utc))
+pub(crate) fn parse_time(value: &str) -> Result<rd_core::Timestamp> {
+    rd_core::Timestamp::parse_rfc3339(value).context("parse stored timestamp")
 }
 
 /// Reads back a value [`enum_string`] stored.

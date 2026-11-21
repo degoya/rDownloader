@@ -33,7 +33,7 @@ pub fn provider_for_media_type(media_type: &str) -> Option<&'static str> {
     None
 }
 
-use chrono::{DateTime, NaiveDate, Utc};
+use crate::{Date, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -106,12 +106,12 @@ pub struct UsenetQuota {
     pub action: UsenetQuotaAction,
     /// The day (UTC) from which the used figure starts again at zero, once; `None` without one.
     #[serde(default)]
-    pub reset_on: Option<NaiveDate>,
+    pub reset_on: Option<Date>,
     /// Bytes delivered since the quota was set or last reset, as of the last flush.
     pub used_bytes: u64,
     /// When the used figure reached the limit; `None` while it has not.
     #[serde(default)]
-    pub reached_at: Option<DateTime<Utc>>,
+    pub reached_at: Option<Timestamp>,
 }
 
 impl UsenetQuota {
@@ -217,7 +217,7 @@ pub struct PostprocessStep {
     /// Flat parameters interpolated into the translated `code` (counts, names).
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub params: crate::MessageParams,
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: Timestamp,
     /// Pipeline order (par2 → unpack → delete → cleanup → script).
     #[serde(default)]
     pub position: i64,
@@ -225,7 +225,7 @@ pub struct PostprocessStep {
     #[serde(default)]
     pub progress_percent: Option<u8>,
     #[serde(default)]
-    pub started_at: Option<DateTime<Utc>>,
+    pub started_at: Option<Timestamp>,
     /// What a plugin step wrote when it last stopped, handed back to it verbatim.
     ///
     /// Never serialised: it is a plugin's own bookkeeping, meaningless to anything else, and
@@ -308,10 +308,11 @@ pub struct NzbImport {
     /// second time by accident; removing the job from the remote-job list clears the mark.
     #[serde(default)]
     pub handed_over: Option<NzbHandOver>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
 }
 
-/// Where an NZB import went when it was handed to a provider instead of the queue.
+/// Where an NZB import went when it was handed to a provider instead of the queue, and where a
+/// LinkGrabber link went that stayed after its hand-over (RD-1440-07).
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
 pub struct NzbHandOver {
     pub remote_job_id: RemoteJobId,

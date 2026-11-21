@@ -71,7 +71,7 @@ async fn a_reset_keeps_the_version_in_force_and_waits_for_an_older_run() {
         .await
         .expect("runs")[0]
         .id;
-    let later = chrono::Utc::now() + chrono::Duration::hours(1);
+    let later = rd_core::Timestamp::now() + rd_core::SignedDuration::from_hours(1);
     harness
         .database
         .record_automation_attempt(run, RunState::Retrying, 0, 1, Some(later), None)

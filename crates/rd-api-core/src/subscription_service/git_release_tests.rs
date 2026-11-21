@@ -6,8 +6,7 @@ use std::sync::{
     atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
-use chrono::{DateTime, Duration, TimeZone, Utc};
-use rd_core::{SubscriptionItemState, SubscriptionKind};
+use rd_core::{SignedDuration, SubscriptionItemState, SubscriptionKind, Timestamp};
 use rd_subscription::{DiscoveredItem, PollOutcome, RateLimited, SourceAdapter};
 
 use super::tests::service_with;
@@ -16,7 +15,7 @@ use super::tests::service_with;
 #[derive(Default)]
 struct FakeReleases {
     polls: AtomicUsize,
-    limited_until: Mutex<Option<DateTime<Utc>>>,
+    limited_until: Mutex<Option<Timestamp>>,
     refused: AtomicBool,
 }
 
@@ -48,10 +47,8 @@ impl SourceAdapter for FakeReleases {
     }
 }
 
-fn start() -> DateTime<Utc> {
-    Utc.with_ymd_and_hms(2030, 1, 15, 12, 0, 0)
-        .single()
-        .expect("time")
+fn start() -> Timestamp {
+    rd_core::Timestamp::from_ymd_hms(2030, 1, 15, 12, 0, 0).expect("time")
 }
 
 fn releases(mode: rd_core::SubscriptionMode) -> rd_db::NewSubscription {
@@ -66,7 +63,7 @@ fn releases(mode: rd_core::SubscriptionMode) -> rd_db::NewSubscription {
         interval_seconds: 3_600,
         filters: rd_core::SubscriptionFilters::default(),
         // Everything published from a day before the clock on is new.
-        backlog: rd_core::BacklogPolicy::Since(start() - Duration::days(1)),
+        backlog: rd_core::BacklogPolicy::Since(start() - SignedDuration::from_hours(24)),
         category_map: Vec::new(),
         source_categories: Vec::new(),
         every_release: false,
@@ -85,7 +82,7 @@ fn releases(mode: rd_core::SubscriptionMode) -> rd_db::NewSubscription {
 async fn a_rate_limit_is_waited_out_without_counting_as_a_failure_or_priming() {
     let directory = tempfile::tempdir().expect("tempdir");
     let source = Arc::new(FakeReleases::default());
-    let until = start() + Duration::minutes(40);
+    let until = start() + SignedDuration::from_mins(40);
     *source.limited_until.lock().expect("limit") = Some(until);
     let adapters: Vec<Arc<dyn SourceAdapter>> = vec![source.clone()];
     let (service, database) =

@@ -2,8 +2,7 @@
 //! resolver refresh and pin claims.
 
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
-use rd_core::{DownloadFile, DownloadId, DownloadState, EventEnvelope, EventKind};
+use rd_core::{DownloadFile, DownloadId, DownloadState, EventEnvelope, EventKind, Timestamp};
 use sqlx::{Connection, Row};
 
 use crate::{error::StoreError, writer::Writer};
@@ -42,7 +41,7 @@ impl Writer {
         )
         .bind(file_name)
         .bind(rd_core::is_recovery_volume(file_name))
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(&mut *transaction)
         .await?;
@@ -60,7 +59,7 @@ impl Writer {
         )
         .bind(file_name)
         .bind(rd_core::is_recovery_volume(file_name))
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(&mut self.connection)
         .await?;
@@ -83,7 +82,7 @@ impl Writer {
         let result =
             sqlx::query("UPDATE downloads SET transform_key_ref = ?, updated_at = ? WHERE id = ?")
                 .bind(reference)
-                .bind(Utc::now())
+                .bind(Timestamp::now())
                 .bind(id.to_string())
                 .execute(&mut self.connection)
                 .await?;
@@ -98,7 +97,7 @@ impl Writer {
             "UPDATE downloads SET resolver_refresh_count = 1, updated_at = ? \
              WHERE id = ? AND resolver_refresh_count = 0",
         )
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(&mut self.connection)
         .await?;
@@ -118,7 +117,7 @@ impl Writer {
         .bind(id.to_string())
         .bind(pin.plugin_id.to_string())
         .bind(&pin.version)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .execute(&mut self.connection)
         .await?;
         let row = sqlx::query(

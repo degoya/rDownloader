@@ -237,8 +237,8 @@ impl NotificationService {
 fn settle(
     outcome: &Attempt,
     attempt: u32,
-    now: chrono::DateTime<chrono::Utc>,
-) -> (DeliveryState, Option<chrono::DateTime<chrono::Utc>>) {
+    now: rd_core::Timestamp,
+) -> (DeliveryState, Option<rd_core::Timestamp>) {
     if outcome.ok {
         (DeliveryState::Delivered, None)
     } else if outcome.retryable {

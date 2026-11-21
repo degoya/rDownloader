@@ -5,8 +5,8 @@
 //! every finished package and is read with a search, so the database counts and cuts it.
 
 use axum::{Json, extract::State, http::HeaderMap};
-use chrono::{DateTime, Utc};
 use rd_api_core::list_bounds::{Page, total_header};
+use rd_core::Timestamp;
 use serde::Deserialize;
 use utoipa::IntoParams;
 
@@ -23,9 +23,9 @@ pub struct HistoryFilterQuery {
     /// The download kind (`http`, `usenet`, `torrent`, ...).
     pub kind: Option<rd_core::DownloadKind>,
     /// Entries that ended at or after this instant (RFC 3339).
-    pub from: Option<DateTime<Utc>>,
+    pub from: Option<Timestamp>,
     /// Entries that ended at or before this instant (RFC 3339).
-    pub to: Option<DateTime<Utc>>,
+    pub to: Option<Timestamp>,
 }
 
 /// `400` for a filter value that does not parse, with a stable code like every REST refusal.

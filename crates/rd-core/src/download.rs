@@ -1,6 +1,6 @@
 use std::{fmt, str::FromStr};
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -216,7 +216,7 @@ pub struct DownloadPackage {
     pub name: String,
     #[serde(default)]
     pub state: PackageState,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
     pub destination: String,
     pub category_id: Option<CategoryId>,
     pub priority: DownloadPriority,
@@ -243,7 +243,7 @@ pub struct DownloadPackage {
     /// Distinct from the row's last write: editing a finished package must not look like it
     /// finished again.
     #[serde(default)]
-    pub completed_at: Option<DateTime<Utc>>,
+    pub completed_at: Option<Timestamp>,
     /// Explicit post-processing level; `None` inherits category/default.
     #[serde(default)]
     pub postprocess_level: Option<PostprocessLevel>,
@@ -268,7 +268,7 @@ pub struct DownloadPackage {
     /// queue reaches them. A moment that has passed holds nothing back and stays until the next
     /// edit.
     #[serde(default)]
-    pub start_after: Option<DateTime<Utc>>,
+    pub start_after: Option<Timestamp>,
     /// The package's own download window (RD-1240-30); `None` follows its category's, and a
     /// category without one leaves the package to the bandwidth schedule alone.
     #[serde(default)]
@@ -287,7 +287,7 @@ pub struct DownloadFile {
     pub total_bytes: Option<ByteCount>,
     pub committed_bytes: ByteCount,
     pub retry_count: u32,
-    pub next_retry_at: Option<DateTime<Utc>>,
+    pub next_retry_at: Option<Timestamp>,
     pub expected_checksum: Option<ExpectedChecksum>,
     pub computed_checksum: Option<ExpectedChecksum>,
     pub last_error: Option<crate::Failure>,
@@ -333,8 +333,8 @@ pub struct DownloadFile {
     /// follows, so what a plugin said stays distinguishable from what the core resolved.
     #[serde(default)]
     pub enrichment: Vec<crate::EnrichmentField>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 /// Whether a queued file is PAR2 repair data rather than payload.

@@ -20,7 +20,7 @@ pub struct CreateAuthProfileRequest {
     /// Private key and certificate chain as one PEM bundle.
     #[schema(write_only)]
     pub certificate_pem: Option<String>,
-    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub expires_at: Option<rd_core::Timestamp>,
     pub enabled: bool,
 }
 
@@ -37,7 +37,7 @@ pub struct UpdateAuthProfileRequest {
     #[schema(write_only)]
     pub certificate_pem: Option<String>,
     pub clear_certificate: bool,
-    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub expires_at: Option<rd_core::Timestamp>,
     pub enabled: bool,
 }
 

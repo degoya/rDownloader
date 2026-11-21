@@ -71,7 +71,7 @@ async fn list(state: &AppState) -> Response {
             "week_size": map::human_size(total),
             "month_size": map::human_size(total),
             "total_size": map::human_size(total),
-            "last_history_update": chrono::Utc::now().timestamp(),
+            "last_history_update": rd_core::Timestamp::now().unix_seconds(),
             "version": super::REPORTED_VERSION,
             "slots": slots,
         }
@@ -145,7 +145,7 @@ fn entry_slot(index: usize, entry: &rd_core::HistoryEntry) -> serde_json::Value 
         "completeness": if failed { 0 } else { 100 },
         "download_time": 0,
         "postproc_time": 0,
-        "completed": entry.finished_at.timestamp(),
+        "completed": entry.finished_at.unix_seconds(),
         "stage_log": [],
         "url": "",
         "url_info": "",

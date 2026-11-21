@@ -165,7 +165,7 @@ impl TorrentService {
             journal: TorrentRelocation {
                 from: package.destination.clone(),
                 to: to.to_string_lossy().into_owned(),
-                started_at: chrono::Utc::now(),
+                started_at: rd_core::Timestamp::now(),
             },
             files,
         };

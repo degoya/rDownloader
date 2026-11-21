@@ -1,7 +1,7 @@
 //! Database facade methods for the download history (RD-1100-04).
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use crate::{
     Database,
@@ -37,7 +37,7 @@ impl Database {
     pub async fn prune_download_history(
         &self,
         max_entries: u64,
-        older_than: DateTime<Utc>,
+        older_than: Timestamp,
     ) -> Result<u64> {
         writer::request(&self.writer, |reply| HistoryCommand::PruneHistory {
             max_entries,

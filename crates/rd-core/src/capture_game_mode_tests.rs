@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use chrono::{Duration, Utc};
+use crate::{SignedDuration, Timestamp};
 
 use super::{
     CaptureGameMode, GameModeAction, GameModeProblem, InForce, MAX_GAME_MODE_PROCESSES, process_key,
@@ -117,8 +117,8 @@ fn a_running_process_is_found_by_its_key() {
 /// a pause somebody set, extended, ended or replaced is theirs.
 #[test]
 fn only_the_agents_own_hold_is_renewed_or_lifted() {
-    let own = Utc::now() + Duration::minutes(10);
-    let other = own + Duration::minutes(5);
+    let own = Timestamp::now() + SignedDuration::from_mins(10);
+    let other = own + SignedDuration::from_mins(5);
     assert!(InForce::Nothing.may_hold(None), "a fresh hold");
     assert!(InForce::Until(own).may_hold(Some(own)), "renewing its own");
     assert!(

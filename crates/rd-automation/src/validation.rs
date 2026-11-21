@@ -1,7 +1,8 @@
 //! Whether a definition may be stored: its name, actions and condition, and its trigger's half
 //! (split out of `model.rs` to keep it under the line limit).
 
-use chrono::{DateTime, Utc};
+use jiff::tz::TimeZone;
+use rd_core::Timestamp;
 
 use crate::{
     condition::ConditionNode,
@@ -53,12 +54,12 @@ pub fn validate(
 /// a time, read from `now` in the service's `zone`, and no action that needs a package -- nor does
 /// a moment of the whole queue (RD-1290-04); and links into the LinkGrabber never hang off the
 /// LinkGrabber's own intake.
-pub fn validate_trigger<Tz: chrono::TimeZone>(
+pub fn validate_trigger(
     trigger: Trigger,
     schedule: Option<&Schedule>,
     actions: &[Action],
-    now: DateTime<Utc>,
-    zone: &Tz,
+    now: Timestamp,
+    zone: &TimeZone,
 ) -> Result<(), DefinitionError> {
     if trigger == Trigger::IntakeReceived
         && actions.iter().any(|action| {

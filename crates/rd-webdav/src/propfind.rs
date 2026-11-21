@@ -4,12 +4,12 @@
 //! multistatus body is namespace-heavy, servers disagree about prefixes, and the entry
 //! count has to be bounded while parsing rather than afterwards.
 
-use chrono::{DateTime, Utc};
 use quick_xml::Reader;
 use quick_xml::events::Event;
 use rd_core::remote_path::{file_name, parent as parent_path};
 use rd_core::{
-    ByteCount, ListingLimit, MAX_REMOTE_ENTRIES, RemoteEntry, RemoteListing, is_safe_relative_path,
+    ByteCount, ListingLimit, MAX_REMOTE_ENTRIES, RemoteEntry, RemoteListing, Timestamp,
+    is_safe_relative_path,
 };
 use url::Url;
 
@@ -48,7 +48,7 @@ struct Response {
     href: String,
     is_collection: bool,
     length: Option<u64>,
-    last_modified: Option<DateTime<Utc>>,
+    last_modified: Option<Timestamp>,
     etag: Option<String>,
 }
 
@@ -237,9 +237,16 @@ impl Property {
         match self {
             Self::Length => response.length = value.parse().ok(),
             Self::LastModified => {
+                // An HTTP date is whole seconds from 1970 on (`httpdate`'s range).
                 response.last_modified = httpdate::parse_http_date(value)
                     .ok()
-                    .map(DateTime::<Utc>::from);
+                    .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                    .and_then(|since| {
+                        Timestamp::from_unix(
+                            i64::try_from(since.as_secs()).ok()?,
+                            since.subsec_nanos(),
+                        )
+                    });
             }
             // A weak validator says the body may differ while the tag is unchanged, so it
             // cannot decide whether a partial file is still valid. Treating it as absent

@@ -118,7 +118,7 @@ pub struct PluginExecutionResponse {
     pub error_class: Option<String>,
     /// Redacted message; never a credential, a token or a header value.
     pub message: Option<String>,
-    pub started_at: chrono::DateTime<chrono::Utc>,
+    pub started_at: rd_core::Timestamp,
     pub duration_ms: i64,
 }
 

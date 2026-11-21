@@ -315,7 +315,7 @@ impl ObjectStorageService {
                         path: name,
                         is_dir: false,
                         size: ByteCount::new(meta.size).ok(),
-                        modified: Some(meta.last_modified),
+                        modified: Some(listing::instant(meta.last_modified)),
                         etag: meta.e_tag,
                     }],
                     truncated: None,

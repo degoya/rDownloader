@@ -1,6 +1,6 @@
 //! Second-factor credentials, as the owner sees them.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -43,13 +43,13 @@ pub struct MfaCredential {
     pub id: MfaCredentialId,
     pub kind: MfaKind,
     pub label: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
     /// When the first correct code proved the enrolment works.
     ///
     /// An unconfirmed credential does not gate sign-in. Someone who starts enrolling and then
     /// cannot scan the code must not thereby be locked out of their own service.
-    pub confirmed_at: Option<DateTime<Utc>>,
-    pub last_used_at: Option<DateTime<Utc>>,
+    pub confirmed_at: Option<Timestamp>,
+    pub last_used_at: Option<Timestamp>,
 }
 
 /// How much of the second factor is set up, for the settings page and the login screen.

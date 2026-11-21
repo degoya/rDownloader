@@ -75,7 +75,7 @@ pub(super) fn captcha_notice(payload: &serde_json::Value) -> Option<(String, Str
 /// cancelled or called off by new work. The action running is not -- the machine is going down.
 pub(super) fn power_notice(
     payload: &serde_json::Value,
-    occurred_at: chrono::DateTime<chrono::Utc>,
+    occurred_at: rd_core::Timestamp,
 ) -> Option<(String, String)> {
     let action = |key: &str| match text(payload, key) {
         Some("shutdown") => "Shutdown",
@@ -87,10 +87,8 @@ pub(super) fn power_notice(
             let name = action("pending");
             let seconds = payload
                 .get("runs_at")
-                .and_then(|value| {
-                    serde_json::from_value::<chrono::DateTime<chrono::Utc>>(value.clone()).ok()
-                })
-                .map(|runs_at| (runs_at - occurred_at).num_seconds().max(0));
+                .and_then(|value| serde_json::from_value::<rd_core::Timestamp>(value.clone()).ok())
+                .map(|runs_at| (runs_at - occurred_at).as_secs().max(0));
             let when = seconds.map_or_else(
                 || "soon".to_owned(),
                 |seconds| format!("in {seconds} seconds"),

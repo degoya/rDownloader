@@ -1,8 +1,7 @@
 //! The held-back PAR2 verdict of a Usenet file that finished with holes (RD-108-24).
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{DownloadId, DownloadState, EventEnvelope, EventKind, PackageId};
+use rd_core::{DownloadId, DownloadState, EventEnvelope, EventKind, PackageId, Timestamp};
 use sqlx::{Connection, SqliteConnection};
 
 use crate::writer::insert_event;
@@ -65,7 +64,7 @@ pub(crate) async fn defer_par2_verdict(
     );
     sqlx::query("UPDATE downloads SET last_error_json = ?, updated_at = ? WHERE id = ?")
         .bind(serde_json::to_string(&failure)?)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(&mut *connection)
         .await?;
@@ -121,7 +120,7 @@ pub(crate) async fn settle_par2_verdicts(
         return Ok(Vec::new());
     }
     let announced = package_subjects_announce_par2(connection, package_id).await?;
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut events = Vec::new();
     let mut tx = connection.begin().await?;
     for row in rows.iter().filter(|row| row.awaiting.is_some()) {

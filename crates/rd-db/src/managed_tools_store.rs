@@ -6,8 +6,7 @@
 //! that an activation is one rename on the same filesystem as the files it activates.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind};
+use rd_core::{EventEnvelope, EventKind, Timestamp};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -70,7 +69,7 @@ pub(crate) async fn record_managed_tool(
     let value = ManagedToolRecord {
         name: input.name,
         version: input.version,
-        installed_at: Utc::now().to_rfc3339(),
+        installed_at: Timestamp::now().to_rfc3339(),
         source_url: input.source_url,
         sha256: input.sha256,
     };
@@ -134,7 +133,7 @@ pub(crate) async fn accept_tool_manifest(
     )
     .bind(sequence)
     .bind(issued_at)
-    .bind(Utc::now().to_rfc3339())
+    .bind(Timestamp::now().to_rfc3339())
     .execute(&mut *transaction)
     .await?;
     let event = EventEnvelope::new(

@@ -6,8 +6,9 @@
 //! Beside them, what an immediate re-resolve found is written back (RD-1250-05).
 
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
-use rd_core::{DownloadId, DownloadState, EventEnvelope, EventKind, Failure, FailureKind};
+use rd_core::{
+    DownloadId, DownloadState, EventEnvelope, EventKind, Failure, FailureKind, Timestamp,
+};
 use sqlx::{Connection, Row};
 
 use crate::{
@@ -51,7 +52,7 @@ impl Writer {
         .bind(id.to_string())
         .bind(pin.plugin_id.to_string())
         .bind(&pin.version)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .execute(&mut self.connection)
         .await?;
         Ok(())

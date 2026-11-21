@@ -76,7 +76,7 @@ impl wit_host::Host for PluginStoreState {
     async fn now_unix_seconds(&mut self) -> u64 {
         match self.host() {
             Some(host) => host.now_unix_seconds(),
-            None => u64::try_from(chrono::Utc::now().timestamp()).unwrap_or_default(),
+            None => u64::try_from(rd_core::Timestamp::now().unix_seconds()).unwrap_or_default(),
         }
     }
 

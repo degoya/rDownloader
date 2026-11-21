@@ -17,10 +17,9 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use rd_core::{
     CategoryId, DownloadFile, DownloadId, DownloadKind, DownloadPackage, DownloadState,
-    DownloadWindow, PackageId,
+    DownloadWindow, PackageId, Timestamp,
 };
 use rd_limits::{DownloadHold, package_hold};
 use serde::{Deserialize, Serialize};
@@ -57,7 +56,7 @@ impl SchedulerHandle {
     pub(crate) async fn download_gate(
         &self,
         packages: &[DownloadPackage],
-        now: DateTime<Utc>,
+        now: Timestamp,
     ) -> Result<DownloadGate> {
         let (schedule_pauses, timezone) = self.config.bandwidth.download_pause_policy().await;
         // The categories are read only when a package may inherit a window from one.
@@ -79,7 +78,8 @@ impl SchedulerHandle {
             .filter_map(|package| {
                 let category = package.category_id.and_then(|id| categories.get(&id));
                 let window = DownloadWindow::effective(package.download_window.as_ref(), category);
-                package_hold(window, schedule_pauses, timezone, now).map(|hold| (package.id, hold))
+                package_hold(window, schedule_pauses, timezone.as_jiff(), now)
+                    .map(|hold| (package.id, hold))
             })
             .collect();
         Ok(DownloadGate { held })
@@ -91,7 +91,7 @@ impl SchedulerHandle {
         package: &DownloadPackage,
     ) -> Result<Option<DownloadHold>> {
         let gate = self
-            .download_gate(std::slice::from_ref(package), Utc::now())
+            .download_gate(std::slice::from_ref(package), Timestamp::now())
             .await?;
         Ok(gate.held.get(&package.id).copied())
     }
@@ -105,7 +105,7 @@ impl SchedulerHandle {
             return Ok(());
         }
         let packages = self.database.list_packages().await?;
-        let gate = self.download_gate(&packages, Utc::now()).await?;
+        let gate = self.download_gate(&packages, Timestamp::now()).await?;
         let mut kept = Vec::new();
         let mut released = Vec::new();
         for id in &stored.files {

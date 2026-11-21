@@ -4,7 +4,7 @@
 //! restart: the service sweeps whatever is due, and the interface reads a state rather than
 //! driving one. No token appears here — what a flow produces goes into the vault.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -45,18 +45,18 @@ pub struct AuthFlow {
     pub verification_url: Option<String>,
     /// The code to type there, for a flow that uses one.
     pub user_code: Option<String>,
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
     /// When the provider will next be asked.
-    pub next_poll_at: Option<DateTime<Utc>>,
+    pub next_poll_at: Option<Timestamp>,
     /// Redaction-safe reason, for a flow that failed.
     pub message: Option<String>,
-    pub started_at: DateTime<Utc>,
+    pub started_at: Timestamp,
     /// When the access token stops working, for a flow that produced one with an expiry.
     ///
     /// Kept in the clear, unlike everything else a flow produces, because the sweep has to be
     /// able to ask whether this is due without decrypting a secret to find out. A time of day
     /// identifies nobody.
-    pub token_expires_at: Option<DateTime<Utc>>,
+    pub token_expires_at: Option<Timestamp>,
     /// What the provider must echo back on the redirect for the callback to be believed.
     ///
     /// Never serialised: it is the one value that says "this callback is ours", and an API
@@ -109,19 +109,19 @@ pub struct AuthFlow {
 impl AuthFlow {
     /// Whether the flow has outlived the window the provider gave it.
     #[must_use]
-    pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
+    pub fn is_expired(&self, now: Timestamp) -> bool {
         self.expires_at.is_some_and(|expiry| now >= expiry)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, Utc};
+    use crate::{SignedDuration, Timestamp};
 
     use super::{AuthFlow, AuthFlowState};
 
-    fn flow(expires_in: Option<Duration>) -> AuthFlow {
-        let now = Utc::now();
+    fn flow(expires_in: Option<SignedDuration>) -> AuthFlow {
+        let now = Timestamp::now();
         AuthFlow {
             account_id: crate::AccountId::new(),
             plugin_id: "demo".to_owned(),
@@ -158,13 +158,13 @@ mod tests {
     fn a_flow_without_a_window_never_expires_on_its_own() {
         // A provider that names no expiry has not given us one to enforce. Inventing one
         // would end a flow the person is still in the middle of.
-        assert!(!flow(None).is_expired(Utc::now() + Duration::days(7)));
+        assert!(!flow(None).is_expired(Timestamp::now() + SignedDuration::from_hours(24 * 7)));
     }
 
     #[test]
     fn a_window_that_has_passed_is_expired() {
-        let flow = flow(Some(Duration::minutes(10)));
-        assert!(!flow.is_expired(Utc::now()));
-        assert!(flow.is_expired(Utc::now() + Duration::minutes(11)));
+        let flow = flow(Some(SignedDuration::from_mins(10)));
+        assert!(!flow.is_expired(Timestamp::now()));
+        assert!(flow.is_expired(Timestamp::now() + SignedDuration::from_mins(11)));
     }
 }

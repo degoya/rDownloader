@@ -1,8 +1,7 @@
 //! Storage roots: create, list, the default, edit and delete.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind, StorageRootConfig, StorageRootId};
+use rd_core::{EventEnvelope, EventKind, StorageRootConfig, StorageRootId, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use super::{NewStorageRoot, STORAGE_ROOT_TAKEN, config_event};
@@ -13,7 +12,7 @@ pub(crate) async fn create_storage_root(
     id: StorageRootId,
     input: NewStorageRoot,
 ) -> Result<(StorageRootConfig, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     // The first root is always the default. An install without one leaves destination
     // resolution with nothing to fall back to, and the flag is easy to miss in the form.
@@ -85,7 +84,7 @@ pub(crate) async fn update_storage_root(
     id: StorageRootId,
     input: NewStorageRoot,
 ) -> Result<(StorageRootConfig, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = config_event(EventKind::CategoryChanged, "storage_root", id);
     let mut tx = connection.begin().await?;
     // Giving up the last default is not a thing a user can do: something has to stay the
@@ -171,7 +170,7 @@ pub(crate) async fn delete_storage_root(
             "UPDATE storage_roots SET is_default = 1, updated_at = ? \
              WHERE id = (SELECT id FROM storage_roots ORDER BY name LIMIT 1)",
         )
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .execute(&mut *tx)
         .await?;
     }

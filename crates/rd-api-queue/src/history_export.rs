@@ -12,8 +12,7 @@ use axum::{
     http::{HeaderValue, header},
     response::{IntoResponse, Response},
 };
-use chrono::{SecondsFormat, Utc};
-use rd_core::HistoryEntry;
+use rd_core::{HistoryEntry, SecondsFormat, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -114,7 +113,7 @@ pub async fn export_download_history(
     };
     let name = format!(
         "rdownloader-history-{}.{extension}",
-        Utc::now().format("%Y%m%dT%H%M%SZ")
+        Timestamp::now().strftime("%Y%m%dT%H%M%SZ")
     );
     let disposition = HeaderValue::from_str(&format!("attachment; filename=\"{name}\""))
         .map_err(anyhow::Error::new)?;
@@ -229,7 +228,6 @@ fn word<T: Serialize>(value: &T) -> String {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{TimeZone, Utc};
     use rd_core::{ByteCount, DownloadKind, HistoryEntry, HistoryOutcome, PackageId};
 
     use super::{history_csv, history_ndjson};
@@ -251,14 +249,8 @@ mod tests {
             outcome: HistoryOutcome::Failed,
             error_code: Some("usenet.job_hopeless".to_owned()),
             error_params: rd_core::MessageParams::default(),
-            created_at: Utc
-                .with_ymd_and_hms(2026, 10, 1, 8, 0, 0)
-                .single()
-                .expect("time"),
-            finished_at: Utc
-                .with_ymd_and_hms(2026, 10, 1, 9, 30, 0)
-                .single()
-                .expect("time"),
+            created_at: rd_core::Timestamp::from_ymd_hms(2026, 10, 1, 8, 0, 0).expect("time"),
+            finished_at: rd_core::Timestamp::from_ymd_hms(2026, 10, 1, 9, 30, 0).expect("time"),
         }
     }
 

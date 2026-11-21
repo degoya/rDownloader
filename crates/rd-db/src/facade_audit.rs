@@ -5,7 +5,7 @@
 //! rather than quietly work.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use crate::{
     Database,
@@ -41,7 +41,7 @@ impl Database {
     pub async fn prune_audit_records(
         &self,
         max_records: u64,
-        older_than: Option<DateTime<Utc>>,
+        older_than: Option<Timestamp>,
         batch: u64,
     ) -> Result<AuditPruneReport> {
         writer::request(&self.writer, |reply| AuditCommand::PruneAuditRecords {

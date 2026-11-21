@@ -17,7 +17,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
+use rd_core::Timestamp;
 
 use super::{exists, remove_any, rename};
 
@@ -84,7 +84,7 @@ pub fn sweep(install: &Path) {
 fn new_batch(install: &Path) -> Result<PathBuf> {
     let trash = trash_dir(install);
     fs::create_dir_all(&trash).with_context(|| format!("create {}", trash.display()))?;
-    let stamp = Utc::now().format("%Y%m%dT%H%M%S%.9fZ");
+    let stamp = Timestamp::now().strftime("%Y%m%dT%H%M%S%.9fZ");
     for attempt in 0..100_u32 {
         let batch = trash.join(format!("{stamp}-{attempt}"));
         match fs::create_dir(&batch) {

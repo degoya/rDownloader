@@ -10,9 +10,8 @@
 
 use std::{collections::HashSet, fmt::Write as _};
 
-use chrono::Utc;
 use rd_collector::LinksNzb;
-use rd_core::{DownloadFile, DownloadPackage, LinkCandidate};
+use rd_core::{DownloadFile, DownloadPackage, LinkCandidate, Timestamp};
 use serde::Serialize;
 
 use super::Export;
@@ -121,7 +120,7 @@ async fn queue_nzb(
     }
     let name = rd_collector::container_name(&import.name);
     let document = crate::nzb_remote_job_handlers::document(import.password.clone(), stored);
-    Ok(written(&document, name, import.created_at.timestamp()))
+    Ok(written(&document, name, import.created_at.unix_seconds()))
 }
 
 /// An indexer hit's NZB, fetched as the enqueue fetches it, with the password it would take.
@@ -139,7 +138,7 @@ async fn collector_nzb(
     document.password = release.password;
     // Each file keeps the post date the indexer's NZB announced; the time of the export only
     // stands in for a file that announced none (RD-1240-33).
-    written(&document, release.name, Utc::now().timestamp())
+    written(&document, release.name, Timestamp::now().unix_seconds())
 }
 
 /// `document` as the XML the file carries.

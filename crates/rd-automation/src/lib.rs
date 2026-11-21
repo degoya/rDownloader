@@ -53,7 +53,8 @@ pub fn schedule_key(automation_id: rd_core::AutomationId, slot: &Slot) -> String
 mod tests {
     use std::slice;
 
-    use rd_core::{AutomationVersionId, EventId};
+    use jiff::tz::TimeZone;
+    use rd_core::{AutomationVersionId, EventId, Timestamp};
 
     use super::{
         Action, ConditionNode, EventContext, Field, MAX_ACTIONS, Operator, Predicate, Trigger,
@@ -280,14 +281,21 @@ mod tests {
     #[test]
     fn a_time_trigger_needs_a_schedule_and_no_package_action() {
         use super::{Schedule, validate_trigger};
-        let now = chrono::Utc::now();
+        let now = Timestamp::now();
         let hourly = Schedule::Interval { minutes: 60 };
         let start = [Action::StartQueue];
         assert!(
-            validate_trigger(Trigger::Schedule, Some(&hourly), &start, now, &chrono::Utc).is_ok()
+            validate_trigger(
+                Trigger::Schedule,
+                Some(&hourly),
+                &start,
+                now,
+                &TimeZone::UTC
+            )
+            .is_ok()
         );
         let refused = |schedule: Option<&Schedule>, actions: &[Action]| {
-            validate_trigger(Trigger::Schedule, schedule, actions, now, &chrono::Utc)
+            validate_trigger(Trigger::Schedule, schedule, actions, now, &TimeZone::UTC)
                 .map_err(|error| error.code())
         };
         assert_eq!(refused(None, &start), Err("automation.schedule_invalid"));
@@ -309,7 +317,7 @@ mod tests {
             destination: super::LinkDestination::LinkGrabber,
         }];
         assert_eq!(
-            validate_trigger(Trigger::IntakeReceived, None, &grab, now, &chrono::Utc)
+            validate_trigger(Trigger::IntakeReceived, None, &grab, now, &TimeZone::UTC)
                 .map_err(|error| error.code()),
             Err("automation.links_loop")
         );
@@ -320,7 +328,7 @@ mod tests {
                 None,
                 &[Action::ExtractPackage],
                 now,
-                &chrono::Utc
+                &TimeZone::UTC
             )
             .is_ok()
         );
@@ -330,7 +338,7 @@ mod tests {
     #[test]
     fn a_queue_moment_takes_no_package_action() {
         use super::validate_trigger;
-        let now = chrono::Utc::now();
+        let now = Timestamp::now();
         for trigger in [
             Trigger::QueuePaused,
             Trigger::QueueResumed,
@@ -338,13 +346,13 @@ mod tests {
         ] {
             assert!(trigger.is_queue_moment());
             assert_eq!(
-                validate_trigger(trigger, None, &[Action::PausePackage], now, &chrono::Utc)
+                validate_trigger(trigger, None, &[Action::PausePackage], now, &TimeZone::UTC)
                     .map_err(|error| error.code()),
                 Err("automation.action_needs_package"),
                 "{trigger:?}"
             );
             assert!(
-                validate_trigger(trigger, None, &[Action::StartQueue], now, &chrono::Utc).is_ok(),
+                validate_trigger(trigger, None, &[Action::StartQueue], now, &TimeZone::UTC).is_ok(),
                 "{trigger:?}"
             );
             assert!(Trigger::all().contains(&trigger), "{trigger:?}");

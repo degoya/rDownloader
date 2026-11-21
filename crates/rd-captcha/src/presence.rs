@@ -6,27 +6,27 @@
 //! (`?client=browser_extension`). That timestamp, and whether it is recent enough to count as
 //! connected, is all this reports (RD-108-02).
 
-use chrono::{DateTime, Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use serde::Serialize;
 use utoipa::ToSchema;
 
 /// How long after its last poll an extension still counts as connected: three of its
 /// 30-second alarm ticks, so one missed poll does not flip the hint back and forth.
-pub const BROWSER_EXTENSION_PRESENCE_WINDOW: Duration = Duration::seconds(90);
+pub const BROWSER_EXTENSION_PRESENCE_WINDOW: SignedDuration = SignedDuration::from_secs(90);
 
 /// What the web interface may say about the ways a widget captcha can be answered.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, ToSchema)]
 pub struct CaptchaAnswerers {
     /// When a browser extension last asked for the waiting widgets; absent until one has.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub browser_extension_seen_at: Option<DateTime<Utc>>,
+    pub browser_extension_seen_at: Option<Timestamp>,
     /// Whether that was recent enough to expect the extension to pick up a new challenge.
     pub browser_extension_connected: bool,
 }
 
 /// Turns the last poll into a verdict, so the rule lives in one place and is testable
 /// without a clock.
-pub(crate) fn answerers(seen_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> CaptchaAnswerers {
+pub(crate) fn answerers(seen_at: Option<Timestamp>, now: Timestamp) -> CaptchaAnswerers {
     CaptchaAnswerers {
         browser_extension_seen_at: seen_at,
         browser_extension_connected: seen_at
@@ -36,16 +36,13 @@ pub(crate) fn answerers(seen_at: Option<DateTime<Utc>>, now: DateTime<Utc>) -> C
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, TimeZone, Utc};
+    use rd_core::{SignedDuration, Timestamp};
 
     use super::{BROWSER_EXTENSION_PRESENCE_WINDOW, answerers};
 
     #[test]
     fn nothing_has_polled_means_nothing_is_connected() {
-        let now = Utc
-            .with_ymd_and_hms(2026, 9, 16, 12, 0, 0)
-            .single()
-            .expect("date");
+        let now = Timestamp::from_ymd_hms(2026, 9, 16, 12, 0, 0).expect("date");
         let verdict = answerers(None, now);
         assert!(verdict.browser_extension_seen_at.is_none());
         assert!(!verdict.browser_extension_connected);
@@ -55,17 +52,14 @@ mod tests {
     /// ticks wide, and a poll on the boundary still counts.
     #[test]
     fn a_recent_poll_counts_as_connected_and_an_old_one_does_not() {
-        let now = Utc
-            .with_ymd_and_hms(2026, 9, 16, 12, 0, 0)
-            .single()
-            .expect("date");
-        let recent = now - Duration::seconds(31);
+        let now = Timestamp::from_ymd_hms(2026, 9, 16, 12, 0, 0).expect("date");
+        let recent = now - SignedDuration::from_secs(31);
         assert!(answerers(Some(recent), now).browser_extension_connected);
 
         let boundary = now - BROWSER_EXTENSION_PRESENCE_WINDOW;
         assert!(answerers(Some(boundary), now).browser_extension_connected);
 
-        let stale = now - BROWSER_EXTENSION_PRESENCE_WINDOW - Duration::seconds(1);
+        let stale = now - BROWSER_EXTENSION_PRESENCE_WINDOW - SignedDuration::from_secs(1);
         let verdict = answerers(Some(stale), now);
         assert!(!verdict.browser_extension_connected);
         assert_eq!(
@@ -77,10 +71,7 @@ mod tests {
 
     #[test]
     fn the_verdict_serialises_without_a_null_timestamp() {
-        let now = Utc
-            .with_ymd_and_hms(2026, 9, 16, 12, 0, 0)
-            .single()
-            .expect("date");
+        let now = Timestamp::from_ymd_hms(2026, 9, 16, 12, 0, 0).expect("date");
         let json = serde_json::to_value(answerers(None, now)).expect("json");
         assert_eq!(
             json,

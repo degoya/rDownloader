@@ -29,7 +29,7 @@ fn parsed(body: &str) -> Request {
 }
 
 fn file(state: DownloadState, committed: u64, total: Option<u64>) -> DownloadFile {
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     DownloadFile {
         recording: None,
         id: DownloadId::new(),

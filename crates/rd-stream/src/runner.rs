@@ -6,7 +6,7 @@ use std::{ops::ControlFlow, path::PathBuf};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use rd_core::{DownloadFile, DownloadKind, DownloadPackage, Failure, FailureKind};
+use rd_core::{DownloadFile, DownloadKind, DownloadPackage, Failure, FailureKind, Timestamp};
 use rd_db::Database;
 use rd_http::SharedNetworkDefaults;
 use rd_scheduler::{ExternalRunner, RunOutcome, ToolNetwork, ToolNetworkSource};
@@ -289,7 +289,7 @@ impl StreamRunner {
             index += 1;
             let name = crate::segments::next_name(&recording.stem, index);
             let output = recording.directory.join(&name);
-            let started_at = chrono::Utc::now();
+            let started_at = Timestamp::now();
             let carried = state.total_bytes();
 
             let (outcome, bytes, stderr_text) = self

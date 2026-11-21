@@ -1,7 +1,7 @@
 plugin_type = "resolver"
 id = "019d0000-0000-7000-8000-00000000010d"
 name = "XFileSharing (generic)"
-version = "0.1.19"
+version = "0.1.20"
 
 # ---------------------------------------------------------------------------------------------
 # The domain list holds clones that were checked, and grows from there (RD-098-01).
@@ -64,7 +64,7 @@ match_domains = [
   "hglamioz.com", "hgplaycdn.com", "hgplayer.sbs", "hot4share.com", "hotlink.cc",
   "imagenpic.com", "imageshimage.com", "imagetwist.com", "imagexport.com", "imgnova.cc",
   "imgpv.com", "isra.cloud", "javplaya.com", "kenfiles.com", "larhu.website", "lulu0.ovh",
-  "lulustream.com", "luluvdoo.com", "luluvid.com", "media.cm", "medixiru.com", "mega4up.com",
+  "lulustream.com", "media.cm", "medixiru.com", "mega4up.com",
   "mega4up.org", "mega4upload.com", "mega4upload.net", "miravd.com", "miravid.club",
   "modsbase.com", "moflix-stream.click", "moondl.com", "mp4plus.org", "mp4upload.com",
   "mwdy.cc", "mwdy.org", "mycloudz.cc", "myfiles.onl", "myqloud.org",
@@ -129,8 +129,8 @@ download_domains = [
   "imagetwist.com", "*.imagetwist.com", "imagexport.com", "*.imagexport.com", "imgnova.cc",
   "*.imgnova.cc", "imgpv.com", "*.imgpv.com", "isra.cloud", "*.isra.cloud", "javplaya.com",
   "*.javplaya.com", "kenfiles.com", "*.kenfiles.com", "larhu.website", "*.larhu.website",
-  "lulu0.ovh", "*.lulu0.ovh", "lulustream.com", "*.lulustream.com", "luluvdoo.com",
-  "*.luluvdoo.com", "luluvid.com", "*.luluvid.com", "media.cm", "*.media.cm", "medixiru.com",
+  "lulu0.ovh", "*.lulu0.ovh", "lulustream.com", "*.lulustream.com",
+  "media.cm", "*.media.cm", "medixiru.com",
   "*.medixiru.com", "mega4up.com", "*.mega4up.com", "mega4up.org", "*.mega4up.org",
   "mega4upload.com", "*.mega4upload.com", "mega4upload.net", "*.mega4upload.net", "miravd.com",
   "*.miravd.com", "miravid.club", "*.miravid.club", "modsbase.com", "*.modsbase.com",
@@ -225,8 +225,8 @@ domains = [
   "imagetwist.com", "*.imagetwist.com", "imagexport.com", "*.imagexport.com", "imgnova.cc",
   "*.imgnova.cc", "imgpv.com", "*.imgpv.com", "isra.cloud", "*.isra.cloud", "javplaya.com",
   "*.javplaya.com", "kenfiles.com", "*.kenfiles.com", "larhu.website", "*.larhu.website",
-  "lulu0.ovh", "*.lulu0.ovh", "lulustream.com", "*.lulustream.com", "luluvdoo.com",
-  "*.luluvdoo.com", "luluvid.com", "*.luluvid.com", "media.cm", "*.media.cm", "medixiru.com",
+  "lulu0.ovh", "*.lulu0.ovh", "lulustream.com", "*.lulustream.com",
+  "media.cm", "*.media.cm", "medixiru.com",
   "*.medixiru.com", "mega4up.com", "*.mega4up.com", "mega4up.org", "*.mega4up.org",
   "mega4upload.com", "*.mega4upload.com", "mega4upload.net", "*.mega4upload.net", "miravd.com",
   "*.miravd.com", "miravid.club", "*.miravid.club", "modsbase.com", "*.modsbase.com",

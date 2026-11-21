@@ -1,8 +1,7 @@
 //! The rows the candidate and batch queries read, and their conversion into the domain types.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{CollectorBatch, LinkCandidate};
+use rd_core::{CollectorBatch, LinkCandidate, Timestamp};
 use sqlx::FromRow;
 use url::Url;
 
@@ -13,7 +12,7 @@ pub(super) struct BatchRow {
     id: String,
     source: String,
     source_label: Option<String>,
-    created_at: DateTime<Utc>,
+    created_at: Timestamp,
 }
 
 impl TryFrom<BatchRow> for CollectorBatch {
@@ -47,10 +46,10 @@ pub(crate) struct CandidateRow {
     error_params_json: Option<String>,
     package_id: Option<String>,
     position: i64,
-    checked_at: Option<DateTime<Utc>>,
-    cached_at: Option<DateTime<Utc>>,
+    checked_at: Option<Timestamp>,
+    cached_at: Option<Timestamp>,
     cached_by: Option<String>,
-    created_at: DateTime<Utc>,
+    created_at: Timestamp,
     media_json: Option<String>,
     request_json: Option<String>,
     replay_consent_json: Option<String>,
@@ -74,6 +73,9 @@ pub(crate) struct CandidateRow {
     source_set_json: Option<String>,
     /// The LinkFilter rule that hid the link (RD-1240-09).
     hidden_by_filter: Option<String>,
+    /// The remote job the link was handed to, and that job's account (RD-1440-07).
+    remote_job_id: Option<String>,
+    remote_account_id: Option<String>,
 }
 
 impl TryFrom<CandidateRow> for LinkCandidate {
@@ -212,14 +214,22 @@ impl TryFrom<CandidateRow> for LinkCandidate {
                 .map(|set| set.preview())
                 .unwrap_or_default(),
             hidden_by_filter: row.hidden_by_filter.as_deref().map(parse_id).transpose()?,
+            handed_over: match (row.remote_job_id, row.remote_account_id) {
+                (Some(job), Some(account)) => Some(rd_core::NzbHandOver {
+                    remote_job_id: parse_id(&job)?,
+                    account_id: parse_id(&account)?,
+                }),
+                _ => None,
+            },
         })
     }
 }
 
-/// The columns a `CandidateRow` reads, once for both queries (DB-12).
+/// The columns a `CandidateRow` reads, once for both queries (DB-12). The job's account is
+/// read beside the mark, so the interface can name the provider a link went to (RD-1440-07).
 macro_rules! candidate_columns {
     () => {
-        "id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, error_params_json, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json, hidden_by_filter"
+        "id, batch_id, url, state, file_name, size, provider, category_id, priority, route_json, error, error_code, error_params_json, package_id, position, checked_at, cached_at, cached_by, created_at, media_json, request_json, replay_consent_json, torrent_json, listing_json, remote_credential_id, auth_profile_id, auth_profile_pinned, enrichment_json, file_name_declared, mirror_group, mirror_source, mirror_selected, mirror_pinned, mirror_quality, mirror_language, secret_fragment_ref, source_set_json, hidden_by_filter, remote_job_id, (SELECT account_id FROM remote_jobs WHERE remote_jobs.id = link_candidates.remote_job_id) AS remote_account_id"
     };
 }
 

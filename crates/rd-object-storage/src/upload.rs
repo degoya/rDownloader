@@ -17,9 +17,8 @@ use std::path::Path as LocalPath;
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
 use object_store::{PutOptions, PutPayload, multipart::PartId, path::Path};
-use rd_core::{ObjectStorageProfile, ObjectStorageProfileId};
+use rd_core::{ObjectStorageProfile, ObjectStorageProfileId, Timestamp};
 use rd_db::{ObjectUpload as UploadRecord, ObjectUploadPart};
 use rd_extract::{ObjectUpload, ObjectUploader, UploadReport};
 use rd_limits::ScopedLimiter;
@@ -353,7 +352,7 @@ impl FileUpload<'_> {
             upload_id,
             checksums: self.profile.checksums,
             completed_at: None,
-            created_at: Utc::now(),
+            created_at: Timestamp::now(),
             parts: Vec::new(),
         }
     }
@@ -441,7 +440,8 @@ async fn read_part(
 
 async fn modified_at(path: &LocalPath) -> Option<String> {
     let modified = tokio::fs::metadata(path).await.ok()?.modified().ok()?;
-    Some(DateTime::<Utc>::from(modified).to_rfc3339())
+    let modified = jiff::Timestamp::try_from(modified).ok()?;
+    Some(Timestamp::from_jiff(modified).to_rfc3339())
 }
 
 #[cfg(test)]

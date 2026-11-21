@@ -7,7 +7,7 @@
 //! bounded batches so the writer is never held for longer than one batch takes.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqliteConnection, SqlitePool};
 
@@ -37,10 +37,10 @@ impl StatsResolution {
 
     /// The start of the bucket `moment` falls into, as the table stores it.
     #[must_use]
-    pub fn bucket_start(self, moment: DateTime<Utc>) -> String {
+    pub fn bucket_start(self, moment: Timestamp) -> String {
         match self {
-            Self::Hour => moment.format("%Y-%m-%dT%H:00:00Z").to_string(),
-            Self::Day => moment.format("%Y-%m-%dT00:00:00Z").to_string(),
+            Self::Hour => moment.strftime("%Y-%m-%dT%H:00:00Z").to_string(),
+            Self::Day => moment.strftime("%Y-%m-%dT00:00:00Z").to_string(),
         }
     }
 }
@@ -122,7 +122,7 @@ pub(crate) async fn record(
     kind: &str,
     provider: &str,
     outcome: TransferOutcome,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     let (completed, failed, retries, bytes, seconds) = match outcome {
         TransferOutcome::Completed { bytes, seconds } => (1, 0, 0, bytes, seconds),
@@ -181,7 +181,7 @@ pub(crate) async fn record(
 pub(crate) async fn list_buckets(
     pool: &SqlitePool,
     resolution: StatsResolution,
-    since: DateTime<Utc>,
+    since: Timestamp,
 ) -> Result<Vec<TransferBucket>> {
     sqlx::query_as::<_, TransferBucket>(
         "SELECT bucket_start, kind, provider, completed, failed, retries, bytes, seconds \
@@ -258,12 +258,14 @@ pub(crate) async fn clear(connection: &mut SqliteConnection) -> Result<u64> {
 pub(crate) async fn prune(
     connection: &mut SqliteConnection,
     retention: StatsRetention,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<StatsPruneReport> {
-    let hourly_cutoff = StatsResolution::Hour
-        .bucket_start(now - chrono::Duration::days(retention.hourly_days.into()));
-    let retention_cutoff = StatsResolution::Day
-        .bucket_start(now - chrono::Duration::days(retention.retention_days.into()));
+    let hourly_cutoff = StatsResolution::Hour.bucket_start(
+        now - rd_core::SignedDuration::from_hours(24 * i64::from(retention.hourly_days)),
+    );
+    let retention_cutoff = StatsResolution::Day.bucket_start(
+        now - rd_core::SignedDuration::from_hours(24 * i64::from(retention.retention_days)),
+    );
     let mut transaction = sqlx::Connection::begin(connection).await?;
     // The same subquery names the rows twice, and it names the same rows both times: the
     // insert only adds `day` rows, which the `hour` filter never sees.

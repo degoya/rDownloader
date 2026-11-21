@@ -15,7 +15,7 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use url::Url;
 
 use crate::feed::parse_feed;
@@ -52,7 +52,7 @@ pub struct SearchHit {
     pub guid: Option<String>,
     pub download: Url,
     pub size_bytes: Option<u64>,
-    pub published_at: Option<DateTime<Utc>>,
+    pub published_at: Option<Timestamp>,
     /// The first category the indexer assigned, as it named it (`5040`).
     pub category: Option<String>,
     /// How often the release was fetched, when the indexer says.

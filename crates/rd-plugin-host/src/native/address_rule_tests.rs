@@ -255,16 +255,16 @@ async fn the_rule_comes_from_the_invocation_and_the_port() {
 }
 
 /// RA-HOST-02: `expires-in` is the plugin's number, and `now + u64::MAX` seconds panicked in
-/// `chrono`. It is held to a year.
+/// the time arithmetic. It is held to a year.
 #[test]
 fn an_overlong_token_lifetime_is_held_to_a_year() {
-    let now = chrono::Utc::now();
-    let year = chrono::Duration::seconds(365 * 24 * 60 * 60);
+    let now = rd_core::Timestamp::now();
+    let year = rd_core::SignedDuration::from_secs(365 * 24 * 60 * 60);
     assert_eq!(token_expiry(now, u64::MAX), now + year);
     assert_eq!(token_expiry(now, i64::MAX.unsigned_abs()), now + year);
     assert_eq!(
         token_expiry(now, 3600),
-        now + chrono::Duration::seconds(3600)
+        now + rd_core::SignedDuration::from_secs(3600)
     );
     assert_eq!(token_expiry(now, 0), now);
 }

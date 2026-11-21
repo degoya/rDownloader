@@ -81,7 +81,7 @@ pub struct SubscriptionItemPageQuery {
     /// Only items found at or before this moment (RD-1250-13): the `newest_discovered_at` of
     /// an earlier read, so paging a list held still under the reader shows no hit found since.
     #[serde(default)]
-    pub until: Option<chrono::DateTime<chrono::Utc>>,
+    pub until: Option<rd_core::Timestamp>,
 }
 
 impl SubscriptionItemPageQuery {

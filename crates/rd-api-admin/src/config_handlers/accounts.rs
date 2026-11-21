@@ -126,7 +126,7 @@ pub async fn test_account(
     }
     // What the check found about the account's sign-in or its premium end is announced as
     // well (RD-190-19); the notices are keyed, so checking again does not repeat them.
-    let today = chrono::Utc::now().date_naive();
+    let today = rd_core::Timestamp::now().date();
     let status = match state.scheduler.check_account(id).await {
         Ok(status) => status,
         Err(failure) => {

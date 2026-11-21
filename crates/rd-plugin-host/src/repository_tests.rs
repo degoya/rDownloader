@@ -6,7 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use chrono::{Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use rd_sign::SigningKey;
 use tempfile::TempDir;
 
@@ -91,8 +91,8 @@ fn signed_index(sequence: u64, packages: &[(&str, &[u8])], revoked: Revocations)
     let index = PluginIndex {
         schema_version: PLUGIN_INDEX_SCHEMA_VERSION,
         sequence,
-        issued_at: Utc::now() - Duration::minutes(1),
-        not_after: Utc::now() + Duration::days(30),
+        issued_at: Timestamp::now() - SignedDuration::from_mins(1),
+        not_after: Timestamp::now() + SignedDuration::from_hours(24 * 30),
         packages: packages
             .iter()
             .map(|(version, bytes)| {
@@ -252,8 +252,8 @@ async fn a_replayed_or_expired_index_is_refused_and_the_same_one_again_is_not() 
     let expired = PluginIndex {
         schema_version: PLUGIN_INDEX_SCHEMA_VERSION,
         sequence: 9,
-        issued_at: Utc::now() - Duration::days(40),
-        not_after: Utc::now() - Duration::days(1),
+        issued_at: Timestamp::now() - SignedDuration::from_hours(24 * 40),
+        not_after: Timestamp::now() - SignedDuration::from_hours(24),
         packages: Vec::new(),
         revoked: Revocations::default(),
     };
@@ -273,8 +273,8 @@ async fn an_index_signed_by_another_key_is_refused() {
     let index = PluginIndex {
         schema_version: PLUGIN_INDEX_SCHEMA_VERSION,
         sequence: 5,
-        issued_at: Utc::now() - Duration::minutes(1),
-        not_after: Utc::now() + Duration::days(3),
+        issued_at: Timestamp::now() - SignedDuration::from_mins(1),
+        not_after: Timestamp::now() + SignedDuration::from_hours(24 * 3),
         packages: Vec::new(),
         revoked: Revocations::default(),
     };
@@ -454,8 +454,8 @@ async fn a_third_party_repository_needs_its_key_and_withdraws_only_what_it_deliv
     let index = PluginIndex {
         schema_version: PLUGIN_INDEX_SCHEMA_VERSION,
         sequence: 3,
-        issued_at: Utc::now() - Duration::minutes(1),
-        not_after: Utc::now() + Duration::days(3),
+        issued_at: Timestamp::now() - SignedDuration::from_mins(1),
+        not_after: Timestamp::now() + SignedDuration::from_hours(24 * 3),
         packages: Vec::new(),
         revoked: Revocations {
             // The bundled package, which this repository never delivered.

@@ -583,6 +583,19 @@
         "label": "Afficher la remise dans les téléchargements",
         "description": "Activé par défaut. L'entrée du menu d'un paquet issu d'un NZB apparaît quel que soit l'état du paquet, échec compris, mais seulement si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Un paquet déjà confié garde son badge."
       }
+    },
+    "package_hand_over": {
+      "eyebrow": "Fournisseurs distants",
+      "title": "Confier des paquets à un fournisseur",
+      "description": "Un paquet du LinkGrabber peut être confié à un compte dont le fournisseur exécute des travaux distants (comme TorBox, Real-Debrid ou Premiumize) : chaque magnet, adresse et fichier torrent importé devient un travail. Le fournisseur récupère le contenu lui-même ; les fichiers terminés reviennent dans le LinkGrabber sous forme de liens.",
+      "enabled": {
+        "label": "Afficher la remise dans le menu du paquet",
+        "description": "Activé par défaut. L'entrée n'apparaît que si vous avez un compte chez un fournisseur qui accepte l'une des sources du paquet. Un lien déjà confié garde sa marque."
+      },
+      "remove": {
+        "label": "Retirer les liens du LinkGrabber après la remise",
+        "description": "Activé par défaut : chaque lien confié quitte le LinkGrabber, et un paquet resté vide est supprimé. Désactivé : les liens restent, marqués avec leur travail, et confier à nouveau le paquet n'envoie rien deux fois. Ce qui n'a pas pu être confié reste toujours."
+      }
     }
   },
   "notifications": {

@@ -1,7 +1,7 @@
 //! The agent's own update (RD-1210-03): only a manifest signed with the update key counts, never
 //! a version older than the running one, the service's request only where the agent allows it.
 
-use chrono::{DateTime, Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use rd_update::agent::AgentSetup;
 use rd_update::agent::report::SelfUpdate;
 use rd_update::{
@@ -27,8 +27,8 @@ fn trust() -> TrustStore {
     trust
 }
 
-fn now() -> DateTime<Utc> {
-    DateTime::from_timestamp(1_790_000_000, 0).expect("timestamp")
+fn now() -> Timestamp {
+    Timestamp::from_unix_seconds(1_790_000_000).expect("timestamp")
 }
 
 /// A release whose manifest carries the agent's archive for the platform the test runs on.
@@ -37,11 +37,11 @@ fn release(version: &str) -> UpdateManifest {
     UpdateManifest {
         schema_version: UPDATE_MANIFEST_SCHEMA_VERSION,
         sequence: 10,
-        issued_at: now() - Duration::days(1),
-        not_after: now() + Duration::days(90),
+        issued_at: now() - SignedDuration::from_hours(24),
+        not_after: now() + SignedDuration::from_hours(24 * 90),
         channel: Channel::Stable,
         version: version.to_owned(),
-        released_at: now() - Duration::days(1),
+        released_at: now() - SignedDuration::from_hours(24),
         notes: "- A thing".to_owned(),
         changelog_anchor: None,
         artifacts: Vec::new(),

@@ -1,18 +1,20 @@
-use chrono::{DateTime, Duration, FixedOffset, NaiveDateTime, TimeZone, Utc};
+use jiff::civil::DateTime;
+use jiff::tz::{Offset, TimeZone};
+use rd_core::{SignedDuration, Timestamp};
 
 use super::{GRACE_SECONDS, Schedule};
 
-fn zone() -> FixedOffset {
-    FixedOffset::east_opt(2 * 3_600).expect("zone")
+fn zone() -> TimeZone {
+    TimeZone::fixed(Offset::constant(2))
 }
 
-fn at(text: &str) -> DateTime<Utc> {
-    let naive = NaiveDateTime::parse_from_str(text, "%Y-%m-%d %H:%M:%S").expect("naive time");
-    zone()
-        .from_local_datetime(&naive)
-        .single()
-        .expect("local time")
-        .with_timezone(&Utc)
+fn at(text: &str) -> Timestamp {
+    let local = DateTime::strptime("%Y-%m-%d %H:%M:%S", text).expect("local time");
+    let instant = zone()
+        .to_ambiguous_timestamp(local)
+        .unambiguous()
+        .expect("one instant");
+    Timestamp::from_jiff(instant)
 }
 
 fn cron(expression: &str) -> Schedule {
@@ -31,13 +33,17 @@ fn a_cron_slot_is_due_at_its_time_in_the_service_s_zone() {
     assert_eq!(slot.at, at("2026-10-10 06:00:00"));
     assert_eq!(slot.label(), "2026-10-10T06:00");
     assert!(daily.due_slot(at("2026-10-10 05:59:55"), &zone()).is_none());
-    assert!(daily.due_slot(at("2026-10-10 06:00:05"), &Utc).is_none());
+    assert!(
+        daily
+            .due_slot(at("2026-10-10 06:00:05"), &TimeZone::UTC)
+            .is_none()
+    );
 }
 
 #[test]
 fn a_slot_missed_by_more_than_the_grace_is_not_caught_up() {
     let daily = cron("0 6 * * *");
-    let late = at("2026-10-10 06:00:00") + Duration::seconds(GRACE_SECONDS + 1);
+    let late = at("2026-10-10 06:00:00") + SignedDuration::from_secs(GRACE_SECONDS + 1);
     assert!(daily.due_slot(late, &zone()).is_none());
     let hourly = Schedule::Interval { minutes: 60 };
     assert!(

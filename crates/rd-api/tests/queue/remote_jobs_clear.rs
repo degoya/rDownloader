@@ -66,7 +66,9 @@ async fn job(
             AdvanceRemoteJob {
                 state: Some(state),
                 remote_id: remote_id.map(str::to_owned),
-                next_poll_at: Some(Some(chrono::Utc::now() + chrono::Duration::days(1))),
+                next_poll_at: Some(Some(
+                    rd_core::Timestamp::now() + rd_core::SignedDuration::from_hours(24),
+                )),
                 ..AdvanceRemoteJob::default()
             },
         )

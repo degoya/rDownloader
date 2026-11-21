@@ -8,9 +8,9 @@
 //! they were stored on the download, and the archive password is never read.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use rd_core::{
     ByteCount, DownloadKind, HISTORY_MAX_SOURCES, HistoryEntry, HistoryOutcome, MessageParams,
+    Timestamp,
 };
 use sqlx::{Connection, QueryBuilder, Row, Sqlite, SqliteConnection, SqlitePool};
 
@@ -37,9 +37,9 @@ pub struct HistoryQuery {
     pub outcome: Option<HistoryOutcome>,
     pub kind: Option<DownloadKind>,
     /// Entries that ended at or after this instant.
-    pub finished_from: Option<DateTime<Utc>>,
+    pub finished_from: Option<Timestamp>,
     /// Entries that ended at or before this instant.
-    pub finished_to: Option<DateTime<Utc>>,
+    pub finished_to: Option<Timestamp>,
     /// Leaves out the entries a SABnzbd client deleted from its history.
     pub compat_visible_only: bool,
     /// Rows to skip, then rows to return at most; `None` returns the rest.
@@ -62,7 +62,7 @@ pub(crate) async fn record(
     connection: &mut SqliteConnection,
     package_id: &str,
     outcome: HistoryOutcome,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     let Some(package) = sqlx::query(
         "SELECT packages.name, packages.kind, packages.destination, packages.created_at, \
@@ -132,7 +132,7 @@ pub(crate) async fn record(
         }
     };
 
-    let created_at: DateTime<Utc> = package.try_get("created_at")?;
+    let created_at: Timestamp = package.try_get("created_at")?;
     let name: String = package.try_get("name")?;
     let kind: String = package.try_get("kind")?;
     let destination: String = package.try_get("destination")?;
@@ -179,7 +179,7 @@ pub(crate) async fn record(
 pub(crate) async fn record_if_settled_failed(
     connection: &mut SqliteConnection,
     package_id: &str,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     let states: Vec<String> =
         sqlx::query_scalar("SELECT state FROM downloads WHERE package_id = ?")
@@ -368,7 +368,7 @@ fn entry_from_row(row: &sqlx::sqlite::SqliteRow) -> Result<HistoryEntry> {
 pub(crate) async fn prune(
     connection: &mut SqliteConnection,
     max_entries: u64,
-    older_than: DateTime<Utc>,
+    older_than: Timestamp,
 ) -> Result<u64> {
     let mut tx = connection.begin().await?;
     let aged = sqlx::query("DELETE FROM download_history WHERE finished_at < ?")

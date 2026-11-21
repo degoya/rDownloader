@@ -37,13 +37,8 @@ const MAX_SCRAPE_BYTES: usize = 64 * 1024;
 
 /// Whether a scrape result is too old to be presented as current.
 #[must_use]
-pub fn is_stale(
-    scraped_at: chrono::DateTime<chrono::Utc>,
-    now: chrono::DateTime<chrono::Utc>,
-) -> bool {
-    (now - scraped_at)
-        .to_std()
-        .is_ok_and(|age| age > SCRAPE_FRESHNESS)
+pub fn is_stale(scraped_at: rd_core::Timestamp, now: rd_core::Timestamp) -> bool {
+    std::time::Duration::try_from(now - scraped_at).is_ok_and(|age| age > SCRAPE_FRESHNESS)
 }
 
 /// Derives the scrape URL of an HTTP announce URL as BEP 48 defines it.
@@ -197,7 +192,7 @@ pub(crate) fn parse_http_scrape(body: &[u8], info_hash: &[u8]) -> Result<Tracker
         seeders: read(b"complete"),
         leechers: read(b"incomplete"),
         completed: read(b"downloaded"),
-        scraped_at: chrono::Utc::now(),
+        scraped_at: rd_core::Timestamp::now(),
     })
 }
 
@@ -301,7 +296,7 @@ pub(crate) fn parse_udp_scrape(response: &[u8], transaction: u32) -> Result<Trac
         seeders: u32::from_be_bytes(response[8..12].try_into()?),
         completed: u32::from_be_bytes(response[12..16].try_into()?),
         leechers: u32::from_be_bytes(response[16..20].try_into()?),
-        scraped_at: chrono::Utc::now(),
+        scraped_at: rd_core::Timestamp::now(),
     })
 }
 

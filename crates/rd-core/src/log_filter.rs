@@ -4,7 +4,7 @@
 //! `rd-diagnostics` turns both into the `tracing` filter, and `rd-plugin-host` opens the span
 //! a plugin's own log line is matched by. The filter itself is built in `rd-diagnostics`.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -130,13 +130,13 @@ pub struct LogDebugWindow {
     /// Only with [`LogDebugArea::Plugin`]: that one plugin's own lines instead of the host's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plugin_id: Option<String>,
-    pub until: DateTime<Utc>,
+    pub until: Timestamp,
 }
 
 impl LogDebugWindow {
     /// Whether the window is still open at `now`.
     #[must_use]
-    pub fn is_open(&self, now: DateTime<Utc>) -> bool {
+    pub fn is_open(&self, now: Timestamp) -> bool {
         now < self.until
     }
 }

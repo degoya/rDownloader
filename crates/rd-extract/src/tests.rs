@@ -340,7 +340,7 @@ async fn a_renamed_package_folder_does_not_give_a_second_run_a_second_set_of_ste
     // `run_extraction_with` would return at once here: the package is already `Completed`, so
     // its wait loop is satisfied before the pipeline has done anything. The forced run is
     // therefore driven by hand and waited on by the mark the last step leaves behind.
-    let mark = chrono::Utc::now();
+    let mark = rd_core::Timestamp::now();
     let service = ExtractionService::start(
         database.clone(),
         ExtractionConfig {

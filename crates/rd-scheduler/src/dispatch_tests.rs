@@ -2,7 +2,7 @@
 
 use std::{path::Path, sync::atomic::Ordering};
 
-use rd_core::{DownloadKind, DownloadState};
+use rd_core::{DownloadKind, DownloadState, SignedDuration, Timestamp};
 
 use crate::{BlockReason, FileSpec, PackageSpec, SchedulerConfig, SchedulerHandle};
 
@@ -180,7 +180,7 @@ async fn a_package_not_due_yet_is_left_out_of_the_pass() {
         )
         .await
         .expect("enqueue");
-    let later = chrono::Utc::now() + chrono::Duration::hours(1);
+    let later = Timestamp::now() + SignedDuration::from_hours(1);
     assert!(
         database
             .set_package_start_after(package.id, Some(later))
@@ -193,7 +193,7 @@ async fn a_package_not_due_yet_is_left_out_of_the_pass() {
         "a package not due yet is not looked at"
     );
 
-    let earlier = chrono::Utc::now() - chrono::Duration::minutes(1);
+    let earlier = Timestamp::now() - SignedDuration::from_mins(1);
     database
         .set_package_start_after(package.id, Some(earlier))
         .await

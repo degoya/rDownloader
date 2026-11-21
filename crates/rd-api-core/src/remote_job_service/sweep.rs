@@ -10,7 +10,7 @@ impl RemoteJobService {
                 () = self.inner.shutdown.cancelled() => return,
                 _ = ticker.tick() => {}
             }
-            if let Err(error) = self.sweep_once(Utc::now()).await {
+            if let Err(error) = self.sweep_once(Timestamp::now()).await {
                 tracing::warn!(%error, "remote jobs could not be swept");
             }
         }
@@ -21,7 +21,7 @@ impl RemoteJobService {
     /// Sequential on purpose. Two ticks never overlap because the loop awaits this, and rows
     /// are not driven concurrently because the request budget they spend is one account's;
     /// a job that takes a while to answer delays the next one by that while and nothing else.
-    pub(crate) async fn sweep_once(&self, now: DateTime<Utc>) -> anyhow::Result<()> {
+    pub(crate) async fn sweep_once(&self, now: Timestamp) -> anyhow::Result<()> {
         let due = self.inner.database.due_remote_jobs(now).await?;
         if due.is_empty() {
             return Ok(());
@@ -56,7 +56,7 @@ impl RemoteJobService {
         &self,
         runners: &RemoteJobRunners,
         job: &RemoteJob,
-        now: DateTime<Utc>,
+        now: Timestamp,
     ) -> anyhow::Result<()> {
         match job.submit_step() {
             SubmitStep::Submit => self.submit_row(runners, job, now).await,
@@ -98,7 +98,7 @@ impl RemoteJobService {
         &self,
         runners: &RemoteJobRunners,
         job: &RemoteJob,
-        now: DateTime<Utc>,
+        now: Timestamp,
     ) -> anyhow::Result<()> {
         let Some(bytes) = self.inner.database.remote_job_source(job.id).await? else {
             // The row vanished between the read and now. Nothing to do and nothing to say.
@@ -147,7 +147,7 @@ impl RemoteJobService {
         &self,
         runners: &RemoteJobRunners,
         job: &RemoteJob,
-        now: DateTime<Utc>,
+        now: Timestamp,
     ) -> anyhow::Result<()> {
         match runners
             .adopt(&job.plugin_id, job.account_id, &job.content_key)
@@ -179,7 +179,7 @@ impl RemoteJobService {
         job: &RemoteJob,
         handle: RemoteJobHandle,
         adopted: bool,
-        now: DateTime<Utc>,
+        now: Timestamp,
     ) -> anyhow::Result<()> {
         self.inner
             .database
@@ -207,7 +207,7 @@ impl RemoteJobService {
         &self,
         job: &RemoteJob,
         outcome: PollOutcome,
-        now: DateTime<Utc>,
+        now: Timestamp,
     ) -> anyhow::Result<()> {
         let advance = match outcome {
             PollOutcome::Preparing {
@@ -365,7 +365,7 @@ impl RemoteJobService {
         &self,
         job: &RemoteJob,
         refusal: JobRefusal,
-        now: DateTime<Utc>,
+        now: Timestamp,
     ) -> anyhow::Result<()> {
         if !refusal.retryable {
             return self.fail(job, &refusal.code, &refusal.message).await;
@@ -381,7 +381,7 @@ impl RemoteJobService {
         // between the two clocks instead of the wait.
         let due = match refusal.retry_after_seconds {
             Some(hint) => due_at(now, job.state, Some(hint)),
-            None => Utc::now() + seconds(backoff(job)),
+            None => Timestamp::now() + seconds(backoff(job)),
         };
         self.inner
             .database

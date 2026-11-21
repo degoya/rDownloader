@@ -1,13 +1,11 @@
 //! The request registry of RD-120-45: who may answer what, and for how long.
 
-use chrono::{Duration, TimeZone, Utc};
+use rd_core::SignedDuration;
 
 use super::{BrowserSessionState, BrowserSessions, KEEP, Refusal, Request, WAIT};
 
-fn start() -> chrono::DateTime<Utc> {
-    Utc.with_ymd_and_hms(2026, 9, 23, 20, 0, 0)
-        .single()
-        .expect("time")
+fn start() -> rd_core::Timestamp {
+    rd_core::Timestamp::from_ymd_hms(2026, 9, 23, 20, 0, 0).expect("time")
 }
 
 fn request(account: rd_core::AccountId) -> Request {
@@ -97,7 +95,7 @@ fn an_unanswered_request_expires_and_cannot_be_answered_late() {
     );
     assert!(
         sessions
-            .status(account, start() + KEEP + Duration::seconds(1))
+            .status(account, start() + KEEP + SignedDuration::from_secs(1))
             .is_none(),
         "an old request is forgotten"
     );

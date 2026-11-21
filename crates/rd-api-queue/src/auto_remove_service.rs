@@ -10,8 +10,10 @@
 
 use std::{collections::HashSet, time::Duration};
 
-use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use rd_core::{DownloadFile, DownloadPackage, DownloadState, PackageId, PackageState};
+use rd_core::{
+    DownloadFile, DownloadPackage, DownloadState, PackageId, PackageState, SignedDuration,
+    Timestamp,
+};
 
 use crate::{AppState, dto::SettingsResponse};
 
@@ -45,7 +47,7 @@ async fn run_once(state: &AppState) -> anyhow::Result<()> {
     let packages = state.database.list_packages().await?;
     let downloads = state.database.list_downloads().await?;
     let pending = state.queue.extraction.pending().await;
-    let due = due_packages(&packages, &downloads, &pending, &settings, Utc::now());
+    let due = due_packages(&packages, &downloads, &pending, &settings, Timestamp::now());
     if due.is_empty() {
         return Ok(());
     }
@@ -147,9 +149,9 @@ fn due_packages(
     downloads: &[DownloadFile],
     pending_extraction: &HashSet<PackageId>,
     settings: &SettingsResponse,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Vec<PackageId> {
-    let delay = ChronoDuration::hours(i64::from(settings.auto_remove_delay_hours));
+    let delay = SignedDuration::from_hours(i64::from(settings.auto_remove_delay_hours));
     packages
         .iter()
         .filter(|package| package.state == PackageState::Completed)
@@ -188,15 +190,12 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) fn package(
-        state: PackageState,
-        completed_at: Option<DateTime<Utc>>,
-    ) -> DownloadPackage {
+    pub(crate) fn package(state: PackageState, completed_at: Option<Timestamp>) -> DownloadPackage {
         DownloadPackage {
             id: PackageId::new(),
             name: "Release".to_owned(),
             state,
-            created_at: Utc::now(),
+            created_at: Timestamp::now(),
             destination: "/tmp".to_owned(),
             category_id: None,
             priority: rd_core::DownloadPriority::Normal,
@@ -217,7 +216,7 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn file(package_id: PackageId, state: DownloadState) -> DownloadFile {
-        let now = Utc::now();
+        let now = Timestamp::now();
         DownloadFile {
             recording: None,
             id: rd_core::DownloadId::new(),
@@ -250,14 +249,14 @@ pub(crate) mod tests {
 
     #[test]
     fn a_package_waits_out_the_delay() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let fresh = package(
             PackageState::Completed,
-            Some(now - ChronoDuration::hours(1)),
+            Some(now - SignedDuration::from_hours(1)),
         );
         let stale = package(
             PackageState::Completed,
-            Some(now - ChronoDuration::hours(25)),
+            Some(now - SignedDuration::from_hours(25)),
         );
         let packages = vec![fresh, stale.clone()];
 
@@ -268,10 +267,10 @@ pub(crate) mod tests {
 
     #[test]
     fn an_unfinished_package_is_never_due() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let packages = vec![package(
             PackageState::Downloading,
-            Some(now - ChronoDuration::hours(48)),
+            Some(now - SignedDuration::from_hours(48)),
         )];
 
         let due = due_packages(&packages, &[], &HashSet::new(), &settings(1, true), now);
@@ -281,7 +280,7 @@ pub(crate) mod tests {
 
     #[test]
     fn a_package_without_a_finish_time_is_left_alone() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let packages = vec![package(PackageState::Completed, None)];
 
         let due = due_packages(&packages, &[], &HashSet::new(), &settings(1, true), now);
@@ -291,10 +290,10 @@ pub(crate) mod tests {
 
     #[test]
     fn a_failed_file_keeps_its_package_unless_that_is_switched_off() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let package = package(
             PackageState::Completed,
-            Some(now - ChronoDuration::hours(4)),
+            Some(now - SignedDuration::from_hours(4)),
         );
         let downloads = vec![
             file(package.id, DownloadState::Completed),
@@ -327,10 +326,10 @@ pub(crate) mod tests {
 
     #[test]
     fn a_seeding_torrent_is_never_removed() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let package = package(
             PackageState::Completed,
-            Some(now - ChronoDuration::hours(4)),
+            Some(now - SignedDuration::from_hours(4)),
         );
         let downloads = vec![file(package.id, DownloadState::Seeding)];
         let packages = vec![package];
@@ -349,10 +348,10 @@ pub(crate) mod tests {
 
     #[test]
     fn a_package_still_being_unpacked_waits() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let package = package(
             PackageState::Completed,
-            Some(now - ChronoDuration::hours(4)),
+            Some(now - SignedDuration::from_hours(4)),
         );
         let pending = HashSet::from([package.id]);
         let packages = vec![package];

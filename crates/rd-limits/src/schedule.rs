@@ -4,9 +4,9 @@
 //! there. Nothing adds twenty-four hours to a local time, which is exactly the arithmetic
 //! that loses or duplicates an hour across a DST change.
 
-use chrono::{DateTime, Datelike, Duration, Timelike, Utc};
-use chrono_tz::Tz;
-use rd_core::{BandwidthProfileId, BandwidthWindowId};
+use jiff::civil::Weekday;
+use jiff::tz::TimeZone;
+use rd_core::{BandwidthProfileId, BandwidthWindowId, IanaZone, SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -25,8 +25,8 @@ impl DaySet {
     pub const EVERY_DAY: Self = Self(0b0111_1111);
 
     #[must_use]
-    pub fn contains(self, weekday: chrono::Weekday) -> bool {
-        self.0 & (1 << weekday.num_days_from_monday()) != 0
+    pub fn contains(self, weekday: Weekday) -> bool {
+        self.0 & (1 << weekday.to_monday_zero_offset()) != 0
     }
 
     #[must_use]
@@ -56,7 +56,7 @@ impl ScheduleWindow {
     /// A wrapping window belongs to the day it *starts* on, so "Fri 22:00–02:00" is still
     /// active at Saturday 01:00.
     #[must_use]
-    fn covers(&self, weekday: chrono::Weekday, minute: u16) -> bool {
+    fn covers(&self, weekday: Weekday, minute: u16) -> bool {
         self.enabled
             && covers_local(
                 self.days,
@@ -77,7 +77,7 @@ pub fn covers_local(
     days: DaySet,
     start_minute: u16,
     end_minute: u16,
-    weekday: chrono::Weekday,
+    weekday: Weekday,
     minute: u16,
 ) -> bool {
     if days.is_empty() {
@@ -87,15 +87,22 @@ pub fn covers_local(
         return days.contains(weekday) && (start_minute..end_minute).contains(&minute);
     }
     (days.contains(weekday) && minute >= start_minute)
-        || (days.contains(weekday.pred()) && minute < end_minute)
+        || (days.contains(weekday.previous()) && minute < end_minute)
 }
 
 /// The local weekday and minute of a UTC instant in `timezone`.
 #[must_use]
-pub fn local_position(timezone: Tz, now: DateTime<Utc>) -> (chrono::Weekday, u16) {
-    let local = now.with_timezone(&timezone);
-    let minute = u16::try_from(local.hour() * 60 + local.minute()).unwrap_or(0);
+pub fn local_position(timezone: &TimeZone, now: Timestamp) -> (Weekday, u16) {
+    let local = timezone.to_datetime(now.as_jiff());
+    let minute =
+        u16::try_from(i32::from(local.hour()) * 60 + i32::from(local.minute())).unwrap_or(0);
     (local.weekday(), minute)
+}
+
+/// `now` with its seconds and fraction dropped: the minute boundary at or before it, the step
+/// the schedule walks take.
+pub(crate) fn floor_to_minute(now: Timestamp) -> Timestamp {
+    Timestamp::from_unix_seconds(now.unix_seconds().div_euclid(60) * 60).unwrap_or(now)
 }
 
 /// The whole schedule: a timezone, the windows and the profile that applies outside them.
@@ -103,7 +110,7 @@ pub fn local_position(timezone: Tz, now: DateTime<Utc>) -> (chrono::Weekday, u16
 pub struct WeeklySchedule {
     /// IANA timezone name; the windows are local times in it.
     #[schema(value_type = String, example = "Europe/Berlin")]
-    pub timezone: Tz,
+    pub timezone: IanaZone,
     /// Profile used whenever no window applies; `None` means unlimited.
     pub default_profile_id: Option<BandwidthProfileId>,
     pub windows: Vec<ScheduleWindow>,
@@ -112,7 +119,7 @@ pub struct WeeklySchedule {
 impl Default for WeeklySchedule {
     fn default() -> Self {
         Self {
-            timezone: Tz::UTC,
+            timezone: IanaZone::utc(),
             default_profile_id: None,
             windows: Vec::new(),
         }
@@ -122,8 +129,8 @@ impl Default for WeeklySchedule {
 impl WeeklySchedule {
     /// The profile active at `now`.
     #[must_use]
-    pub fn active_at(&self, now: DateTime<Utc>) -> Option<BandwidthProfileId> {
-        let (weekday, minute) = local_position(self.timezone, now);
+    pub fn active_at(&self, now: Timestamp) -> Option<BandwidthProfileId> {
+        let (weekday, minute) = local_position(self.timezone.as_jiff(), now);
         self.windows
             .iter()
             .filter(|window| window.covers(weekday, minute))
@@ -144,16 +151,13 @@ impl WeeklySchedule {
     /// Found by walking forward in UTC and converting to local time at each step, so a DST
     /// jump neither skips a switch nor invents a second one.
     #[must_use]
-    pub fn next_switch_after(&self, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+    pub fn next_switch_after(&self, now: Timestamp) -> Option<Timestamp> {
         let current = self.active_at(now);
         // Aligning to the minute keeps the walk on the boundaries windows are defined on.
-        let mut cursor = now
-            .with_second(0)
-            .and_then(|value| value.with_nanosecond(0))
-            .unwrap_or(now);
-        let deadline = now + Duration::days(LOOKAHEAD_DAYS);
+        let mut cursor = floor_to_minute(now);
+        let deadline = now + SignedDuration::from_hours(24 * LOOKAHEAD_DAYS);
         while cursor < deadline {
-            cursor += Duration::minutes(1);
+            cursor += SignedDuration::from_mins(1);
             if self.active_at(cursor) != current {
                 return Some(cursor);
             }
@@ -163,17 +167,18 @@ impl WeeklySchedule {
 
     /// Day key of a UTC instant in the schedule's timezone, e.g. `2026-09-03`.
     #[must_use]
-    pub fn day_key(&self, now: DateTime<Utc>) -> String {
-        now.with_timezone(&self.timezone)
-            .format("%Y-%m-%d")
+    pub fn day_key(&self, now: Timestamp) -> String {
+        rd_core::Date::from_jiff(self.timezone.as_jiff().to_datetime(now.as_jiff()).date())
             .to_string()
     }
 
     /// Month key of a UTC instant in the schedule's timezone, e.g. `2026-09`.
     #[must_use]
-    pub fn month_key(&self, now: DateTime<Utc>) -> String {
-        now.with_timezone(&self.timezone)
-            .format("%Y-%m")
+    pub fn month_key(&self, now: Timestamp) -> String {
+        self.timezone
+            .as_jiff()
+            .to_datetime(now.as_jiff())
+            .strftime("%Y-%m")
             .to_string()
     }
 }
@@ -183,23 +188,21 @@ impl WeeklySchedule {
 /// One place, so a stored value that cannot be parsed lands in the same zone a fresh install
 /// uses rather than silently in UTC an hour away.
 #[must_use]
-pub fn default_timezone() -> Tz {
-    rd_core::DEFAULT_BANDWIDTH_TIMEZONE
-        .parse()
-        .unwrap_or(Tz::UTC)
+pub fn default_timezone() -> IanaZone {
+    IanaZone::parse(rd_core::DEFAULT_BANDWIDTH_TIMEZONE).unwrap_or_else(|_| IanaZone::utc())
 }
 
-pub fn parse_timezone(value: &str) -> anyhow::Result<Tz> {
-    value
-        .parse::<Tz>()
-        .map_err(|_| anyhow::anyhow!("unknown timezone `{value}`"))
+/// The IANA zone called exactly `value` (case-sensitive, as stored).
+///
+/// # Errors
+/// When no zone has that name.
+pub fn parse_timezone(value: &str) -> anyhow::Result<IanaZone> {
+    IanaZone::parse(value).map_err(|_| anyhow::anyhow!("unknown timezone `{value}`"))
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::{TimeZone, Utc};
-    use chrono_tz::Tz;
-    use rd_core::{BandwidthProfileId, BandwidthWindowId};
+    use rd_core::{BandwidthProfileId, BandwidthWindowId, IanaZone, Timestamp};
 
     use super::{DaySet, ScheduleWindow, WeeklySchedule};
 
@@ -217,7 +220,7 @@ mod tests {
 
     fn berlin(windows: Vec<ScheduleWindow>, default: Option<BandwidthProfileId>) -> WeeklySchedule {
         WeeklySchedule {
-            timezone: Tz::Europe__Berlin,
+            timezone: IanaZone::parse("Europe/Berlin").expect("zone"),
             default_profile_id: default,
             windows,
         }
@@ -230,13 +233,14 @@ mod tests {
         // 22:00–06:00 local, so the window wraps past midnight.
         let schedule = berlin(vec![window(night, 22 * 60, 6 * 60, 0)], Some(day));
         // 2026-01-15 23:30 Berlin = 22:30 UTC (CET, UTC+1).
-        let inside = Utc.with_ymd_and_hms(2026, 1, 15, 22, 30, 0).unwrap();
+        let inside = Timestamp::from_ymd_hms(2026, 1, 15, 22, 30, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(inside), Some(night));
         // 2026-01-16 01:30 Berlin = 00:30 UTC — still the wrapping window.
-        let after_midnight = Utc.with_ymd_and_hms(2026, 1, 16, 0, 30, 0).unwrap();
+        let after_midnight =
+            Timestamp::from_ymd_hms(2026, 1, 16, 0, 30, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(after_midnight), Some(night));
         // 2026-01-16 12:00 Berlin = 11:00 UTC — outside, so the default applies.
-        let outside = Utc.with_ymd_and_hms(2026, 1, 16, 11, 0, 0).unwrap();
+        let outside = Timestamp::from_ymd_hms(2026, 1, 16, 11, 0, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(outside), Some(day));
     }
 
@@ -252,9 +256,9 @@ mod tests {
             None,
         );
         // 13:00 Berlin = 12:00 UTC in winter.
-        let overlap = Utc.with_ymd_and_hms(2026, 1, 15, 12, 0, 0).unwrap();
+        let overlap = Timestamp::from_ymd_hms(2026, 1, 15, 12, 0, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(overlap), Some(narrow));
-        let only_broad = Utc.with_ymd_and_hms(2026, 1, 15, 9, 0, 0).unwrap();
+        let only_broad = Timestamp::from_ymd_hms(2026, 1, 15, 9, 0, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(only_broad), Some(broad));
     }
 
@@ -265,7 +269,7 @@ mod tests {
         let mut disabled = window(profile, 0, super::MINUTES_PER_DAY, 0);
         disabled.enabled = false;
         let schedule = berlin(vec![disabled], Some(default));
-        let now = Utc.with_ymd_and_hms(2026, 1, 15, 12, 0, 0).unwrap();
+        let now = Timestamp::from_ymd_hms(2026, 1, 15, 12, 0, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(now), Some(default));
     }
 
@@ -276,15 +280,18 @@ mod tests {
         // Germany skips 02:00–03:00 local on 2026-03-29; a 02:30 boundary never happens.
         let schedule = berlin(vec![window(night, 0, 3 * 60, 0)], Some(day));
         // 00:30 UTC = 01:30 CET, still inside the night window.
-        let before = Utc.with_ymd_and_hms(2026, 3, 29, 0, 30, 0).unwrap();
+        let before = Timestamp::from_ymd_hms(2026, 3, 29, 0, 30, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(before), Some(night));
         // 01:00 UTC = 03:00 CEST — the clock jumped straight past the window's end.
-        let after = Utc.with_ymd_and_hms(2026, 3, 29, 1, 0, 0).unwrap();
+        let after = Timestamp::from_ymd_hms(2026, 3, 29, 1, 0, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(after), Some(day));
         let switch = schedule
             .next_switch_after(before)
             .expect("a switch follows");
-        assert_eq!(switch, Utc.with_ymd_and_hms(2026, 3, 29, 1, 0, 0).unwrap());
+        assert_eq!(
+            switch,
+            Timestamp::from_ymd_hms(2026, 3, 29, 1, 0, 0).expect("a valid instant")
+        );
     }
 
     #[test]
@@ -294,16 +301,18 @@ mod tests {
         // Germany repeats 02:00–03:00 local on 2026-10-25 (CEST then CET).
         let schedule = berlin(vec![window(night, 2 * 60 + 30, 6 * 60, 0)], Some(day));
         // 00:00 UTC = 02:00 CEST — before the window starts.
-        let first_pass = Utc.with_ymd_and_hms(2026, 10, 25, 0, 0, 0).unwrap();
+        let first_pass = Timestamp::from_ymd_hms(2026, 10, 25, 0, 0, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(first_pass), Some(day));
         // 00:45 UTC = 02:45 CEST — inside the window on its first pass.
-        let inside_first = Utc.with_ymd_and_hms(2026, 10, 25, 0, 45, 0).unwrap();
+        let inside_first =
+            Timestamp::from_ymd_hms(2026, 10, 25, 0, 45, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(inside_first), Some(night));
         // 01:15 UTC = 02:15 CET — the repeated hour, before the window starts again.
-        let repeated = Utc.with_ymd_and_hms(2026, 10, 25, 1, 15, 0).unwrap();
+        let repeated = Timestamp::from_ymd_hms(2026, 10, 25, 1, 15, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(repeated), Some(day));
         // 01:45 UTC = 02:45 CET — inside again on the second pass.
-        let inside_second = Utc.with_ymd_and_hms(2026, 10, 25, 1, 45, 0).unwrap();
+        let inside_second =
+            Timestamp::from_ymd_hms(2026, 10, 25, 1, 45, 0).expect("a valid instant");
         assert_eq!(schedule.active_at(inside_second), Some(night));
     }
 
@@ -311,7 +320,7 @@ mod tests {
     fn period_keys_follow_the_schedule_timezone_not_utc() {
         let schedule = berlin(Vec::new(), None);
         // 2026-08-31 23:30 UTC is already 2026-09-01 in Berlin (CEST, UTC+2).
-        let instant = Utc.with_ymd_and_hms(2026, 8, 31, 23, 30, 0).unwrap();
+        let instant = Timestamp::from_ymd_hms(2026, 8, 31, 23, 30, 0).expect("a valid instant");
         assert_eq!(schedule.day_key(instant), "2026-09-01");
         assert_eq!(schedule.month_key(instant), "2026-09");
     }
@@ -319,7 +328,7 @@ mod tests {
     #[test]
     fn a_schedule_without_windows_never_switches() {
         let schedule = berlin(Vec::new(), Some(BandwidthProfileId::new()));
-        let now = Utc.with_ymd_and_hms(2026, 1, 15, 12, 0, 0).unwrap();
+        let now = Timestamp::from_ymd_hms(2026, 1, 15, 12, 0, 0).expect("a valid instant");
         assert!(schedule.next_switch_after(now).is_none());
     }
 }

@@ -9,8 +9,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
-use chrono::{Duration, SubsecRound, Utc};
 use clap::{Args, Subcommand};
+use rd_core::{SignedDuration, Timestamp};
 use rd_plugin_host::index::{self, PluginIndex, Revocations};
 
 /// The environment variable the release workflow hands the repository key in.
@@ -156,16 +156,16 @@ async fn build(args: &BuildArgs) -> Result<()> {
             .then_with(|| left.version.cmp(&right.version))
     });
 
-    let issued_at = Utc::now().trunc_subsecs(0);
+    let issued_at = Timestamp::now().trunc_subsecs(0);
     let sequence = match args.sequence {
         Some(sequence) => sequence,
-        None => u64::try_from(issued_at.timestamp()).context("the clock is before 1970")?,
+        None => u64::try_from(issued_at.unix_seconds()).context("the clock is before 1970")?,
     };
     let plugin_index = PluginIndex {
         schema_version: index::PLUGIN_INDEX_SCHEMA_VERSION,
         sequence,
         issued_at,
-        not_after: issued_at + Duration::days(args.valid_days),
+        not_after: issued_at + SignedDuration::from_hours(24 * args.valid_days),
         packages,
         revoked,
     };
@@ -282,7 +282,7 @@ async fn verify(args: &VerifyArgs) -> Result<()> {
     let bytes = tokio::fs::read(&args.file)
         .await
         .with_context(|| format!("read index {}", args.file.display()))?;
-    let verified = index::verify(&bytes, None, Utc::now()).map_err(|error| {
+    let verified = index::verify(&bytes, None, Timestamp::now()).map_err(|error| {
         anyhow!(
             "{} does not verify ({}): {error}",
             args.file.display(),
@@ -303,9 +303,10 @@ async fn verify(args: &VerifyArgs) -> Result<()> {
     };
     let previous = match &args.previous {
         Some(path) => {
-            let roots = rd_sign::trust_store_for(rd_sign::Role::Repository, Utc::now()).map_err(
-                |error| anyhow!("no repository root to read the previous index: {error}"),
-            )?;
+            let roots = rd_sign::trust_store_for(rd_sign::Role::Repository, Timestamp::now())
+                .map_err(|error| {
+                    anyhow!("no repository root to read the previous index: {error}")
+                })?;
             Some(read_previous(path, &roots).await?)
         }
         None => None,

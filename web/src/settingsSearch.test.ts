@@ -207,6 +207,7 @@ describe('the settings search registry (RD-170-15)', () => {
       'linkgrabber.dlc': 'containers',
       'linkgrabber.mirrors': 'general',
       'linkgrabber.duplicates_history': 'general',
+      'linkgrabber.hand_over': 'general',
       'linkgrabber.link_filters': 'filters'
     })
     expect(tabs('interface')).toEqual({

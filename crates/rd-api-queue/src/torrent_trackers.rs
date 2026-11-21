@@ -24,7 +24,7 @@ pub struct TrackerView {
     pub url: String,
     pub tier: u16,
     pub origin: TrackerOrigin,
-    pub last_announce_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_announce_at: Option<rd_core::Timestamp>,
     /// Redaction-safe reason of the last failure.
     pub last_error: Option<String>,
     pub scrape: Option<TrackerScrape>,
@@ -34,7 +34,7 @@ pub struct TrackerView {
 }
 
 impl TrackerView {
-    fn new(tracker: &TorrentTracker, now: chrono::DateTime<chrono::Utc>) -> Self {
+    fn new(tracker: &TorrentTracker, now: rd_core::Timestamp) -> Self {
         Self {
             id: tracker.id.clone(),
             url: redact_tracker_url(&tracker.url),
@@ -262,7 +262,7 @@ pub async fn scrape_trackers(
 
 /// Builds the redacted list response.
 fn view(state: &AppState, metadata: Option<&rd_core::TorrentMetadataInfo>) -> TrackerListResponse {
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     TrackerListResponse {
         trackers: metadata
             .map(|metadata| {

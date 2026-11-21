@@ -108,7 +108,7 @@ pub(super) async fn finish(
                 client_id: config.client_id.clone(),
                 subject: identity.subject,
                 label,
-                linked_at: chrono::Utc::now(),
+                linked_at: rd_core::Timestamp::now(),
             };
             let stored = oidc_client::store(state, oidc_client::IDENTITY_SETTING, Some(&linked))
                 .await
@@ -212,7 +212,7 @@ pub(super) async fn redeem_and_verify(
         client_id: &config.client_id,
         nonce: &flow.nonce,
         flow_started_at: flow.started_at,
-        now: chrono::Utc::now().timestamp(),
+        now: rd_core::Timestamp::now().unix_seconds(),
         algorithms: &algorithms,
     };
     state

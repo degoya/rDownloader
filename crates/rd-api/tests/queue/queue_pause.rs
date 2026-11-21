@@ -45,7 +45,7 @@ async fn a_timed_pause_stops_the_queue_until_it_is_ended() {
     assert_eq!(idle["paused"], false);
     assert!(idle["until"].is_null(), "{idle}");
 
-    let before = chrono::Utc::now();
+    let before = rd_core::Timestamp::now();
     let (status, paused) = common::put_json(
         router,
         "/api/v1/queue/pause",
@@ -55,14 +55,17 @@ async fn a_timed_pause_stops_the_queue_until_it_is_ended() {
     assert_eq!(status, StatusCode::OK, "{paused}");
     assert_eq!(paused["paused"], true);
     assert_eq!(paused["files"], 1);
-    let until: chrono::DateTime<chrono::Utc> = paused["until"]
+    let until: rd_core::Timestamp = paused["until"]
         .as_str()
         .expect("until")
         .parse()
         .expect("a time");
-    assert!(until >= before + chrono::Duration::minutes(30), "{paused}");
     assert!(
-        until <= chrono::Utc::now() + chrono::Duration::minutes(30),
+        until >= before + rd_core::SignedDuration::from_mins(30),
+        "{paused}"
+    );
+    assert!(
+        until <= rd_core::Timestamp::now() + rd_core::SignedDuration::from_mins(30),
         "{paused}"
     );
     assert_eq!(state_of(router, &id).await, "paused");
@@ -83,8 +86,8 @@ async fn a_timed_pause_stops_the_queue_until_it_is_ended() {
 async fn an_end_time_is_kept_as_given() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::parked_harness(directory.path()).await;
-    let until = (chrono::Utc::now() + chrono::Duration::hours(3))
-        .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let until = (rd_core::Timestamp::now() + rd_core::SignedDuration::from_hours(3))
+        .to_rfc3339_opts(rd_core::SecondsFormat::Secs, true);
 
     let (status, paused) = common::put_json(
         &harness.router,
@@ -94,12 +97,12 @@ async fn an_end_time_is_kept_as_given() {
     .await;
 
     assert_eq!(status, StatusCode::OK, "{paused}");
-    let answered: chrono::DateTime<chrono::Utc> = paused["until"]
+    let answered: rd_core::Timestamp = paused["until"]
         .as_str()
         .expect("until")
         .parse()
         .expect("time");
-    let asked: chrono::DateTime<chrono::Utc> = until.parse().expect("time");
+    let asked: rd_core::Timestamp = until.parse().expect("time");
     assert_eq!(answered, asked);
     assert_eq!(
         paused["files"], 0,
@@ -111,7 +114,7 @@ async fn an_end_time_is_kept_as_given() {
 async fn an_end_that_is_missing_past_or_too_far_is_refused() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = common::parked_harness(directory.path()).await;
-    let past = (chrono::Utc::now() - chrono::Duration::minutes(5)).to_rfc3339();
+    let past = (rd_core::Timestamp::now() - rd_core::SignedDuration::from_mins(5)).to_rfc3339();
     for body in [
         serde_json::json!({}),
         serde_json::json!({ "minutes": 0 }),

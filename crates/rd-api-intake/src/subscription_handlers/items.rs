@@ -21,7 +21,7 @@ pub struct SubscriptionPendingStateRequest {
     /// list as the reader last saw it drawn — every page of it, but no hit that arrived after.
     /// Combines with `item_ids`.
     #[serde(default)]
-    pub until: Option<chrono::DateTime<chrono::Utc>>,
+    pub until: Option<rd_core::Timestamp>,
 }
 
 /// Sets every item that was pending when this request started, or the named ones of them, or

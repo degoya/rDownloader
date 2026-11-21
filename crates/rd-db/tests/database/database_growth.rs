@@ -2,8 +2,7 @@
 //! not persisted, an old skipped or dismissed subscription item keeps only its key — and stays
 //! recognised by it — and the free pages go back to the file system without a rewrite.
 
-use chrono::{Duration, Utc};
-use rd_core::{EventKind, SubscriptionItemState};
+use rd_core::{EventKind, SignedDuration, SubscriptionItemState, Timestamp};
 use rd_db::{Database, NewIndexer, NewSubscription, NewSubscriptionItem};
 use sqlx::{Connection, SqliteConnection};
 use tempfile::TempDir;
@@ -75,7 +74,7 @@ fn item(key: &str, state: SubscriptionItemState) -> NewSubscriptionItem {
 /// Moves every item of the archive `days` into the past.
 async fn age_items(connection: &mut SqliteConnection, days: i64) {
     sqlx::query("UPDATE subscription_items SET discovered_at = ?")
-        .bind(Utc::now() - Duration::days(days))
+        .bind(Timestamp::now() - SignedDuration::from_hours(24 * days))
         .execute(connection)
         .await
         .expect("age items");
@@ -148,7 +147,7 @@ async fn a_compacted_item_keeps_its_key_and_a_poll_that_lists_it_again_brings_no
         .expect("record");
     age_items(&mut connection, 120).await;
 
-    let before = Utc::now() - Duration::days(30);
+    let before = Timestamp::now() - SignedDuration::from_hours(24 * 30);
     let storage = database
         .database_storage(Some(before))
         .await
@@ -231,7 +230,7 @@ async fn items_inside_the_retention_and_a_retention_of_zero_keep_their_rows() {
         .expect("record");
     age_items(&mut connection, 10).await;
 
-    let before = Utc::now() - Duration::days(30);
+    let before = Timestamp::now() - SignedDuration::from_hours(24 * 30);
     assert_eq!(
         database
             .compact_subscription_items(before)
@@ -263,7 +262,7 @@ async fn clearing_the_history_or_deleting_the_subscription_forgets_the_keys() {
         .expect("record");
     age_items(&mut connection, 120).await;
     database
-        .compact_subscription_items(Utc::now() - Duration::days(30))
+        .compact_subscription_items(Timestamp::now() - SignedDuration::from_hours(24 * 30))
         .await
         .expect("compact");
 
@@ -287,7 +286,7 @@ async fn clearing_the_history_or_deleting_the_subscription_forgets_the_keys() {
         .expect("record");
     age_items(&mut connection, 120).await;
     database
-        .compact_subscription_items(Utc::now() - Duration::days(30))
+        .compact_subscription_items(Timestamp::now() - SignedDuration::from_hours(24 * 30))
         .await
         .expect("compact");
     database
@@ -329,7 +328,7 @@ async fn a_new_file_is_incremental_and_hands_its_free_pages_back() {
     assert!(full.item_bytes > 3_000_000, "{full:?}");
     assert_eq!(
         database
-            .compact_subscription_items(Utc::now() - Duration::days(30))
+            .compact_subscription_items(Timestamp::now() - SignedDuration::from_hours(24 * 30))
             .await
             .expect("compact"),
         3_000

@@ -1,8 +1,7 @@
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, Utc};
 use rd_core::{
     ByteCount, DownloadFile, DownloadId, DownloadPackage, DownloadState, ExpectedChecksum,
-    PackageId,
+    PackageId, Timestamp,
 };
 use sqlx::FromRow;
 use url::Url;
@@ -115,7 +114,7 @@ pub(crate) struct PackageRow {
     name: String,
     state: String,
     destination: String,
-    created_at: DateTime<Utc>,
+    created_at: Timestamp,
     category_id: Option<String>,
     priority: i64,
     position: i64,
@@ -128,9 +127,9 @@ pub(crate) struct PackageRow {
     postprocess_percent: Option<i64>,
     postprocess_current: Option<String>,
     extraction_result: Option<String>,
-    completed_at: Option<DateTime<Utc>>,
+    completed_at: Option<Timestamp>,
     enrichment_json: Option<String>,
-    start_after: Option<DateTime<Utc>>,
+    start_after: Option<Timestamp>,
     download_window_json: Option<String>,
 }
 
@@ -144,7 +143,7 @@ struct DownloadRow {
     total_bytes: Option<i64>,
     committed_bytes: i64,
     retry_count: i64,
-    next_retry_at: Option<DateTime<Utc>>,
+    next_retry_at: Option<Timestamp>,
     checksum_algorithm: Option<String>,
     checksum_value: Option<String>,
     computed_checksum_algorithm: Option<String>,
@@ -163,8 +162,8 @@ struct DownloadRow {
     mirror_group: Option<String>,
     recovery: bool,
     enrichment_json: Option<String>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
 }
 
 /// Reads the `kind` column back, through the same serde representation that wrote it.

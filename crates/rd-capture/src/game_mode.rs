@@ -16,8 +16,7 @@
 //! [`Guard`] decides and `detect` looks, both ungated so they are tested on Linux; the
 //! system calls behind `detect` are the only platform parts.
 
-use chrono::{DateTime, Utc};
-use rd_core::{CaptureAgentSettings, CaptureGameMode, GameModeAction};
+use rd_core::{CaptureAgentSettings, CaptureGameMode, GameModeAction, SignedDuration, Timestamp};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
@@ -48,7 +47,7 @@ pub(crate) const QUEUE_CONTROL_UNKNOWN: &str =
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Held {
     /// Set or renewed until then.
-    Until(DateTime<Utc>),
+    Until(Timestamp),
     /// Not set: somebody else's pause or switch holds, the agent's own was ended or changed, or
     /// game mode is off on the service.
     Refused,
@@ -82,7 +81,7 @@ pub(crate) enum Guard {
     Idle,
     /// The agent's own hold, ending at `until`, of the kind `action`.
     Holding {
-        until: DateTime<Utc>,
+        until: Timestamp,
         action: GameModeAction,
     },
     /// Somebody ended or changed the agent's hold while the trigger lasted: theirs from now on,
@@ -96,22 +95,17 @@ pub(crate) enum Step {
     Wait,
     /// A new hold, or the renewal of the agent's own ending at `renews`.
     Hold {
-        renews: Option<DateTime<Utc>>,
+        renews: Option<Timestamp>,
     },
     /// Lift the agent's own hold ending at `until`.
     Release {
-        until: DateTime<Utc>,
+        until: Timestamp,
     },
 }
 
 impl Guard {
     /// The next call for whether a trigger holds, the action the settings name and the time.
-    pub(crate) fn step(
-        &mut self,
-        triggered: bool,
-        action: GameModeAction,
-        now: DateTime<Utc>,
-    ) -> Step {
+    pub(crate) fn step(&mut self, triggered: bool, action: GameModeAction, now: Timestamp) -> Step {
         match *self {
             Self::Idle if triggered => Step::Hold { renews: None },
             Self::Idle => Step::Wait,
@@ -122,7 +116,7 @@ impl Guard {
             } if !triggered || held != action => Step::Release { until },
             Self::Holding { until, .. } => {
                 let renew_before =
-                    chrono::Duration::minutes(rd_core::GAME_MODE_RENEW_BEFORE_MINUTES);
+                    SignedDuration::from_mins(rd_core::GAME_MODE_RENEW_BEFORE_MINUTES);
                 if until - now <= renew_before {
                     Step::Hold {
                         renews: Some(until),
@@ -204,7 +198,7 @@ async fn watch_desktop(
             }
             last = current.clone();
         }
-        let step = guard.step(current.is_some(), mode.action, Utc::now());
+        let step = guard.step(current.is_some(), mode.action, Timestamp::now());
         let outcome = match step {
             Step::Wait => Ok(()),
             Step::Hold { renews } => client

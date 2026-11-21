@@ -17,9 +17,8 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use rd_api_core::notify_notice::{Notice, announce};
-use rd_core::AuditAction;
+use rd_core::{AuditAction, Timestamp};
 use rd_update::auto_install::{AutoInstall, Moment, Wait};
 
 use crate::audit::{Actor, AuditContext, AuditEvent};
@@ -54,7 +53,7 @@ pub fn start(state: &AppState) {
         let mut installer = AutoInstaller::default();
         loop {
             tokio::time::sleep(TICK).await;
-            installer.tick(&state, Utc::now()).await;
+            installer.tick(&state, Timestamp::now()).await;
         }
     });
 }
@@ -62,7 +61,7 @@ pub fn start(state: &AppState) {
 impl AutoInstaller {
     /// One look at `now`: announces how the last install ended, then installs when the time has
     /// come.
-    pub async fn tick(&mut self, state: &AppState, now: DateTime<Utc>) -> Tick {
+    pub async fn tick(&mut self, state: &AppState, now: Timestamp) -> Tick {
         self.announce_outcome(state).await;
         let updates = &state.admin.updates;
         let settings = updates.settings().await;
@@ -192,7 +191,7 @@ pub(crate) async fn busy(state: &AppState) -> bool {
 }
 
 /// Minutes after midnight in the installation's time zone (`bandwidth_timezone`).
-pub(crate) async fn local_minute(state: &AppState, now: DateTime<Utc>) -> u16 {
+pub(crate) async fn local_minute(state: &AppState, now: Timestamp) -> u16 {
     let timezone = match state
         .database
         .get_setting(rd_db::SERVICE_SETTINGS_KEY)
@@ -203,5 +202,5 @@ pub(crate) async fn local_minute(state: &AppState, now: DateTime<Utc>) -> u16 {
         _ => None,
     }
     .unwrap_or_else(rd_limits::default_timezone);
-    rd_limits::local_position(timezone, now).1
+    rd_limits::local_position(timezone.as_jiff(), now).1
 }

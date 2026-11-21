@@ -17,7 +17,7 @@
 
 use std::sync::{Arc, Mutex, RwLock};
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_update::restart::{Environment, RestartHow, RestartPlan, Supervisor, decide_how};
 use rd_update::{InstallKind, RESTART_EXIT_CODE};
 
@@ -31,7 +31,7 @@ pub type Relauncher = Arc<dyn Fn(&RestartPlan) -> anyhow::Result<()> + Send + Sy
 pub struct RestartState(Arc<Inner>);
 
 struct Inner {
-    started_at: DateTime<Utc>,
+    started_at: Timestamp,
     environment: RwLock<Environment>,
     relauncher: RwLock<Relauncher>,
     recorded: Mutex<Vec<RestartReason>>,
@@ -45,7 +45,7 @@ impl Default for RestartState {
     fn default() -> Self {
         let relauncher: Relauncher = Arc::new(rd_update::restart::launch_relauncher);
         Self(Arc::new(Inner {
-            started_at: Utc::now(),
+            started_at: Timestamp::now(),
             environment: RwLock::new(Environment::detect()),
             relauncher: RwLock::new(relauncher),
             recorded: Mutex::new(Vec::new()),
@@ -82,7 +82,7 @@ impl RestartState {
 
     /// When this process started.
     #[must_use]
-    pub fn started_at(&self) -> DateTime<Utc> {
+    pub fn started_at(&self) -> Timestamp {
         self.0.started_at
     }
 

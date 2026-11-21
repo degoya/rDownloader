@@ -116,6 +116,36 @@
   "optionsInterceptHint": {
     "message": "Downloads started in the browser are paused and handed to rDownloader. Requires a capture token."
   },
+  "optionsInterceptMode": {
+    "message": "Which downloads"
+  },
+  "optionsInterceptModeAll": {
+    "message": "All downloads"
+  },
+  "optionsInterceptModeOnly": {
+    "message": "Only these file types"
+  },
+  "optionsInterceptModeExcept": {
+    "message": "All except these file types"
+  },
+  "optionsInterceptTypes": {
+    "message": "File types"
+  },
+  "optionsInterceptTypesHint": {
+    "message": "File extensions separated by spaces or commas, e.g. .dlc .nzb; dlc and *.dlc mean the same. A download is recognised by its file name, its address or the name the site gives it."
+  },
+  "optionsInterceptTypesInvalid": {
+    "message": "Not a file extension, ignored: $1."
+  },
+  "optionsInterceptTypesTooMany": {
+    "message": "Only the first $1 file types are used."
+  },
+  "optionsInterceptTypesEmpty": {
+    "message": "The list is empty: no download is taken over."
+  },
+  "optionsInterceptTypesBrowserOnly": {
+    "message": "$1: the browser downloads these itself. They go to rDownloader only from a site you allowed below; otherwise they stay in the browser."
+  },
   "menuSession": {
     "message": "Share session for this site with rDownloader"
   },

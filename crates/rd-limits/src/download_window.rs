@@ -5,9 +5,8 @@
 //! ([`covers_local`]), so a window that wraps midnight or meets a daylight-saving change behaves
 //! exactly like a schedule window would.
 
-use chrono::{DateTime, Utc};
-use chrono_tz::Tz;
-use rd_core::DownloadWindow;
+use jiff::tz::TimeZone;
+use rd_core::{DownloadWindow, Timestamp};
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -25,7 +24,7 @@ pub enum DownloadHold {
 
 /// Whether `window` lets its package download at `now`; a window without spans always does.
 #[must_use]
-pub fn window_open(window: &DownloadWindow, timezone: Tz, now: DateTime<Utc>) -> bool {
+pub fn window_open(window: &DownloadWindow, timezone: &TimeZone, now: Timestamp) -> bool {
     if window.windows.is_empty() {
         return true;
     }
@@ -51,8 +50,8 @@ pub fn window_open(window: &DownloadWindow, timezone: Tz, now: DateTime<Utc>) ->
 pub fn package_hold(
     window: Option<&DownloadWindow>,
     schedule_pauses: bool,
-    timezone: Tz,
-    now: DateTime<Utc>,
+    timezone: &TimeZone,
+    now: Timestamp,
 ) -> Option<DownloadHold> {
     if window.is_some_and(|window| !window_open(window, timezone, now)) {
         return Some(DownloadHold::Window);

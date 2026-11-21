@@ -1,7 +1,6 @@
 //! The persisted shape of an automation: what fires it, what has to hold, what it does.
 
-use chrono::{DateTime, Utc};
-use rd_core::{AutomationId, AutomationRunId, AutomationVersionId, CategoryId};
+use rd_core::{AutomationId, AutomationRunId, AutomationVersionId, CategoryId, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -30,8 +29,8 @@ pub struct Automation {
     pub enabled: bool,
     /// Version number of the definition currently in force.
     pub version: u32,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 /// One immutable definition of an automation.
@@ -46,7 +45,7 @@ pub struct AutomationVersion {
     pub schedule: Option<Schedule>,
     pub condition: ConditionNode,
     pub actions: Vec<Action>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
 }
 
 /// What starts an automation.
@@ -290,11 +289,11 @@ pub struct Run {
     /// Index of the action being executed or waiting to be retried.
     pub action_index: u32,
     pub attempt: u32,
-    pub next_attempt_at: Option<DateTime<Utc>>,
+    pub next_attempt_at: Option<Timestamp>,
     /// Redacted outcome of the last attempt.
     pub message: Option<String>,
-    pub started_at: DateTime<Utc>,
-    pub finished_at: Option<DateTime<Utc>>,
+    pub started_at: Timestamp,
+    pub finished_at: Option<Timestamp>,
 }
 
 /// Why an automation definition cannot be stored or enabled.

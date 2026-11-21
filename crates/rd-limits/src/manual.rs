@@ -6,8 +6,7 @@
 //! choosing, or none at all, in which case only switching back ends it. Once the end has passed
 //! the schedule is in charge again; nothing here remembers the choice beyond that.
 
-use chrono::{DateTime, Utc};
-use rd_core::BandwidthProfileId;
+use rd_core::{BandwidthProfileId, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -34,8 +33,8 @@ pub struct ManualProfile {
     pub profile_id: Option<BandwidthProfileId>,
     pub ends: ManualEnd,
     /// When the schedule takes over again; empty while the switch has no end.
-    pub until: Option<DateTime<Utc>>,
-    pub switched_at: DateTime<Utc>,
+    pub until: Option<Timestamp>,
+    pub switched_at: Timestamp,
 }
 
 impl ManualProfile {
@@ -45,9 +44,9 @@ impl ManualProfile {
     pub fn new(
         profile_id: Option<BandwidthProfileId>,
         ends: ManualEnd,
-        at: Option<DateTime<Utc>>,
+        at: Option<Timestamp>,
         schedule: &WeeklySchedule,
-        now: DateTime<Utc>,
+        now: Timestamp,
     ) -> Self {
         let until = match ends {
             ManualEnd::NextSwitch => schedule.next_switch_after(now),
@@ -64,22 +63,21 @@ impl ManualProfile {
 
     /// Whether the switch still holds at `now`.
     #[must_use]
-    pub fn in_force(&self, now: DateTime<Utc>) -> bool {
+    pub fn in_force(&self, now: Timestamp) -> bool {
         self.until.is_none_or(|until| now < until)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, TimeZone, Utc};
-    use rd_core::BandwidthProfileId;
+    use rd_core::{BandwidthProfileId, SignedDuration, Timestamp};
 
     use super::{ManualEnd, ManualProfile};
     use crate::{DaySet, ScheduleWindow, WeeklySchedule};
 
     fn schedule_with_window(start_minute: u16, end_minute: u16) -> WeeklySchedule {
         WeeklySchedule {
-            timezone: chrono_tz::Tz::UTC,
+            timezone: rd_core::IanaZone::utc(),
             default_profile_id: None,
             windows: vec![ScheduleWindow {
                 id: rd_core::BandwidthWindowId::new(),
@@ -96,28 +94,19 @@ mod tests {
     #[test]
     fn until_the_next_switch_is_fixed_when_the_switch_is_made() {
         // 10:00 UTC, inside a window that ends at 12:00.
-        let now = Utc
-            .with_ymd_and_hms(2026, 10, 2, 10, 0, 0)
-            .single()
-            .expect("time");
+        let now = Timestamp::from_ymd_hms(2026, 10, 2, 10, 0, 0).expect("time");
         let schedule = schedule_with_window(8 * 60, 12 * 60);
         let manual = ManualProfile::new(None, ManualEnd::NextSwitch, None, &schedule, now);
 
-        let noon = Utc
-            .with_ymd_and_hms(2026, 10, 2, 12, 0, 0)
-            .single()
-            .expect("time");
+        let noon = Timestamp::from_ymd_hms(2026, 10, 2, 12, 0, 0).expect("time");
         assert_eq!(manual.until, Some(noon));
-        assert!(manual.in_force(noon - Duration::seconds(1)));
+        assert!(manual.in_force(noon - SignedDuration::from_secs(1)));
         assert!(!manual.in_force(noon));
     }
 
     #[test]
     fn a_schedule_without_a_change_ahead_leaves_the_switch_open() {
-        let now = Utc
-            .with_ymd_and_hms(2026, 10, 2, 10, 0, 0)
-            .single()
-            .expect("time");
+        let now = Timestamp::from_ymd_hms(2026, 10, 2, 10, 0, 0).expect("time");
         let manual = ManualProfile::new(
             Some(BandwidthProfileId::new()),
             ManualEnd::NextSwitch,
@@ -126,25 +115,22 @@ mod tests {
             now,
         );
         assert_eq!(manual.until, None);
-        assert!(manual.in_force(now + Duration::days(365)));
+        assert!(manual.in_force(now + SignedDuration::from_hours(24 * 365)));
     }
 
     #[test]
     fn a_chosen_time_ends_it_and_never_does_not() {
-        let now = Utc
-            .with_ymd_and_hms(2026, 10, 2, 10, 0, 0)
-            .single()
-            .expect("time");
-        let later = now + Duration::hours(3);
+        let now = Timestamp::from_ymd_hms(2026, 10, 2, 10, 0, 0).expect("time");
+        let later = now + SignedDuration::from_hours(3);
         let schedule = WeeklySchedule::default();
 
         let timed = ManualProfile::new(None, ManualEnd::At, Some(later), &schedule, now);
-        assert!(timed.in_force(later - Duration::minutes(1)));
+        assert!(timed.in_force(later - SignedDuration::from_mins(1)));
         assert!(!timed.in_force(later));
 
         // A time handed in with `never` is not read.
         let open = ManualProfile::new(None, ManualEnd::Never, Some(later), &schedule, now);
         assert_eq!(open.until, None);
-        assert!(open.in_force(later + Duration::days(30)));
+        assert!(open.in_force(later + SignedDuration::from_hours(24 * 30)));
     }
 }

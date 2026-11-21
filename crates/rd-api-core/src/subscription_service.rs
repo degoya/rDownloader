@@ -53,7 +53,7 @@ pub use intake::{SubscriptionIntake, hand_urls_to_intake};
 
 /// Where the poller reads the time from: the wall clock in production, a hand-moved one in a
 /// test (RD-130-19).
-pub(crate) type Clock = Arc<dyn Fn() -> chrono::DateTime<chrono::Utc> + Send + Sync>;
+pub(crate) type Clock = Arc<dyn Fn() -> rd_core::Timestamp + Send + Sync>;
 
 struct Inner {
     database: Database,
@@ -88,7 +88,7 @@ impl SubscriptionService {
             media_settings,
             gallery_settings,
             adapters,
-            Arc::new(chrono::Utc::now),
+            Arc::new(rd_core::Timestamp::now),
         )
     }
 
@@ -135,7 +135,7 @@ impl SubscriptionService {
         }
     }
 
-    fn now(&self) -> chrono::DateTime<chrono::Utc> {
+    fn now(&self) -> rd_core::Timestamp {
         (self.inner.clock)()
     }
 

@@ -2,7 +2,7 @@
 //! served web page instead of writing it to disk as the file.
 
 use anyhow::Result;
-use rd_core::{DownloadFile, Failure, FailureKind};
+use rd_core::{DownloadFile, Failure, FailureKind, Timestamp};
 use rd_http::HttpDownloadError;
 
 use crate::{SchedulerHandle, retry};
@@ -73,7 +73,7 @@ async fn hand_over(
     scheduler: &SchedulerHandle,
     file: &DownloadFile,
     failure: Failure,
-    retry_at: Option<chrono::DateTime<chrono::Utc>>,
+    retry_at: Option<Timestamp>,
 ) -> Result<()> {
     let downloads = scheduler
         .database
@@ -331,7 +331,7 @@ pub(crate) async fn record_http_error_with_replay(
         scheduler.clients.clear().await;
         scheduler
             .database
-            .record_failure(file.id, failure, Some(chrono::Utc::now()))
+            .record_failure(file.id, failure, Some(Timestamp::now()))
             .await?;
         return Ok(());
     }

@@ -197,11 +197,11 @@ async fn age(
     let pool = sqlx::SqlitePool::connect(&format!("sqlite://{}", harness.database_path.display()))
         .await
         .expect("pool");
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     let changed =
         sqlx::query("UPDATE sessions SET created_at = ?, last_used_at = ? WHERE token_sha256 = ?")
-            .bind(now - chrono::Duration::hours(signed_in_hours_ago))
-            .bind(now - chrono::Duration::hours(used_hours_ago))
+            .bind(now - rd_core::SignedDuration::from_hours(signed_in_hours_ago))
+            .bind(now - rd_core::SignedDuration::from_hours(used_hours_ago))
             .bind(hex::encode(Sha256::digest(token.as_bytes())))
             .execute(&pool)
             .await

@@ -199,7 +199,7 @@ fn candidate(url: &str, provider: Option<&str>) -> LinkCandidate {
         "error_code": null,
         "package_id": null,
         "checked_at": null,
-        "created_at": chrono::Utc::now(),
+        "created_at": rd_core::Timestamp::now(),
     }))
     .expect("a candidate")
 }

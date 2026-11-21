@@ -224,7 +224,7 @@ impl IndexerAdapter {
             // after the pause starts from the archive again and nothing falls between them.
             if refusal.number() == Some(REQUEST_LIMIT_CODE) {
                 return Err(RateLimited::after(
-                    chrono::Utc::now(),
+                    rd_core::Timestamp::now(),
                     Some(REQUEST_LIMIT_PAUSE_SECONDS),
                 )
                 .into());

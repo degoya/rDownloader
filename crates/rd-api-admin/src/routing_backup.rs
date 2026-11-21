@@ -11,7 +11,7 @@ use axum::{
     Json,
     extract::{Query, State},
 };
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -95,7 +95,7 @@ pub struct BundleRoutingRule {
 pub struct RoutingBundle {
     pub format: String,
     pub version: u32,
-    pub exported_at: DateTime<Utc>,
+    pub exported_at: Timestamp,
     pub app_version: String,
     #[serde(default)]
     pub categories: Vec<BundleRoutingCategory>,
@@ -206,7 +206,7 @@ pub async fn export_routing(
     Ok(Json(RoutingBundle {
         format: BUNDLE_FORMAT.to_owned(),
         version: BUNDLE_VERSION,
-        exported_at: Utc::now(),
+        exported_at: Timestamp::now(),
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
         categories: if part == RoutingExportPart::Rules {
             Vec::new()

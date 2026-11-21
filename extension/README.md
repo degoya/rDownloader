@@ -27,6 +27,30 @@ starts the download again from its address.
 Interception can be switched off globally in the options or with the same switch at the top of
 the toolbar popup, and each individual download can be kept in the browser from its notification.
 
+### Which file types
+
+The options decide which downloads are taken over by their file type (RD-1440-08):
+
+- **All downloads** — the default, and the behaviour before the list existed.
+- **Only these file types** — only a download of a listed type goes to rDownloader; an empty list
+  takes none.
+- **All except these file types** — every download but the listed types.
+
+The list holds file extensions separated by spaces, commas or new lines. `.dlc`, `dlc`, `*.dlc`
+and `.DLC` are the same entry; entries are lowercased, duplicates and empties dropped, and an
+entry that is no file extension (`a/b`, `x..y`) or longer than 24 characters is ignored, which
+the options page names. At most 64 entries are kept. Both are stored in `storage.local` as
+`interceptMode` (`all`, `only`, `except`) and `interceptTypes` (the normalised list).
+
+A download's type is read from the same places as below: its file name, its address and the
+address it ended at, an observed `Content-Disposition`, and the content type the browser reports
+(`application/x-nzb`, `application/x-bittorrent`, the ZIP types and the container types). The
+list decides **first**: a download it leaves out stays with the browser without a word, and
+Firefox's byte copy (below) is not even attached to it. A download it lets through goes the way
+it went before. That includes the browser-only types of the next section — **only `.dlc`**
+means a `.dlc` still reaches rDownloader only from a site you allowed, and otherwise stays in the
+browser; the options page says so next to such an entry.
+
 ### What stays in the browser
 
 The handoff carries the address, not the file: rDownloader fetches it again, without the

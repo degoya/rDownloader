@@ -5,8 +5,8 @@
 //! resolved itself is dropped and counted, so a plugin cannot rewrite a file name, a size or
 //! a provider by returning a field that happens to be called one of those.
 
-use chrono::Utc;
 use rd_core::EnrichmentField;
+use rd_core::Timestamp;
 use rd_plugin_host::{PluginManifest, extension::MetadataEnricher};
 
 use crate::PluginSet;
@@ -69,7 +69,7 @@ impl MetadataEnrichers {
                             name,
                             value: value.chars().take(MAX_VALUE).collect(),
                             plugin_id: plugin_id.clone(),
-                            fetched_at: Utc::now(),
+                            fetched_at: Timestamp::now(),
                         });
                     }
                     if dropped > 0 {

@@ -81,7 +81,7 @@ pub(crate) enum PackagesCommand {
     /// `false` when there is no such package.
     SetPackageStartAfter {
         id: rd_core::PackageId,
-        start_after: Option<chrono::DateTime<chrono::Utc>>,
+        start_after: Option<rd_core::Timestamp>,
         reply: Reply<bool>,
     },
     /// Sets or removes (`None`) the package's own download window (RD-1240-30); `false` when

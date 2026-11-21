@@ -23,7 +23,7 @@
 //!
 //! Every `sha256` and `size` here is what [`crate::download_verified`] holds a download to.
 
-use chrono::{DateTime, Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use rd_sign::{Role, SignedDocument, TrustStore, VerifyError, replay};
 use serde::{Deserialize, Serialize};
 
@@ -109,17 +109,17 @@ pub struct UpdateManifest {
     /// time in Unix seconds. Never goes backwards; see [`rd_sign::replay`].
     pub sequence: u64,
     /// When the publisher says it signed this.
-    pub issued_at: DateTime<Utc>,
+    pub issued_at: Timestamp,
     /// After this instant the manifest is stale. Required, as in the plugin index: without it a
     /// first contact would accept a replay of any manifest ever published.
-    pub not_after: DateTime<Utc>,
+    pub not_after: Timestamp,
     /// The channel this manifest is published on.
     pub channel: Channel,
     /// The offered version, SemVer without a leading `v`. A pre-release on the beta channel
     /// only, and only there.
     pub version: String,
     /// When the release was published.
-    pub released_at: DateTime<Utc>,
+    pub released_at: Timestamp,
     /// Short plain-text release notes for users, one `- ` point per line (RD-1150-02), at most
     /// [`MAX_NOTES_CHARS`] characters.
     #[serde(default)]
@@ -269,7 +269,7 @@ impl UpdateManifest {
         if self.not_after <= self.issued_at {
             return Err(invalid("not_after is not after issued_at"));
         }
-        if self.not_after - self.issued_at > Duration::days(MAX_VALIDITY_DAYS) {
+        if self.not_after - self.issued_at > SignedDuration::from_hours(24 * MAX_VALIDITY_DAYS) {
             return Err(invalid(format!(
                 "valid for longer than {MAX_VALIDITY_DAYS} days"
             )));
@@ -332,7 +332,7 @@ pub fn verify(
     bytes: &[u8],
     channel: Channel,
     floor: Option<u64>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<UpdateManifest, UpdateError> {
     let trust = release_trust(now)?;
     verify_with(bytes, &trust, channel, floor, now)
@@ -340,7 +340,7 @@ pub fn verify(
 
 /// The trust store of the compiled-in release root, or [`UpdateError::NotConfigured`] when this
 /// build carries no release key — a clear state rather than a signature error on every check.
-pub fn release_trust(now: DateTime<Utc>) -> Result<TrustStore, UpdateError> {
+pub fn release_trust(now: Timestamp) -> Result<TrustStore, UpdateError> {
     if rd_sign::keys_for(Role::Release, now).is_empty() {
         return Err(UpdateError::NotConfigured);
     }
@@ -353,7 +353,7 @@ pub fn verify_with(
     trust: &TrustStore,
     channel: Channel,
     floor: Option<u64>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<UpdateManifest, UpdateError> {
     if bytes.len() > MAX_MANIFEST_BYTES {
         return Err(UpdateError::TooLarge);

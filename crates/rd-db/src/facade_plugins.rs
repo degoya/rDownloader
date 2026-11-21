@@ -223,7 +223,7 @@ impl Database {
     /// Every remote job whose next poll is due (RD-107-06).
     pub async fn due_remote_jobs(
         &self,
-        now: chrono::DateTime<chrono::Utc>,
+        now: rd_core::Timestamp,
     ) -> Result<Vec<rd_core::RemoteJob>> {
         crate::remote_job_store::due(&self.readers, now).await
     }

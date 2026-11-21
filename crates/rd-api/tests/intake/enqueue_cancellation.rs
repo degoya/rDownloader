@@ -74,7 +74,7 @@ async fn submit(harness: &Harness) -> rd_core::CollectorPackageId {
                     name: "imdb.score".to_owned(),
                     value: "7.4".to_owned(),
                     plugin_id: "imdb-enricher".to_owned(),
-                    fetched_at: chrono::Utc::now(),
+                    fetched_at: rd_core::Timestamp::now(),
                 }],
             )
             .await

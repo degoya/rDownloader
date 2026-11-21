@@ -1,8 +1,7 @@
 //! Persistence of livestream channels watched by the recording monitor.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use rd_core::{CategoryId, EventEnvelope, EventKind, StreamChannel, StreamChannelId};
+use rd_core::{CategoryId, EventEnvelope, EventKind, StreamChannel, StreamChannelId, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::{error::StoreError, writer::insert_event};
@@ -53,7 +52,7 @@ pub(crate) async fn create(
         last_live_at: None,
         last_error: None,
         recording: input.recording,
-        created_at: Utc::now(),
+        created_at: Timestamp::now(),
     };
     let event = changed_event();
     let mut tx = connection.begin().await?;
@@ -95,7 +94,7 @@ pub(crate) async fn update(
     .bind(input.category_id.map(|id| id.to_string()))
     .bind(input.enabled)
     .bind(serde_json::to_string(&input.recording)?)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await?;
@@ -136,7 +135,7 @@ pub(crate) async fn delete(
 pub(crate) async fn touch(
     connection: &mut SqliteConnection,
     id: StreamChannelId,
-    live_at: Option<DateTime<Utc>>,
+    live_at: Option<Timestamp>,
     error: Option<String>,
 ) -> Result<EventEnvelope> {
     let event = changed_event();
@@ -147,7 +146,7 @@ pub(crate) async fn touch(
     )
     .bind(live_at)
     .bind(&error)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await?;
@@ -164,10 +163,10 @@ struct ChannelRow {
     quality: Option<String>,
     category_id: Option<String>,
     enabled: bool,
-    last_live_at: Option<DateTime<Utc>>,
+    last_live_at: Option<Timestamp>,
     last_error: Option<String>,
     recording_json: Option<String>,
-    created_at: DateTime<Utc>,
+    created_at: Timestamp,
 }
 
 impl TryFrom<ChannelRow> for StreamChannel {

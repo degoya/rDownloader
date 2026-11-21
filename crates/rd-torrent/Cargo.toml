@@ -12,7 +12,6 @@ failpoints = ["rd-core/failpoints"]
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-chrono.workspace = true
 dunce.workspace = true
 futures-util.workspace = true
 hex.workspace = true

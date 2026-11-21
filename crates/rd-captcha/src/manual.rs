@@ -6,8 +6,7 @@ use std::{
 };
 
 use base64::{Engine, engine::general_purpose::STANDARD};
-use chrono::{DateTime, Utc};
-use rd_core::CaptchaId;
+use rd_core::{CaptchaId, SignedDuration, Timestamp};
 use rd_plugin_api::{CaptchaAnswer, CaptchaChallenge};
 use serde::Serialize;
 use tokio::sync::oneshot;
@@ -72,8 +71,8 @@ pub struct PendingCaptcha {
     pub image: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub expires_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub expires_at: Timestamp,
 }
 
 /// Outcome of handing a challenge to the user.
@@ -142,7 +141,7 @@ pub struct PendingWidget {
     /// The hoster page the WebView must load; the token is only valid for this origin.
     pub page_url: String,
     pub site_key: String,
-    pub expires_at: DateTime<Utc>,
+    pub expires_at: Timestamp,
 }
 
 struct Waiting {
@@ -170,9 +169,9 @@ impl ManualQueue {
         timeout: std::time::Duration,
     ) -> (PendingCaptcha, oneshot::Receiver<Reply>) {
         let id = CaptchaId::new();
-        let created_at = Utc::now();
+        let created_at = Timestamp::now();
         let expires_at =
-            created_at + chrono::Duration::from_std(timeout).unwrap_or(chrono::Duration::zero());
+            created_at + SignedDuration::try_from(timeout).unwrap_or(SignedDuration::ZERO);
         let description = describe(id, challenge, created_at, expires_at);
         let (sender, receiver) = oneshot::channel();
         if let Ok(mut waiting) = self.waiting.lock() {
@@ -192,7 +191,7 @@ impl ManualQueue {
         let Ok(waiting) = self.waiting.lock() else {
             return true;
         };
-        let now = Utc::now();
+        let now = Timestamp::now();
         waiting
             .values()
             .filter(|entry| entry.description.expires_at > now)
@@ -209,7 +208,7 @@ impl ManualQueue {
         let Ok(mut waiting) = self.waiting.lock() else {
             return Vec::new();
         };
-        let now = Utc::now();
+        let now = Timestamp::now();
         waiting.retain(|_, entry| entry.description.expires_at > now);
         let mut pending: Vec<PendingCaptcha> = waiting
             .values()
@@ -309,8 +308,8 @@ impl ManualQueue {
 fn describe(
     id: CaptchaId,
     challenge: &CaptchaChallenge,
-    created_at: DateTime<Utc>,
-    expires_at: DateTime<Utc>,
+    created_at: Timestamp,
+    expires_at: Timestamp,
 ) -> PendingCaptcha {
     let base = PendingCaptcha {
         id,

@@ -7,8 +7,9 @@
 //! the environment's: the routes that would change it answer `diagnostics.log_level_locked`.
 
 use axum::{Json, extract::State};
-use chrono::{Duration, Utc};
-use rd_core::{LOG_DEBUG_MINUTES, LogDebugArea, LogDebugWindow, ServiceLogLevel};
+use rd_core::{
+    LOG_DEBUG_MINUTES, LogDebugArea, LogDebugWindow, ServiceLogLevel, SignedDuration, Timestamp,
+};
 use rd_diagnostics::log_filter::{self, ApplyError};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -93,7 +94,10 @@ pub async fn stop_log_debug(
 /// [`get_log_level`]'s answer, for the MCP tools too.
 pub async fn log_level_state(state: &AppState) -> Result<LogLevelResponse, ApiError> {
     let level = read_settings(state).await?.log_level;
-    let debug = log_filter::reopened(log_filter::stored_window(&state.database).await, Utc::now());
+    let debug = log_filter::reopened(
+        log_filter::stored_window(&state.database).await,
+        Timestamp::now(),
+    );
     Ok(LogLevelResponse {
         level,
         debug,
@@ -136,7 +140,7 @@ pub async fn open_debug_window(
     let window = LogDebugWindow {
         area: request.area,
         plugin_id: request.plugin_id,
-        until: Utc::now() + Duration::minutes(i64::from(request.minutes)),
+        until: Timestamp::now() + SignedDuration::from_mins(i64::from(request.minutes)),
     };
     store_window(state, Some(&window)).await?;
     let level = read_settings(state).await?.log_level;

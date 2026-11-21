@@ -91,11 +91,11 @@ function streamFilter(calls) {
   }
 }
 
-function setup(calls, { api, bytes, address } = {}) {
+function setup(calls, { api, bytes, address, config = {} } = {}) {
   const sent = { bytes: [], address: [] }
   const handover = createFileHandover({
     api,
-    loadConfig: async () => ({ ...CONFIG, interceptDownloads: true }),
+    loadConfig: async () => ({ ...CONFIG, interceptDownloads: true, ...config }),
     message: (key, substitutions) => (substitutions ? `${key}:${substitutions.join(',')}` : key),
     notify: async (body) => { calls.push(['notify', body]); return 'n1' },
     userAgent: 'Mozilla/5.0 (X11; rv:156.0) Firefox/156.0',
@@ -275,6 +275,21 @@ test('Firefox holds the copied bytes back, hands them over and gives the browser
   assert.ok(!names(calls).includes('write'), 'the browser receives none of it')
   assert.ok(!names(calls).includes('submitAddress'), 'and the address is not fetched again')
   assert.deepEqual(names(calls).slice(-4), ['cancel', 'removeFile', 'erase', 'notify'])
+})
+
+test('a type the person\'s list leaves out is not copied, one it selects is (RD-1440-08)', async () => {
+  for (const [config, copied] of [
+    [{ interceptMode: 'only', interceptTypes: ['.dlc'] }, false],
+    [{ interceptMode: 'except', interceptTypes: ['.nzb'] }, false],
+    [{ interceptMode: 'only', interceptTypes: ['.nzb'] }, true],
+    [{ interceptMode: 'except', interceptTypes: ['.zip'] }, true]
+  ]) {
+    const calls = []
+    const { api } = browser(calls, { ...ALLOWED, filter: streamFilter(calls) })
+    const { handover } = setup(calls, { api, config })
+    assert.deepEqual(await handover.onHeadersReceived(RESPONSE), {})
+    assert.equal(names(calls).includes('filter'), copied, JSON.stringify(config))
+  }
 })
 
 test('a copy rDownloader refuses reaches the browser in full', async () => {

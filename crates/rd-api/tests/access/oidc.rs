@@ -283,7 +283,7 @@ async fn o_aud_a_token_for_another_client_is_refused() {
 #[tokio::test]
 async fn o_time_an_expired_token_is_refused() {
     let world = linked_world().await;
-    let expired = chrono::Utc::now().timestamp() - 61;
+    let expired = rd_core::Timestamp::now().unix_seconds() - 61;
     let (_, headers) = sign_in_as(
         &world,
         "stale",

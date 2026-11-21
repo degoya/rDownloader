@@ -12,9 +12,16 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.44.0
+## 1.45.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.44.0
+
+- A LinkGrabber package can be handed to a remote provider such as a debrid service in one step; a setting decides whether the handed-over links then leave the LinkGrabber.
+- The browser extension can take over only the file types you list, or every type except those, for example only DLC containers.
+- Two dead video hosts are no longer offered.
+- Updated components, among them the 7z unpacker and the global shortcuts of the capture agent.
 
 ## 1.43.0
 

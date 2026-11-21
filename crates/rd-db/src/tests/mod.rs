@@ -11,6 +11,7 @@ mod automations;
 mod categories;
 mod category_name_target;
 mod collector;
+mod collector_hand_over;
 mod diagnostics;
 mod download_batches;
 mod downloads;

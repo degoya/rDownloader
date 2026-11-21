@@ -1119,7 +1119,7 @@ async fn auto_remove_takes_the_torrent_out_of_the_session() {
         .await
         .expect("complete the download");
     sqlx::query("UPDATE packages SET state = 'completed', completed_at = ? WHERE id = ?")
-        .bind(chrono::Utc::now() - chrono::Duration::hours(2))
+        .bind(rd_core::Timestamp::now() - rd_core::SignedDuration::from_hours(2))
         .bind(&package)
         .execute(&pool)
         .await

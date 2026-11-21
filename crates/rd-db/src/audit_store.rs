@@ -9,8 +9,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome};
+use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome, Timestamp};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, QueryBuilder, Sqlite, SqliteConnection, SqlitePool};
 
@@ -19,7 +18,7 @@ use crate::timestamp;
 /// One record about to be stored. Every string reached this already redacted.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NewAuditRecord {
-    pub recorded_at: DateTime<Utc>,
+    pub recorded_at: Timestamp,
     pub action: AuditAction,
     pub outcome: AuditOutcome,
     pub actor_kind: AuditActorKind,
@@ -45,7 +44,7 @@ impl NewAuditRecord {
     #[must_use]
     pub fn new(action: AuditAction, outcome: AuditOutcome) -> Self {
         Self {
-            recorded_at: Utc::now(),
+            recorded_at: Timestamp::now(),
             action,
             outcome,
             actor_kind: AuditActorKind::System,
@@ -66,7 +65,7 @@ impl NewAuditRecord {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct AuditRecord {
     pub id: i64,
-    pub recorded_at: DateTime<Utc>,
+    pub recorded_at: Timestamp,
     pub action: AuditAction,
     pub outcome: AuditOutcome,
     pub actor_kind: AuditActorKind,
@@ -94,8 +93,8 @@ pub struct AuditQuery {
     pub target_kind: Option<String>,
     pub target_id: Option<String>,
     pub trace_id: Option<String>,
-    pub since: Option<DateTime<Utc>>,
-    pub until: Option<DateTime<Utc>>,
+    pub since: Option<Timestamp>,
+    pub until: Option<Timestamp>,
     /// Records older than this id, for paging backwards.
     pub before_id: Option<i64>,
     pub limit: u32,
@@ -126,9 +125,8 @@ impl TryFrom<Row> for AuditRecord {
     type Error = anyhow::Error;
 
     fn try_from(row: Row) -> Result<Self> {
-        let recorded_at = DateTime::parse_from_rfc3339(&row.recorded_at)
-            .with_context(|| format!("audit record {} carries a bad timestamp", row.id))?
-            .with_timezone(&Utc);
+        let recorded_at = Timestamp::parse_rfc3339(&row.recorded_at)
+            .with_context(|| format!("audit record {} carries a bad timestamp", row.id))?;
         let action = AuditAction::parse(&row.action)
             .with_context(|| format!("audit record {} names action {:?}", row.id, row.action))?;
         let outcome = AuditOutcome::parse(&row.outcome)

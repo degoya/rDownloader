@@ -1,8 +1,7 @@
 //! The subscription writes: create, edit, enable, arm and delete.
 
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, Utc};
-use rd_core::{EventEnvelope, Subscription, SubscriptionId};
+use rd_core::{EventEnvelope, Subscription, SubscriptionId, Timestamp};
 use sqlx::{Connection, SqliteConnection};
 
 use super::{COLUMNS, NewSubscription, SubscriptionRow, changed_event, kind_string, mode_string};
@@ -12,7 +11,7 @@ pub(crate) async fn create(
     connection: &mut SqliteConnection,
     input: NewSubscription,
 ) -> Result<(Subscription, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let value = Subscription {
         id: SubscriptionId::new(),
         name: input.name,
@@ -162,7 +161,7 @@ pub(crate) async fn update(
     .bind(git_release.as_str())
     .bind(input.schedule.as_deref())
     .bind(input.schedule.as_deref())
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await?;
@@ -187,7 +186,7 @@ pub(crate) async fn set_enabled(
     let mut tx = connection.begin().await?;
     let result = sqlx::query("UPDATE subscriptions SET enabled = ?, updated_at = ? WHERE id = ?")
         .bind(i64::from(enabled))
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(&mut *tx)
         .await?;
@@ -214,7 +213,7 @@ pub(crate) async fn set_enabled(
 pub(crate) async fn arm(
     connection: &mut SqliteConnection,
     id: SubscriptionId,
-    next_run_at: DateTime<Utc>,
+    next_run_at: Timestamp,
 ) -> Result<bool> {
     let result = sqlx::query(
         "UPDATE subscriptions SET next_run_at = ? WHERE id = ? AND next_run_at IS NULL",

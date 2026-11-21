@@ -161,6 +161,12 @@ pub(crate) enum CollectorCommand {
     DeleteCandidates {
         reply: Reply<u64>,
     },
+    /// Removes or marks the links a hand-over sent to a provider (RD-1440-07).
+    SettleHandedOverCandidates {
+        handed: Vec<(rd_core::CandidateId, rd_core::RemoteJobId)>,
+        links: crate::HandedOverLinks,
+        reply: Reply<u64>,
+    },
     /// Decides every open link anew by the LinkFilter rules (RD-1240-09).
     ApplyLinkFilters {
         /// Counts what would change and writes nothing (RD-1310-01).

@@ -81,7 +81,7 @@ impl Database {
     pub async fn set_auth_flow_renewal(
         &self,
         account_id: rd_core::AccountId,
-        token_expires_at: Option<chrono::DateTime<chrono::Utc>>,
+        token_expires_at: Option<rd_core::Timestamp>,
         refresh_ref: Option<String>,
         access_ref: Option<String>,
     ) -> Result<()> {
@@ -188,18 +188,15 @@ impl Database {
     }
 
     /// Every open authentication flow whose next poll is due.
-    pub async fn due_auth_flows(
-        &self,
-        now: chrono::DateTime<chrono::Utc>,
-    ) -> Result<Vec<rd_core::AuthFlow>> {
+    pub async fn due_auth_flows(&self, now: rd_core::Timestamp) -> Result<Vec<rd_core::AuthFlow>> {
         crate::auth_flow_store::due(&self.readers, now).await
     }
 
     /// Every authorised flow whose access token is due for renewal by `threshold` (RD-103-00).
     pub async fn due_refresh_auth_flows(
         &self,
-        now: chrono::DateTime<chrono::Utc>,
-        threshold: chrono::DateTime<chrono::Utc>,
+        now: rd_core::Timestamp,
+        threshold: rd_core::Timestamp,
     ) -> Result<Vec<rd_core::AuthFlow>> {
         crate::auth_flow_store::due_refresh(&self.readers, now, threshold).await
     }
@@ -208,7 +205,7 @@ impl Database {
     pub async fn defer_auth_flow_renewal(
         &self,
         account_id: rd_core::AccountId,
-        next_poll_at: chrono::DateTime<chrono::Utc>,
+        next_poll_at: rd_core::Timestamp,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| AuthCommand::DeferAuthFlowRenewal {
             account_id,

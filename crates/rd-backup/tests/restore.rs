@@ -23,9 +23,9 @@ use tempfile::TempDir;
 fn pending() -> PendingRestore {
     PendingRestore {
         phase: Phase::Staged,
-        staged_at: chrono::Utc::now(),
+        staged_at: rd_core::Timestamp::now(),
         archive_name: "rdownloader-backup-test.rdbackup".to_owned(),
-        backup_created_at: chrono::Utc::now(),
+        backup_created_at: rd_core::Timestamp::now(),
         app_version: "1.6.0-windows".to_owned(),
         minted_secrets: vec!["vault://minted".to_owned()],
     }

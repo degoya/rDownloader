@@ -5,8 +5,7 @@
 //! See `migrations/0081_site_rule_checks.sql`.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind};
+use rd_core::{EventEnvelope, EventKind, Timestamp};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -57,7 +56,7 @@ pub(crate) async fn record_site_rule_checks(
     connection: &mut SqliteConnection,
     checks: Vec<NewSiteRuleCheck>,
 ) -> Result<EventEnvelope> {
-    let now = Utc::now().to_rfc3339();
+    let now = Timestamp::now().to_rfc3339();
     let mut transaction = connection.begin().await?;
     for check in &checks {
         sqlx::query(

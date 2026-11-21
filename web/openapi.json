@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.43.0"
+    "version": "1.44.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -7408,6 +7408,54 @@
           },
           "409": {
             "description": "Conflict"
+          }
+        }
+      }
+    },
+    "/api/v1/collector/packages/{id}/remote-job": {
+      "post": {
+        "tags": [
+          "collector"
+        ],
+        "summary": "Hands every link of a LinkGrabber package to one account's provider as remote jobs.",
+        "description": "Refused before anything leaves the machine when the package or the account does not exist,\nor when no installed plugin runs remote jobs on the account's provider. Past that the answer\nis `200` whatever each link's outcome: what went and what stayed are both listed.",
+        "operationId": "submit_collector_package_remote_job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/CollectorPackageId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectorPackageRemoteJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectorPackageRemoteJobResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No installed plugin runs remote jobs on the account's provider"
+          },
+          "404": {
+            "description": "The package or the account does not exist"
           }
         }
       }
@@ -23395,6 +23443,27 @@
           }
         }
       },
+      "CandidateHandedOver": {
+        "type": "object",
+        "description": "One link that reached the provider.",
+        "required": [
+          "candidate_id",
+          "job",
+          "already_running"
+        ],
+        "properties": {
+          "already_running": {
+            "type": "boolean",
+            "description": "True when the account already had a job for this content, or the link was marked with\none by an earlier hand-over. Nothing was written and nothing was sent."
+          },
+          "candidate_id": {
+            "$ref": "#/components/schemas/CandidateId"
+          },
+          "job": {
+            "$ref": "#/components/schemas/RemoteJob"
+          }
+        }
+      },
       "CandidateId": {
         "type": "string",
         "format": "uuid"
@@ -23541,6 +23610,28 @@
           "url": {
             "type": "string",
             "description": "The address, with credentials and signed query values replaced."
+          }
+        }
+      },
+      "CandidateStayed": {
+        "type": "object",
+        "description": "One link that stayed, and why.",
+        "required": [
+          "candidate_id",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "candidate_id": {
+            "$ref": "#/components/schemas/CandidateId"
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable code: `collector.remote_job_*`, `remote_job.*`, or a provider's own."
+          },
+          "message": {
+            "type": "string",
+            "description": "The English wording, shown when no catalogue translates the code."
           }
         }
       },
@@ -25929,6 +26020,53 @@
       "CollectorPackageId": {
         "type": "string",
         "format": "uuid"
+      },
+      "CollectorPackageRemoteJobRequest": {
+        "type": "object",
+        "description": "Which account's provider a LinkGrabber package goes to.",
+        "required": [
+          "account_id"
+        ],
+        "properties": {
+          "account_id": {
+            "$ref": "#/components/schemas/AccountId",
+            "description": "A remote-job account (`GET /api/v1/remote-jobs/providers` names the providers that run\nremote jobs, with `container=torrent` those that take a `.torrent` file)."
+          }
+        }
+      },
+      "CollectorPackageRemoteJobResponse": {
+        "type": "object",
+        "description": "What handing a LinkGrabber package over produced, link by link.",
+        "required": [
+          "handed_over",
+          "stayed",
+          "links_removed",
+          "package_removed"
+        ],
+        "properties": {
+          "handed_over": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateHandedOver"
+            },
+            "description": "The links that are at the provider now, each with its job."
+          },
+          "links_removed": {
+            "type": "boolean",
+            "description": "Whether the links handed over left the LinkGrabber (`linkgrabber_hand_over_remove_links`)\nor stay marked with their job."
+          },
+          "package_removed": {
+            "type": "boolean",
+            "description": "Whether the package left the LinkGrabber because no link was left in it."
+          },
+          "stayed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CandidateStayed"
+            },
+            "description": "The links that stayed in the LinkGrabber, each with the reason."
+          }
+        }
       },
       "CollectorPackageReorderRequest": {
         "type": "object",
@@ -30996,6 +31134,17 @@
             "type": "boolean",
             "description": "Whether `file_name` came from the source rather than from the link's address.\n\nIntake substitutes the address's last segment when the source names none, and the two\nlook alike afterwards; only this says which it was."
           },
+          "handed_over": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NzbHandOver",
+                "description": "The remote job this link was handed to (RD-1440-07), while that job's row exists.\n\nSet only when the setting that removes handed-over links is off: the link then stays in\nthe LinkGrabber, marked, and a second hand-over of its package sends it nowhere again.\nRemoving the job from the remote-job list clears the mark, as for an NZB import."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "hidden_by_filter": {
             "oneOf": [
               {
@@ -34019,7 +34168,7 @@
       },
       "NzbHandOver": {
         "type": "object",
-        "description": "Where an NZB import went when it was handed to a provider instead of the queue.",
+        "description": "Where an NZB import went when it was handed to a provider instead of the queue, and where a\nLinkGrabber link went that stayed after its hand-over (RD-1440-07).",
         "required": [
           "remote_job_id",
           "account_id"
@@ -41154,6 +41303,16 @@
           "keep_import_history": {
             "type": "boolean",
             "description": "Keep NZB import entries and stored .torrent files after the download finishes;\noff removes them automatically on completion.",
+            "default": true
+          },
+          "linkgrabber_hand_over_enabled": {
+            "type": "boolean",
+            "description": "Whether the menu of a LinkGrabber package offers handing its links to a remote-job\nprovider (RD-1440-07). On by default, and offered only where an account's provider takes\none of the package's kinds of source. A display choice: the REST route and the MCP tool\nkeep working, and a link already marked keeps its badge.",
+            "default": true
+          },
+          "linkgrabber_hand_over_remove_links": {
+            "type": "boolean",
+            "description": "Whether a link handed to a remote-job provider from the LinkGrabber leaves it (RD-1440-07;\nowner, 2026-11-21). On by default: every link handed over is removed, and a package left\nwithout links with it. Off, the links stay, each marked with its job, so handing the\npackage over again sends nothing twice. Read on the server; the request cannot override\nit. What could not be handed over stays either way.",
             "default": true
           },
           "linkgrabber_packages_closed_by_default": {

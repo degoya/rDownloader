@@ -13,13 +13,12 @@
 //! * **Missed runs are caught up once.** After a week offline the next start runs one backup,
 //!   not seven: the next due time is computed from *now*, not from the missed one.
 
-use chrono::{DateTime, Utc};
-use chrono_tz::Tz;
+use rd_core::{IanaZone, Timestamp};
 
 /// The zone an IANA name stands for, if it is one.
 #[must_use]
-pub fn parse_timezone(name: &str) -> Option<Tz> {
-    name.trim().parse().ok()
+pub fn parse_timezone(name: &str) -> Option<IanaZone> {
+    IanaZone::parse(name.trim()).ok()
 }
 
 /// The first time after `after` that `schedule` names, read in `timezone`.
@@ -31,14 +30,10 @@ pub fn parse_timezone(name: &str) -> Option<Tz> {
 /// # Errors
 ///
 /// When the zone is unknown, the expression does not parse, or it names no time at all.
-pub fn next_run(
-    schedule: &str,
-    timezone: &str,
-    after: DateTime<Utc>,
-) -> anyhow::Result<DateTime<Utc>> {
+pub fn next_run(schedule: &str, timezone: &str, after: Timestamp) -> anyhow::Result<Timestamp> {
     let zone =
         parse_timezone(timezone).ok_or_else(|| anyhow::anyhow!("unknown time zone {timezone}"))?;
-    rd_subscription::next_scheduled(schedule, after, &zone)
+    rd_subscription::next_scheduled(schedule, after, zone.as_jiff())
 }
 
 /// What the loop does at one tick.
@@ -47,11 +42,11 @@ pub enum Due {
     /// The schedule is off.
     Idle,
     /// Switched on but never timed: store this due time, run nothing yet.
-    Arm(DateTime<Utc>),
+    Arm(Timestamp),
     /// Not yet.
     Wait,
     /// Due: store `next` first, then run.
-    Run { next: DateTime<Utc> },
+    Run { next: Timestamp },
 }
 
 /// The decision at `now`, from what is stored.
@@ -63,8 +58,8 @@ pub fn decide(
     enabled: bool,
     schedule: &str,
     timezone: &str,
-    next_run_at: Option<DateTime<Utc>>,
-    now: DateTime<Utc>,
+    next_run_at: Option<Timestamp>,
+    now: Timestamp,
 ) -> anyhow::Result<Due> {
     if !enabled {
         return Ok(Due::Idle);
@@ -80,25 +75,27 @@ pub fn decide(
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
-    use chrono_tz::Tz;
+    use jiff::civil::DateTime;
+    use rd_core::{IanaZone, Timestamp};
 
     use super::{Due, decide, next_run};
 
     const BERLIN: &str = "Europe/Berlin";
 
-    fn utc(text: &str) -> DateTime<Utc> {
-        let naive = NaiveDateTime::parse_from_str(text, "%Y-%m-%d %H:%M").expect("time");
-        Utc.from_utc_datetime(&naive)
+    fn utc(text: &str) -> Timestamp {
+        let civil = DateTime::strptime("%Y-%m-%d %H:%M", text).expect("time");
+        Timestamp::from_utc_datetime(civil)
     }
 
-    fn berlin(text: &str) -> DateTime<Utc> {
-        let naive = NaiveDateTime::parse_from_str(text, "%Y-%m-%d %H:%M").expect("time");
-        let zone: Tz = BERLIN.parse().expect("zone");
-        zone.from_local_datetime(&naive)
-            .earliest()
-            .expect("local time")
-            .with_timezone(&Utc)
+    fn berlin(text: &str) -> Timestamp {
+        let civil = DateTime::strptime("%Y-%m-%d %H:%M", text).expect("time");
+        let zone = IanaZone::parse(BERLIN).expect("zone");
+        let earliest = zone
+            .as_jiff()
+            .to_ambiguous_timestamp(civil)
+            .earlier()
+            .expect("local time");
+        Timestamp::from_jiff(earliest)
     }
 
     #[test]

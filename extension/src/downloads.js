@@ -11,6 +11,7 @@
 // in `storage.session` now, each with an expiry, so a stale entry is never worse than none.
 
 import { normalizeServer } from './api.js'
+import { captureFilter, passesTypeFilter } from './file-types.js'
 import {
   CONTRACT_VERSION,
   buildIntakePayload,
@@ -283,6 +284,9 @@ export function createInterceptor({ api, loadConfig, submit, ping, message, user
     // hand such files over, which `files` decides on its own (RD-130-16); an observed POST says
     // why (RD-109-20).
     const captured = correlateRequest(requests, item, now(), CORRELATION_WINDOW_MS)
+    // The person's own list of file types comes first (RD-1440-08): a download it leaves out
+    // stays with the browser without a word, whatever it is; one it lets through goes on below.
+    if (!passesTypeFilter(item, captured, captureFilter(config))) return
     const kept = staysInBrowser(item, captured)
     if (kept === 'post') await notify(message('interceptPostUnsupported'))
     if (kept === 'file' && files) await files.onBrowserOnlyDownload(item)

@@ -47,7 +47,7 @@ impl Database {
     pub async fn touch_stream_channel(
         &self,
         id: rd_core::StreamChannelId,
-        live_at: Option<chrono::DateTime<chrono::Utc>>,
+        live_at: Option<rd_core::Timestamp>,
         error: Option<String>,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| StreamsCommand::TouchStreamChannel {
@@ -173,7 +173,7 @@ impl Database {
     }
 
     /// Marks open runs whose window closed before `cutoff` as missed.
-    pub async fn expire_stream_runs(&self, cutoff: chrono::DateTime<chrono::Utc>) -> Result<u32> {
+    pub async fn expire_stream_runs(&self, cutoff: rd_core::Timestamp) -> Result<u32> {
         crate::writer::request(&self.writer, |reply| {
             crate::commands::StreamsCommand::ExpireStreamRuns { cutoff, reply }
         })

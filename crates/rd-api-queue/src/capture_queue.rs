@@ -9,8 +9,7 @@
 //! file.
 
 use axum::{Json, extract::State};
-use chrono::{DateTime, Utc};
-use rd_core::DownloadState;
+use rd_core::{DownloadState, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -31,7 +30,7 @@ pub struct CaptureQueueResponse {
     /// Files this request paused or queued again.
     pub files: u32,
     /// When the timed pause ends, while one holds.
-    pub paused_until: Option<DateTime<Utc>>,
+    pub paused_until: Option<Timestamp>,
 }
 
 /// Pauses every waiting and moving file; with `minutes`, until then, holding back new ones.
@@ -47,7 +46,7 @@ pub async fn pause_capture_queue(
         };
         let pause = state
             .scheduler
-            .pause_queue_until(pause_end(&timed, Utc::now())?)
+            .pause_queue_until(pause_end(&timed, Timestamp::now())?)
             .await?;
         return Ok(Json(CaptureQueueResponse {
             files: count(pause.files.len()),

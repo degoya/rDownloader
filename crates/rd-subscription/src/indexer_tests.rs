@@ -153,8 +153,8 @@ fn paging(counts: Vec<usize>) -> PagingFetcher {
 }
 
 /// When the fake's `429` asks to be left alone until.
-fn rate_limit_until() -> chrono::DateTime<chrono::Utc> {
-    chrono::DateTime::from_timestamp(4_102_444_800, 0).expect("instant")
+fn rate_limit_until() -> rd_core::Timestamp {
+    rd_core::Timestamp::from_unix_seconds(4_102_444_800).expect("instant")
 }
 
 #[async_trait]

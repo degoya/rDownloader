@@ -52,17 +52,17 @@ pub(crate) enum SubscriptionsCommand {
     /// Times a scheduled subscription's first run (RD-130-19); `false` when it already had one.
     ArmSubscription {
         id: rd_core::SubscriptionId,
-        next_run_at: chrono::DateTime<chrono::Utc>,
+        next_run_at: rd_core::Timestamp,
         reply: Reply<bool>,
     },
     /// One batch of the archive's compaction (RD-1240-35); replies how many items went.
     CompactSubscriptionItems {
-        before: chrono::DateTime<chrono::Utc>,
+        before: rd_core::Timestamp,
         reply: Reply<u64>,
     },
     FinishSubscriptionRun {
         subscription_id: rd_core::SubscriptionId,
-        started_at: chrono::DateTime<chrono::Utc>,
+        started_at: rd_core::Timestamp,
         result: Box<crate::subscription_store::PollResult>,
         reply: Reply<()>,
     },

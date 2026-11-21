@@ -1,7 +1,7 @@
 //! Bounded retention for the append-only record tables, audit and log (RD-1120-12).
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use sqlx::SqliteConnection;
 
 use crate::timestamp;
@@ -51,7 +51,7 @@ pub(crate) async fn prune_records(
     connection: &mut SqliteConnection,
     table: RecordTable,
     max_records: u64,
-    older_than: Option<DateTime<Utc>>,
+    older_than: Option<Timestamp>,
     batch: u64,
 ) -> Result<PruneReport> {
     let name = table.name();

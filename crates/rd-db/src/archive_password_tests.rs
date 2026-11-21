@@ -560,7 +560,7 @@ async fn a_copy_written_before_the_move_loses_its_plain_passwords() {
     let copy = copies.join(crate::pre_migration::copy_name(
         "0111",
         "0113",
-        chrono::Utc::now(),
+        rd_core::Timestamp::now(),
     ));
     database.snapshot_into(&copy).await.expect("copy");
     let unrelated = copies.join("notes.sqlite3");

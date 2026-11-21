@@ -261,8 +261,8 @@ impl AutomationService {
                     let database = &self.inner.context.database;
                     if let Err(error) = crate::automation_schedule::queue_due(
                         database,
-                        chrono::Utc::now(),
-                        &chrono::Local,
+                        rd_core::Timestamp::now(),
+                        &jiff::tz::TimeZone::system(),
                     )
                     .await
                     {
@@ -289,7 +289,10 @@ impl AutomationService {
 
     async fn sweep(&self) -> anyhow::Result<()> {
         let database = &self.inner.context.database;
-        for run in database.due_automation_runs(chrono::Utc::now()).await? {
+        for run in database
+            .due_automation_runs(rd_core::Timestamp::now())
+            .await?
+        {
             if let Err(error) = self.advance(&run).await {
                 tracing::warn!(%error, run = %run.id, "automation run failed");
             }
@@ -374,7 +377,8 @@ impl AutomationService {
             }
             Err(error) => {
                 let attempt = run.attempt + 1;
-                let next_attempt_at = rd_automation::next_attempt_at(attempt, chrono::Utc::now());
+                let next_attempt_at =
+                    rd_automation::next_attempt_at(attempt, rd_core::Timestamp::now());
                 let message = rd_core::redact_text(&format!("{}: {error}", action.kind()))
                     .chars()
                     .take(MAX_MESSAGE_CHARS)
@@ -427,20 +431,17 @@ pub struct DryRunMatch {
     pub condition_matches: bool,
     /// For a time trigger, when its schedule runs next, read in the service's zone
     /// (RD-1240-10); absent for every other trigger.
-    pub next_run_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub next_run_at: Option<rd_core::Timestamp>,
     /// What would run, in order: the actions a match executes (RD-1240-10).
     pub actions: Vec<Action>,
 }
 
 /// When a time trigger runs next; `None` for every other trigger.
-fn next_run_at(
-    trigger: Trigger,
-    schedule: Option<&Schedule>,
-) -> Option<chrono::DateTime<chrono::Utc>> {
+fn next_run_at(trigger: Trigger, schedule: Option<&Schedule>) -> Option<rd_core::Timestamp> {
     if trigger != Trigger::Schedule {
         return None;
     }
-    schedule?.next_after(chrono::Utc::now(), &chrono::Local)
+    schedule?.next_after(rd_core::Timestamp::now(), &jiff::tz::TimeZone::system())
 }
 
 /// Crash and restart of a run (RD-180-12, recovery matrix).

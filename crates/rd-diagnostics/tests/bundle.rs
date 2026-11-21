@@ -2,8 +2,7 @@
 
 use std::io::Read;
 
-use chrono::{TimeZone, Utc};
-use rd_core::LogLevel;
+use rd_core::{LogLevel, Timestamp};
 use rd_db::LogRecord;
 use rd_diagnostics::{
     BundleInput, Check, CheckStatus,
@@ -45,10 +44,7 @@ fn input() -> BundleInput {
         ],
         recent_errors: vec![LogRecord {
             id: 7,
-            recorded_at: Utc
-                .with_ymd_and_hms(2026, 9, 20, 10, 0, 0)
-                .single()
-                .expect("time"),
+            recorded_at: Timestamp::from_ymd_hms(2026, 9, 20, 10, 0, 0).expect("time"),
             level: LogLevel::Error,
             component: "rd_http::engine".to_owned(),
             code: Some("http.status".to_owned()),
@@ -62,10 +58,7 @@ fn input() -> BundleInput {
             debug: Some(rd_core::LogDebugWindow {
                 area: rd_core::LogDebugArea::Usenet,
                 plugin_id: None,
-                until: Utc
-                    .with_ymd_and_hms(2026, 10, 12, 18, 30, 0)
-                    .single()
-                    .expect("time"),
+                until: Timestamp::from_ymd_hms(2026, 10, 12, 18, 30, 0).expect("time"),
             }),
             rust_log: None,
         },
@@ -121,10 +114,7 @@ fn the_same_state_gives_the_same_inventory_and_digest() {
 
 #[test]
 fn the_same_state_and_clock_give_byte_identical_archives() {
-    let now = Utc
-        .with_ymd_and_hms(2026, 9, 20, 12, 30, 0)
-        .single()
-        .expect("time");
+    let now = Timestamp::from_ymd_hms(2026, 9, 20, 12, 30, 0).expect("time");
     let ids = all_ids(&input());
     let first = bundle::build(&input(), &ids, now).expect("bundle");
     let second = bundle::build(&input(), &ids, now).expect("bundle");
@@ -141,10 +131,7 @@ fn the_same_state_and_clock_give_byte_identical_archives() {
 
 #[test]
 fn a_deselected_entry_is_left_out_and_named_in_the_manifest() {
-    let now = Utc
-        .with_ymd_and_hms(2026, 9, 20, 12, 30, 0)
-        .single()
-        .expect("time");
+    let now = Timestamp::from_ymd_hms(2026, 9, 20, 12, 30, 0).expect("time");
     let built = bundle::build(&input(), &["versions".to_owned(), "doctor".to_owned()], now)
         .expect("bundle");
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(built.bytes)).expect("zip");
@@ -186,7 +173,7 @@ fn a_deselected_entry_is_left_out_and_named_in_the_manifest() {
 
 #[test]
 fn no_entry_of_the_archive_carries_a_secret() {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let built = bundle::build(&input(), &all_ids(&input()), now).expect("bundle");
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(built.bytes)).expect("zip");
     for index in 0..archive.len() {
@@ -207,7 +194,8 @@ fn no_entry_of_the_archive_carries_a_secret() {
 /// quiet log from a quiet service, and names a debug window that was running.
 #[test]
 fn the_log_entry_names_the_level_and_a_running_debug_window() {
-    let built = bundle::build(&input(), &["recent-errors".to_owned()], Utc::now()).expect("bundle");
+    let built =
+        bundle::build(&input(), &["recent-errors".to_owned()], Timestamp::now()).expect("bundle");
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(built.bytes)).expect("zip");
     let mut text = String::new();
     archive

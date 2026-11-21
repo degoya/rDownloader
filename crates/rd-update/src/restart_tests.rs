@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use chrono::Utc;
+use rd_core::Timestamp;
 
 use super::{
     Environment, RestartHow, RestartPlan, SYSTEMD_ENV, Supervisor, decide_how, systemd_from,
@@ -84,7 +84,7 @@ fn plan(root: &std::path::Path) -> RestartPlan {
         service_args: vec!["serve".to_owned()],
         service_cwd: root.to_path_buf(),
         health_timeout_secs: super::DEFAULT_HEALTH_TIMEOUT_SECS,
-        requested_at: Utc::now(),
+        requested_at: Timestamp::now(),
     }
 }
 

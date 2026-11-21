@@ -9,7 +9,7 @@
 
 use std::sync::atomic::Ordering;
 
-use chrono::Utc;
+use rd_core::Timestamp;
 use rd_core::failpoint::FailpointGuard;
 use rd_db::{Database, NewUsenetServer};
 
@@ -39,7 +39,7 @@ async fn counts_not_yet_flushed_are_lost_and_nothing_before_them() {
         .id;
     let total = |database: Database| async move {
         database
-            .list_usenet_server_traffic(Utc::now().date_naive())
+            .list_usenet_server_traffic(Timestamp::now().date())
             .await
             .expect("traffic")[0]
             .total

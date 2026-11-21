@@ -20,8 +20,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
-use chrono::{Duration, SubsecRound, Utc};
 use clap::{Args, Subcommand};
+use rd_core::{SignedDuration, Timestamp};
 use rd_update::{
     Artifact, Channel, UpdateManifest,
     manifest::{self, DEFAULT_VALIDITY_DAYS, MAX_VALIDITY_DAYS, kind},
@@ -213,16 +213,16 @@ async fn build(args: &BuildArgs) -> Result<()> {
         None => None,
     };
 
-    let issued_at = Utc::now().trunc_subsecs(0);
+    let issued_at = Timestamp::now().trunc_subsecs(0);
     let sequence = match args.sequence {
         Some(sequence) => sequence,
-        None => u64::try_from(issued_at.timestamp()).context("the clock is before 1970")?,
+        None => u64::try_from(issued_at.unix_seconds()).context("the clock is before 1970")?,
     };
     let update = UpdateManifest {
         schema_version: manifest::UPDATE_MANIFEST_SCHEMA_VERSION,
         sequence,
         issued_at,
-        not_after: issued_at + Duration::days(args.valid_days),
+        not_after: issued_at + SignedDuration::from_hours(24 * args.valid_days),
         channel,
         version: version.to_string(),
         released_at: issued_at,
@@ -413,7 +413,7 @@ async fn verify(args: &VerifyArgs) -> Result<()> {
     let bytes = tokio::fs::read(&args.file)
         .await
         .with_context(|| format!("read manifest {}", args.file.display()))?;
-    let verified = manifest::verify(&bytes, channel, None, Utc::now()).map_err(|error| {
+    let verified = manifest::verify(&bytes, channel, None, Timestamp::now()).map_err(|error| {
         anyhow!(
             "{} does not verify ({}): {error}",
             args.file.display(),

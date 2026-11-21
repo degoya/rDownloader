@@ -1,7 +1,7 @@
 //! Capture and API tokens, and authentication profiles.
 
-use chrono::{Duration, Utc};
 use rd_core::{AuthMethod, AuthOrigin, AuthProfileSelection, AuthScope, DownloadId, PackageId};
+use rd_core::{SignedDuration, Timestamp};
 
 use super::probe_url;
 use crate::{Database, NewAuthProfile, NewDownload, NewPackage, UpdateAuthProfile};
@@ -143,7 +143,7 @@ async fn auto_match_skips_disabled_and_expired_profiles() {
         .await
         .expect("database");
     let mut expiring = new_profile("expired", "expired.example", false);
-    expiring.expires_at = Some(Utc::now() - Duration::hours(1));
+    expiring.expires_at = Some(Timestamp::now() - SignedDuration::from_hours(1));
     database
         .create_auth_profile(expiring)
         .await

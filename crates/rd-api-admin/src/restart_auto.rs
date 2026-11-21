@@ -11,7 +11,7 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_update::auto_install::Wait;
 use rd_update::auto_restart::{AutoRestart, RestartMoment};
 
@@ -48,14 +48,14 @@ pub fn start(state: &AppState) {
         let mut restarter = AutoRestarter::default();
         loop {
             tokio::time::sleep(TICK).await;
-            restarter.tick(&state, Utc::now()).await;
+            restarter.tick(&state, Timestamp::now()).await;
         }
     });
 }
 
 impl AutoRestarter {
     /// One look at `now`: restarts when the time has come.
-    pub async fn tick(&mut self, state: &AppState, now: DateTime<Utc>) -> Tick {
+    pub async fn tick(&mut self, state: &AppState, now: Timestamp) -> Tick {
         let settings = state.admin.updates.settings().await;
         let status = crate::restart_service::status(state).await;
         let moment = RestartMoment {

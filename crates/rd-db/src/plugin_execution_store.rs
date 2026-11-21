@@ -5,7 +5,7 @@
 //! diagnostics and become a disk-space bug, and nothing here is worth a backup.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 /// Entries kept per plugin. Enough to see a pattern, small enough to never matter.
@@ -27,7 +27,7 @@ pub struct PluginExecution {
     pub error_class: Option<String>,
     /// Redacted before it was written; never a URL, a credential or a server reply.
     pub message: Option<String>,
-    pub started_at: DateTime<Utc>,
+    pub started_at: Timestamp,
     pub duration_ms: i64,
 }
 
@@ -42,7 +42,7 @@ pub struct NewPluginExecution {
     pub outcome: String,
     pub error_class: Option<String>,
     pub message: Option<String>,
-    pub started_at: DateTime<Utc>,
+    pub started_at: Timestamp,
     pub duration_ms: i64,
 }
 

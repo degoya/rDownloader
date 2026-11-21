@@ -219,7 +219,7 @@ fn expiry_is_read_from_each_signing_convention() {
 
     let cloudfront =
         signed_url_expiry(&url("https://c.example/f?Expires=1704070800")).expect("cf expiry");
-    assert_eq!(cloudfront.timestamp(), 1_704_070_800);
+    assert_eq!(cloudfront.unix_seconds(), 1_704_070_800);
 
     // A millisecond timestamp is not a second-precision epoch and must not be believed.
     assert!(signed_url_expiry(&url("https://c.example/f?Expires=1704070800000")).is_none());

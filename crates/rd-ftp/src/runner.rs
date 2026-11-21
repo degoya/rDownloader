@@ -158,7 +158,7 @@ impl FtpRunner {
         // Without `MDTM` the size is the only validator left; a timestamp an earlier attempt
         // recorded then refuses the resume (TR-03), so the cause is worth a line in the log.
         let modified = match connection.modified_at(path).await {
-            Ok(naive) => Some(naive.and_utc().to_rfc3339()),
+            Ok(naive) => crate::client::naive_utc(naive).map(rd_core::Timestamp::to_rfc3339),
             Err(error) => {
                 tracing::warn!(
                     download = %file.id,

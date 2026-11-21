@@ -18,7 +18,7 @@ fn counters(seeders: u32) -> TrackerScrape {
         seeders,
         leechers: 0,
         completed: 0,
-        scraped_at: chrono::Utc::now(),
+        scraped_at: rd_core::Timestamp::now(),
     }
 }
 

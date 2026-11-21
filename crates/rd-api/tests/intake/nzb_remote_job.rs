@@ -59,7 +59,7 @@ fn package(directory: &str) -> Vec<u8> {
     .expect("package")
 }
 
-async fn install(harness: &common::Harness, directory: &str) {
+pub(crate) async fn install(harness: &common::Harness, directory: &str) {
     harness
         .state
         .admin
@@ -69,7 +69,7 @@ async fn install(harness: &common::Harness, directory: &str) {
         .expect("install");
 }
 
-async fn account(harness: &common::Harness, provider: &str) -> rd_core::AccountId {
+pub(crate) async fn account(harness: &common::Harness, provider: &str) -> rd_core::AccountId {
     harness
         .database
         .create_account(rd_db::NewAccount {

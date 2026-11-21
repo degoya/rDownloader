@@ -6,6 +6,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::Timestamp;
+
 use super::{
     metadata::TorrentMetadataInfo,
     plan::{TorrentFilePlan, TorrentFilePriority},
@@ -116,7 +118,7 @@ pub struct TorrentCandidateSummary {
 #[serde(default)]
 pub struct SeedAccounting {
     /// Start of the current seeding stretch; `None` while not seeding.
-    pub started_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub started_at: Option<Timestamp>,
     /// Seconds seeded in earlier stretches.
     pub accumulated_seconds: u64,
 }
@@ -124,23 +126,23 @@ pub struct SeedAccounting {
 impl SeedAccounting {
     /// Total seconds seeded, including the currently running stretch.
     #[must_use]
-    pub fn seeded_seconds(&self, now: chrono::DateTime<chrono::Utc>) -> u64 {
+    pub fn seeded_seconds(&self, now: Timestamp) -> u64 {
         let running = self
             .started_at
-            .map(|started| (now - started).num_seconds().max(0) as u64)
+            .map(|started| (now - started).as_secs().max(0) as u64)
             .unwrap_or_default();
         self.accumulated_seconds.saturating_add(running)
     }
 
     /// Opens a new seeding stretch, keeping what was already accumulated.
-    pub fn start(&mut self, now: chrono::DateTime<chrono::Utc>) {
+    pub fn start(&mut self, now: Timestamp) {
         if self.started_at.is_none() {
             self.started_at = Some(now);
         }
     }
 
     /// Closes the running stretch and folds it into the accumulated total.
-    pub fn stop(&mut self, now: chrono::DateTime<chrono::Utc>) {
+    pub fn stop(&mut self, now: Timestamp) {
         self.accumulated_seconds = self.seeded_seconds(now);
         self.started_at = None;
     }
@@ -153,9 +155,9 @@ impl SeedAccounting {
 /// has hashed every piece.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, utoipa::ToSchema)]
 pub struct TorrentRecheck {
-    pub requested_at: chrono::DateTime<chrono::Utc>,
+    pub requested_at: Timestamp,
     /// `None` while the check has not run yet or is still running.
-    pub finished_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub finished_at: Option<Timestamp>,
     /// Bytes of the selected files whose pieces verified.
     pub verified_bytes: u64,
     /// Bytes of the selected files; anything short of it is fetched again.
@@ -165,7 +167,7 @@ pub struct TorrentRecheck {
 impl TorrentRecheck {
     /// A check asked for now that has not run yet.
     #[must_use]
-    pub fn requested(now: chrono::DateTime<chrono::Utc>) -> Self {
+    pub fn requested(now: Timestamp) -> Self {
         Self {
             requested_at: now,
             finished_at: None,
@@ -192,7 +194,7 @@ pub struct TorrentRelocation {
     pub from: String,
     /// The package folder the files are moved into.
     pub to: String,
-    pub started_at: chrono::DateTime<chrono::Utc>,
+    pub started_at: Timestamp,
 }
 
 /// Torrent state stored on a queue row.
@@ -251,7 +253,7 @@ impl TorrentJobState {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{TimeZone, Utc};
+    use crate::{SignedDuration, Timestamp};
 
     use super::{
         SeedAccounting, TorrentCandidateState, TorrentJobState, TorrentMetadataState,
@@ -268,31 +270,31 @@ mod tests {
 
     #[test]
     fn seed_time_survives_a_restart() {
-        let start = Utc.timestamp_opt(1_000, 0).single().expect("valid");
+        let start = Timestamp::from_unix_seconds(1_000).expect("valid");
         let mut accounting = SeedAccounting::default();
         accounting.start(start);
         // First stretch: 10 minutes, then the process stops.
-        accounting.stop(start + chrono::Duration::minutes(10));
+        accounting.stop(start + SignedDuration::from_mins(10));
         assert_eq!(accounting.accumulated_seconds, 600);
         assert!(accounting.started_at.is_none());
 
         // After the restart the clock continues instead of resetting.
-        let resume = start + chrono::Duration::hours(5);
+        let resume = start + SignedDuration::from_hours(5);
         accounting.start(resume);
         assert_eq!(
-            accounting.seeded_seconds(resume + chrono::Duration::minutes(5)),
+            accounting.seeded_seconds(resume + SignedDuration::from_mins(5)),
             900
         );
     }
 
     #[test]
     fn starting_twice_does_not_restart_the_stretch() {
-        let start = Utc.timestamp_opt(1_000, 0).single().expect("valid");
+        let start = Timestamp::from_unix_seconds(1_000).expect("valid");
         let mut accounting = SeedAccounting::default();
         accounting.start(start);
-        accounting.start(start + chrono::Duration::minutes(3));
+        accounting.start(start + SignedDuration::from_mins(3));
         assert_eq!(
-            accounting.seeded_seconds(start + chrono::Duration::minutes(4)),
+            accounting.seeded_seconds(start + SignedDuration::from_mins(4)),
             240
         );
     }
@@ -317,7 +319,7 @@ mod tests {
 
     #[test]
     fn a_requested_recheck_is_pending_until_it_reports() {
-        let now = Utc.timestamp_opt(1_000, 0).single().expect("valid");
+        let now = Timestamp::from_unix_seconds(1_000).expect("valid");
         let mut recheck = TorrentRecheck::requested(now);
         assert!(recheck.is_pending());
         recheck.finished_at = Some(now);

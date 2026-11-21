@@ -24,8 +24,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use chrono::{DateTime, Duration, Utc};
-use rd_core::AccountId;
+use rd_core::{AccountId, SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -34,10 +33,10 @@ use uuid::Uuid;
 /// How long a request waits for the extension. Long enough to switch to the browser, open
 /// the popup and answer the browser's own permission prompt; short enough that a forgotten
 /// request does not stand open for a token that turns up tomorrow.
-pub(crate) const WAIT: Duration = Duration::minutes(5);
+pub(crate) const WAIT: SignedDuration = SignedDuration::from_mins(5);
 
 /// How long a finished request stays readable, so the interface polling it sees how it ended.
-const KEEP: Duration = Duration::minutes(10);
+const KEEP: SignedDuration = SignedDuration::from_mins(10);
 
 /// Where a handover stands.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
@@ -60,7 +59,7 @@ pub struct BrowserSessionResponse {
     pub state: BrowserSessionState,
     /// The host whose cookies are asked for, from the provider's `cookie_scope`.
     pub host: String,
-    pub expires_at: DateTime<Utc>,
+    pub expires_at: Timestamp,
 }
 
 /// A waiting handover as the extension sees it: what it needs to ask the person, and nothing
@@ -76,7 +75,7 @@ pub struct CaptureBrowserSession {
     /// The provider's `cookie_scope`: an `https` URL whose host is the only one read.
     pub scope: String,
     pub host: String,
-    pub expires_at: DateTime<Utc>,
+    pub expires_at: Timestamp,
 }
 
 /// One request, keyed by its account: asking again replaces the earlier one.
@@ -88,8 +87,8 @@ pub struct Handover {
     pub provider: String,
     pub provider_name: String,
     pub scope: Url,
-    pub created_at: DateTime<Utc>,
-    pub expires_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub expires_at: Timestamp,
     pub state: BrowserSessionState,
     /// Set while a delivery is being stored, so a second delivery cannot race the first.
     claimed: bool,
@@ -101,7 +100,7 @@ impl Handover {
     }
 
     /// The state as of `now`: a waiting request past its time has expired.
-    fn state_at(&self, now: DateTime<Utc>) -> BrowserSessionState {
+    fn state_at(&self, now: Timestamp) -> BrowserSessionState {
         if self.state == BrowserSessionState::Waiting && now >= self.expires_at {
             BrowserSessionState::Expired
         } else {
@@ -109,7 +108,7 @@ impl Handover {
         }
     }
 
-    fn response(&self, now: DateTime<Utc>) -> BrowserSessionResponse {
+    fn response(&self, now: Timestamp) -> BrowserSessionResponse {
         BrowserSessionResponse {
             id: self.id,
             state: self.state_at(now),
@@ -143,7 +142,7 @@ pub struct BrowserSessions {
 
 impl BrowserSessions {
     /// Opens a request for one account, replacing any earlier one for it.
-    pub fn begin(&self, request: Request, now: DateTime<Utc>) -> BrowserSessionResponse {
+    pub fn begin(&self, request: Request, now: Timestamp) -> BrowserSessionResponse {
         let handover = Handover {
             id: Uuid::now_v7(),
             account_id: request.account_id,
@@ -165,11 +164,7 @@ impl BrowserSessions {
     }
 
     /// The account's request, if one was made recently enough to still be told about.
-    pub fn status(
-        &self,
-        account_id: AccountId,
-        now: DateTime<Utc>,
-    ) -> Option<BrowserSessionResponse> {
+    pub fn status(&self, account_id: AccountId, now: Timestamp) -> Option<BrowserSessionResponse> {
         let mut open = self.inner.lock().ok()?;
         prune(&mut open, now);
         open.get(&account_id).map(|handover| handover.response(now))
@@ -183,7 +178,7 @@ impl BrowserSessions {
     }
 
     /// Every request the extension may still answer, oldest first.
-    pub fn waiting(&self, now: DateTime<Utc>) -> Vec<CaptureBrowserSession> {
+    pub fn waiting(&self, now: Timestamp) -> Vec<CaptureBrowserSession> {
         let Ok(mut open) = self.inner.lock() else {
             return Vec::new();
         };
@@ -211,7 +206,7 @@ impl BrowserSessions {
 
     /// Takes a waiting request for delivery. Only one delivery can hold it at a time; it ends
     /// with [`Self::finish`].
-    pub fn claim(&self, id: Uuid, now: DateTime<Utc>) -> Result<Handover, Refusal> {
+    pub fn claim(&self, id: Uuid, now: Timestamp) -> Result<Handover, Refusal> {
         let mut open = self.inner.lock().map_err(|_| Refusal::NotWaiting)?;
         let handover = open
             .values_mut()
@@ -238,7 +233,7 @@ impl BrowserSessions {
     }
 
     /// The person declined in the extension.
-    pub fn decline(&self, id: Uuid, now: DateTime<Utc>) -> Result<(), Refusal> {
+    pub fn decline(&self, id: Uuid, now: Timestamp) -> Result<(), Refusal> {
         let mut open = self.inner.lock().map_err(|_| Refusal::NotWaiting)?;
         let handover = open
             .values_mut()
@@ -253,7 +248,7 @@ impl BrowserSessions {
 }
 
 /// Drops requests nobody needs to read any more.
-fn prune(open: &mut HashMap<AccountId, Handover>, now: DateTime<Utc>) {
+fn prune(open: &mut HashMap<AccountId, Handover>, now: Timestamp) {
     open.retain(|_, handover| now < handover.created_at + KEEP);
 }
 

@@ -3,12 +3,12 @@
 //! Shares the schedule's evaluation, so quiet hours behave the same way across a
 //! daylight-saving change as the bandwidth windows do.
 
-use chrono::{DateTime, Duration, Timelike, Utc};
-use chrono_tz::Tz;
+use jiff::tz::TimeZone;
+use rd_core::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::schedule::{DaySet, covers_local, local_position};
+use crate::schedule::{DaySet, covers_local, floor_to_minute, local_position};
 
 /// One quiet window; local times in the configured timezone.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
@@ -31,7 +31,7 @@ pub struct QuietHours {
 impl QuietHours {
     /// Whether `now` falls inside a quiet window.
     #[must_use]
-    pub fn is_quiet(&self, timezone: Tz, now: DateTime<Utc>) -> bool {
+    pub fn is_quiet(&self, timezone: &TimeZone, now: Timestamp) -> bool {
         if !self.enabled {
             return false;
         }
@@ -49,17 +49,14 @@ impl QuietHours {
 
     /// When the current quiet period ends, so deferred work can say how long it waits.
     #[must_use]
-    pub fn ends_after(&self, timezone: Tz, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+    pub fn ends_after(&self, timezone: &TimeZone, now: Timestamp) -> Option<Timestamp> {
         if !self.is_quiet(timezone, now) {
             return None;
         }
-        let mut cursor = now
-            .with_second(0)
-            .and_then(|value| value.with_nanosecond(0))
-            .unwrap_or(now);
-        let deadline = now + Duration::days(8);
+        let mut cursor = floor_to_minute(now);
+        let deadline = now + SignedDuration::from_hours(24 * 8);
         while cursor < deadline {
-            cursor += Duration::minutes(1);
+            cursor += SignedDuration::from_mins(1);
             if !self.is_quiet(timezone, cursor) {
                 return Some(cursor);
             }
@@ -70,10 +67,14 @@ impl QuietHours {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{TimeZone, Utc};
-    use chrono_tz::Tz;
+    use jiff::tz::TimeZone;
+    use rd_core::Timestamp;
 
     use super::{DaySet, QuietHours, QuietWindow};
+
+    fn berlin() -> TimeZone {
+        TimeZone::get("Europe/Berlin").expect("zone")
+    }
 
     fn nightly() -> QuietHours {
         QuietHours {
@@ -89,13 +90,22 @@ mod tests {
     #[test]
     fn a_wrapping_quiet_window_covers_both_sides_of_midnight() {
         let quiet = nightly();
-        let zone = Tz::Europe__Berlin;
+        let zone = &berlin();
         // 23:30 Berlin = 22:30 UTC in winter.
-        assert!(quiet.is_quiet(zone, Utc.with_ymd_and_hms(2026, 1, 15, 22, 30, 0).unwrap()));
+        assert!(quiet.is_quiet(
+            zone,
+            Timestamp::from_ymd_hms(2026, 1, 15, 22, 30, 0).expect("a valid instant")
+        ));
         // 02:00 Berlin the next morning.
-        assert!(quiet.is_quiet(zone, Utc.with_ymd_and_hms(2026, 1, 16, 1, 0, 0).unwrap()));
+        assert!(quiet.is_quiet(
+            zone,
+            Timestamp::from_ymd_hms(2026, 1, 16, 1, 0, 0).expect("a valid instant")
+        ));
         // 12:00 Berlin is not quiet.
-        assert!(!quiet.is_quiet(zone, Utc.with_ymd_and_hms(2026, 1, 16, 11, 0, 0).unwrap()));
+        assert!(!quiet.is_quiet(
+            zone,
+            Timestamp::from_ymd_hms(2026, 1, 16, 11, 0, 0).expect("a valid instant")
+        ));
     }
 
     #[test]
@@ -103,22 +113,22 @@ mod tests {
         let mut quiet = nightly();
         quiet.enabled = false;
         assert!(!quiet.is_quiet(
-            Tz::Europe__Berlin,
-            Utc.with_ymd_and_hms(2026, 1, 15, 22, 30, 0).unwrap()
+            &berlin(),
+            Timestamp::from_ymd_hms(2026, 1, 15, 22, 30, 0).expect("a valid instant")
         ));
     }
 
     #[test]
     fn the_end_of_the_quiet_period_is_reported_in_utc() {
         let quiet = nightly();
-        let zone = Tz::Europe__Berlin;
-        let inside = Utc.with_ymd_and_hms(2026, 1, 16, 1, 0, 0).unwrap();
+        let zone = &berlin();
+        let inside = Timestamp::from_ymd_hms(2026, 1, 16, 1, 0, 0).expect("a valid instant");
         // 07:00 Berlin = 06:00 UTC in winter.
         assert_eq!(
             quiet.ends_after(zone, inside),
-            Some(Utc.with_ymd_and_hms(2026, 1, 16, 6, 0, 0).unwrap())
+            Some(Timestamp::from_ymd_hms(2026, 1, 16, 6, 0, 0).expect("a valid instant"))
         );
-        let outside = Utc.with_ymd_and_hms(2026, 1, 16, 11, 0, 0).unwrap();
+        let outside = Timestamp::from_ymd_hms(2026, 1, 16, 11, 0, 0).expect("a valid instant");
         assert!(quiet.ends_after(zone, outside).is_none());
     }
 }

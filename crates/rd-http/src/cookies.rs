@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use reqwest::cookie::Jar;
 use url::Url;
 
@@ -135,7 +135,7 @@ pub fn import_into(jar: &Jar, content: &str, scope: &CookieScope) -> Result<()> 
 /// Earliest expiry across the Netscape rows, used to give an imported browser session the
 /// same lifetime the browser gave it. Header-format imports carry no expiry at all.
 #[must_use]
-pub fn earliest_expiry(content: &str) -> Option<DateTime<Utc>> {
+pub fn earliest_expiry(content: &str) -> Option<Timestamp> {
     content
         .lines()
         .filter_map(|line| {
@@ -147,7 +147,7 @@ pub fn earliest_expiry(content: &str) -> Option<DateTime<Utc>> {
         })
         // A zero expiry marks a session cookie, which has no wall-clock lifetime.
         .filter(|seconds| *seconds > 0)
-        .filter_map(DateTime::from_timestamp_secs)
+        .filter_map(Timestamp::from_unix_seconds)
         .min()
 }
 

@@ -9,8 +9,7 @@
 
 use std::sync::Arc;
 
-use chrono::Utc;
-use rd_core::{CollectorPackage, RemoteJobState};
+use rd_core::{CollectorPackage, RemoteJobState, Timestamp};
 use rd_plugin_host::extension::{RemoteJobArtifact, RemoteJobProgress, RemoteJobSource};
 
 use super::{
@@ -73,7 +72,7 @@ async fn two_finished_jobs(names: [Option<&str>; 2]) -> Vec<(CollectorPackage, V
         jobs.push(job.id);
     }
 
-    let now = Utc::now();
+    let now = Timestamp::now();
     harness.sweep(now).await;
     // The plugin is handed the name with the bytes, so a provider that names its job after
     // the upload can use the person's own name (`job-context`).
@@ -176,7 +175,7 @@ async fn a_magnet_is_listed_under_its_display_name_and_nothing_else_changes() {
     };
     assert_eq!(job.source_name.as_deref(), Some("Some.Show.S01"));
 
-    let now = Utc::now();
+    let now = Timestamp::now();
     harness.sweep(now).await;
     assert_eq!(provider.names(), vec![None], "a magnet's name stays here");
     harness.sweep(later(now, 3_600)).await;

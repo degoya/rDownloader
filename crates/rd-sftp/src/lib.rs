@@ -19,7 +19,6 @@ mod runner;
 use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
-use chrono::Utc;
 use rd_core::remote_path::{file_name, normalize, parent};
 use rd_core::{
     Failure, RemoteCredential, RemoteCredentialId, RemoteListing, RemoteTarget, SshHostKey,
@@ -143,7 +142,7 @@ impl SftpService {
                         port: credential.port,
                         algorithm: offered.algorithm,
                         fingerprint: offered.fingerprint,
-                        first_seen: Utc::now(),
+                        first_seen: rd_core::Timestamp::now(),
                     })
                     .await?;
                 Ok(Ok(connection))

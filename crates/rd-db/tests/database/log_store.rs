@@ -3,13 +3,12 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{Duration, Utc};
-use rd_core::LogLevel;
+use rd_core::{LogLevel, SignedDuration, Timestamp};
 use rd_db::{LogQuery, NewLogRecord};
 
 fn record(level: LogLevel, component: &str, message: &str) -> NewLogRecord {
     NewLogRecord {
-        recorded_at: Utc::now(),
+        recorded_at: Timestamp::now(),
         level,
         component: component.to_owned(),
         code: None,
@@ -68,7 +67,7 @@ async fn the_read_filters_by_level_component_code_correlation_text_and_time() {
     tagged.code = Some("http.status".to_owned());
     tagged.correlation_id = Some("dl-7".to_owned());
     let mut old = record(LogLevel::Info, "rd_scheduler", "old news");
-    old.recorded_at = Utc::now() - Duration::hours(2);
+    old.recorded_at = Timestamp::now() - SignedDuration::from_hours(2);
     database
         .append_log_records(vec![
             old,
@@ -141,7 +140,7 @@ async fn the_read_filters_by_level_component_code_correlation_text_and_time() {
 
     let recent = database
         .query_log_records(&LogQuery {
-            since: Some(Utc::now() - Duration::minutes(5)),
+            since: Some(Timestamp::now() - SignedDuration::from_mins(5)),
             ..query()
         })
         .await
@@ -230,14 +229,18 @@ async fn the_prune_removes_records_older_than_the_cutoff_whatever_the_count() {
     let directory = tempfile::tempdir().expect("tempdir");
     let database = rd_testkit::temp_database(directory.path()).await;
     let mut stale = record(LogLevel::Info, "rd_http", "stale");
-    stale.recorded_at = Utc::now() - Duration::days(30);
+    stale.recorded_at = Timestamp::now() - SignedDuration::from_hours(24 * 30);
     database
         .append_log_records(vec![stale, record(LogLevel::Info, "rd_http", "fresh")])
         .await
         .expect("append");
 
     let report = database
-        .prune_log_records(1_000, Some(Utc::now() - Duration::days(14)), 2_000)
+        .prune_log_records(
+            1_000,
+            Some(Timestamp::now() - SignedDuration::from_hours(24 * 14)),
+            2_000,
+        )
         .await
         .expect("prune");
     assert_eq!(report.deleted, 1);

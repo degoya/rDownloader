@@ -1,8 +1,7 @@
 //! Categories: create, list, edit and delete, and the row they are read from.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{Category, CategoryId, EventEnvelope, EventKind};
+use rd_core::{Category, CategoryId, EventEnvelope, EventKind, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use super::{CATEGORY_COLUMNS, CATEGORY_NAME_TAKEN, NewCategory, cleanup_json, config_event};
@@ -12,7 +11,7 @@ pub(crate) async fn create_category(
     connection: &mut SqliteConnection,
     input: NewCategory,
 ) -> Result<(Category, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     // The first category is always the default. Routing falls back to it for every link no
     // rule matched, so an install without one drops those links into no category at all, and
@@ -110,7 +109,7 @@ pub(crate) async fn update_category(
     id: CategoryId,
     input: NewCategory,
 ) -> Result<(Category, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = config_event(EventKind::CategoryChanged, "category", id);
     let mut tx = connection.begin().await?;
     // Giving up the last default is not a thing a user can do: routing has to keep a fallback.
@@ -204,7 +203,7 @@ pub(crate) async fn delete_category(
     id: CategoryId,
 ) -> Result<EventEnvelope> {
     let event = config_event(EventKind::CategoryChanged, "category", id);
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     // Packages carry the category as a plain column (no foreign key), so nothing stops the
     // delete at the database level. Running packages still need their category to resolve a

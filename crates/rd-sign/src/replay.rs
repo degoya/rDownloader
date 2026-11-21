@@ -15,7 +15,7 @@
 //!   now is not, and accepting it would let a producer mint something that outlives its
 //!   own expiry rule.
 
-use chrono::{DateTime, Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 
 /// How far ahead of local time an `issued_at` may sit before it stops being clock skew.
 pub(crate) const MAX_CLOCK_SKEW_MINUTES: i64 = 60;
@@ -26,9 +26,9 @@ pub struct Freshness {
     /// The publisher's monotonic counter for this document kind.
     pub sequence: u64,
     /// When the publisher says it signed this.
-    pub issued_at: DateTime<Utc>,
+    pub issued_at: Timestamp,
     /// After this instant the document is stale even if nothing newer has been seen.
-    pub not_after: Option<DateTime<Utc>>,
+    pub not_after: Option<Timestamp>,
 }
 
 /// Why a document was refused as stale.
@@ -38,21 +38,20 @@ pub enum StaleError {
     #[error("document sequence {saw} is not newer than the {known} already accepted")]
     Replayed { saw: u64, known: u64 },
     /// Past its own expiry.
-    #[error("document expired at {expired_at}")]
-    Expired { expired_at: DateTime<Utc> },
+    #[error("document expired at {}", expired_at.strftime("%Y-%m-%d %H:%M:%S UTC"))]
+    Expired { expired_at: Timestamp },
     /// Issued further into the future than clock skew explains.
-    #[error("document is issued {issued_at}, further ahead than clock skew explains")]
-    FromTheFuture { issued_at: DateTime<Utc> },
+    #[error(
+        "document is issued {}, further ahead than clock skew explains",
+        issued_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+    )]
+    FromTheFuture { issued_at: Timestamp },
 }
 
 /// Checks `candidate` against the highest sequence already accepted, if any.
 ///
 /// `known` is `None` on a first contact, where only expiry and the skew bound apply.
-pub fn check(
-    candidate: Freshness,
-    known: Option<u64>,
-    now: DateTime<Utc>,
-) -> Result<(), StaleError> {
+pub fn check(candidate: Freshness, known: Option<u64>, now: Timestamp) -> Result<(), StaleError> {
     if let Some(known) = known
         && candidate.sequence <= known
     {
@@ -66,7 +65,7 @@ pub fn check(
     {
         return Err(StaleError::Expired { expired_at });
     }
-    if candidate.issued_at > now + Duration::minutes(MAX_CLOCK_SKEW_MINUTES) {
+    if candidate.issued_at > now + SignedDuration::from_mins(MAX_CLOCK_SKEW_MINUTES) {
         return Err(StaleError::FromTheFuture {
             issued_at: candidate.issued_at,
         });
@@ -78,8 +77,8 @@ pub fn check(
 mod tests {
     use super::*;
 
-    fn at(minutes: i64) -> DateTime<Utc> {
-        DateTime::from_timestamp(1_760_000_000 + minutes * 60, 0).expect("timestamp")
+    fn at(minutes: i64) -> Timestamp {
+        Timestamp::from_unix_seconds(1_760_000_000 + minutes * 60).expect("timestamp")
     }
 
     fn fresh(sequence: u64) -> Freshness {

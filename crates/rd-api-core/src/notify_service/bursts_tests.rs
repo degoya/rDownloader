@@ -67,7 +67,7 @@ fn occurrence(event: NotificationEvent, id: &str, items: u64, name: &str) -> Occ
         event_id: id.to_owned(),
         items,
         name: Some(name.to_owned()),
-        occurred_at: chrono::Utc::now(),
+        occurred_at: rd_core::Timestamp::now(),
         package_id: None,
     }
 }
@@ -75,7 +75,7 @@ fn occurrence(event: NotificationEvent, id: &str, items: u64, name: &str) -> Occ
 #[test]
 fn a_burst_of_imports_is_one_text_with_the_sum() {
     let mut coalescer = Coalescer::default();
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     for index in 0..40 {
         let source = if index % 2 == 0 { "clipboard" } else { "API" };
         coalescer.push(
@@ -111,7 +111,7 @@ fn a_burst_of_imports_is_one_text_with_the_sum() {
 #[test]
 fn one_start_names_its_file_and_many_are_counted() {
     let mut coalescer = Coalescer::default();
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     coalescer.push(
         occurrence(NotificationEvent::DownloadStarted, "a", 1, "a.mkv"),
         now,
@@ -171,7 +171,7 @@ fn one_start_goes_out_in_the_rule_s_own_words() {
     let mut coalescer = Coalescer::default();
     coalescer.push(
         occurrence(NotificationEvent::DownloadStarted, "a", 1, "sample.bin"),
-        chrono::Utc::now(),
+        rd_core::Timestamp::now(),
     );
     let burst = coalescer.drain().remove(0);
     let (title, body) = burst_text(&burst);
@@ -180,9 +180,9 @@ fn one_start_goes_out_in_the_rule_s_own_words() {
         "MYTITLE {file}",
         "MYBODY {count}x {names} at {time} ({message})",
     );
-    let (title, body) = rule.wording(&title, &body, &burst.values(&chrono::Utc));
+    let (title, body) = rule.wording(&title, &body, &burst.values(&jiff::tz::TimeZone::UTC));
     assert_eq!(title, "MYTITLE sample.bin");
-    let time = burst.first_at.format("%H:%M");
+    let time = burst.first_at.strftime("%H:%M");
     assert_eq!(
         body,
         format!("MYBODY 1x sample.bin at {time} (Started: sample.bin.)")
@@ -200,19 +200,19 @@ fn many_starts_count_and_name_and_leave_the_file_empty() {
                 1,
                 &format!("part{index}.rar"),
             ),
-            chrono::Utc::now(),
+            rd_core::Timestamp::now(),
         );
     }
     let burst = coalescer.drain().remove(0);
     let (title, body) = burst_text(&burst);
     let rule = worded("{count} started [{file}]", "{names}");
-    let values = burst.values(&chrono::Utc);
+    let values = burst.values(&jiff::tz::TimeZone::UTC);
     let (own_title, own_body) = rule.wording(&title, &body, &values);
     assert_eq!(own_title, "50 started []");
     assert_eq!(own_body, "part0.rar, part1.rar, part2.rar and 47 more");
     // Filled again - a restart's replay - the burst says the same.
     assert_eq!(
-        rule.wording(&title, &body, &burst.values(&chrono::Utc)),
+        rule.wording(&title, &body, &burst.values(&jiff::tz::TimeZone::UTC)),
         (own_title, own_body)
     );
     // A rule without a template keeps the built-in wording.
@@ -246,12 +246,12 @@ fn the_editor_s_sample_bursts_are_real_ones() {
         for (index, (items, name)) in occurrences.into_iter().enumerate() {
             coalescer.push(
                 occurrence(event, &format!("e{index}"), items, name),
-                chrono::Utc::now(),
+                rd_core::Timestamp::now(),
             );
         }
         let burst = coalescer.drain().remove(0);
         let (title, body) = burst_text(&burst);
-        let mut values = burst.values(&chrono::Utc);
+        let mut values = burst.values(&jiff::tz::TimeZone::UTC);
         values.set(P::Title, title);
         values.set(P::Message, body);
         for (placeholder, example) in event.examples() {

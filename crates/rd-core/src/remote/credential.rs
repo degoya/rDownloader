@@ -8,7 +8,7 @@
 //!
 //! WebDAV is the exception and keeps using [`crate::AuthProfile`], because it *is* HTTP.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -166,8 +166,8 @@ pub struct RemoteCredential {
     pub has_key: bool,
     pub has_passphrase: bool,
     pub enabled: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 const fn default_true() -> bool {
@@ -295,7 +295,7 @@ pub struct SshHostKey {
     pub algorithm: String,
     /// `SHA256:<base64>` exactly as OpenSSH prints it, so it can be compared by eye.
     pub fingerprint: String,
-    pub first_seen: DateTime<Utc>,
+    pub first_seen: Timestamp,
 }
 
 #[cfg(test)]

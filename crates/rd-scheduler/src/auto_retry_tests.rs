@@ -7,8 +7,9 @@
 
 use std::{path::Path, sync::atomic::Ordering};
 
-use chrono::{Duration, Utc};
-use rd_core::{DownloadFile, DownloadId, DownloadState, Failure, FailureKind};
+use rd_core::{
+    DownloadFile, DownloadId, DownloadState, Failure, FailureKind, SignedDuration, Timestamp,
+};
 
 use crate::{FileSpec, PackageSpec, SchedulerConfig, SchedulerHandle};
 
@@ -117,8 +118,8 @@ async fn counters(database: &rd_db::Database, id: DownloadId) -> rd_db::RetryCou
 }
 
 /// The present to the second, so a due time reads back from the database exactly as written.
-fn clock() -> chrono::DateTime<Utc> {
-    chrono::DateTime::from_timestamp(Utc::now().timestamp(), 0).expect("a valid time")
+fn clock() -> Timestamp {
+    Timestamp::from_unix(Timestamp::now().unix_seconds(), 0).expect("a valid time")
 }
 
 fn daily_limit() -> Failure {
@@ -152,7 +153,7 @@ async fn a_limit_wait_spends_no_attempt_and_any_other_failure_ends_the_run_of_wa
     assert_eq!(waiting.state, DownloadState::RetryWait);
     assert_eq!(waiting.retry_count, 0, "the limit wait spent an attempt");
     let due = waiting.next_retry_at.expect("a due time");
-    let minutes = (due - Utc::now()).num_minutes();
+    let minutes = (due - Timestamp::now()).as_mins();
     assert!(
         (59..=60).contains(&minutes),
         "waits {minutes} min, not the hour"
@@ -254,13 +255,16 @@ async fn the_retry_takes_up_only_failures_a_later_attempt_can_change() {
     for id in &eligible {
         let waiting = row(&database, *id).await;
         assert_eq!(waiting.state, DownloadState::Failed);
-        assert_eq!(waiting.next_retry_at, Some(now + Duration::hours(6)));
+        assert_eq!(
+            waiting.next_retry_at,
+            Some(now + SignedDuration::from_hours(6))
+        );
     }
     for id in &never {
         assert_eq!(row(&database, *id).await.next_retry_at, None);
     }
 
-    let later = now + Duration::hours(6) + Duration::minutes(1);
+    let later = now + SignedDuration::from_hours(6) + SignedDuration::from_mins(1);
     assert_eq!(scheduler.auto_retry_pass(later).await.expect("pass"), 4);
     for id in &eligible {
         let queued = row(&database, *id).await;
@@ -291,7 +295,7 @@ async fn the_retry_stops_after_its_rounds() {
     let mut now = clock();
     for round in 1..=2 {
         scheduler.auto_retry_pass(now).await.expect("stamp");
-        now += Duration::hours(1);
+        now += SignedDuration::from_hours(1);
         assert_eq!(scheduler.auto_retry_pass(now).await.expect("due"), 1);
         assert_eq!(row(&database, file.id).await.state, DownloadState::Queued);
         assert_eq!(counters(&database, file.id).await.auto_retry_rounds, round);
@@ -301,7 +305,7 @@ async fn the_retry_stops_after_its_rounds() {
             .expect("fail again");
     }
     scheduler.auto_retry_pass(now).await.expect("pass");
-    now += Duration::hours(2);
+    now += SignedDuration::from_hours(2);
     assert_eq!(scheduler.auto_retry_pass(now).await.expect("pass"), 0);
     let left = row(&database, file.id).await;
     assert_eq!(left.state, DownloadState::Failed);
@@ -310,7 +314,7 @@ async fn the_retry_stops_after_its_rounds() {
     // `0` is no limit: the same row comes back once more.
     switch(&scheduler, true, 1, 0);
     scheduler.auto_retry_pass(now).await.expect("stamp");
-    now += Duration::hours(1);
+    now += SignedDuration::from_hours(1);
     assert_eq!(scheduler.auto_retry_pass(now).await.expect("due"), 1);
     scheduler.shutdown().await.expect("shutdown");
 }
@@ -326,7 +330,7 @@ async fn switched_off_it_does_nothing_and_takes_back_what_it_announced() {
     for hours in [0, 7, 30] {
         assert_eq!(
             scheduler
-                .auto_retry_pass(now + Duration::hours(hours))
+                .auto_retry_pass(now + SignedDuration::from_hours(hours))
                 .await
                 .expect("pass"),
             0
@@ -342,7 +346,7 @@ async fn switched_off_it_does_nothing_and_takes_back_what_it_announced() {
     switch(&scheduler, false, 6, 3);
     assert_eq!(
         scheduler
-            .auto_retry_pass(now + Duration::hours(7))
+            .auto_retry_pass(now + SignedDuration::from_hours(7))
             .await
             .expect("pass"),
         0
@@ -364,13 +368,13 @@ async fn a_shorter_interval_brings_the_due_time_nearer() {
     scheduler.auto_retry_pass(now).await.expect("stamp");
     assert_eq!(
         row(&database, file.id).await.next_retry_at,
-        Some(now + Duration::hours(24))
+        Some(now + SignedDuration::from_hours(24))
     );
     switch(&scheduler, true, 2, 3);
     scheduler.auto_retry_pass(now).await.expect("restamp");
     assert_eq!(
         row(&database, file.id).await.next_retry_at,
-        Some(now + Duration::hours(2))
+        Some(now + SignedDuration::from_hours(2))
     );
     scheduler.shutdown().await.expect("shutdown");
 }
@@ -384,7 +388,7 @@ async fn a_failed_download_resumed_by_hand_gets_its_retries_again() {
     let file = file(&scheduler, directory.path()).await;
     for _ in 0..crate::DEFAULT_MAX_RETRIES {
         database
-            .record_failure(file.id, transient(), Some(Utc::now()))
+            .record_failure(file.id, transient(), Some(Timestamp::now()))
             .await
             .expect("retry");
     }
@@ -441,7 +445,7 @@ async fn a_crash_before_the_requeue_leaves_the_round_to_the_next_start() {
     scheduler.auto_retry_pass(now).await.expect("stamp");
 
     let guard = FailpointGuard::once("scheduler.before_auto_retry_requeued");
-    let due = now + Duration::hours(1);
+    let due = now + SignedDuration::from_hours(1);
     assert!(
         scheduler.auto_retry_pass(due).await.is_err(),
         "the crash point did not stop the pass"

@@ -1,5 +1,9 @@
 # Changes
 
+## 0.7.22
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.7.21
 
 Maintenance release: internal changes only, no change in behaviour.

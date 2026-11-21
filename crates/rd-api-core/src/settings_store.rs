@@ -418,6 +418,30 @@ mod tests {
         assert_eq!(runtime.max_retries, 7);
     }
 
+    /// RD-1440-07: a LinkGrabber package's hand-over is offered, and the links it sent leave
+    /// the LinkGrabber, unless switched off; a document written before the switches existed
+    /// reads as both on, and a stored off stays off.
+    #[test]
+    fn the_package_hand_over_is_offered_and_removes_its_links_by_default() {
+        let defaults = SettingsResponse::default();
+        assert!(defaults.linkgrabber_hand_over_enabled);
+        assert!(defaults.linkgrabber_hand_over_remove_links);
+        for field in [
+            "linkgrabber_hand_over_enabled",
+            "linkgrabber_hand_over_remove_links",
+        ] {
+            assert!(!RUNTIME_FIELDS.contains(&field), "{field}");
+        }
+        let (settings, _) = startup_settings_of(Some(&serde_json::json!({}))).expect("defaults");
+        assert!(settings.linkgrabber_hand_over_enabled);
+        assert!(settings.linkgrabber_hand_over_remove_links);
+
+        let blob = serde_json::json!({ "linkgrabber_hand_over_remove_links": false });
+        let (settings, _) = startup_settings_of(Some(&blob)).expect("stored");
+        assert!(settings.linkgrabber_hand_over_enabled);
+        assert!(!settings.linkgrabber_hand_over_remove_links);
+    }
+
     #[test]
     fn a_first_start_without_a_document_runs_on_the_defaults() {
         let (settings, _) = startup_settings_of(None).expect("defaults");

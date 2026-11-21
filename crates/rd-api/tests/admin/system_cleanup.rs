@@ -14,18 +14,15 @@ use crate::common;
 use std::path::{Path, PathBuf};
 
 use axum::http::StatusCode;
-use chrono::{TimeZone, Utc};
 use common::{get_json, post_json, put_json, test_harness};
+use rd_core::Timestamp;
 use serde_json::json;
 
 /// A copy before an update from `from` to `to`, named and placed as the preparation writes it.
 fn copy(data: &Path, from: &str, to: &str, day: u32) -> PathBuf {
     let folder = data.join(rd_backup::pre_update::DIRECTORY);
     std::fs::create_dir_all(&folder).expect("folder");
-    let at = Utc
-        .with_ymd_and_hms(2026, 10, day, 12, 0, 0)
-        .single()
-        .expect("time");
+    let at = rd_core::Timestamp::from_ymd_hms(2026, 10, day, 12, 0, 0).expect("time");
     let path = folder.join(rd_db::pre_migration::copy_name(from, to, at));
     std::fs::write(&path, vec![0_u8; 1000]).expect("copy");
     path
@@ -156,7 +153,7 @@ async fn aged_archive(harness: &common::Harness, count: usize) {
             .await
             .expect("connect");
     sqlx::query("UPDATE subscription_items SET discovered_at = ?")
-        .bind(Utc::now() - chrono::Duration::days(120))
+        .bind(Timestamp::now() - rd_core::SignedDuration::from_hours(24 * 120))
         .execute(&mut connection)
         .await
         .expect("age");

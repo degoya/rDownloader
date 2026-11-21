@@ -29,7 +29,7 @@ impl TorrentService {
     pub async fn aggregate_stats(&self, id: DownloadId) -> Result<TorrentAggregateStats> {
         let generation = self.session_generation().await;
         let state = self.job_state(id).await;
-        let seeded_seconds = state.seed.seeded_seconds(chrono::Utc::now());
+        let seeded_seconds = state.seed.seeded_seconds(rd_core::Timestamp::now());
         let offline = |total: u64| TorrentAggregateStats {
             live: false,
             checking: false,
@@ -46,7 +46,7 @@ impl TorrentService {
             pieces_have: 0,
             ratio: 0.0,
             seeded_seconds,
-            sampled_at: chrono::Utc::now(),
+            sampled_at: rd_core::Timestamp::now(),
             session_generation: generation,
         };
         let total = state
@@ -90,7 +90,7 @@ impl TorrentService {
             pieces_have,
             ratio: TorrentAggregateStats::compute_ratio(stats.uploaded_bytes, stats.total_bytes),
             seeded_seconds,
-            sampled_at: chrono::Utc::now(),
+            sampled_at: rd_core::Timestamp::now(),
             session_generation: generation,
         })
     }
@@ -111,7 +111,7 @@ impl TorrentService {
             .read()
             .await
             .torrent_peer_addresses_visible;
-        let sampled_at = chrono::Utc::now();
+        let sampled_at = rd_core::Timestamp::now();
         let empty = TorrentPeerPage {
             peers: Vec::new(),
             total: 0,
@@ -168,7 +168,7 @@ impl TorrentService {
 
     /// Bucketed piece availability of one torrent.
     pub async fn piece_availability(&self, id: DownloadId) -> Result<TorrentPieceAvailability> {
-        let sampled_at = chrono::Utc::now();
+        let sampled_at = rd_core::Timestamp::now();
         let Some(entry) = self.inner.registry.read().await.get(id).cloned() else {
             return Ok(TorrentPieceAvailability::from_bitfield(
                 &[],

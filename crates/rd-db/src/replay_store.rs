@@ -7,8 +7,7 @@
 //! payload by widening a type.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{CandidateId, DownloadId, ReplayConsent, RequestTemplate};
+use rd_core::{CandidateId, DownloadId, ReplayConsent, RequestTemplate, Timestamp};
 use sqlx::{Connection, Row, SqliteConnection, SqlitePool};
 
 /// How many pre-resume refreshes one download may spend inside [`REFRESH_WINDOW_HOURS`].
@@ -98,7 +97,7 @@ pub(crate) async fn insert_request_template(
     id: DownloadId,
     template: &RequestTemplate,
     body_ref: Option<&str>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     sqlx::query(
         "INSERT INTO download_request_templates \
@@ -141,9 +140,9 @@ pub(crate) async fn take_candidate_body_ref(
 pub(crate) async fn claim_replay_refresh(
     connection: &mut SqliteConnection,
     id: DownloadId,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<bool> {
-    let window_start = now - chrono::TimeDelta::hours(REFRESH_WINDOW_HOURS);
+    let window_start = now - rd_core::SignedDuration::from_hours(REFRESH_WINDOW_HOURS);
     let result = sqlx::query(
         "UPDATE downloads \
             SET replay_refresh_count = CASE \
@@ -175,7 +174,7 @@ pub(crate) async fn claim_replay_refresh(
 pub(crate) async fn reset_transfer(
     connection: &mut SqliteConnection,
     id: DownloadId,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     let mut tx = connection.begin().await?;
     sqlx::query("DELETE FROM chunks WHERE download_id = ?")

@@ -8,7 +8,6 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-chrono.workspace = true
 quick-xml.workspace = true
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }

@@ -9,7 +9,7 @@
 
 use std::ops::RangeInclusive;
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -48,9 +48,9 @@ pub struct HistoryEntry {
     #[serde(default, skip_serializing_if = "MessageParams::is_empty")]
     pub error_params: MessageParams,
     /// When the package was added to the queue.
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
     /// When it reached its outcome.
-    pub finished_at: DateTime<Utc>,
+    pub finished_at: Timestamp,
 }
 
 /// The most addresses one entry keeps. A package of thousands of links still finds by name;

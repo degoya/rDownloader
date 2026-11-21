@@ -147,7 +147,7 @@ impl RemoteJobService {
                     code: Some(None),
                     message: Some(None),
                     // Polled again at once: the person is waiting to see it move.
-                    next_poll_at: Some(Some(Utc::now())),
+                    next_poll_at: Some(Some(Timestamp::now())),
                     ..AdvanceRemoteJob::default()
                 },
             )

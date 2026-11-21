@@ -3,9 +3,9 @@
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
 use rd_core::{
     DownloadId, DownloadPriority, DownloadState, EventEnvelope, EventKind, NzbImportId, PackageId,
+    Timestamp,
 };
 use sqlx::{Connection, SqliteConnection};
 
@@ -32,7 +32,7 @@ pub(crate) async fn enqueue_import(
     start_paused: bool,
 ) -> Result<(PackageId, Vec<EventEnvelope>)> {
     // `destination` is the category directory; the package gets its own folder below it.
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     let (name, category_id, priority) = load_queueable_import(&mut tx, import_id, priority).await?;
     let package_id = insert_import_package(
@@ -115,7 +115,7 @@ async fn insert_import_package(
     name: &str,
     category_id: Option<String>,
     priority: DownloadPriority,
-    now: chrono::DateTime<Utc>,
+    now: rd_core::Timestamp,
 ) -> Result<PackageId> {
     let package_id = PackageId::new();
     // Neither the package nor its folder should carry file extensions (`.nzb`, `.mp4`, …).
@@ -187,7 +187,7 @@ async fn insert_import_downloads(
     named: Vec<(String, String, i64, i64)>,
     initial_state: DownloadState,
     postpone: bool,
-    now: chrono::DateTime<Utc>,
+    now: rd_core::Timestamp,
 ) -> Result<()> {
     for (file_id, file_name, total_bytes, ordinal) in named {
         // A recovery volume nobody has asked for waits as `Skipped` instead of being fetched
@@ -231,7 +231,7 @@ async fn mark_import_enqueued(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     import_id: NzbImportId,
     package_id: PackageId,
-    now: chrono::DateTime<Utc>,
+    now: rd_core::Timestamp,
 ) -> Result<Vec<EventEnvelope>> {
     sqlx::query(
         "UPDATE nzb_imports SET state = 'enqueued', last_error = NULL, updated_at = ? WHERE id = ?",
@@ -323,7 +323,7 @@ pub(crate) async fn settle_recovery(
     file_name: &str,
     content_is_par2: bool,
 ) -> Result<Vec<EventEnvelope>> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     let package_id: String = sqlx::query_scalar("SELECT package_id FROM downloads WHERE id = ?")
         .bind(id.to_string())

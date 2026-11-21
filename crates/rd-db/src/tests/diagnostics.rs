@@ -1,8 +1,10 @@
 //! What the diagnostic bundle reads about notifications and the queue (RD-1291-04): the
 //! window, the limits, and that no title, text, folder, endpoint or name is ever selected.
 
-use chrono::{Duration, Utc};
-use rd_core::{AuthProfileSelection, DownloadId, PackageId, PackageState, PostprocessStage};
+use rd_core::{
+    AuthProfileSelection, DownloadId, PackageId, PackageState, PostprocessStage, SignedDuration,
+    Timestamp,
+};
 use rd_notify::{DeliveryState, NotificationEvent, Severity, TargetKind};
 
 use super::{routing_category, routing_root, temp_database};
@@ -135,13 +137,13 @@ async fn notifications_are_read_without_wording_within_their_window_and_limit() 
         "UPDATE notification_deliveries SET created_at = ? \
          WHERE idempotency_key IN ('event-0', 'event-1', 'event-2', 'event-3', 'event-4')",
     )
-    .bind(Utc::now() - Duration::days(8))
+    .bind(Timestamp::now() - SignedDuration::from_hours(24 * 8))
     .execute(&mut connection)
     .await
     .expect("backdate");
 
     let read = database
-        .notification_diagnostics(Utc::now() - Duration::days(7), 50)
+        .notification_diagnostics(Timestamp::now() - SignedDuration::from_hours(24 * 7), 50)
         .await
         .expect("diagnostics");
 

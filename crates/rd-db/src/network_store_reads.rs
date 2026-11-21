@@ -2,9 +2,8 @@
 //! sweeps, and the network configuration one job's HTTP client is built from.
 
 use anyhow::{Context, Result};
-use chrono::Utc;
 use rd_core::{
-    Account, AccountId, AuthProfile, AuthProfileSelection, ProxyProfile, ProxyProfileId,
+    Account, AccountId, AuthProfile, AuthProfileSelection, ProxyProfile, ProxyProfileId, Timestamp,
 };
 use rd_provider_registry::CredentialMode;
 use sqlx::{FromRow, SqlitePool};
@@ -147,7 +146,7 @@ async fn resolve_auth_profile(
             if !profile.enabled {
                 anyhow::bail!("pinned auth profile is disabled");
             }
-            if profile.is_expired(Utc::now()) {
+            if profile.is_expired(Timestamp::now()) {
                 anyhow::bail!("pinned auth profile has expired");
             }
             if !profile.scope.matches_url(url) {

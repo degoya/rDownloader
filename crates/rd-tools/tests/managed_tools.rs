@@ -8,8 +8,7 @@
 use std::{net::SocketAddr, sync::Arc};
 
 use axum::{Router, routing::get};
-use chrono::{Duration, Utc};
-use rd_core::{ManagedToolSettings, ToolSource};
+use rd_core::{ManagedToolSettings, SignedDuration, Timestamp, ToolSource};
 use rd_sign::{SigningKey, TrustStore};
 use rd_tools::{
     ArchiveFormat, ManagedToolService, TOOL_MANIFEST_SCHEMA_VERSION, ToolEntry, ToolError,
@@ -153,8 +152,8 @@ fn manifest(sequence: u64, tools: Vec<ToolEntry>) -> ToolManifest {
     ToolManifest {
         schema_version: TOOL_MANIFEST_SCHEMA_VERSION,
         sequence,
-        issued_at: Utc::now(),
-        not_after: Some(Utc::now() + Duration::days(30)),
+        issued_at: Timestamp::now(),
+        not_after: Some(Timestamp::now() + SignedDuration::from_hours(24 * 30)),
         tools,
         compatibility: Vec::new(),
     }
@@ -200,7 +199,7 @@ fn a_manifest_signed_by_another_key_is_refused() {
     let bytes =
         rd_tools::manifest::sign("rdownloader-tools-v1", &stranger, &manifest(2, Vec::new()))
             .expect("sign");
-    let result = rd_tools::manifest::verify(&bytes, None, Utc::now());
+    let result = rd_tools::manifest::verify(&bytes, None, Timestamp::now());
     assert!(
         matches!(result, Err(ToolError::ManifestUntrusted(_))),
         "{result:?}"
@@ -223,7 +222,7 @@ fn a_manifest_signed_by_a_trusted_key_verifies() {
     let bytes = rd_tools::manifest::sign("rdownloader-tools-v1", &key, &manifest(2, Vec::new()))
         .expect("sign");
     let read =
-        rd_tools::manifest::verify_with(&bytes, &trust, Some(1), Utc::now()).expect("verify");
+        rd_tools::manifest::verify_with(&bytes, &trust, Some(1), Timestamp::now()).expect("verify");
     assert_eq!(read.sequence, 2);
 }
 
@@ -239,7 +238,7 @@ fn a_manifest_at_or_below_the_accepted_sequence_is_a_replay() {
     let bytes = rd_tools::manifest::sign("rdownloader-tools-v1", &key, &manifest(5, Vec::new()))
         .expect("sign");
     for known in [5_u64, 6] {
-        let result = rd_tools::manifest::verify_with(&bytes, &trust, Some(known), Utc::now());
+        let result = rd_tools::manifest::verify_with(&bytes, &trust, Some(known), Timestamp::now());
         assert!(
             matches!(result, Err(ToolError::ManifestStale(_))),
             "{known}"
@@ -262,12 +261,12 @@ async fn the_accepted_manifest_sequence_is_persisted_and_never_lowered() {
     );
     fixture
         .database
-        .accept_tool_manifest(7, Utc::now().to_rfc3339())
+        .accept_tool_manifest(7, Timestamp::now().to_rfc3339())
         .await
         .expect("accept");
     fixture
         .database
-        .accept_tool_manifest(3, Utc::now().to_rfc3339())
+        .accept_tool_manifest(3, Timestamp::now().to_rfc3339())
         .await
         .expect("accept an older one");
     let state = fixture

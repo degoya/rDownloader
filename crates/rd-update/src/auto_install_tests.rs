@@ -1,12 +1,10 @@
-use chrono::{DateTime, TimeDelta, TimeZone, Utc};
+use rd_core::{SignedDuration, Timestamp};
 
 use super::{AutoInstall, InstallWindow, Moment, QUIET_PERIOD, Wait};
 
-fn at(minutes: i64) -> DateTime<Utc> {
-    Utc.with_ymd_and_hms(2026, 10, 10, 2, 0, 0)
-        .single()
-        .expect("time")
-        + TimeDelta::minutes(minutes)
+fn at(minutes: i64) -> Timestamp {
+    Timestamp::from_ymd_hms(2026, 10, 10, 2, 0, 0).expect("time")
+        + SignedDuration::from_mins(minutes)
 }
 
 /// Switched on, installable, offered, idle, no window: everything an install asks for.

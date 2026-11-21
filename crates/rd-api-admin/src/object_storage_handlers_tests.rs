@@ -1,6 +1,6 @@
 //! Unit tests of the object storage profile validation (RD-150-04, RD-150-05).
 
-use chrono::Utc;
+use rd_core::Timestamp;
 use rd_core::{
     ObjectAddressing, ObjectCredentialSource, ObjectStorageProfile, ObjectStorageProfileId,
     ObjectStorageProvider,
@@ -186,8 +186,8 @@ fn stored(fields: &Fields) -> ObjectStorageProfile {
         has_session_token: true,
         checksums: true,
         enabled: true,
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
+        created_at: Timestamp::now(),
+        updated_at: Timestamp::now(),
         ambient_custom_endpoint: false,
     }
 }

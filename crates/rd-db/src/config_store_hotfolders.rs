@@ -1,8 +1,7 @@
 //! Watched folders: create, list, edit and delete.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind, HotFolderConfig, HotFolderId};
+use rd_core::{EventEnvelope, EventKind, HotFolderConfig, HotFolderId, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use super::{HOTFOLDER_TAKEN, NewHotFolder, config_event};
@@ -26,7 +25,7 @@ pub(crate) async fn create_hotfolder(
         failed_path: input.failed_path,
         enabled: input.enabled,
     };
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = config_event(EventKind::HotFolderChanged, "hotfolder", value.id);
     let mut tx = connection.begin().await?;
     sqlx::query("INSERT INTO hotfolders (id, name, executor_json, path, recursive, category_id, import_mode, processed_path, failed_path, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
@@ -94,7 +93,7 @@ pub(crate) async fn update_hotfolder(
     .bind(&value.processed_path)
     .bind(&value.failed_path)
     .bind(value.enabled)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await

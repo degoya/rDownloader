@@ -6,8 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-chrono.workspace = true
-croner.workspace = true
+# The cron search on jiff's `Zoned` (RD-1440-05), as rd-subscription's; the workspace line
+# carries the same feature, this one keeps the crate's need written down.
+croner = { workspace = true, features = ["jiff"] }
+jiff.workspace = true
 rd-core = { path = "../rd-core" }
 rd-notify = { path = "../rd-notify" }
 regex.workspace = true

@@ -583,6 +583,19 @@
         "label": "Übergabe an Anbieter in den Downloads anzeigen",
         "description": "Standardmäßig an. Der Eintrag im Menü eines Pakets, das aus einer NZB stammt, erscheint in jedem Zustand des Pakets – auch fehlgeschlagen –, aber nur, wenn du ein Konto bei einem Anbieter hast, der NZB-Dateien annimmt (TorBox, Premiumize). Ein bereits übergebenes Paket behält seine Markierung."
       }
+    },
+    "package_hand_over": {
+      "eyebrow": "Remote-Anbieter",
+      "title": "Pakete an Anbieter übergeben",
+      "description": "Ein Paket im LinkGrabber lässt sich an ein Konto eines Anbieters übergeben, der entfernte Aufträge ausführt (etwa TorBox, Real-Debrid oder Premiumize): Jeder Magnet-Link, jede Adresse und jede importierte Torrent-Datei wird ein Auftrag. Der Anbieter lädt die Inhalte selbst; die fertigen Dateien kommen als Links in den LinkGrabber zurück.",
+      "enabled": {
+        "label": "Übergabe im Paketmenü anzeigen",
+        "description": "Standardmäßig an. Der Eintrag erscheint nur, wenn du ein Konto bei einem Anbieter hast, der eine der Quellen des Pakets annimmt. Ein bereits übergebener Link behält seine Markierung."
+      },
+      "remove": {
+        "label": "Links nach der Übergabe aus dem LinkGrabber entfernen",
+        "description": "Standardmäßig an: Jeder übergebene Link verlässt den LinkGrabber, ein dadurch leeres Paket wird gelöscht. Aus: Die Links bleiben stehen, markiert mit ihrem Auftrag, und eine erneute Übergabe schickt nichts doppelt. Was nicht übergeben werden konnte, bleibt immer."
+      }
     }
   },
   "notifications": {

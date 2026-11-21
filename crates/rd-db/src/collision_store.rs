@@ -2,8 +2,9 @@
 //! of finished files (RD-150-01). See `migrations/0099_collisions_and_content_index.sql`.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{CollisionDecision, CollisionPhase, CollisionPolicy, DownloadId, PackageId};
+use rd_core::{
+    CollisionDecision, CollisionPhase, CollisionPolicy, DownloadId, PackageId, Timestamp,
+};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::{parse_id, parse_time, timestamp};
@@ -39,8 +40,8 @@ pub struct CollisionPrompt {
     /// Size of the file already there when the prompt was opened.
     pub existing_bytes: Option<u64>,
     pub decision: Option<CollisionDecision>,
-    pub created_at: DateTime<Utc>,
-    pub decided_at: Option<DateTime<Utc>>,
+    pub created_at: Timestamp,
+    pub decided_at: Option<Timestamp>,
 }
 
 /// What opening a prompt records.
@@ -62,9 +63,9 @@ pub struct ContentIndexEntry {
     pub digest: String,
     pub size_bytes: u64,
     pub path: String,
-    pub indexed_at: DateTime<Utc>,
+    pub indexed_at: Timestamp,
     /// When a check last found the file missing; `None` while it is where `path` says.
-    pub missing_since: Option<DateTime<Utc>>,
+    pub missing_since: Option<Timestamp>,
 }
 
 fn policy(value: &str) -> Result<CollisionPolicy> {
@@ -140,7 +141,7 @@ pub(crate) async fn set_collision_policy(
             .bind(scope_kind)
             .bind(scope_id)
             .bind(value.as_str())
-            .bind(timestamp(&Utc::now()))
+            .bind(timestamp(&Timestamp::now()))
             .execute(connection)
             .await?;
         }
@@ -236,7 +237,7 @@ pub(crate) async fn open_collision_prompt(
             .existing_bytes
             .map(|value| i64::try_from(value).unwrap_or(i64::MAX)),
     )
-    .bind(timestamp(&Utc::now()))
+    .bind(timestamp(&Timestamp::now()))
     .execute(connection)
     .await?;
     Ok(())
@@ -252,7 +253,7 @@ pub(crate) async fn decide_collision_prompt(
         "UPDATE collision_prompts SET decision = ?, decided_at = ? WHERE download_id = ?",
     )
     .bind(decision.as_str())
-    .bind(timestamp(&Utc::now()))
+    .bind(timestamp(&Timestamp::now()))
     .bind(download_id.to_string())
     .execute(connection)
     .await?;
@@ -385,7 +386,7 @@ pub(crate) async fn index_content(
     .bind(digest.to_ascii_lowercase())
     .bind(i64::try_from(size_bytes).unwrap_or(i64::MAX))
     .bind(path)
-    .bind(timestamp(&Utc::now()))
+    .bind(timestamp(&Timestamp::now()))
     .execute(connection)
     .await?;
     Ok(())
@@ -412,7 +413,7 @@ pub(crate) async fn mark_indexed_content(
     connection: &mut SqliteConnection,
     changes: Vec<(DownloadId, bool)>,
 ) -> Result<()> {
-    let now = timestamp(&Utc::now());
+    let now = timestamp(&Timestamp::now());
     let mut transaction = connection.begin().await?;
     for (download_id, missing) in changes {
         if missing {

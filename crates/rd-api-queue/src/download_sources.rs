@@ -8,7 +8,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -29,7 +29,7 @@ pub struct DownloadSourceView {
     pub location: Option<String>,
     pub state: rd_core::SourceState,
     pub failures: u32,
-    pub backoff_until: Option<DateTime<Utc>>,
+    pub backoff_until: Option<Timestamp>,
     /// Stable code of why the source is out for good.
     pub isolated_code: Option<String>,
     /// Stable code of the most recent failure.
@@ -63,7 +63,7 @@ pub async fn list_download_sources(
     if state.database.get_download(id).await?.is_none() {
         return Err(crate::error_codes::download_not_found());
     }
-    let now = Utc::now();
+    let now = Timestamp::now();
     let sources = state
         .database
         .download_sources(id)

@@ -1,5 +1,4 @@
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
 use rd_core::{DownloadFile, DownloadId, DownloadState, EventEnvelope, EventKind};
 use sqlx::Connection;
 
@@ -27,7 +26,7 @@ async fn record_transfer_outcome(
     transaction: &mut sqlx::SqliteConnection,
     download: &DownloadFile,
     outcome: crate::stats_store::TransferOutcome,
-    now: chrono::DateTime<Utc>,
+    now: rd_core::Timestamp,
 ) -> Result<()> {
     let account_id = download.account_id.map(|id| id.to_string());
     let provider = crate::stats_store::provider_of(transaction, account_id.as_deref()).await?;
@@ -273,7 +272,7 @@ impl Writer {
         &mut self,
         id: DownloadId,
         failure: rd_core::Failure,
-        retry_at: Option<chrono::DateTime<Utc>>,
+        retry_at: Option<rd_core::Timestamp>,
     ) -> Result<DownloadFile> {
         let current = crate::models::get_download_from_connection(&mut self.connection, id)
             .await?
@@ -393,9 +392,7 @@ impl Writer {
             .bind(id.to_string())
             .fetch_one(&mut *transaction)
             .await?;
-        let seconds = (event.occurred_at - current.created_at)
-            .num_seconds()
-            .max(0);
+        let seconds = (event.occurred_at - current.created_at).as_secs().max(0);
         record_transfer_outcome(
             &mut transaction,
             &current,

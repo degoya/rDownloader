@@ -303,7 +303,10 @@ async fn an_agent_without_queue_control_cannot_hold() {
     set_game_mode(router, serde_json::json!({ "full_screen": true })).await;
     for (uri, body) in [
         (HOLD, serde_json::json!({})),
-        (RELEASE, serde_json::json!({ "until": chrono::Utc::now() })),
+        (
+            RELEASE,
+            serde_json::json!({ "until": rd_core::Timestamp::now() }),
+        ),
         (SWITCH, serde_json::json!({ "enabled": false })),
     ] {
         let (status, refused) = post_with_bearer(router, uri, CAPTURE_BEARER, body).await;

@@ -158,7 +158,7 @@ mod tests {
             id,
             name: "Example".to_owned(),
             state: rd_core::PackageState::Queued,
-            created_at: chrono::Utc::now(),
+            created_at: rd_core::Timestamp::now(),
             destination: "/downloads".to_owned(),
             category_id: None,
             priority: rd_core::DownloadPriority::Normal,

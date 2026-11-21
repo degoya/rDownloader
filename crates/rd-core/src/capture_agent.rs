@@ -7,7 +7,7 @@
 //! one key last, joined by `+` — `CmdOrCtrl+Alt+V`. `CmdOrCtrl` is Ctrl on Windows and Linux and
 //! Cmd on macOS, which is what lets one default serve every platform.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -378,7 +378,7 @@ pub struct CaptureShortcutReport {
     pub unavailable: Option<ShortcutsUnavailable>,
     /// When the service received it; whatever the agent sends here is replaced.
     #[serde(default)]
-    pub reported_at: Option<DateTime<Utc>>,
+    pub reported_at: Option<Timestamp>,
 }
 
 #[cfg(test)]

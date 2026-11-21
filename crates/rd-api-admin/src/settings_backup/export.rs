@@ -67,7 +67,7 @@ pub(crate) async fn build_settings_bundle(
     Ok(SettingsBundle {
         format: BUNDLE_FORMAT.to_owned(),
         version: BUNDLE_VERSION,
-        exported_at: Utc::now(),
+        exported_at: Timestamp::now(),
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
         settings,
         storage_roots,

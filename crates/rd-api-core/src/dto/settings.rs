@@ -496,6 +496,19 @@ pub struct SettingsResponse {
     /// different habit from handing over before the queue.
     #[serde(default = "default_true")]
     pub nzb_hand_over_downloads_enabled: bool,
+    /// Whether the menu of a LinkGrabber package offers handing its links to a remote-job
+    /// provider (RD-1440-07). On by default, and offered only where an account's provider takes
+    /// one of the package's kinds of source. A display choice: the REST route and the MCP tool
+    /// keep working, and a link already marked keeps its badge.
+    #[serde(default = "default_true")]
+    pub linkgrabber_hand_over_enabled: bool,
+    /// Whether a link handed to a remote-job provider from the LinkGrabber leaves it (RD-1440-07;
+    /// owner, 2026-11-21). On by default: every link handed over is removed, and a package left
+    /// without links with it. Off, the links stay, each marked with its job, so handing the
+    /// package over again sends nothing twice. Read on the server; the request cannot override
+    /// it. What could not be handed over stays either way.
+    #[serde(default = "default_true")]
+    pub linkgrabber_hand_over_remove_links: bool,
     /// Whether a package of the Downloads view that nobody opened or closed yet starts closed
     /// (RD-1170-01). On by default, as the queue always was; what the user opened or closed by
     /// hand is remembered per browser and stays so either way. A display choice only.

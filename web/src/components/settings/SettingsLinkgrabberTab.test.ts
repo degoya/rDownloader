@@ -50,6 +50,20 @@ describe('SettingsLinkgrabberTab', () => {
     expect(model.mirror_detection).toBe(false)
   })
 
+  // RD-1440-07: the package hand-over's two switches, both on by default.
+  it('switches the package hand-over and the removal of handed-over links', async () => {
+    const model = defaultSettings()
+    const { container } = mountComponent(SettingsLinkgrabberTab, { messages: { settings }, props: { modelValue: model }, stubs })
+    const card = container.querySelector('[data-settings-anchor="linkgrabber.hand_over"]') as HTMLElement
+    expect(card.textContent).toContain(settings.collector.package_hand_over.remove.label)
+
+    await fireEvent.click(card.querySelector('[data-testid="package-hand-over-remove"]') as HTMLElement)
+    expect(model.linkgrabber_hand_over_remove_links).toBe(false)
+    expect(model.linkgrabber_hand_over_enabled).toBe(true)
+    await fireEvent.click(card.querySelector('[data-testid="package-hand-over-enabled"]') as HTMLElement)
+    expect(model.linkgrabber_hand_over_enabled).toBe(false)
+  })
+
   // RD-1240-26: one card per tab, the two switches for every link first.
   it('has the tabs General, Blocklist, Containers and LinkFilter, in that order, the first one open', () => {
     const { container, getAllByRole } = mount()
@@ -77,7 +91,7 @@ describe('SettingsLinkgrabberTab', () => {
     const { container } = mount()
 
     const entries = SETTINGS_SEARCH_ENTRIES.filter(entry => entry.section === 'linkgrabber')
-    expect(entries).toHaveLength(6)
+    expect(entries).toHaveLength(7)
     for (const entry of entries) {
       expect(panel(container, entry.tab ?? '').querySelector(`[data-settings-anchor="${entry.id}"]`), entry.id).not.toBeNull()
     }

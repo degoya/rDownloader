@@ -116,14 +116,14 @@ async fn an_exhausted_request_allowance_is_a_pause_not_a_failure() {
         request_limit_offset: Some(100),
         ..paging(vec![100; 25])
     });
-    let before = chrono::Utc::now();
+    let before = rd_core::Timestamp::now();
     let (outcome, _) = poll(&fetcher, Some(700)).await;
     let error = outcome.expect_err("the second page was refused");
 
     let limited = error
         .downcast_ref::<RateLimited>()
         .unwrap_or_else(|| panic!("a request limit is a pause, not a failure: {error}"));
-    assert!(limited.until >= before + chrono::Duration::minutes(59));
+    assert!(limited.until >= before + rd_core::SignedDuration::from_mins(59));
     assert_eq!(requests(&fetcher), 2);
 }
 

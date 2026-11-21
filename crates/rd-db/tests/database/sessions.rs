@@ -1,7 +1,6 @@
 //! Persisted sessions: what the inventory shows and what revoking actually does.
 
-use chrono::{Duration, Utc};
-use rd_core::{SessionId, SessionLimits};
+use rd_core::{SessionId, SessionLimits, SignedDuration, Timestamp};
 
 fn limits() -> SessionLimits {
     SessionLimits::default()
@@ -23,11 +22,11 @@ async fn age(
     ))
     .await
     .expect("pool");
-    let now = Utc::now();
+    let now = Timestamp::now();
     let changed =
         sqlx::query("UPDATE sessions SET created_at = ?, last_used_at = ? WHERE token_sha256 = ?")
-            .bind(now - Duration::hours(signed_in_hours_ago))
-            .bind(now - Duration::hours(used_hours_ago))
+            .bind(now - SignedDuration::from_hours(signed_in_hours_ago))
+            .bind(now - SignedDuration::from_hours(used_hours_ago))
             .bind(digest)
             .execute(&pool)
             .await
@@ -282,7 +281,7 @@ async fn a_session_unused_for_longer_than_the_idle_limit_ends() {
     assert_eq!(listed.len(), 1, "the idle session is still listed");
     // The inventory says when the session ends if it is left alone: two hours after its last
     // use, not the expiry written at sign-in.
-    let ends = listed[0].last_used_at + Duration::hours(2);
+    let ends = listed[0].last_used_at + SignedDuration::from_hours(2);
     assert_eq!(listed[0].expires_at, ends);
 }
 

@@ -128,7 +128,7 @@ pub(crate) async fn migrate(
         .parent()
         .unwrap_or_else(|| Path::new("."))
         .join(DIRECTORY);
-    let snapshot = directory.join(snapshot_name(from, schema.known, chrono::Utc::now()));
+    let snapshot = directory.join(snapshot_name(from, schema.known, rd_core::Timestamp::now()));
     if let Err(error) = write_snapshot(&mut connection, &directory, &snapshot).await {
         return Err(MigrationFailure {
             code: SNAPSHOT_FAILED,
@@ -185,7 +185,7 @@ fn needs_copy(schema: &CopySchema) -> bool {
 
 /// `rdownloader-<from>-to-<to>-<timestamp>.sqlite3`; the timestamp is the last segment, fixed
 /// width, so the names of one folder sort by it.
-fn snapshot_name(from: i64, to: i64, at: chrono::DateTime<chrono::Utc>) -> String {
+fn snapshot_name(from: i64, to: i64, at: rd_core::Timestamp) -> String {
     copy_name(&format!("{from:04}"), &format!("{to:04}"), at)
 }
 
@@ -193,10 +193,10 @@ fn snapshot_name(from: i64, to: i64, at: chrono::DateTime<chrono::Utc>) -> Strin
 /// copy before an update (`rd_backup::pre_update`, RD-180-03) names app versions where this
 /// start names migrations; neither may contain a path separator.
 #[must_use]
-pub fn copy_name(from: &str, to: &str, at: chrono::DateTime<chrono::Utc>) -> String {
+pub fn copy_name(from: &str, to: &str, at: rd_core::Timestamp) -> String {
     format!(
         "{PREFIX}{from}-to-{to}-{}{EXTENSION}",
-        at.format("%Y%m%dT%H%M%S%3fZ")
+        at.strftime("%Y%m%dT%H%M%S%3fZ")
     )
 }
 

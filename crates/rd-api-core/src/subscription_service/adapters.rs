@@ -50,7 +50,7 @@ impl rd_subscription::FeedFetcher for HttpFeedFetcher {
             rd_subscription::MAX_FEED_BYTES,
         )
         .await
-        .map_err(|error| rate_limited(error, chrono::Utc::now()))?;
+        .map_err(|error| rate_limited(error, rd_core::Timestamp::now()))?;
         Ok(rd_subscription::FetchedFeed {
             body: response.body,
             etag: response.etag,
@@ -65,10 +65,7 @@ impl rd_subscription::FeedFetcher for HttpFeedFetcher {
 ///
 /// Waited out until the server's `Retry-After` rather than counted as a failure and backed off —
 /// and for an indexer that refuses its third page, the end of that poll rather than a gap in it.
-pub(super) fn rate_limited(
-    error: anyhow::Error,
-    now: chrono::DateTime<chrono::Utc>,
-) -> anyhow::Error {
+pub(super) fn rate_limited(error: anyhow::Error, now: rd_core::Timestamp) -> anyhow::Error {
     let retry_after = match error.downcast_ref::<rd_http::HttpDownloadError>() {
         Some(rd_http::HttpDownloadError::Failure(failure)) => match failure.category {
             rd_core::FailureKind::RateLimited {

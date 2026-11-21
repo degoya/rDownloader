@@ -13,15 +13,13 @@ impl SubscriptionService {
     /// immediately. One with `0 6 * * *` means six o'clock, not "now, and then at six": it is
     /// given its first time here and left alone until then. Returns whether it was armed; an
     /// expression that names no time is not, so the poll runs and fails with the reason.
-    pub(super) async fn arm(
-        &self,
-        subscription: &Subscription,
-        now: chrono::DateTime<chrono::Utc>,
-    ) -> bool {
+    pub(super) async fn arm(&self, subscription: &Subscription, now: rd_core::Timestamp) -> bool {
         let (Some(expression), None) = (&subscription.schedule, subscription.next_run_at) else {
             return false;
         };
-        let Ok(next) = rd_subscription::next_scheduled(expression, now, &chrono::Local) else {
+        let Ok(next) =
+            rd_subscription::next_scheduled(expression, now, &jiff::tz::TimeZone::system())
+        else {
             return false;
         };
         if let Err(error) = self

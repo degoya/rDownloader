@@ -11,7 +11,7 @@
 //!   a restart, a duplicated tick, or the hour that repeats itself when the clocks go back
 //!   cannot produce two recordings of one broadcast.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -34,7 +34,7 @@ pub enum ScheduleKind {
     Once {
         /// The instant it starts, in UTC. A one-off has an absolute time because it refers
         /// to one event, not to a time of day.
-        start: DateTime<Utc>,
+        start: Timestamp,
     },
     /// A recurring local time on chosen weekdays.
     Weekly {
@@ -68,8 +68,8 @@ pub struct StreamSchedule {
     /// Only ever honoured when the provider actually offers it; see
     /// [`StreamScheduledRun::replay_used`].
     pub replay_from_start: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 /// What became of one planned occurrence.
@@ -110,9 +110,9 @@ pub struct StreamScheduledRun {
     pub schedule_id: StreamScheduleId,
     pub channel_id: StreamChannelId,
     /// The nominal start, which is also the idempotency key together with the schedule.
-    pub starts_at: DateTime<Utc>,
+    pub starts_at: Timestamp,
     /// Nominal end, before the post-roll.
-    pub ends_at: DateTime<Utc>,
+    pub ends_at: Timestamp,
     pub state: ScheduledRunState,
     /// The recording this run started, once it has one.
     pub download_id: Option<DownloadId>,
@@ -121,7 +121,7 @@ pub struct StreamScheduledRun {
     pub replay_used: bool,
     /// Redacted failure message.
     pub error: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
 }
 
 /// Why a schedule was rejected.

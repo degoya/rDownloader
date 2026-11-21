@@ -10,7 +10,7 @@
 //! the order and its health. The order is fixed when the row is written and never recomputed,
 //! so a restart walks the sources exactly as the attempt before it did.
 
-use chrono::{DateTime, Duration, Utc};
+use crate::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -381,7 +381,7 @@ pub struct DownloadSource {
     /// Failures since the last delivery.
     pub failures: u32,
     /// Not tried again before this instant.
-    pub backoff_until: Option<DateTime<Utc>>,
+    pub backoff_until: Option<Timestamp>,
     /// Stable code of the reason this source is out for good, when it is.
     pub isolated_code: Option<String>,
     /// Stable code of the most recent failure.
@@ -409,7 +409,7 @@ pub enum SourceState {
 impl DownloadSource {
     /// Where this source stands at `now`.
     #[must_use]
-    pub fn state_at(&self, now: DateTime<Utc>) -> SourceState {
+    pub fn state_at(&self, now: Timestamp) -> SourceState {
         if self.isolated_code.is_some() {
             SourceState::Isolated
         } else if !self.protocol.serves_chunks() {
@@ -439,7 +439,7 @@ pub enum SourceOutcome {
 /// How long a source that has now failed `failures` times waits: 30 s doubling to 30 min, or
 /// what the server asked for when that is longer.
 #[must_use]
-pub fn source_backoff(failures: u32, retry_after_seconds: Option<u64>) -> Duration {
+pub fn source_backoff(failures: u32, retry_after_seconds: Option<u64>) -> SignedDuration {
     // The shared backoff (audit 1.9.1, INTAKE-12); any exponent past the old `min(16)` was
     // already beyond the cap, so the figures are unchanged.
     let computed = crate::timing::exponential_backoff(
@@ -453,7 +453,7 @@ pub fn source_backoff(failures: u32, retry_after_seconds: Option<u64>) -> Durati
         .map(|seconds| i64::try_from(seconds).unwrap_or(i64::MAX))
         .unwrap_or(0)
         .min(BACKOFF_MAX_SECONDS);
-    Duration::seconds(computed.max(asked))
+    SignedDuration::from_secs(computed.max(asked))
 }
 
 #[cfg(test)]

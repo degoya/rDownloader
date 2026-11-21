@@ -149,12 +149,16 @@ fn the_capability_preview_is_ordered_and_non_trivial() {
 #[test]
 fn an_expiry_is_optional_and_bounded() {
     assert_eq!(expiry(None).expect("never expires"), None);
-    let before = chrono::Utc::now();
+    let before = rd_core::Timestamp::now();
     let at = expiry(Some(30)).expect("thirty days").expect("an expiry");
     let ahead = at - before;
-    assert!(ahead >= chrono::Duration::days(30), "{ahead}");
     assert!(
-        ahead < chrono::Duration::days(30) + chrono::Duration::minutes(1),
+        ahead >= rd_core::SignedDuration::from_hours(24 * 30),
+        "{ahead}"
+    );
+    assert!(
+        ahead
+            < rd_core::SignedDuration::from_hours(24 * 30) + rd_core::SignedDuration::from_mins(1),
         "{ahead}"
     );
     expiry(Some(MAX_EXPIRY_DAYS)).expect("the longest expiry");

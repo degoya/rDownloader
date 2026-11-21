@@ -9,8 +9,7 @@ use std::sync::{
     atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
-use chrono::{DateTime, Local, TimeZone, Utc};
-use rd_core::{SubscriptionItemState, SubscriptionKind, SubscriptionSettings};
+use rd_core::{SubscriptionItemState, SubscriptionKind, SubscriptionSettings, Timestamp};
 use rd_subscription::{DiscoveredItem, PollOutcome, SourceAdapter};
 
 use super::SubscriptionService;
@@ -49,25 +48,25 @@ impl SourceAdapter for CountingScript {
     }
 }
 
-fn local(day: u32, hour: u32, minute: u32, second: u32) -> DateTime<Utc> {
+fn local(day: i8, hour: i8, minute: i8, second: i8) -> Timestamp {
     // January, far from any change to or from summer time in any zone that has one.
-    Local
-        .with_ymd_and_hms(2030, 1, day, hour, minute, second)
-        .earliest()
+    jiff::civil::date(2030, 1, day)
+        .at(hour, minute, second, 0)
+        .to_zoned(jiff::tz::TimeZone::system())
+        .map(Timestamp::from)
         .expect("local time")
-        .with_timezone(&Utc)
 }
 
 struct Fixture {
     service: SubscriptionService,
     database: rd_db::Database,
     script: Arc<CountingScript>,
-    time: Arc<Mutex<DateTime<Utc>>>,
+    time: Arc<Mutex<Timestamp>>,
     _directory: tempfile::TempDir,
 }
 
 impl Fixture {
-    fn set(&self, time: DateTime<Utc>) {
+    fn set(&self, time: Timestamp) {
         *self.time.lock().expect("clock") = time;
     }
 
@@ -83,7 +82,7 @@ impl Fixture {
     }
 }
 
-async fn fixture(start: DateTime<Utc>) -> Fixture {
+async fn fixture(start: Timestamp) -> Fixture {
     let directory = tempfile::tempdir().expect("tempdir");
     let script = Arc::new(CountingScript::default());
     let time = Arc::new(Mutex::new(start));
@@ -103,7 +102,7 @@ async fn fixture(start: DateTime<Utc>) -> Fixture {
 pub(super) async fn service_with(
     directory: &std::path::Path,
     adapters: Vec<Arc<dyn SourceAdapter>>,
-    time: Arc<Mutex<DateTime<Utc>>>,
+    time: Arc<Mutex<Timestamp>>,
 ) -> (SubscriptionService, rd_db::Database) {
     let database = rd_db::Database::open(directory.join("poller.sqlite3"))
         .await

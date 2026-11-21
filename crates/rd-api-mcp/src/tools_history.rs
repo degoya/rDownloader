@@ -68,11 +68,10 @@ fn word<T: serde::de::DeserializeOwned>(value: Option<String>) -> Result<Option<
         .transpose()
 }
 
-fn instant(value: Option<String>) -> Result<Option<chrono::DateTime<chrono::Utc>>, ApiError> {
+fn instant(value: Option<String>) -> Result<Option<rd_core::Timestamp>, ApiError> {
     value
         .map(|value| {
-            chrono::DateTime::parse_from_rfc3339(value.trim())
-                .map(|parsed| parsed.with_timezone(&chrono::Utc))
+            rd_core::Timestamp::parse_rfc3339(value.trim())
                 .map_err(|_| history_handlers::history_filter_invalid())
         })
         .transpose()

@@ -374,14 +374,14 @@ async fn a_finished_poll_that_accepted_an_item_fires_subscription_item_once() {
         accepted,
         skipped: 1,
         error: error.map(ToOwned::to_owned),
-        next_run_at: chrono::Utc::now(),
+        next_run_at: rd_core::Timestamp::now(),
         consecutive_failures: 0,
         etag: None,
         last_modified: None,
     };
     harness
         .database
-        .finish_subscription_run(subscription_id, chrono::Utc::now(), poll(1, None))
+        .finish_subscription_run(subscription_id, rd_core::Timestamp::now(), poll(1, None))
         .await
         .expect("run recorded");
     assert_fired(&harness.router, &listening, "subscription_item").await;
@@ -389,7 +389,7 @@ async fn a_finished_poll_that_accepted_an_item_fires_subscription_item_once() {
     for result in [poll(0, None), poll(2, Some("poll timed out"))] {
         harness
             .database
-            .finish_subscription_run(subscription_id, chrono::Utc::now(), result)
+            .finish_subscription_run(subscription_id, rd_core::Timestamp::now(), result)
             .await
             .expect("run recorded");
     }

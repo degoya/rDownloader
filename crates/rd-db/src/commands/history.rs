@@ -7,7 +7,7 @@ pub(crate) enum HistoryCommand {
     /// Removes the entries the retention no longer keeps.
     PruneHistory {
         max_entries: u64,
-        older_than: chrono::DateTime<chrono::Utc>,
+        older_than: rd_core::Timestamp,
         reply: Reply<u64>,
     },
     /// Empties the history on request and reports how many entries went.

@@ -18,6 +18,7 @@ mod collision_store;
 mod remote_store;
 pub use collector_media::media_file_name;
 mod audit_store;
+mod collector_hand_over;
 mod collector_packages;
 mod collector_store;
 mod commands;
@@ -165,6 +166,7 @@ pub use backup_store::{
     ReplacementUsenetServer,
 };
 pub use bandwidth_store::{NewBandwidthProfile, NewScheduleWindow};
+pub use collector_hand_over::HandedOverLinks;
 pub use collector_mirrors::{MIRROR_PREFERENCE_KEY, MirrorDissolve};
 pub use collector_packages::{CollectorPackageChange, MoveTarget};
 pub use collector_store::NewCollectorBatch;

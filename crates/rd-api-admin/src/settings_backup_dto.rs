@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -50,7 +50,7 @@ pub struct BundleAuthProfile {
     pub origin: rd_core::AuthOrigin,
     pub enabled: bool,
     #[serde(default)]
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
     #[serde(default)]
     pub username: Option<String>,
     #[serde(default)]
@@ -190,7 +190,7 @@ pub struct BundleSubscription {
 pub struct SettingsBundle {
     pub format: String,
     pub version: u32,
-    pub exported_at: DateTime<Utc>,
+    pub exported_at: Timestamp,
     pub app_version: String,
     pub settings: SettingsResponse,
     #[serde(default)]

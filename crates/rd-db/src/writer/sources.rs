@@ -1,7 +1,7 @@
 //! Download sources and the chunk marks built on them (RD-150-03): the writer half of
 //! `download_sources_store`.
 
-use chrono::Utc;
+use rd_core::Timestamp;
 
 use super::{Writer, send};
 use crate::commands::SourcesCommand;
@@ -23,7 +23,7 @@ impl Writer {
                         download_id,
                         position,
                         &outcome,
-                        Utc::now(),
+                        Timestamp::now(),
                     )
                     .await,
                 );

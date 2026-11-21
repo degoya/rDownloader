@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use chrono::Duration;
+use rd_core::SignedDuration;
 
 use super::{
     IndexError, IndexPackage, MAX_INDEX_PACKAGES, MAX_PACKAGE_BYTES, MAX_RELEASE_NOTES_CHARS,
@@ -34,7 +34,7 @@ impl PluginIndex {
         if self.not_after <= self.issued_at {
             return Err(invalid("not_after is not after issued_at"));
         }
-        if self.not_after - self.issued_at > Duration::days(MAX_VALIDITY_DAYS) {
+        if self.not_after - self.issued_at > SignedDuration::from_hours(24 * MAX_VALIDITY_DAYS) {
             return Err(invalid(format!(
                 "valid for longer than {MAX_VALIDITY_DAYS} days"
             )));

@@ -120,7 +120,7 @@ impl Watch {
         }
         if let Some(pending) = &self.pending
             && let Resolution::Ended(text) =
-                resolve(pending, self.reading.as_ref(), chrono::Utc::now())
+                resolve(pending, self.reading.as_ref(), rd_core::Timestamp::now())
         {
             tracing::info!(target = %pending.target, outcome = %text, "the server update ended");
             self.pending = None;
@@ -197,7 +197,7 @@ impl Watch {
             Ok(installing) => {
                 let pending = Pending {
                     target: installing.target_version,
-                    requested_at: chrono::Utc::now(),
+                    requested_at: rd_core::Timestamp::now(),
                 };
                 tracing::info!(target = %pending.target, "the server update was started from the tray");
                 if let Some(directory) = &self.directory

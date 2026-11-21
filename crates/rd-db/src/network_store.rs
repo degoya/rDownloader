@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
-use chrono::Utc;
 use rd_core::{
     Account, AccountId, AuthProfile, EventEnvelope, EventKind, ProxyKind, ProxyProfile,
-    ProxyProfileId,
+    ProxyProfileId, Timestamp,
 };
 use rd_provider_registry::CredentialMode;
 use sqlx::{Connection, Row, SqliteConnection};
@@ -85,7 +84,7 @@ pub(crate) async fn create_account(
         has_secret: input.secret_ref.is_some(),
         has_cookies: input.cookie_ref.is_some(),
     };
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = network_event(EventKind::AccountChanged, "account", value.id);
     let mut tx = connection.begin().await?;
     sqlx::query(
@@ -142,7 +141,7 @@ pub(crate) async fn update_account(
     .bind(input.cookie_ref)
     .bind(value.proxy_profile_id.map(|id| id.to_string()))
     .bind(value.enabled)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(value.id.to_string())
     .execute(&mut *tx)
     .await?;
@@ -214,7 +213,7 @@ pub(crate) async fn create_proxy_profile(
         secret_ref: input.secret_ref,
         resolves_names: input.resolves_names,
     };
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = network_event(EventKind::ProxyChanged, "proxy_profile", value.id);
     let mut tx = connection.begin().await?;
     sqlx::query(
@@ -264,7 +263,7 @@ pub(crate) async fn update_proxy_profile(
     .bind(&value.username)
     .bind(&value.secret_ref)
     .bind(value.resolves_names)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(value.id.to_string())
     .execute(&mut *tx)
     .await?;

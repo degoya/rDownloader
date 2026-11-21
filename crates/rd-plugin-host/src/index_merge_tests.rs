@@ -1,7 +1,7 @@
 //! Tests for [`super::carry_over`]: the last version per contract stays, withdrawals do not.
 
-use chrono::{Duration, Utc};
 use rd_core::PluginId;
+use rd_core::{SignedDuration, Timestamp};
 
 use super::carry_over;
 use crate::{
@@ -40,8 +40,8 @@ fn index(packages: Vec<IndexPackage>) -> PluginIndex {
     PluginIndex {
         schema_version: PLUGIN_INDEX_SCHEMA_VERSION,
         sequence: 1,
-        issued_at: Utc::now() - Duration::days(1),
-        not_after: Utc::now() + Duration::days(30),
+        issued_at: Timestamp::now() - SignedDuration::from_hours(24),
+        not_after: Timestamp::now() + SignedDuration::from_hours(24 * 30),
         packages,
         revoked: Revocations::default(),
     }

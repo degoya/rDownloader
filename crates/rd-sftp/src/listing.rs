@@ -4,8 +4,7 @@
 //! listing dialect to guess at; the only judgement calls are how far to walk and which
 //! entries are safe to store locally.
 
-use chrono::{DateTime, Utc};
-use rd_core::{ByteCount, RemoteEntry, RemoteListing};
+use rd_core::{ByteCount, RemoteEntry, RemoteListing, Timestamp};
 use rd_transfer_file::{DirectoryLister, ListedEntry};
 use russh_sftp::client::SftpSession;
 use russh_sftp::protocol::FileAttributes;
@@ -65,6 +64,9 @@ pub(crate) fn size_of(metadata: &FileAttributes) -> Option<ByteCount> {
     metadata.size.and_then(|size| ByteCount::new(size).ok())
 }
 
-pub(crate) fn modified_at(metadata: &FileAttributes) -> Option<DateTime<Utc>> {
-    metadata.modified().ok().map(DateTime::<Utc>::from)
+pub(crate) fn modified_at(metadata: &FileAttributes) -> Option<Timestamp> {
+    let modified = metadata.modified().ok()?;
+    jiff::Timestamp::try_from(modified)
+        .ok()
+        .map(Timestamp::from_jiff)
 }

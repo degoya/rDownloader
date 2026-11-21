@@ -1,10 +1,9 @@
 //! LinkGrabber packages: grouping, ordering, moving, online-check claims and enqueue locks.
 
 use anyhow::{Result, bail};
-use chrono::Utc;
 use rd_core::{
     BatchId, CategoryId, CollectorPackage, CollectorPackageId, DownloadPriority, EventEnvelope,
-    EventKind,
+    EventKind, Timestamp,
 };
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -132,7 +131,7 @@ pub(crate) async fn insert(
     priority: DownloadPriority,
 ) -> Result<CollectorPackageId> {
     let id = CollectorPackageId::new();
-    let now = Utc::now();
+    let now = Timestamp::now();
     let position = next_grabber_position(tx).await?;
     sqlx::query(
         "INSERT INTO collector_packages (id, batch_id, name, auto_named, category_id, priority, position, created_at, updated_at) \
@@ -180,7 +179,7 @@ pub(crate) async fn update(
     ids: &[CollectorPackageId],
     change: &CollectorPackageChange,
 ) -> Result<(Vec<CollectorPackage>, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let bound: Vec<String> = ids.iter().map(ToString::to_string).collect();
     let list = placeholders(bound.len());
     let mut tx = connection.begin().await?;
@@ -379,7 +378,7 @@ struct PackageRow {
     priority: i64,
     position: i64,
     has_password: i64,
-    created_at: chrono::DateTime<Utc>,
+    created_at: rd_core::Timestamp,
     postprocess_level: Option<String>,
     script: Option<String>,
 }

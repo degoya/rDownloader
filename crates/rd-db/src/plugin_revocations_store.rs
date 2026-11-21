@@ -8,8 +8,7 @@
 //! survives a restart: the rows are read once at start and replace that set.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind};
+use rd_core::{EventEnvelope, EventKind, Timestamp};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -65,7 +64,7 @@ pub(crate) async fn insert_plugin_digest_revocation(
         plugin_name: input.plugin_name,
         version: input.version,
         reason: input.reason,
-        revoked_at: Utc::now().to_rfc3339(),
+        revoked_at: Timestamp::now().to_rfc3339(),
     };
     let mut transaction = connection.begin().await?;
     sqlx::query(

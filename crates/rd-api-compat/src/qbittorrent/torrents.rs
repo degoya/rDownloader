@@ -189,9 +189,9 @@ fn entry(view: &map::TorrentView) -> serde_json::Value {
         "auto_tmm": false,
         "time_active": 0,
         "seeding_time": 0,
-        "added_on": view.package.created_at.timestamp(),
+        "added_on": view.package.created_at.unix_seconds(),
         "completion_on": if map::is_finished(&view.package) {
-            view.package.created_at.timestamp()
+            view.package.created_at.unix_seconds()
         } else {
             0
         },
@@ -215,7 +215,7 @@ pub(crate) async fn properties(
     axum::Json(serde_json::json!({
         "save_path": map::content_paths(view).save_path,
         "download_path": "",
-        "creation_date": view.package.created_at.timestamp(),
+        "creation_date": view.package.created_at.unix_seconds(),
         "piece_size": 0,
         "comment": "",
         "total_wasted": 0,
@@ -228,7 +228,7 @@ pub(crate) async fn properties(
         "seeding_time": 0,
         "nb_connections": 0,
         "share_ratio": 0.0,
-        "addition_date": view.package.created_at.timestamp(),
+        "addition_date": view.package.created_at.unix_seconds(),
         "is_private": false,
     }))
     .into_response()

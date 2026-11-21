@@ -24,8 +24,7 @@
 use std::collections::BTreeMap;
 
 use axum::{Json, extract::State};
-use chrono::{DateTime, Utc};
-use rd_core::{CategoryId, Indexer, IndexerId, IndexerSearch};
+use rd_core::{CategoryId, Indexer, IndexerId, IndexerSearch, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

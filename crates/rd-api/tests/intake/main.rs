@@ -20,6 +20,7 @@ mod capture_pick;
 mod check_auth_profile;
 mod collector_pages;
 mod collector_picks;
+mod collector_remote_job;
 mod container_json;
 mod containers;
 mod dlc;

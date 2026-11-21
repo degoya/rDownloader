@@ -2,8 +2,9 @@
 //! half of a reset. What lies on disk is the scheduler's, and it goes first.
 
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, Utc};
-use rd_core::{DownloadFile, DownloadId, DownloadState, EventEnvelope, EventKind, PackageState};
+use rd_core::{
+    DownloadFile, DownloadId, DownloadState, EventEnvelope, EventKind, PackageState, Timestamp,
+};
 use sqlx::Connection;
 
 use crate::{
@@ -33,7 +34,7 @@ pub(super) fn refuse_unresettable(current: &DownloadFile) -> Result<()> {
 pub(super) async fn reset_row(
     transaction: &mut sqlx::SqliteConnection,
     id: &str,
-    at: DateTime<Utc>,
+    at: Timestamp,
 ) -> Result<()> {
     sqlx::query("DELETE FROM chunks WHERE download_id = ?")
         .bind(id)

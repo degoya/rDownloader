@@ -8,9 +8,10 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-chrono.workspace = true
+# `croner`'s `jiff` feature (workspace) gives the cron search on `jiff::Zoned` (RD-1440-05).
 croner.workspace = true
 hex.workspace = true
+jiff.workspace = true
 quick-xml.workspace = true
 regex.workspace = true
 rd-collector = { path = "../rd-collector" }

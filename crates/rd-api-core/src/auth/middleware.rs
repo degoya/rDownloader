@@ -146,9 +146,7 @@ pub(super) async fn resolve(
 /// actually needs to say. In memory on purpose — after a restart the first use of every token
 /// is recorded again, which is information rather than noise.
 pub(super) static TOKEN_USE_SEEN: std::sync::LazyLock<
-    std::sync::Mutex<
-        std::collections::HashMap<rd_core::CaptureTokenId, chrono::DateTime<chrono::Utc>>,
-    >,
+    std::sync::Mutex<std::collections::HashMap<rd_core::CaptureTokenId, rd_core::Timestamp>>,
 > = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
 
 /// Records that a token was accepted, at most once per interval.
@@ -163,13 +161,13 @@ pub(super) fn note_token_audit(
     scopes: Vec<String>,
     via: AuditChannel,
 ) {
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     {
         let Ok(mut seen) = TOKEN_USE_SEEN.lock() else {
             return;
         };
         if let Some(last) = seen.get(&id)
-            && (now - *last).num_seconds() < rd_core::AUDIT_TOKEN_USE_INTERVAL_SECONDS
+            && (now - *last).as_secs() < rd_core::AUDIT_TOKEN_USE_INTERVAL_SECONDS
         {
             return;
         }

@@ -137,7 +137,7 @@ pub struct SetUsenetQuotaRequest {
     pub action: rd_core::UsenetQuotaAction,
     /// The day (UTC) from which the used figure starts again at zero, once. Today or later.
     #[serde(default)]
-    pub reset_on: Option<chrono::NaiveDate>,
+    pub reset_on: Option<rd_core::Date>,
     /// Puts the used figure back to zero now.
     #[serde(default)]
     pub reset_usage: bool,

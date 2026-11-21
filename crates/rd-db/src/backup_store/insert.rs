@@ -2,8 +2,7 @@
 //! them. Tables whose rows own state that is not configuration upsert by id instead.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use rd_core::{Category, CategoryRule, HotFolderConfig, StorageRootConfig};
+use rd_core::{Category, CategoryRule, HotFolderConfig, StorageRootConfig, Timestamp};
 use sqlx::SqliteConnection;
 
 use super::{
@@ -15,7 +14,7 @@ use crate::enum_string;
 pub(super) async fn insert_storage_roots(
     tx: &mut SqliteConnection,
     values: Vec<StorageRootConfig>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(
@@ -42,7 +41,7 @@ pub(super) async fn insert_storage_roots(
 pub(super) async fn insert_categories(
     tx: &mut SqliteConnection,
     values: Vec<Category>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(
@@ -113,7 +112,7 @@ pub(super) async fn insert_categories(
 pub(super) async fn insert_category_rules(
     tx: &mut SqliteConnection,
     values: Vec<CategoryRule>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(
@@ -144,7 +143,7 @@ pub(super) async fn insert_category_rules(
 pub(super) async fn insert_hotfolders(
     tx: &mut SqliteConnection,
     values: Vec<HotFolderConfig>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(
@@ -173,7 +172,7 @@ pub(super) async fn insert_hotfolders(
 pub(super) async fn insert_stream_channels(
     tx: &mut SqliteConnection,
     values: Vec<ReplacementStreamChannel>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(
@@ -203,7 +202,7 @@ pub(super) async fn insert_stream_channels(
 pub(super) async fn insert_subscriptions(
     tx: &mut SqliteConnection,
     values: Vec<ReplacementSubscription>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(
@@ -279,7 +278,7 @@ pub(super) async fn insert_subscriptions(
 pub(super) async fn insert_auth_profiles(
     tx: &mut SqliteConnection,
     values: Vec<ReplacementAuthProfile>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(
@@ -310,7 +309,7 @@ pub(super) async fn insert_auth_profiles(
 pub(super) async fn insert_indexers(
     tx: &mut SqliteConnection,
     values: Vec<ReplacementIndexer>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(
@@ -335,7 +334,7 @@ pub(super) async fn insert_indexers(
 pub(super) async fn insert_proxy_profiles(
     tx: &mut SqliteConnection,
     values: Vec<ReplacementProxyProfile>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(
@@ -360,7 +359,7 @@ pub(super) async fn insert_proxy_profiles(
 pub(super) async fn insert_accounts(
     tx: &mut SqliteConnection,
     values: Vec<ReplacementAccount>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(
@@ -397,7 +396,7 @@ pub(super) async fn insert_accounts(
 pub(super) async fn insert_usenet_servers(
     tx: &mut SqliteConnection,
     values: Vec<ReplacementUsenetServer>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for value in values {
         sqlx::query(

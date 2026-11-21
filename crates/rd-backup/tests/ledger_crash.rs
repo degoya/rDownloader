@@ -6,13 +6,13 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use rd_backup::ledger::{self, Delivered, Run, Target};
 use rd_backup::{
     BackupKey, BackupSources, LocalFolder, RetryPolicy, SealedBackup, archive_name, seal_backup,
     staging_root,
 };
 use rd_core::{BackupOrigin, BackupRunState};
+use rd_core::{SignedDuration, Timestamp};
 use rd_db::{
     BackupDestinationRecord, BackupRunOutcome, Database, NewBackupArchive, NewBackupDestination,
     NewBackupRun,
@@ -98,7 +98,7 @@ impl Installation {
         &self,
         key: &BackupKey,
         id: &str,
-        at: DateTime<Utc>,
+        at: Timestamp,
     ) -> (SealedBackup, Vec<Delivered>) {
         assert!(
             self.database
@@ -211,16 +211,16 @@ async fn an_archive_the_ledger_never_recorded_stays_whole_and_retention_leaves_i
     let directory = TempDir::new().expect("temp");
     let installation = Installation::new(directory.path(), Some(1)).await;
     let key = key().await;
-    let now = Utc::now();
+    let now = Timestamp::now();
 
     let (first, delivered) = installation
-        .run(&key, "first", now - chrono::Duration::hours(2))
+        .run(&key, "first", now - SignedDuration::from_hours(2))
         .await;
     assert!(delivered[0].result.is_ok());
     let crashed = {
         let guard = rd_core::failpoint::FailpointGuard::once("backup.before_archive_recorded");
         let (sealed, delivered) = installation
-            .run(&key, "crashed", now - chrono::Duration::hours(1))
+            .run(&key, "crashed", now - SignedDuration::from_hours(1))
             .await;
         assert!(guard.fired(), "the crash point was never reached");
         assert!(
@@ -268,11 +268,16 @@ async fn an_archive_the_ledger_never_recorded_stays_whole_and_retention_leaves_i
 async fn an_archive_removed_before_the_ledger_forgot_it_is_forgotten_by_the_next_pass() {
     let directory = TempDir::new().expect("temp");
     let installation = Installation::new(directory.path(), Some(1)).await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     // Three archives of this installation, oldest first, at the destination and in the ledger.
     let names: Vec<String> = (1..=3)
         .rev()
-        .map(|hours| archive_name(&installation.instance, now - chrono::Duration::hours(hours)))
+        .map(|hours| {
+            archive_name(
+                &installation.instance,
+                now - SignedDuration::from_hours(hours),
+            )
+        })
         .collect();
     for (index, name) in names.iter().enumerate() {
         std::fs::write(installation.nas.join(name), b"sealed").expect("archive");
@@ -285,7 +290,8 @@ async fn an_archive_removed_before_the_ledger_forgot_it_is_forgotten_by_the_next
                 location: installation.nas.join(name).display().to_string(),
                 size_bytes: 6,
                 sha256: "ab".repeat(32),
-                created_at: now - chrono::Duration::hours(3 - i64::try_from(index).expect("index")),
+                created_at: now
+                    - SignedDuration::from_hours(3 - i64::try_from(index).expect("index")),
             })
             .await
             .expect("record");

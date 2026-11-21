@@ -8,7 +8,7 @@ use axum::{
     Json,
     extract::{Path as AxumPath, State},
 };
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_core::{
     CollisionDecision, CollisionPhase, CollisionPolicy, DownloadId, DownloadState,
     EffectiveCollisionPolicy, PackageId,
@@ -61,8 +61,8 @@ pub struct CollisionPromptResponse {
     pub phase: CollisionPhase,
     pub existing_bytes: Option<u64>,
     pub decision: Option<CollisionDecision>,
-    pub created_at: DateTime<Utc>,
-    pub decided_at: Option<DateTime<Utc>>,
+    pub created_at: Timestamp,
+    pub decided_at: Option<Timestamp>,
 }
 
 #[derive(Deserialize, ToSchema)]

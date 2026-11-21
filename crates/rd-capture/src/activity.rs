@@ -15,7 +15,7 @@
 //! menu entries that makes, and which of them can be chosen, is [`QueueMenu`], decided here for
 //! the same reason as the line.
 
-use chrono::{DateTime, TimeZone, Utc};
+use rd_core::Timestamp;
 use tokio_util::sync::CancellationToken;
 
 use crate::{client::CaptureClient, config};
@@ -48,7 +48,7 @@ pub(crate) struct Summary {
     pub paused: u32,
     /// When the timed pause of the whole queue ends, while one holds.
     #[serde(default)]
-    pub paused_until: Option<DateTime<Utc>>,
+    pub paused_until: Option<Timestamp>,
     /// Whether this agent may pause and resume the queue: it was paired with `capture:queue`.
     /// `default` because a service without the field offers no such thing.
     #[serde(default)]
@@ -59,7 +59,7 @@ pub(crate) struct Summary {
     pub traffic_held_accounts: u32,
     /// The soonest next traffic check of those accounts.
     #[serde(default)]
-    pub traffic_next_check: Option<DateTime<Utc>>,
+    pub traffic_next_check: Option<Timestamp>,
 }
 
 /// The queue entries the tray menu offers (RD-1100-06, RD-1101-06).
@@ -177,12 +177,12 @@ pub(crate) fn describe(summary: Summary) -> Activity {
     if let Some(until) = summary.paused_until {
         parts.push(format!(
             "paused until {}",
-            pause_end(until, &chrono::Local::now())
+            pause_end(until, &jiff::Zoned::now())
         ));
     }
     // Next to it, for the same reason: what holds downloads back that nobody paused.
     if summary.traffic_held_accounts > 0 {
-        parts.push(traffic_hold(summary, &chrono::Local::now()));
+        parts.push(traffic_hold(summary, &jiff::Zoned::now()));
     }
     if summary.active > 0 {
         parts.push(format!("{} active", summary.active));
@@ -235,23 +235,17 @@ fn queue_menu(summary: &Summary) -> QueueMenu {
 
 /// The end of a pause as the clock on the wall says it: `18:30` today, `Oct 5 18:30` on another
 /// day. `now` carries the zone, so a test can name one.
-fn pause_end<Tz: TimeZone>(until: DateTime<Utc>, now: &DateTime<Tz>) -> String
-where
-    Tz::Offset: std::fmt::Display,
-{
-    let local = until.with_timezone(&now.timezone());
-    if local.date_naive() == now.date_naive() {
-        local.format("%H:%M").to_string()
+fn pause_end(until: Timestamp, now: &jiff::Zoned) -> String {
+    let local = until.to_zoned(now.time_zone().clone());
+    if local.date() == now.date() {
+        local.strftime("%H:%M").to_string()
     } else {
-        local.format("%b %-d %H:%M").to_string()
+        local.strftime("%b %-d %H:%M").to_string()
     }
 }
 
 /// "account traffic used up, next check 18:30" — "2 accounts'" when more than one is held.
-fn traffic_hold<Tz: TimeZone>(summary: Summary, now: &DateTime<Tz>) -> String
-where
-    Tz::Offset: std::fmt::Display,
-{
+fn traffic_hold(summary: Summary, now: &jiff::Zoned) -> String {
     let whose = if summary.traffic_held_accounts == 1 {
         "account".to_owned()
     } else {

@@ -374,6 +374,13 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
         Method::POST,
         QUEUE,
     ),
+    // Hands the package's links to an account's provider, like every remote-job submit
+    // (RD-1440-07).
+    entry(
+        "/api/v1/collector/packages/{id}/remote-job",
+        Method::POST,
+        SECRETS,
+    ),
     // A series page's entries before they are resolved (RD-1170-03). Listing a page fetches
     // it and resolving an entry adds links, which is what an intake costs; reading the board,
     // stopping it and discarding a list are LinkGrabber work.

@@ -21,7 +21,10 @@ impl Writer {
             | CollectorCommand::DeleteCollectorPackage { .. }
             | CollectorCommand::RegroupBatches { .. }
             | CollectorCommand::DeleteCandidate { .. }
-            | CollectorCommand::DeleteCandidates { .. }) => self.collector_intake(command).await,
+            | CollectorCommand::DeleteCandidates { .. }
+            | CollectorCommand::SettleHandedOverCandidates { .. }) => {
+                self.collector_intake(command).await
+            }
             command @ (CollectorCommand::UpdateCollectorPackages { .. }
             | CollectorCommand::ReorderCollectorPackages { .. }
             | CollectorCommand::ReorderGrabberEntries { .. }
@@ -158,6 +161,15 @@ impl Writer {
             }
             CollectorCommand::DeleteCandidates { reply } => {
                 let result = crate::collector_store::delete_candidates(&mut self.connection).await;
+                publish_config(reply, result, &self.events);
+            }
+            CollectorCommand::SettleHandedOverCandidates {
+                handed,
+                links,
+                reply,
+            } => {
+                let result =
+                    crate::collector_hand_over::settle(&mut self.connection, &handed, links).await;
                 publish_config(reply, result, &self.events);
             }
             _ => unreachable!("routed by handle_collector"),

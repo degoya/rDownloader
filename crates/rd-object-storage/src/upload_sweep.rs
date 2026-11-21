@@ -5,9 +5,8 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use chrono::Utc;
 use object_store::path::Path;
-use rd_core::ObjectStorageProfile;
+use rd_core::{ObjectStorageProfile, SignedDuration, Timestamp};
 use rd_db::ObjectUpload as UploadRecord;
 
 use crate::ObjectStorageService;
@@ -25,7 +24,7 @@ impl ObjectStorageService {
     /// Run at start: a package that was removed while its upload was half done leaves parts
     /// in the bucket that are billed and invisible until somebody aborts them.
     pub async fn sweep_stale_uploads(&self, age: Duration) -> Result<usize> {
-        let before = Utc::now() - chrono::Duration::from_std(age)?;
+        let before = Timestamp::now() - SignedDuration::try_from(age)?;
         let stale = self.database().object_uploads(None, Some(before)).await?;
         self.abort_uploads(stale).await
     }

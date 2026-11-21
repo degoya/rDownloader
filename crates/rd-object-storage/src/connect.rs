@@ -264,7 +264,6 @@ pub(crate) fn ambient_config(
 mod tests {
     use std::{collections::HashMap, time::Duration};
 
-    use chrono::Utc;
     use object_store::aws::AmazonS3ConfigKey;
     use rd_core::{
         ObjectAddressing, ObjectCredentialSource, ObjectStorageProfile, ObjectStorageProfileId,
@@ -332,8 +331,8 @@ mod tests {
                 has_session_token: false,
                 checksums: false,
                 enabled: true,
-                created_at: Utc::now(),
-                updated_at: Utc::now(),
+                created_at: rd_core::Timestamp::now(),
+                updated_at: rd_core::Timestamp::now(),
                 ambient_custom_endpoint: false,
             };
             assert_eq!(

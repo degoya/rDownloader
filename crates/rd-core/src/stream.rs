@@ -1,7 +1,7 @@
 //! Livestream recording via external `streamlink`: monitored channels and the tool
 //! settings (part of the `service.settings` blob, keys prefixed `record_`).
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -27,14 +27,14 @@ pub struct StreamChannel {
     /// Destination category of recordings; `None` = the default category.
     pub category_id: Option<CategoryId>,
     pub enabled: bool,
-    pub last_live_at: Option<DateTime<Utc>>,
+    pub last_live_at: Option<Timestamp>,
     /// Last probe error, cleared on a successful probe.
     pub last_error: Option<String>,
     /// Splitting, remux, sidecars and reconnect delay for this channel's recordings
     /// (RD-080-09).
     #[serde(default)]
     pub recording: crate::RecordingPolicy,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

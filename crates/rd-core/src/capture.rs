@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -422,7 +422,7 @@ pub struct CapturedRequest {
     /// Deadline read out of the signed URL. Server-derived; a client value is ignored.
     #[serde(default)]
     #[schema(read_only)]
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
     /// Origins this request may be replayed against. Server-derived.
     #[serde(default)]
     #[schema(read_only)]
@@ -468,20 +468,20 @@ pub struct CaptureToken {
     pub id: CaptureTokenId,
     pub label: String,
     pub scopes: Vec<String>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
     /// When the token was last accepted on a request, to the nearest minute.
     ///
     /// `None` means it has not been used since it was issued — which is the one thing worth
     /// knowing about a machine token nobody can remember handing out. Coarse on purpose: the
     /// write is throttled, because the alternative is one database write per request for a
     /// field nobody reads in real time.
-    pub last_used_at: Option<DateTime<Utc>>,
-    pub revoked_at: Option<DateTime<Utc>>,
+    pub last_used_at: Option<Timestamp>,
+    pub revoked_at: Option<Timestamp>,
     /// From when on the token is refused like a revoked one (RD-1110-07); `None` never
     /// expires. An expired token stays listed until somebody revokes it, so it does not
     /// vanish from the list the moment its client starts failing.
     #[serde(default)]
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
     /// Calls the token may make per minute, REST and MCP together (RD-1200-04); `None` is no
     /// limit. A call above it is refused with `429` and `api.token_rate_limited`.
     #[serde(default)]

@@ -180,7 +180,7 @@ impl Writer {
                 send(reply, self.claim_resolver_refresh(id).await);
             }
             DownloadsCommand::ClaimReplayRefresh { id, reply } => {
-                let now = chrono::Utc::now();
+                let now = rd_core::Timestamp::now();
                 send(
                     reply,
                     crate::replay_store::claim_replay_refresh(&mut self.connection, id, now).await,
@@ -190,7 +190,7 @@ impl Writer {
                 send(reply, self.reset_download(id).await);
             }
             DownloadsCommand::ResetTransfer { id, reply } => {
-                let now = chrono::Utc::now();
+                let now = rd_core::Timestamp::now();
                 send(
                     reply,
                     crate::replay_store::reset_transfer(&mut self.connection, id, now).await,

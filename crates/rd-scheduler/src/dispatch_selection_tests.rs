@@ -12,8 +12,10 @@ use std::{
     time::Duration,
 };
 
-use chrono::{DateTime, Utc};
-use rd_core::{DownloadFile, DownloadId, DownloadKind, DownloadPackage, Failure, FailureKind};
+use rd_core::{
+    DownloadFile, DownloadId, DownloadKind, DownloadPackage, Failure, FailureKind, SignedDuration,
+    Timestamp,
+};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
@@ -128,7 +130,7 @@ pub(crate) async fn waits(
     database: &rd_db::Database,
     file: &DownloadFile,
     category: FailureKind,
-    at: DateTime<Utc>,
+    at: Timestamp,
 ) {
     database
         .record_failure(file.id, Failure::new(category, "refused"), Some(at))
@@ -136,7 +138,7 @@ pub(crate) async fn waits(
         .expect("failure");
 }
 
-pub(crate) async fn pass(scheduler: &SchedulerHandle, now: DateTime<Utc>) {
+pub(crate) async fn pass(scheduler: &SchedulerHandle, now: Timestamp) {
     scheduler
         .dispatch_pass(now, &mut HashMap::new())
         .await
@@ -169,12 +171,12 @@ async fn a_file_waiting_for_its_retry_keeps_its_place_against_the_files_after_it
     let directory = tempfile::tempdir().expect("temp");
     let (scheduler, database) = queue(directory.path(), 1).await;
     let files = packages(&scheduler, directory.path(), &["first", "next"]).await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     waits(
         &database,
         &files[0],
         transient(),
-        now + chrono::Duration::seconds(4),
+        now + SignedDuration::from_secs(4),
     )
     .await;
 
@@ -184,7 +186,7 @@ async fn a_file_waiting_for_its_retry_keeps_its_place_against_the_files_after_it
         "the next package's file took the place the waiting file comes back to"
     );
 
-    pass(&scheduler, now + chrono::Duration::seconds(5)).await;
+    pass(&scheduler, now + SignedDuration::from_secs(5)).await;
     assert_eq!(running(&scheduler).await, HashSet::from([files[0].id]));
     scheduler.shutdown().await.expect("shutdown");
 }
@@ -215,8 +217,8 @@ async fn a_stated_wait_leaves_its_place_and_comes_back_before_later_files() {
         &["unavailable", "second", "third"],
     )
     .await;
-    let now = Utc::now();
-    let minute = chrono::Duration::seconds(60);
+    let now = Timestamp::now();
+    let minute = SignedDuration::from_secs(60);
     waits(
         &database,
         &files[0],
@@ -232,7 +234,7 @@ async fn a_stated_wait_leaves_its_place_and_comes_back_before_later_files() {
 
     // The second file ends; its place is free again.
     end(&scheduler, files[1].id).await;
-    pass(&scheduler, now + minute + chrono::Duration::seconds(1)).await;
+    pass(&scheduler, now + minute + SignedDuration::from_secs(1)).await;
     assert_eq!(
         running(&scheduler).await,
         HashSet::from([files[0].id]),
@@ -249,7 +251,7 @@ async fn the_sixth_failure_in_a_row_waits_a_minute_and_the_place_moves_on() {
     let directory = tempfile::tempdir().expect("temp");
     let (scheduler, database) = queue(directory.path(), 1).await;
     let files = packages(&scheduler, directory.path(), &["broken", "next"]).await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     for _ in 0..crate::retry::FAST_RETRIES {
         waits(&database, &files[0], transient(), now).await;
     }
@@ -269,7 +271,7 @@ async fn the_sixth_failure_in_a_row_waits_a_minute_and_the_place_moves_on() {
         .expect("row");
     let wait = waiting.next_retry_at.expect("still retried") - now;
     assert!(
-        (chrono::Duration::seconds(50)..=chrono::Duration::seconds(70)).contains(&wait),
+        (SignedDuration::from_secs(50)..=SignedDuration::from_secs(70)).contains(&wait),
         "the sixth failure waits {wait}, not a minute"
     );
 
@@ -290,19 +292,19 @@ async fn a_kept_place_binds_only_the_files_after_it() {
         &["ahead", "returning", "behind"],
     )
     .await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     waits(
         &database,
         &files[1],
         FailureKind::Offline,
-        now + chrono::Duration::seconds(8),
+        now + SignedDuration::from_secs(8),
     )
     .await;
 
     pass(&scheduler, now).await;
     assert_eq!(running(&scheduler).await, HashSet::from([files[0].id]));
 
-    pass(&scheduler, now + chrono::Duration::seconds(9)).await;
+    pass(&scheduler, now + SignedDuration::from_secs(9)).await;
     assert_eq!(
         running(&scheduler).await,
         HashSet::from([files[0].id, files[1].id])

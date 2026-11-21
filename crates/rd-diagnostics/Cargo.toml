@@ -11,7 +11,6 @@ test-support = []
 
 [dependencies]
 anyhow.workspace = true
-chrono.workspace = true
 hex.workspace = true
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }

@@ -13,7 +13,10 @@
 //! of its X11 windows has the focus.
 //!
 //! A combination the system refuses -- another program holds it -- is reported with the others to
-//! the service, so the settings page can say which one; the agent keeps running either way.
+//! the service, so the settings page can say which one; the agent keeps running either way. Since
+//! `global-hotkey` 0.10 macOS registers exclusively too and answers a taken combination with
+//! `Error::AlreadyRegistered` instead of a registration that never fires (RD-1440-04); that
+//! answer is a refusal like any other ([`claimed`]).
 
 use std::collections::BTreeMap;
 
@@ -165,14 +168,8 @@ impl Hotkeys {
                 tracing::warn!(?command, shortcut = %text, "the shortcut does not read; not registered");
                 continue;
             };
-            match self.manager.register(hotkey) {
-                Ok(()) => {
-                    tracing::info!(?command, shortcut = %text, "shortcut registered");
-                    self.held.insert(command, (text, hotkey));
-                }
-                Err(error) => {
-                    tracing::warn!(%error, ?command, shortcut = %text, "the system refused the shortcut");
-                }
+            if claimed(self.manager.register(hotkey), command, &text) {
+                self.held.insert(command, (text, hotkey));
             }
         }
         let report = CaptureShortcutReport {
@@ -199,6 +196,22 @@ impl Hotkeys {
             .iter()
             .find(|(_, (_, hotkey))| hotkey.id() == id)
             .map(|(command, _)| *command)
+    }
+}
+
+/// Whether a registration took. Every error is a refusal, `AlreadyRegistered` included (another
+/// program holds the combination; on macOS since `global-hotkey` 0.10): the command stays out of
+/// the held shortcuts, so the report names it and the next change tries it again.
+fn claimed(outcome: global_hotkey::Result<()>, command: CaptureCommand, text: &str) -> bool {
+    match outcome {
+        Ok(()) => {
+            tracing::info!(?command, shortcut = %text, "shortcut registered");
+            true
+        }
+        Err(error) => {
+            tracing::warn!(%error, ?command, shortcut = %text, "the system refused the shortcut");
+            false
+        }
     }
 }
 
@@ -313,7 +326,7 @@ mod tests {
 
     use rd_core::{CaptureCommand, CaptureShortcuts, ShortcutsUnavailable};
 
-    use super::{hotkey_of, linux_availability, plan};
+    use super::{claimed, hotkey_of, linux_availability, plan};
 
     /// Every default reads in the registering library as it stands, so a fresh agent registers
     /// all of them.
@@ -396,6 +409,24 @@ mod tests {
             "both are released before either is claimed"
         );
         assert_eq!(step.claim.len(), 2);
+    }
+
+    /// A combination another program holds is refused like any other failure, never taken as
+    /// held (RD-1440-04: macOS answers it with `AlreadyRegistered` since `global-hotkey` 0.10).
+    #[test]
+    fn a_combination_already_taken_is_refused() {
+        let hotkey = hotkey_of("CmdOrCtrl+Alt+K").expect("a shortcut that reads");
+        assert!(claimed(Ok(()), CaptureCommand::Open, "CmdOrCtrl+Alt+K"));
+        assert!(!claimed(
+            Err(global_hotkey::Error::AlreadyRegistered(hotkey)),
+            CaptureCommand::Open,
+            "CmdOrCtrl+Alt+K"
+        ));
+        assert!(!claimed(
+            Err(global_hotkey::Error::FailedToRegister("busy".to_owned())),
+            CaptureCommand::Open,
+            "CmdOrCtrl+Alt+K"
+        ));
     }
 
     /// Wayland has no global shortcut for a program to claim, and without a display there is

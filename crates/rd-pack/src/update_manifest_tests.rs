@@ -78,8 +78,9 @@ async fn the_schema_change_flag_reaches_the_signed_manifest() {
             .await
             .expect("build");
         let bytes = std::fs::read(out.join(Channel::Stable.file_name())).expect("manifest");
-        let verified = manifest::verify_with(&bytes, &trust, Channel::Stable, None, Utc::now())
-            .expect("verify");
+        let verified =
+            manifest::verify_with(&bytes, &trust, Channel::Stable, None, Timestamp::now())
+                .expect("verify");
         assert_eq!(verified.schema_change, expected, "{flag:?}");
         assert_eq!(verified.artifacts.len(), 1);
         assert_eq!(
@@ -285,8 +286,8 @@ async fn the_notes_come_from_the_release_notes_and_the_anchor_from_the_changelog
     run(build("accepted", RELEASE_NOTES)).await.expect("build");
     let bytes = std::fs::read(directory.join("accepted").join(Channel::Stable.file_name()))
         .expect("manifest");
-    let verified =
-        manifest::verify_with(&bytes, &trust, Channel::Stable, None, Utc::now()).expect("verify");
+    let verified = manifest::verify_with(&bytes, &trust, Channel::Stable, None, Timestamp::now())
+        .expect("verify");
     assert_eq!(
         verified.notes,
         "- rDownloader tells you when a new version is out.\n- A bold word and a link stay readable."

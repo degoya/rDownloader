@@ -9,7 +9,7 @@
 //! install's own ([`AutoInstall::observe`], [`settled`]); the caller observes and asks, this
 //! decides.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use crate::auto_install::{AutoInstall, InstallWindow, Wait, settled};
 
@@ -45,7 +45,7 @@ impl AutoRestart {
     /// The [`Wait`] that holds the restart back: [`Wait::Off`], [`Wait::NothingPending`],
     /// [`Wait::Installing`] (an update or a restart runs), [`Wait::Busy`], [`Wait::Settling`] or
     /// [`Wait::OutsideWindow`].
-    pub fn decide(&mut self, moment: &RestartMoment, now: DateTime<Utc>) -> Result<(), Wait> {
+    pub fn decide(&mut self, moment: &RestartMoment, now: Timestamp) -> Result<(), Wait> {
         let quiet_since = self.clock.observe(moment.busy, now);
         if !moment.enabled {
             return Err(Wait::Off);

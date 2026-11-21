@@ -1,9 +1,9 @@
 //! Online-check claims and results, and renaming a candidate.
 
 use anyhow::{Result, bail};
-use chrono::Utc;
 use rd_core::{
     CandidateId, EventEnvelope, LinkCandidate, LinkCandidateState, LinkCheckResult, LinkStatus,
+    Timestamp,
 };
 use sqlx::{Connection, SqliteConnection};
 
@@ -78,7 +78,7 @@ pub(crate) async fn record_check(
         .and_then(|result| result.media.as_ref())
         .map(serde_json::to_string)
         .transpose()?;
-    let now = Utc::now();
+    let now = Timestamp::now();
     // Every check writes the column: a cache answer is only as good as the latest check, so
     // one that did not say "cached" must clear what an earlier one said (RD-120-36).
     let cached_at = result
@@ -181,7 +181,7 @@ pub(crate) async fn mark_unsupported(
     cached_by: Option<String>,
 ) -> Result<EventEnvelope> {
     let state = LinkCandidateState::Unsupported;
-    let now = Utc::now();
+    let now = Timestamp::now();
     let cached_at = cached_by.is_some().then_some(now);
     let params_json = params_json(&message)?;
     let mut tx = connection.begin().await?;

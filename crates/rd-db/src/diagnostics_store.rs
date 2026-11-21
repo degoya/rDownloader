@@ -10,7 +10,7 @@
 //! something is wrong, and a row an enum no longer parses must still be shown, not refused.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 
@@ -54,8 +54,8 @@ pub struct DiagnosticDelivery {
     pub state: String,
     pub attempts: u32,
     pub response_status: Option<u16>,
-    pub queued_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub queued_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 /// Targets, rules and what became of their deliveries.
@@ -97,7 +97,7 @@ pub struct PackageTransition {
     pub stage: Option<String>,
     /// The package's category now; `None` without one or once the package is gone.
     pub category_id: Option<String>,
-    pub occurred_at: DateTime<Utc>,
+    pub occurred_at: Timestamp,
 }
 
 /// Where the queue's packages and downloads stand.
@@ -130,8 +130,8 @@ struct DeliveryRow {
     state: String,
     attempt: i64,
     response_status: Option<i64>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
 }
 
 #[derive(FromRow)]
@@ -163,7 +163,7 @@ fn count(value: i64) -> u64 {
 /// `recent` deliveries.
 pub(crate) async fn notification_diagnostics(
     pool: &SqlitePool,
-    since: DateTime<Utc>,
+    since: Timestamp,
     recent: u32,
 ) -> Result<NotificationDiagnostics> {
     let targets = sqlx::query_as::<_, DiagnosticTarget>(

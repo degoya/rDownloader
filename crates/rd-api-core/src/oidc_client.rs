@@ -87,7 +87,7 @@ pub struct LinkedIdentity {
     /// What the provider called the person when the identity was linked. Shown, never compared.
     #[serde(default)]
     pub label: Option<String>,
-    pub linked_at: chrono::DateTime<chrono::Utc>,
+    pub linked_at: rd_core::Timestamp,
 }
 
 impl LinkedIdentity {

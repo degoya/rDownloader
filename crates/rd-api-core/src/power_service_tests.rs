@@ -7,7 +7,7 @@ use super::CountdownNotice;
 fn countdown(cycle: u64) -> PendingAction {
     PendingAction {
         action: CompletionAction::Shutdown,
-        runs_at: chrono::DateTime::from_timestamp(1_800_000_000, 0).expect("time"),
+        runs_at: rd_core::Timestamp::from_unix(1_800_000_000, 0).expect("time"),
         cycle,
     }
 }

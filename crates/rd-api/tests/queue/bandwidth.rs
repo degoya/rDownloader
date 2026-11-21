@@ -291,7 +291,7 @@ async fn a_used_up_budget_ends_with_its_profile_and_is_announced_once() {
     )
     .await;
     // Today's counter of the first profile is past its limit; the schedule runs in UTC.
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     let period = |key: String| rd_limits::BudgetPeriod {
         key,
         used_bytes: 600,
@@ -301,8 +301,8 @@ async fn a_used_up_budget_ends_with_its_profile_and_is_announced_once() {
         .store_bandwidth_budget(
             serde_json::from_value(serde_json::json!(spent)).expect("profile id"),
             rd_limits::BudgetState {
-                daily: period(now.format("%Y-%m-%d").to_string()),
-                monthly: period(now.format("%Y-%m").to_string()),
+                daily: period(now.strftime("%Y-%m-%d").to_string()),
+                monthly: period(now.strftime("%Y-%m").to_string()),
                 last_total_bytes: 0,
             },
         )

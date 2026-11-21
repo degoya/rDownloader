@@ -172,6 +172,7 @@ impl Connection {
         dispatch!(self, stream => stream.size(path).await)
     }
 
+    /// `MDTM`; `suppaftp` answers in chrono, [`naive_utc`] makes it a `Timestamp`.
     pub(crate) async fn modified_at(&mut self, path: &str) -> FtpResult<chrono::NaiveDateTime> {
         dispatch!(self, stream => stream.mdtm(path).await)
     }
@@ -277,9 +278,26 @@ pub(crate) fn advertises_rest(features: &Features) -> bool {
     })
 }
 
+/// An `MDTM` answer, which RFC 3659 gives in UTC, as an instant — the chrono boundary of this
+/// crate (RD-1440-05).
+pub(crate) fn naive_utc(naive: chrono::NaiveDateTime) -> Option<rd_core::Timestamp> {
+    let utc = naive.and_utc();
+    rd_core::Timestamp::from_unix(utc.timestamp(), utc.timestamp_subsec_nanos())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::ANONYMOUS_PASSWORD;
+    use super::{ANONYMOUS_PASSWORD, naive_utc};
+
+    #[test]
+    fn an_mdtm_answer_keeps_its_stored_text() {
+        let naive = chrono::NaiveDate::from_ymd_opt(2024, 2, 29)
+            .and_then(|date| date.and_hms_milli_opt(13, 5, 9, 250))
+            .expect("time");
+        let stored = naive_utc(naive).expect("in range").to_rfc3339();
+        assert_eq!(stored, naive.and_utc().to_rfc3339());
+        assert_eq!(stored, "2024-02-29T13:05:09.250+00:00");
+    }
 
     #[test]
     fn the_anonymous_password_is_not_a_real_address() {

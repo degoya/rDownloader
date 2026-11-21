@@ -275,8 +275,8 @@ mod tests {
             nzb_file_id: None,
             media: None,
             enrichment: Vec::new(),
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
+            created_at: rd_core::Timestamp::now(),
+            updated_at: rd_core::Timestamp::now(),
         }
     }
 

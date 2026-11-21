@@ -3,8 +3,7 @@
 //! One statement per change, so there is no state between two writes for a crash to leave.
 
 use anyhow::{Context, Result};
-use chrono::Utc;
-use rd_core::PackageId;
+use rd_core::{PackageId, Timestamp};
 use sqlx::{SqliteConnection, SqlitePool};
 
 use crate::{Database, commands::PackagesCommand, parse_id, timestamp, writer};
@@ -80,7 +79,7 @@ pub(crate) async fn set_package_speed_limit(
             )
             .bind(id.to_string())
             .bind(i64::try_from(rate).context("package speed limit out of range")?)
-            .bind(timestamp(&Utc::now()))
+            .bind(timestamp(&Timestamp::now()))
             .execute(connection)
             .await?;
         }

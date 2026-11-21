@@ -101,7 +101,7 @@ pub async fn windows_archive(directory: &Path, extra: &[&str]) -> Fixture {
         &nas,
         &staging_root(&data),
         "fixture",
-        chrono::Utc::now(),
+        rd_core::Timestamp::now(),
     )
     .await
     .expect("backup");

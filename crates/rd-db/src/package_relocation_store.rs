@@ -6,8 +6,7 @@
 //! scheduler's sweep must not run a second move over the same folder.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind, PackageId};
+use rd_core::{EventEnvelope, EventKind, PackageId, Timestamp};
 use sqlx::{Connection, SqliteConnection};
 
 use crate::writer::insert_event;
@@ -24,7 +23,7 @@ pub(crate) async fn switch_package_destination(
     from: &str,
     to: &str,
 ) -> Result<(bool, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let package = id.to_string();
     let mut transaction = connection.begin().await?;
     let switched = sqlx::query(

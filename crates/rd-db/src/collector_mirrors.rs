@@ -252,7 +252,7 @@ pub(crate) async fn store_preference(
     )
     .bind(MIRROR_PREFERENCE_KEY)
     .bind(serde_json::to_string(preference)?)
-    .bind(chrono::Utc::now())
+    .bind(rd_core::Timestamp::now())
     .execute(&mut *tx)
     .await?;
     let packages = all_packages(&mut tx).await?;
@@ -349,7 +349,7 @@ pub(crate) async fn store_dissolve(
         tx.rollback().await?;
         return Ok((MirrorDissolve::NotGrouped, None));
     }
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     for (position, left) in members.iter().enumerate() {
         for right in &members[position + 1..] {
             sqlx::query(

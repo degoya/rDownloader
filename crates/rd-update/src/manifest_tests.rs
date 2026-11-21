@@ -1,7 +1,7 @@
 //! What a manipulated, replayed or misplaced manifest does: it is refused, with the code that
 //! says why (RD-180-01).
 
-use chrono::{DateTime, Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use rd_sign::{SigningKey, StaleError, TrustStore};
 
 use super::*;
@@ -20,8 +20,9 @@ pub(crate) fn trust_for(key: &SigningKey) -> TrustStore {
     trust
 }
 
-pub(crate) fn at(days: i64) -> DateTime<Utc> {
-    DateTime::from_timestamp(1_790_000_000, 0).expect("timestamp") + Duration::days(days)
+pub(crate) fn at(days: i64) -> Timestamp {
+    Timestamp::from_unix_seconds(1_790_000_000).expect("timestamp")
+        + SignedDuration::from_hours(24 * days)
 }
 
 pub(crate) fn artifact(platform: &str, arch: &str, kind: &str) -> Artifact {

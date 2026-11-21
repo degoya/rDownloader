@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::ByteCount;
+use crate::{ByteCount, Timestamp};
 
 /// Maximum number of trackers accepted on one torrent.
 pub const MAX_TORRENT_TRACKERS: usize = 128;
@@ -48,7 +48,7 @@ pub struct TrackerScrape {
     pub leechers: u32,
     pub completed: u32,
     /// When the counters were fetched.
-    pub scraped_at: chrono::DateTime<chrono::Utc>,
+    pub scraped_at: Timestamp,
 }
 
 /// One tracker of a torrent. The URL is only ever exposed redacted; edits address the
@@ -62,7 +62,7 @@ pub struct TorrentTracker {
     /// Announce tier; lower tiers are tried first.
     pub tier: u16,
     pub origin: TrackerOrigin,
-    pub last_announce_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub last_announce_at: Option<Timestamp>,
     pub last_error: Option<String>,
     pub scrape: Option<TrackerScrape>,
 }

@@ -4,8 +4,7 @@
 //! secret store minted, exactly like [`crate::object_storage_store`].
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{EventEnvelope, EventKind, Indexer, IndexerId, IndexerListStyle};
+use rd_core::{EventEnvelope, EventKind, Indexer, IndexerId, IndexerListStyle, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 use url::Url;
 
@@ -64,7 +63,7 @@ pub(crate) async fn create(
     connection: &mut SqliteConnection,
     input: NewIndexer,
 ) -> Result<(Indexer, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let id = IndexerId::new();
     let event = changed_event();
     let mut tx = connection.begin().await?;
@@ -120,7 +119,7 @@ pub(crate) async fn update(
     .bind(serde_json::to_string(&input.categories)?)
     .bind(input.enabled)
     .bind(input.list_style.as_str())
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await
@@ -175,8 +174,8 @@ struct IndexerRow {
     categories_json: String,
     enabled: bool,
     list_style: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
 }
 
 impl TryFrom<IndexerRow> for Indexer {

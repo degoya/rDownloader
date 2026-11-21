@@ -7,9 +7,8 @@
 //! fingerprint. Replacing it asks for the current one. Every route costs `api:admin` (`scope_policy`).
 
 use axum::{Json, extract::State, http::StatusCode};
-use chrono::{DateTime, Utc};
 use rd_backup::{BackupKey, MIN_PASSPHRASE_CHARS, schedule};
-use rd_core::{AuditAction, BackupOrigin, BackupRunState};
+use rd_core::{AuditAction, BackupOrigin, BackupRunState, Timestamp};
 use rd_db::{BackupConfigUpdate, BackupKeyRecord};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -35,7 +34,7 @@ pub struct BackupConfigResponse {
     /// is off.
     pub verify_schedule: Option<String>,
     /// When the verification schedule next checks the newest archive of every destination.
-    pub verify_next_run_at: Option<DateTime<Utc>>,
+    pub verify_next_run_at: Option<Timestamp>,
     /// This installation's id, part of every archive name; retention removes only archives
     /// carrying it.
     pub instance_id: String,
@@ -43,9 +42,9 @@ pub struct BackupConfigResponse {
     pub key_configured: bool,
     /// Sixteen hex characters telling keys apart; not the key.
     pub key_fingerprint: Option<String>,
-    pub key_set_at: Option<DateTime<Utc>>,
+    pub key_set_at: Option<Timestamp>,
     /// When the schedule next runs; `None` while it is off.
-    pub next_run_at: Option<DateTime<Utc>>,
+    pub next_run_at: Option<Timestamp>,
     /// Whether a run is going on right now.
     pub running: bool,
 }
@@ -90,8 +89,8 @@ pub struct BackupRunResponse {
     pub id: String,
     pub origin: BackupOrigin,
     pub state: BackupRunState,
-    pub started_at: DateTime<Utc>,
-    pub finished_at: Option<DateTime<Utc>>,
+    pub started_at: Timestamp,
+    pub finished_at: Option<Timestamp>,
     /// The destination as it was named when the run started.
     pub destination: Option<String>,
     pub archive_name: Option<String>,
@@ -122,7 +121,7 @@ pub struct BackupRunDestinationResponse {
     pub pruned: u32,
     pub error_code: Option<String>,
     pub error_detail: Option<String>,
-    pub finished_at: Option<DateTime<Utc>>,
+    pub finished_at: Option<Timestamp>,
 }
 
 impl From<rd_db::BackupRun> for BackupRunResponse {
@@ -233,7 +232,7 @@ pub async fn update_backup_config(
         )
         .with_param("value", timezone.chars().take(64).collect::<String>()));
     }
-    let now = Utc::now();
+    let now = Timestamp::now();
     let next = schedule::next_run(&expression, &timezone, now).map_err(|error| {
         ApiError::unprocessable("backup.schedule_invalid", error.to_string())
             .with_param("value", expression.chars().take(64).collect::<String>())
@@ -356,7 +355,7 @@ pub async fn set_backup_passphrase(
         reference: reference.clone(),
         salt: base64::Engine::encode(&base64::engine::general_purpose::STANDARD, key.salt()),
         fingerprint: fingerprint.clone(),
-        set_at: Utc::now(),
+        set_at: Timestamp::now(),
     };
     let previous = match state.database.set_backup_key(record).await {
         Ok(previous) => previous,

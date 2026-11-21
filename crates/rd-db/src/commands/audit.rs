@@ -14,7 +14,7 @@ pub(crate) enum AuditCommand {
     /// Removes at most `batch` whole audit records that retention no longer keeps.
     PruneAuditRecords {
         max_records: u64,
-        older_than: Option<chrono::DateTime<chrono::Utc>>,
+        older_than: Option<rd_core::Timestamp>,
         batch: u64,
         reply: Reply<crate::AuditPruneReport>,
     },

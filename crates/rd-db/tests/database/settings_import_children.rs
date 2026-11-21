@@ -10,9 +10,9 @@
 
 use std::path::Path;
 
-use chrono::{Duration, Utc};
 use rd_core::{
-    AccountId, AuthFlowState, RemoteJobSourceKind, ScheduleKind, StreamChannelId, StreamScheduleId,
+    AccountId, AuthFlowState, RemoteJobSourceKind, ScheduleKind, SignedDuration, StreamChannelId,
+    StreamScheduleId, Timestamp,
 };
 use rd_db::{
     ClaimRemoteJob, ConfigReplacement, Database, NewAccount, NewStreamChannel, NewStreamSchedule,
@@ -76,7 +76,7 @@ async fn signed_in_account(database: &Database, provider: &str) -> SignedIn {
             expires_at: None,
             next_poll_at: None,
             message: None,
-            token_expires_at: Some(Utc::now() + Duration::hours(1)),
+            token_expires_at: Some(Timestamp::now() + SignedDuration::from_hours(1)),
             refresh_ref: Some(refresh.clone()),
             access_ref: Some(access.clone()),
             key_ref: Some(key.clone()),
@@ -121,7 +121,7 @@ async fn scheduled_channel(database: &Database, name: &str) -> (StreamChannelId,
         })
         .await
         .expect("channel");
-    let start = Utc::now() + Duration::days(1);
+    let start = Timestamp::now() + SignedDuration::from_hours(24);
     let schedule = database
         .create_stream_schedule(NewStreamSchedule {
             channel_id: channel.id,
@@ -142,7 +142,7 @@ async fn scheduled_channel(database: &Database, name: &str) -> (StreamChannelId,
             channel.id,
             vec![PlannedOccurrence {
                 starts_at: start,
-                ends_at: start + Duration::hours(1),
+                ends_at: start + SignedDuration::from_hours(1),
             }],
         )
         .await
@@ -388,13 +388,13 @@ async fn polled_subscription(database: &Database, name: &str) -> rd_core::Subscr
     database
         .finish_subscription_run(
             created.id,
-            Utc::now(),
+            Timestamp::now(),
             PollResult {
                 found: 1,
                 accepted: 0,
                 skipped: 1,
                 error: None,
-                next_run_at: Utc::now() + Duration::hours(1),
+                next_run_at: Timestamp::now() + SignedDuration::from_hours(1),
                 consecutive_failures: 0,
                 etag: None,
                 last_modified: None,

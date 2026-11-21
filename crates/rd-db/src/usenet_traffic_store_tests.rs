@@ -1,7 +1,6 @@
 //! Traffic per Usenet server and the quota counted against it (RD-1100-05).
 
-use chrono::{DateTime, Duration, NaiveDate, Utc};
-use rd_core::{EventKind, UsenetQuotaAction, UsenetServerId};
+use rd_core::{Date, EventKind, SignedDuration, Timestamp, UsenetQuotaAction, UsenetServerId};
 
 use crate::{Database, NewUsenetServer, UsenetQuotaInput};
 
@@ -32,7 +31,7 @@ async fn server(database: &Database, name: &str, priority: i32) -> UsenetServerI
         .id
 }
 
-fn moment(text: &str) -> DateTime<Utc> {
+fn moment(text: &str) -> Timestamp {
     text.parse().expect("moment")
 }
 
@@ -53,11 +52,20 @@ async fn flushes_are_summed_per_server_and_range() {
     let block = server(&database, "Block", 1).await;
     let today = moment("2026-10-04T12:00:00Z");
     for (when, counts) in [
-        (today - Duration::days(400), vec![(primary, 1)]),
-        (today - Duration::days(100), vec![(primary, 10)]),
-        (today - Duration::days(20), vec![(primary, 100)]),
         (
-            today - Duration::days(3),
+            today - SignedDuration::from_hours(24 * 400),
+            vec![(primary, 1)],
+        ),
+        (
+            today - SignedDuration::from_hours(24 * 100),
+            vec![(primary, 10)],
+        ),
+        (
+            today - SignedDuration::from_hours(24 * 20),
+            vec![(primary, 100)],
+        ),
+        (
+            today - SignedDuration::from_hours(24 * 3),
             vec![(primary, 1_000), (block, 7)],
         ),
         (today, vec![(primary, 10_000), (block, 70)]),
@@ -69,7 +77,7 @@ async fn flushes_are_summed_per_server_and_range() {
             .expect("flush");
     }
     let traffic = database
-        .list_usenet_server_traffic(today.date_naive())
+        .list_usenet_server_traffic(today.date())
         .await
         .expect("traffic");
     let figures: Vec<_> = traffic
@@ -106,7 +114,7 @@ async fn a_quota_is_announced_once_when_a_flush_crosses_it() {
         .await
         .expect("quota");
     let mut events = database.subscribe();
-    let now = Utc::now();
+    let now = Timestamp::now();
     let reached = database
         .record_usenet_traffic_at(vec![(block, 600)], now)
         .await
@@ -150,7 +158,7 @@ async fn changing_the_limit_moves_the_mark_with_it() {
         let database = database.clone();
         async move {
             database
-                .record_usenet_traffic_at(vec![(block, bytes)], Utc::now())
+                .record_usenet_traffic_at(vec![(block, bytes)], Timestamp::now())
                 .await
                 .expect("flush")
         }
@@ -221,19 +229,19 @@ async fn changing_the_limit_moves_the_mark_with_it() {
 async fn a_due_reset_day_starts_the_figure_again() {
     let (_directory, database) = open().await;
     let block = server(&database, "Block", 1).await;
-    let today = Utc::now().date_naive();
+    let today = Timestamp::now().date();
     database
         .set_usenet_quota(
             block,
             UsenetQuotaInput {
-                reset_on: Some(today + Duration::days(1)),
+                reset_on: Some(Date::from_jiff(today + SignedDuration::from_hours(24))),
                 ..quota(1_000, UsenetQuotaAction::Pause)
             },
         )
         .await
         .expect("quota");
     database
-        .record_usenet_traffic_at(vec![(block, 1_500)], Utc::now())
+        .record_usenet_traffic_at(vec![(block, 1_500)], Timestamp::now())
         .await
         .expect("flush");
     let before = database
@@ -241,7 +249,7 @@ async fn a_due_reset_day_starts_the_figure_again() {
         .await
         .expect("today");
     assert!(before[0].quota.as_ref().expect("quota").is_reached());
-    let tomorrow: NaiveDate = today + Duration::days(1);
+    let tomorrow: jiff::civil::Date = today + SignedDuration::from_hours(24);
     let after = database
         .list_usenet_server_traffic(tomorrow)
         .await
@@ -251,7 +259,10 @@ async fn a_due_reset_day_starts_the_figure_again() {
     assert!(!quota_then.is_reached());
     assert_eq!(quota_then.reset_on, None, "a reset day applies once");
     database
-        .record_usenet_traffic_at(vec![(block, 10)], Utc::now() + Duration::days(1))
+        .record_usenet_traffic_at(
+            vec![(block, 10)],
+            Timestamp::now() + SignedDuration::from_hours(24),
+        )
         .await
         .expect("flush after the reset");
     let stored = database.list_usenet_servers().await.expect("servers")[0]
@@ -270,11 +281,11 @@ async fn a_deleted_server_does_not_fail_the_flush() {
     let gone = server(&database, "Gone", 1).await;
     database.delete_usenet_server(gone).await.expect("delete");
     database
-        .record_usenet_traffic_at(vec![(gone, 5), (kept, 9)], Utc::now())
+        .record_usenet_traffic_at(vec![(gone, 5), (kept, 9)], Timestamp::now())
         .await
         .expect("flush");
     let traffic = database
-        .list_usenet_server_traffic(Utc::now().date_naive())
+        .list_usenet_server_traffic(Timestamp::now().date())
         .await
         .expect("traffic");
     assert_eq!(traffic.len(), 1);
@@ -291,13 +302,13 @@ async fn clearing_the_statistics_keeps_the_quota_figure() {
         .await
         .expect("quota");
     database
-        .record_usenet_traffic_at(vec![(block, 400)], Utc::now())
+        .record_usenet_traffic_at(vec![(block, 400)], Timestamp::now())
         .await
         .expect("flush");
     assert_eq!(database.count_transfer_stats().await.expect("count"), 1);
     assert_eq!(database.clear_transfer_stats().await.expect("clear"), 1);
     let traffic = database
-        .list_usenet_server_traffic(Utc::now().date_naive())
+        .list_usenet_server_traffic(Timestamp::now().date())
         .await
         .expect("traffic");
     assert_eq!(traffic[0].total, 0);

@@ -7,8 +7,7 @@
 //! made again by the next subscription.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{EventEnvelope, NotificationRuleId, NotificationTargetId};
+use rd_core::{EventEnvelope, NotificationRuleId, NotificationTargetId, Timestamp};
 use rd_notify::{NotificationEvent, WebPushSubscription};
 use sqlx::{Connection, FromRow, SqliteConnection};
 
@@ -46,8 +45,8 @@ struct SubscriptionRow {
     auth: String,
     device_name: String,
     events_json: String,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
 }
 
 impl TryFrom<SubscriptionRow> for WebPushSubscription {
@@ -142,7 +141,7 @@ pub(crate) async fn upsert_subscription(
     connection: &mut SqliteConnection,
     input: NewWebPushSubscription,
 ) -> Result<(WebPushSubscription, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     sqlx::query(
         "INSERT INTO web_push_subscriptions \
@@ -180,10 +179,7 @@ pub(crate) async fn upsert_subscription(
 }
 
 /// Makes the `web_push` target and a rule for every event, unless a `web_push` target exists.
-async fn ensure_target(
-    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    now: DateTime<Utc>,
-) -> Result<()> {
+async fn ensure_target(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>, now: Timestamp) -> Result<()> {
     let existing: Option<String> =
         sqlx::query_scalar("SELECT id FROM notification_targets WHERE kind = 'web_push' LIMIT 1")
             .fetch_optional(&mut **tx)
@@ -262,7 +258,7 @@ pub(crate) async fn store_key(
             )
             .bind(&key.private_key_ref)
             .bind(&key.public_key)
-            .bind(Utc::now())
+            .bind(Timestamp::now())
             .execute(&mut *tx)
             .await?;
         }
@@ -273,7 +269,7 @@ pub(crate) async fn store_key(
             )
             .bind(&key.private_key_ref)
             .bind(&key.public_key)
-            .bind(Utc::now())
+            .bind(Timestamp::now())
             .bind(&stale)
             .execute(&mut *tx)
             .await?;

@@ -167,7 +167,7 @@ async fn a_retried_delivery_still_names_its_package_folder_after_a_restart() {
                 .expect("queue delivery");
         }
         let first = database
-            .due_notification_deliveries(chrono::Utc::now())
+            .due_notification_deliveries(rd_core::Timestamp::now())
             .await
             .expect("due");
         for delivery in first {
@@ -176,7 +176,7 @@ async fn a_retried_delivery_still_names_its_package_folder_after_a_restart() {
                     delivery.id,
                     DeliveryState::Retrying,
                     1,
-                    Some(chrono::Utc::now()),
+                    Some(rd_core::Timestamp::now()),
                     Some(503),
                     None,
                 )
@@ -188,7 +188,9 @@ async fn a_retried_delivery_still_names_its_package_folder_after_a_restart() {
 
     let database = Database::open(&path).await.expect("database again");
     let due = database
-        .due_notification_deliveries(chrono::Utc::now() + chrono::Duration::seconds(1))
+        .due_notification_deliveries(
+            rd_core::Timestamp::now() + rd_core::SignedDuration::from_secs(1),
+        )
         .await
         .expect("due after the restart");
     assert_eq!(due.len(), 2, "{due:?}");

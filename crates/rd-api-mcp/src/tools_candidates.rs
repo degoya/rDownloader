@@ -49,7 +49,7 @@ pub(crate) struct CandidateRow {
     /// When a provider last said it holds the file in its cache (RD-120-36): a measurement
     /// with that time, not a promise.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cached_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub cached_at: Option<rd_core::Timestamp>,
     /// The slug of the provider that gave that cache answer (RD-130-11); only with `cached_at`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cached_by: Option<String>,

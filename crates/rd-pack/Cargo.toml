@@ -18,8 +18,8 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
-chrono.workspace = true
 clap.workspace = true
+rd-core = { path = "../rd-core" }
 rd-plugin-host = { path = "../rd-plugin-host" }
 rd-sign = { path = "../rd-sign" }
 rd-tools = { path = "../rd-tools" }

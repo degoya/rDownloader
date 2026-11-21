@@ -3,10 +3,9 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
-use chrono::{DateTime, Utc};
 use rd_core::{
     EventEnvelope, EventKind, SubscriptionHistoryClearResponse, SubscriptionId, SubscriptionItem,
-    SubscriptionItemId, SubscriptionItemState, SubscriptionRunId,
+    SubscriptionItemId, SubscriptionItemState, SubscriptionRunId, Timestamp,
 };
 use sqlx::{Connection, SqliteConnection};
 
@@ -67,7 +66,7 @@ pub(crate) async fn record_items(
     subscription_id: SubscriptionId,
     items: Vec<NewSubscriptionItem>,
 ) -> Result<((Vec<SubscriptionItem>, ItemPasswords), EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut created = Vec::new();
     let mut passwords = ItemPasswords::new();
     let event = changed_event();
@@ -249,10 +248,10 @@ pub(crate) async fn clear_history(
 pub(crate) async fn finish_run(
     connection: &mut SqliteConnection,
     subscription_id: SubscriptionId,
-    started_at: DateTime<Utc>,
+    started_at: Timestamp,
     result: PollResult,
 ) -> Result<EventEnvelope> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = run_finished_event(subscription_id, &result);
     let mut tx = connection.begin().await?;
     sqlx::query(

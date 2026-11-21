@@ -6,14 +6,16 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-chrono.workspace = true
 hex.workspace = true
+jiff.workspace = true
 percent-encoding.workspace = true
 rd-plugin-types = { path = "../rd-plugin-types" }
 rd-provider-registry = { path = "../rd-provider-registry" }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+# `Type`/`Encode`/`Decode` for `Timestamp` and `Date` (RD-1440-05); `rd-db` turns it on.
+sqlx = { workspace = true, optional = true }
 thiserror.workspace = true
 url.workspace = true
 utoipa.workspace = true
@@ -24,11 +26,23 @@ zeroize.workspace = true
 # Deterministic crash points for the RD-140-04 restart matrix. Off in every shipped build:
 # without it `failpoint!` expands to nothing, so there is no branch and no symbol to reach.
 failpoints = []
+# The SQLite column impls of the time types, byte-identical to `sqlx`'s chrono impls.
+sqlx = ["dep:sqlx"]
 
 [dev-dependencies]
+# The schema cross-check renders chrono's `DateTime<Utc>` beside `Timestamp`; the workspace line
+# no longer enables utoipa's `chrono` feature (RD-1440-05).
+utoipa = { workspace = true, features = ["chrono"] }
+# The time types are checked against chrono itself (RD-1440-05): same JSON, same SQLite text.
+chrono.workspace = true
+chrono-tz.workspace = true
 # The crash point registry the recovery matrix document is compared with (RD-1120-12).
 rd-crash-points = { path = "../rd-crash-points" }
 tempfile.workspace = true
+# The SQLite round trip of the time types, against sqlx's own chrono impls (hence `chrono` here,
+# whatever the workspace line enables); `cfg(test)` builds our impls without the feature.
+sqlx = { workspace = true, features = ["chrono"] }
+tokio.workspace = true
 
 [lints]
 workspace = true

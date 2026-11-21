@@ -113,7 +113,7 @@ pub struct BandwidthStatusResponse {
     pub manual: Option<rd_limits::ManualProfile>,
     /// The next change: the end of a switch made by hand while one holds, the schedule's
     /// next window boundary otherwise.
-    pub next_switch_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub next_switch_at: Option<rd_core::Timestamp>,
     pub daily: Option<BudgetUsageResponse>,
     pub monthly: Option<BudgetUsageResponse>,
     /// Set while the budget holds back new transfers; running ones finish.

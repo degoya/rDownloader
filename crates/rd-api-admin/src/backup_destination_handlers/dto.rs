@@ -25,7 +25,7 @@ pub struct BackupDestinationResponse {
     pub keep_days: Option<u32>,
     /// Archives this installation recorded there.
     pub archive_count: u32,
-    pub last_stored_at: Option<DateTime<Utc>>,
+    pub last_stored_at: Option<Timestamp>,
     /// The last verification of the newest archive there.
     pub last_verify_state: Option<BackupVerifyState>,
 }
@@ -71,9 +71,9 @@ pub struct BackupArchiveResponse {
     pub location: String,
     pub size_bytes: u64,
     pub sha256: String,
-    pub created_at: DateTime<Utc>,
-    pub stored_at: DateTime<Utc>,
-    pub verified_at: Option<DateTime<Utc>>,
+    pub created_at: Timestamp,
+    pub stored_at: Timestamp,
+    pub verified_at: Option<Timestamp>,
     pub verify_state: Option<BackupVerifyState>,
     pub verify_code: Option<String>,
 }
@@ -133,8 +133,8 @@ pub struct BackupVerificationResponse {
     pub destination_id: Option<String>,
     pub destination: String,
     pub archive_name: String,
-    pub started_at: DateTime<Utc>,
-    pub finished_at: Option<DateTime<Utc>>,
+    pub started_at: Timestamp,
+    pub finished_at: Option<Timestamp>,
     /// Whether the archive was opened and every member checked, or only its size and SHA-256
     /// compared (an archive sealed under an earlier passphrase).
     pub content_checked: Option<bool>,

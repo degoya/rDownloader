@@ -1,4 +1,5 @@
-//! LinkGrabber intake, packages, ordering and enqueueing.
+//! LinkGrabber intake, packages, ordering and enqueueing, and a package's hand-over to a
+//! remote-job provider (RD-1440-07).
 
 use axum::{Json, extract::State, http::StatusCode};
 
@@ -13,12 +14,14 @@ mod intake;
 pub(crate) mod links;
 mod mirrors;
 mod packages;
+mod remote_job;
 
 pub use candidates::*;
 pub(crate) use intake::collector_intake_crawled;
 pub use intake::collector_intake_inner;
 pub use mirrors::*;
 pub use packages::*;
+pub use remote_job::*;
 
 #[utoipa::path(post, path = "/api/v1/collector/batches", tag = "collector", request_body = CollectorIntakeRequest, responses((status = 201, body = CollectorIntakeResponse)))]
 pub async fn collector_intake(

@@ -22,8 +22,10 @@ use std::{
 };
 
 use anyhow::Result;
-use chrono::{DateTime, Duration, Utc};
-use rd_core::{AccountId, AccountTrafficAction, DownloadFile, DownloadState, Failure};
+use rd_core::{
+    AccountId, AccountTrafficAction, DownloadFile, DownloadState, Failure, SignedDuration,
+    Timestamp,
+};
 
 use crate::{HoldSource, SchedulerHandle};
 
@@ -45,15 +47,15 @@ pub struct AccountTrafficHold {
     /// What the setting makes of it right now.
     pub action: AccountTrafficAction,
     /// When the hoster's wait ends and the waiting files try again.
-    pub until: DateTime<Utc>,
+    pub until: Timestamp,
     /// When the account is checked for traffic next.
-    pub next_check_at: DateTime<Utc>,
+    pub next_check_at: Timestamp,
 }
 
 #[derive(Clone, Copy, Debug)]
 struct Held {
-    until: DateTime<Utc>,
-    next_check_at: DateTime<Utc>,
+    until: Timestamp,
+    next_check_at: Timestamp,
 }
 
 #[derive(Debug, Default)]
@@ -106,7 +108,7 @@ impl TrafficHolds {
 
     /// Holds `account` until `until`, keeping a later end already set; a new hold is checked
     /// first after one interval.
-    pub(crate) fn hold(&self, account: AccountId, until: DateTime<Utc>, now: DateTime<Utc>) {
+    pub(crate) fn hold(&self, account: AccountId, until: Timestamp, now: Timestamp) {
         self.with(|state| {
             state
                 .held
@@ -114,14 +116,14 @@ impl TrafficHolds {
                 .and_modify(|held| held.until = held.until.max(until))
                 .or_insert(Held {
                     until,
-                    next_check_at: now + Duration::minutes(TRAFFIC_CHECK_INTERVAL_MINUTES),
+                    next_check_at: now + SignedDuration::from_mins(TRAFFIC_CHECK_INTERVAL_MINUTES),
                 });
         });
     }
 
     /// Whether a file of `account` waits for the account's traffic in this pass: only under
     /// `pause_account`, and only until the hoster's wait ends.
-    pub(crate) fn holds_back(&self, account: AccountId, now: DateTime<Utc>) -> bool {
+    pub(crate) fn holds_back(&self, account: AccountId, now: Timestamp) -> bool {
         self.with(|state| {
             state
                 .held
@@ -133,7 +135,7 @@ impl TrafficHolds {
 
     /// Drops the holds whose wait has ended, and answers whether the queue's hold has to be
     /// set (`Some(true)`), cleared (`Some(false)`) or left as it is (`None`).
-    pub(crate) fn settle(&self, now: DateTime<Utc>) -> Option<bool> {
+    pub(crate) fn settle(&self, now: Timestamp) -> Option<bool> {
         self.with(|state| {
             state.held.retain(|_, held| held.until > now);
             let wanted = state
@@ -148,14 +150,15 @@ impl TrafficHolds {
     }
 
     /// The accounts whose next check is due, each moved one interval on.
-    pub(crate) fn due_checks(&self, now: DateTime<Utc>) -> Vec<AccountId> {
+    pub(crate) fn due_checks(&self, now: Timestamp) -> Vec<AccountId> {
         self.with(|state| {
             state
                 .held
                 .iter_mut()
                 .filter(|(_, held)| held.next_check_at <= now)
                 .map(|(account, held)| {
-                    held.next_check_at = now + Duration::minutes(TRAFFIC_CHECK_INTERVAL_MINUTES);
+                    held.next_check_at =
+                        now + SignedDuration::from_mins(TRAFFIC_CHECK_INTERVAL_MINUTES);
                     *account
                 })
                 .collect()
@@ -173,7 +176,7 @@ impl TrafficHolds {
     }
 
     /// The accounts held at `now`, the soonest to end first.
-    pub(crate) fn list(&self, now: DateTime<Utc>) -> Vec<AccountTrafficHold> {
+    pub(crate) fn list(&self, now: Timestamp) -> Vec<AccountTrafficHold> {
         let mut holds = self.with(|state| {
             state
                 .held
@@ -212,7 +215,7 @@ impl SchedulerHandle {
         &self,
         file: &DownloadFile,
         failure: &Failure,
-        retry_at: Option<DateTime<Utc>>,
+        retry_at: Option<Timestamp>,
     ) {
         let (Some(account), Some(until)) = (file.account_id, retry_at) else {
             return;
@@ -220,18 +223,18 @@ impl SchedulerHandle {
         if !rd_core::is_account_traffic_exhausted(failure) {
             return;
         }
-        self.traffic_holds.hold(account, until, Utc::now());
+        self.traffic_holds.hold(account, until, Timestamp::now());
         tracing::info!(
             account_id = %account,
             %until,
             action = ?self.traffic_holds.action_for(account),
             "the account's traffic is used up; its downloads wait"
         );
-        self.settle_account_traffic(Utc::now()).await;
+        self.settle_account_traffic(Timestamp::now()).await;
     }
 
     /// Whether `file` waits in this pass because its account's traffic is used up.
-    pub(crate) fn held_for_account_traffic(&self, file: &DownloadFile, now: DateTime<Utc>) -> bool {
+    pub(crate) fn held_for_account_traffic(&self, file: &DownloadFile, now: Timestamp) -> bool {
         file.account_id
             .is_some_and(|account| self.traffic_holds.holds_back(account, now))
     }
@@ -240,7 +243,7 @@ impl SchedulerHandle {
     /// hold, and checks the accounts whose check is due — each in a task of its own, so a slow
     /// hoster never stalls the dispatch.
     pub(crate) async fn supervise_account_traffic(&self) {
-        let now = Utc::now();
+        let now = Timestamp::now();
         self.settle_account_traffic(now).await;
         for account in self.traffic_holds.due_checks(now) {
             let scheduler = self.clone();
@@ -260,7 +263,7 @@ impl SchedulerHandle {
         }
     }
 
-    async fn settle_account_traffic(&self, now: DateTime<Utc>) {
+    async fn settle_account_traffic(&self, now: Timestamp) {
         if let Some(held) = self.traffic_holds.settle(now) {
             self.network_hold
                 .set(HoldSource::AccountTraffic, held.then_some(HOLD_REASON))
@@ -283,7 +286,7 @@ impl SchedulerHandle {
             return Ok(0);
         }
         let released = self.traffic_holds.release(account);
-        self.settle_account_traffic(Utc::now()).await;
+        self.settle_account_traffic(Timestamp::now()).await;
         let mut queued = 0;
         for file in self.database.startable_downloads().await? {
             if file.account_id != Some(account) || !waits_for_traffic(&file) {
@@ -309,20 +312,20 @@ impl SchedulerHandle {
     /// The accounts whose traffic is used up, the soonest to end first.
     #[must_use]
     pub fn account_traffic(&self) -> Vec<AccountTrafficHold> {
-        self.traffic_holds.list(Utc::now())
+        self.traffic_holds.list(Timestamp::now())
     }
 
     /// Lets every account go: somebody started the queue by hand, which outranks an automatic
     /// hold. The files that wait for their traffic keep their own due times.
     pub async fn release_account_traffic(&self) {
         self.traffic_holds.release_all();
-        self.settle_account_traffic(Utc::now()).await;
+        self.settle_account_traffic(Timestamp::now()).await;
     }
 
     /// Rebuilds the holds from the files that still wait for their account's traffic, before
     /// the first dispatch, so a start does not send the account's other files into the limit.
     pub(crate) async fn restore_account_traffic(&self) -> Result<()> {
-        let now = Utc::now();
+        let now = Timestamp::now();
         for file in self.database.startable_downloads().await? {
             if let (Some(account), Some(until)) = (file.account_id, file.next_retry_at)
                 && waits_for_traffic(&file)

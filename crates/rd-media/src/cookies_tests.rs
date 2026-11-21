@@ -1,8 +1,8 @@
 //! Tests of the cookie file: containment, privacy and the stable error codes.
 
 use super::{CookieError, CookieScope, materialize, rows_for_url};
-use chrono::{TimeZone, Utc};
-use rd_core::{AuthMethod, AuthOrigin, AuthProfile, AuthProfileId, AuthScope};
+
+use rd_core::{AuthMethod, AuthOrigin, AuthProfile, AuthProfileId, AuthScope, Timestamp};
 use secrecy::SecretString;
 use url::Url;
 
@@ -28,8 +28,8 @@ fn scoped_profile(host: &str, include_subdomains: bool) -> AuthProfile {
         certificate_ref: None,
         has_secret: true,
         has_client_certificate: false,
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
+        created_at: Timestamp::now(),
+        updated_at: Timestamp::now(),
     }
 }
 
@@ -48,7 +48,7 @@ fn written(
         &scoped_profile(host, include_subdomains),
         &SecretString::from(content.to_owned()),
         &url(page),
-        Utc::now(),
+        Timestamp::now(),
     )?;
     Ok(std::fs::read_to_string(file.path()).expect("read"))
 }
@@ -197,7 +197,7 @@ fn the_written_file_holds_only_the_matching_rows() {
         &profile("example.com"),
         &SecretString::from(MIXED_JAR.to_owned()),
         &url("https://example.com/watch"),
-        Utc::now(),
+        Timestamp::now(),
     )
     .expect("cookie file");
     let written = std::fs::read_to_string(file.path()).expect("read");
@@ -213,7 +213,7 @@ fn the_file_is_removed_when_the_guard_drops() {
             &profile("example.com"),
             &SecretString::from(MIXED_JAR.to_owned()),
             &url("https://example.com/watch"),
-            Utc::now(),
+            Timestamp::now(),
         )
         .expect("cookie file");
         file.path().to_path_buf()
@@ -229,7 +229,7 @@ fn the_file_is_not_readable_by_anyone_else() {
         &profile("example.com"),
         &SecretString::from(MIXED_JAR.to_owned()),
         &url("https://example.com/watch"),
-        Utc::now(),
+        Timestamp::now(),
     )
     .expect("cookie file");
     let mode = std::fs::metadata(file.path())
@@ -245,7 +245,7 @@ fn a_page_with_no_matching_cookie_is_an_error_not_an_empty_file() {
         &profile("example.com"),
         &SecretString::from(MIXED_JAR.to_owned()),
         &url("https://unrelated.tld/watch"),
-        Utc::now(),
+        Timestamp::now(),
     )
     .expect_err("should refuse");
     assert_eq!(error, CookieError::NoCookiesForHost);
@@ -260,20 +260,20 @@ fn a_disabled_or_expired_profile_is_refused() {
             &disabled,
             &SecretString::from(MIXED_JAR.to_owned()),
             &url("https://example.com/watch"),
-            Utc::now(),
+            Timestamp::now(),
         )
         .expect_err("disabled profile"),
         CookieError::ProfileUnusable
     );
 
     let mut expired = profile("example.com");
-    expired.expires_at = Some(Utc.timestamp_opt(1, 0).single().expect("timestamp"));
+    expired.expires_at = Some(Timestamp::from_unix_seconds(1).expect("timestamp"));
     assert_eq!(
         materialize(
             &expired,
             &SecretString::from(MIXED_JAR.to_owned()),
             &url("https://example.com/watch"),
-            Utc::now(),
+            Timestamp::now(),
         )
         .expect_err("expired profile"),
         CookieError::ProfileUnusable
@@ -289,7 +289,7 @@ fn a_non_cookie_profile_is_refused() {
             &bearer,
             &SecretString::from("token".to_owned()),
             &url("https://example.com/watch"),
-            Utc::now(),
+            Timestamp::now(),
         )
         .expect_err("bearer profile"),
         CookieError::NotCookieBased

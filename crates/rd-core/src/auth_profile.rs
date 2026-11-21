@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -235,7 +235,7 @@ pub struct AuthProfile {
     pub method: AuthMethod,
     pub origin: AuthOrigin,
     pub enabled: bool,
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
     /// Username for `AuthMethod::Basic`; `None` for every other method.
     pub username: Option<String>,
     #[serde(skip_serializing)]
@@ -246,20 +246,20 @@ pub struct AuthProfile {
     pub certificate_ref: Option<String>,
     pub has_secret: bool,
     pub has_client_certificate: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 impl AuthProfile {
     /// Whether the profile's expiry has passed.
     #[must_use]
-    pub fn is_expired(&self, now: DateTime<Utc>) -> bool {
+    pub fn is_expired(&self, now: Timestamp) -> bool {
         self.expires_at.is_some_and(|expiry| expiry <= now)
     }
 
     /// Whether the profile may be applied to a request right now.
     #[must_use]
-    pub fn is_usable(&self, now: DateTime<Utc>) -> bool {
+    pub fn is_usable(&self, now: Timestamp) -> bool {
         self.enabled && !self.is_expired(now)
     }
 
@@ -267,7 +267,7 @@ impl AuthProfile {
     /// profile must all yield a fresh HTTP client.
     #[must_use]
     pub fn revision(&self) -> i64 {
-        self.updated_at.timestamp_millis()
+        self.updated_at.unix_millis()
     }
 }
 

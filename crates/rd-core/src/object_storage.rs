@@ -10,7 +10,7 @@
 //! resume contract. An Azure container lives in a storage account, which the profile names;
 //! the link still names only the container.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -192,8 +192,8 @@ pub struct ObjectStorageProfile {
     /// receipt. Off for the few compatible services that refuse the header. S3 only.
     pub checksums: bool,
     pub enabled: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
     /// The explicit yes that lets an `ambient` profile send the machine's own credentials —
     /// an instance role, a managed identity, a Google token — to its custom endpoint
     /// (RD-1190-20). Without it such a profile is refused before any request.

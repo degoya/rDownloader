@@ -188,8 +188,8 @@ impl From<Label> for Vec<LabelPart> {
 
 /// A Unix timestamp (seconds) as the UTC `YYYY-MM-DD` date a [`PREMIUM_UNTIL`] part states.
 ///
-/// Howard Hinnant's `civil_from_days`, pure integer arithmetic: `chrono` is a native-only
-/// dependency in the plugin convention, and this has to work in a guest too.
+/// Howard Hinnant's `civil_from_days`, pure integer arithmetic: a plugin links no date library
+/// (RD-1440-05), and this has to work in a guest too.
 #[must_use]
 pub fn civil_date(epoch_seconds: i64) -> String {
     let (year, month, day) = civil_from_days(epoch_seconds.div_euclid(86_400));

@@ -53,7 +53,7 @@ impl AuthFlowService {
             self.with_client_id(account_id, request.authorization_url)
                 .await?,
         )?;
-        let now = Utc::now();
+        let now = Timestamp::now();
         self.inner
             .database
             .upsert_auth_flow(rd_db::UpsertAuthFlow {
@@ -105,7 +105,7 @@ impl AuthFlowService {
             self.with_client_id(account_id, authorization.verification_url)
                 .await?,
         )?;
-        let now = Utc::now();
+        let now = Timestamp::now();
         let first_wait = authorization
             .interval_seconds
             .and_then(|seconds| i64::try_from(seconds).ok())
@@ -122,7 +122,7 @@ impl AuthFlowService {
                 expires_at: authorization
                     .expires_in_seconds
                     .map(|seconds| seconds_after(now, seconds)),
-                next_poll_at: Some(now + chrono::Duration::seconds(first_wait)),
+                next_poll_at: Some(now + rd_core::SignedDuration::from_secs(first_wait)),
                 message: None,
                 token_expires_at: None,
                 refresh_ref: None,
@@ -156,7 +156,7 @@ impl AuthFlowService {
         else {
             anyhow::bail!("no sign-in is waiting for this callback");
         };
-        if !crate::auth_flow_guard::callback_usable(&flow, Utc::now()) {
+        if !crate::auth_flow_guard::callback_usable(&flow, Timestamp::now()) {
             if flow.state == AuthFlowState::WaitingForUser
                 && let Err(error) = self
                     .store(

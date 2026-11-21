@@ -1,7 +1,6 @@
 //! What can be notified, where it goes and how a delivery is tracked.
 
-use chrono::{DateTime, Utc};
-use rd_core::{CategoryId, NotificationRuleId, NotificationTargetId};
+use rd_core::{CategoryId, NotificationRuleId, NotificationTargetId, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -302,12 +301,12 @@ pub struct Delivery {
     pub body: String,
     pub state: DeliveryState,
     pub attempt: u32,
-    pub next_attempt_at: Option<DateTime<Utc>>,
+    pub next_attempt_at: Option<Timestamp>,
     pub response_status: Option<u16>,
     /// Short, redacted excerpt of the response, for support.
     pub response_excerpt: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
     /// The folder of the finished package, for `package_completed` (RD-1250-01): kept with the
     /// delivery so a retry names the folder the first attempt did. Internal -- the history and
     /// the API do not show it.

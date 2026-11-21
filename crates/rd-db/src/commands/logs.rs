@@ -14,7 +14,7 @@ pub(crate) enum LogsCommand {
     /// Removes at most `batch` log records that retention no longer keeps.
     PruneLogRecords {
         max_records: u64,
-        older_than: Option<chrono::DateTime<chrono::Utc>>,
+        older_than: Option<rd_core::Timestamp>,
         batch: u64,
         reply: Reply<crate::LogPruneReport>,
     },

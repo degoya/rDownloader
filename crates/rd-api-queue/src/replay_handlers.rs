@@ -171,7 +171,7 @@ pub async fn grant_replay_consent(
         .set_candidate_replay_consent(
             id,
             Some(ReplayConsent {
-                granted_at: chrono::Utc::now(),
+                granted_at: rd_core::Timestamp::now(),
                 template_hash: expected,
                 approved_origins,
             }),

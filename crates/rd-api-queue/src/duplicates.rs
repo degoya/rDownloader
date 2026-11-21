@@ -98,7 +98,7 @@ pub struct HistoryDuplicate {
     pub history_id: i64,
     pub name: String,
     pub outcome: rd_core::HistoryOutcome,
-    pub finished_at: chrono::DateTime<chrono::Utc>,
+    pub finished_at: rd_core::Timestamp,
 }
 
 #[derive(Serialize, ToSchema)]

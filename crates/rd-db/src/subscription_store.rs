@@ -18,13 +18,12 @@
 use std::collections::BTreeMap;
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use rd_core::{
     BacklogPolicy, CategoryId, DownloadPriority, EventEnvelope, EventKind, FilterReason,
     Subscription, SubscriptionCardRatio, SubscriptionFilters, SubscriptionId, SubscriptionItem,
     SubscriptionItemCounts, SubscriptionItemId, SubscriptionItemPage, SubscriptionItemState,
     SubscriptionKind, SubscriptionMode, SubscriptionReviewCount, SubscriptionReviewSummary,
-    SubscriptionRun, SubscriptionView,
+    SubscriptionRun, SubscriptionView, Timestamp,
 };
 use sqlx::SqlitePool;
 use url::Url;
@@ -88,7 +87,7 @@ pub struct NewSubscriptionItem {
     pub item_key: String,
     pub title: String,
     pub url: Url,
-    pub published_at: Option<DateTime<Utc>>,
+    pub published_at: Option<Timestamp>,
     pub duration_seconds: Option<u32>,
     pub state: SubscriptionItemState,
     pub reason: Option<FilterReason>,
@@ -110,7 +109,7 @@ pub struct PollResult {
     pub accepted: u32,
     pub skipped: u32,
     pub error: Option<String>,
-    pub next_run_at: DateTime<Utc>,
+    pub next_run_at: Timestamp,
     pub consecutive_failures: u32,
     pub etag: Option<String>,
     pub last_modified: Option<String>,
@@ -159,7 +158,7 @@ pub(crate) async fn get(pool: &SqlitePool, id: SubscriptionId) -> Result<Option<
 ///
 /// A row with no `next_run_at` has never run and is due immediately, which is what makes a
 /// freshly created subscription poll without waiting a full interval.
-pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Subscription>> {
+pub(crate) async fn due(pool: &SqlitePool, now: Timestamp) -> Result<Vec<Subscription>> {
     sqlx::query_as::<_, SubscriptionRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM subscriptions \
          WHERE enabled = 1 AND (next_run_at IS NULL OR next_run_at <= ?) \
@@ -183,7 +182,7 @@ pub(crate) async fn item_page(
     state: Option<SubscriptionItemState>,
     limit: i64,
     offset: i64,
-    until: Option<DateTime<Utc>>,
+    until: Option<Timestamp>,
 ) -> Result<SubscriptionItemPage> {
     let state = state.map(item_state_string);
     let rows = sqlx::query_as::<_, ItemRow>(sqlx::AssertSqlSafe(format!(
@@ -215,7 +214,7 @@ pub(crate) async fn item_page(
     .await?;
     // The page's own order is `discovered_at` first, so its maximum is the newest row of the
     // filter on any page: the watermark of the list as this read saw it (RD-1250-13).
-    let newest_discovered_at = sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
+    let newest_discovered_at = sqlx::query_scalar::<_, Option<Timestamp>>(
         "SELECT MAX(discovered_at) FROM subscription_items \
          WHERE subscription_id = ? AND (? IS NULL OR state = ?) \
          AND (? IS NULL OR discovered_at <= ?)",
@@ -291,7 +290,7 @@ pub(crate) async fn review_summary(pool: &SqlitePool) -> Result<SubscriptionRevi
 pub(crate) async fn pending_item_ids(
     pool: &SqlitePool,
     id: SubscriptionId,
-    until: Option<DateTime<Utc>>,
+    until: Option<Timestamp>,
 ) -> Result<Vec<SubscriptionItemId>> {
     sqlx::query_scalar::<_, String>(
         "SELECT id FROM subscription_items WHERE subscription_id = ? AND state = 'pending' \

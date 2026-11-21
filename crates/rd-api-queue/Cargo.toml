@@ -8,7 +8,6 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
-chrono.workspace = true
 fs4.workspace = true
 rd-api-core = { path = "../rd-api-core" }
 rd-collector = { path = "../rd-collector" }

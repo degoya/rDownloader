@@ -109,7 +109,10 @@ impl ExternalRunner for ObjectStorageRunner {
         // Multipart and KMS-encrypted objects carry one that is not the content's MD5, and a
         // compatible service owes nothing either way.
         let resume = match staging
-            .plan_resume_validated(validator(&meta), Some(meta.last_modified.to_rfc3339()))
+            .plan_resume_validated(
+                validator(&meta),
+                Some(crate::listing::instant(meta.last_modified).to_rfc3339()),
+            )
             .await?
         {
             Resume::Refused => return Ok(RunOutcome::Failed(error::object_changed())),

@@ -1,6 +1,6 @@
 //! Subscriptions (RD-080-07).
 
-use chrono::{Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 
 use crate::Database;
 
@@ -37,7 +37,7 @@ pub(super) fn new_item(key: &str) -> crate::NewSubscriptionItem {
         url: format!("https://example.test/watch?v={key}")
             .parse()
             .expect("url"),
-        published_at: Some(Utc::now()),
+        published_at: Some(Timestamp::now()),
         duration_seconds: Some(600),
         state: rd_core::SubscriptionItemState::Pending,
         reason: None,
@@ -311,13 +311,13 @@ async fn clearing_subscription_history_preserves_pending_items_only() {
         database
             .finish_subscription_run(
                 subscription.id,
-                Utc::now(),
+                Timestamp::now(),
                 crate::PollResult {
                     found: 4,
                     accepted: 1,
                     skipped: 3,
                     error: None,
-                    next_run_at: Utc::now() + Duration::hours(1),
+                    next_run_at: Timestamp::now() + SignedDuration::from_hours(1),
                     consecutive_failures: 0,
                     etag: None,
                     last_modified: None,
@@ -470,15 +470,16 @@ async fn a_new_subscription_is_due_at_once_and_a_finished_poll_pushes_it_out() {
         .expect("subscription");
     // No next_run_at: the backlog decision is made and shown immediately rather than an
     // interval from now.
-    let due = database.due_subscriptions(Utc::now()).await.expect("due");
+    let now = Timestamp::now();
+    let due = database.due_subscriptions(now).await.expect("due");
     assert_eq!(due.len(), 1);
     assert!(!due[0].primed);
 
-    let next = Utc::now() + Duration::hours(1);
+    let next = Timestamp::now() + SignedDuration::from_hours(1);
     database
         .finish_subscription_run(
             subscription.id,
-            Utc::now(),
+            Timestamp::now(),
             crate::PollResult {
                 found: 3,
                 accepted: 1,
@@ -495,7 +496,7 @@ async fn a_new_subscription_is_due_at_once_and_a_finished_poll_pushes_it_out() {
 
     assert!(
         database
-            .due_subscriptions(Utc::now())
+            .due_subscriptions(Timestamp::now())
             .await
             .expect("due")
             .is_empty()
@@ -541,8 +542,7 @@ async fn a_scheduled_script_subscription_is_armed_once_and_a_new_schedule_clears
     assert!(created.next_run_at.is_none());
 
     // Whole seconds, so the comparison below is about the row and not about precision.
-    let six =
-        chrono::DateTime::from_timestamp(Utc::now().timestamp() + 3 * 3_600, 0).expect("time");
+    let six = Timestamp::now().trunc_subsecs(0) + SignedDuration::from_hours(3);
     assert!(
         database
             .arm_subscription(created.id, six)
@@ -552,7 +552,7 @@ async fn a_scheduled_script_subscription_is_armed_once_and_a_new_schedule_clears
     // Armed already: a second arm, say from a tick racing a finished run, changes nothing.
     assert!(
         !database
-            .arm_subscription(created.id, six + Duration::hours(1))
+            .arm_subscription(created.id, six + SignedDuration::from_hours(1))
             .await
             .expect("arm again")
     );
@@ -565,7 +565,7 @@ async fn a_scheduled_script_subscription_is_armed_once_and_a_new_schedule_clears
     assert_eq!(stored.kind, rd_core::SubscriptionKind::Script);
     assert!(
         database
-            .due_subscriptions(Utc::now())
+            .due_subscriptions(Timestamp::now())
             .await
             .expect("due")
             .is_empty()

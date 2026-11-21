@@ -58,8 +58,9 @@ sha2.workspace = true
 tempfile.workspace = true
 
 [build-dependencies]
-chrono.workspace = true
 embed-resource.workspace = true
+# The build time of a development build, in UTC (`build.rs`).
+jiff.workspace = true
 
 [lints]
 workspace = true

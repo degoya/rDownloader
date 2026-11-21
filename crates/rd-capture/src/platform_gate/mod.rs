@@ -57,10 +57,6 @@ const LINUX_LINKED: &[(&str, &str)] = &[
          on Linux, so this is where the line runs",
     ),
     ("axum", "HTTP server behind Click'n'Load"),
-    (
-        "chrono",
-        "dates: the end of a queue pause, read from the summary and shown in local time",
-    ),
     ("clap", "command line"),
     ("directories", "per-user paths"),
     (
@@ -68,6 +64,11 @@ const LINUX_LINKED: &[(&str, &str)] = &[
         "system-wide shortcuts (RD-1180-03); on Linux an X11 protocol client through x11rb and \
          xkeysym, the same client arboard links, no toolkit. Under Wayland or without a display \
          the agent registers nothing and says so",
+    ),
+    (
+        "jiff",
+        "dates: the end of a queue pause, read from the summary and shown in local time \
+         (RD-1440-05); pure Rust, the zone database from the system or bundled",
     ),
     (
         "keyring",

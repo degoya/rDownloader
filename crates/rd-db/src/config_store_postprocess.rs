@@ -1,8 +1,7 @@
 //! A category's post-processing overrides, its seeding override and its sort templates.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{Category, CategoryId, EventEnvelope, EventKind};
+use rd_core::{Category, CategoryId, EventEnvelope, EventKind, Timestamp};
 use sqlx::{Connection, SqliteConnection};
 
 use super::{
@@ -109,7 +108,7 @@ pub(crate) async fn update_category_postprocess(
     .bind(postprocess.unwrap_package_folder)
     .bind(package_name_rules_json(postprocess.package_name_rules)?)
     .bind(package_name_regex_json(postprocess.package_name_regex.as_ref())?)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await?;

@@ -10,8 +10,7 @@
 use std::{collections::HashSet, sync::Arc};
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use rd_core::{BandwidthProfileId, BandwidthSettings};
+use rd_core::{BandwidthProfileId, BandwidthSettings, Timestamp};
 use rd_limits::{
     BandwidthProfile, BindingLimit, BudgetExceeded, BudgetKind, BudgetState, BudgetStates,
     LimiterRegistry, ManualProfile, TransferScope, WeeklySchedule, parse_timezone,
@@ -28,7 +27,7 @@ const BUDGET_BASELINE_KEY: &str = "bandwidth.total_baseline";
 #[derive(Clone, Debug)]
 pub struct BandwidthStatus {
     pub active_profile: Option<BandwidthProfile>,
-    pub next_switch_at: Option<DateTime<Utc>>,
+    pub next_switch_at: Option<Timestamp>,
     pub timezone: String,
     pub budget: Option<BudgetState>,
     pub exceeded: Option<BudgetExceeded>,
@@ -55,7 +54,7 @@ struct BandwidthState {
 
 impl BandwidthState {
     /// The profile in force: the hand-made switch while it holds, the schedule otherwise.
-    fn active_at(&self, now: DateTime<Utc>) -> Option<BandwidthProfileId> {
+    fn active_at(&self, now: Timestamp) -> Option<BandwidthProfileId> {
         match &self.manual {
             Some(manual) if manual.in_force(now) => manual.profile_id,
             _ => self.schedule.active_at(now),
@@ -164,7 +163,7 @@ impl BandwidthService {
     pub async fn status(&self) -> BandwidthStatus {
         let state = self.state.read().await;
         let active = state.active_profile().cloned();
-        let now = Utc::now();
+        let now = Timestamp::now();
         let manual = state.manual.clone().filter(|manual| manual.in_force(now));
         BandwidthStatus {
             // While a switch holds, the next change is its end, whatever the schedule says.
@@ -235,7 +234,7 @@ impl SchedulerHandle {
         let settings: BandwidthSettings = self.database.service_settings_or_default().await?;
         let timezone = parse_timezone(&settings.bandwidth_timezone).unwrap_or_else(|error| {
             tracing::warn!(%error, "falling back to UTC for the bandwidth schedule");
-            chrono_tz::Tz::UTC
+            rd_core::IanaZone::utc()
         });
         let profiles = self.database.list_bandwidth_profiles().await?;
         let windows = self.database.list_bandwidth_windows().await?;
@@ -280,7 +279,7 @@ impl SchedulerHandle {
         let service = self.bandwidth();
         let (active, profile) = {
             let state = service.state.read().await;
-            let active = state.active_at(Utc::now());
+            let active = state.active_at(Timestamp::now());
             let profile = active
                 .and_then(|id| state.profiles.iter().find(|profile| profile.id == id))
                 .cloned();
@@ -294,7 +293,7 @@ impl SchedulerHandle {
             // budget sample, a used-up budget outlived its profile: with no profile active the
             // sample returns early and never cleared it, and after a switch the old profile's
             // verdict held new transfers back until the next tick measured the new one.
-            let now = Utc::now();
+            let now = Timestamp::now();
             let (day, month) = (state.schedule.day_key(now), state.schedule.month_key(now));
             let next = profile
                 .as_ref()
@@ -350,7 +349,7 @@ impl SchedulerHandle {
             }
             return Ok(());
         };
-        let now = Utc::now();
+        let now = Timestamp::now();
         let (day, month) = {
             let state = service.state.read().await;
             (state.schedule.day_key(now), state.schedule.month_key(now))

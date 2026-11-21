@@ -3,7 +3,7 @@
 //! Split out of `subscription.rs` for size (RD-110-37); the types are unchanged and are
 //! re-exported from the parent module, so every path into them stayed the same.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -22,7 +22,7 @@ pub struct SubscriptionFilters {
     pub min_duration_seconds: Option<u32>,
     pub max_duration_seconds: Option<u32>,
     /// Rejects items published before this instant, independently of the backlog policy.
-    pub published_after: Option<DateTime<Utc>>,
+    pub published_after: Option<Timestamp>,
     /// Accepted language tags, compared case-insensitively on the primary subtag so `en`
     /// matches `en-GB`.
     pub languages: Vec<String>,

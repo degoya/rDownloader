@@ -1,7 +1,7 @@
 //! The persisted events are purged in bounded batches, so a sweep over a long backlog never
 //! holds the writer for one unbounded `DELETE` (DB-09).
 
-use chrono::{Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use rd_db::Database;
 use sqlx::{Connection, SqliteConnection};
 
@@ -23,7 +23,7 @@ async fn old_events_go_in_batches_and_recent_ones_stay() {
          INSERT INTO events (id, kind, occurred_at, payload_json) \
          SELECT 'old-' || i, 'download_state', ?, '{}' FROM n",
     )
-    .bind(Utc::now() - Duration::days(45))
+    .bind(Timestamp::now() - SignedDuration::from_hours(24 * 45))
     .execute(&mut connection)
     .await
     .expect("old events");
@@ -31,7 +31,7 @@ async fn old_events_go_in_batches_and_recent_ones_stay() {
         "INSERT INTO events (id, kind, occurred_at, payload_json) \
          VALUES ('recent', 'download_state', ?, '{}')",
     )
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .execute(&mut connection)
     .await
     .expect("recent event");

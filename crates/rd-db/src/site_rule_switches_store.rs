@@ -8,8 +8,7 @@
 //! `group` scope alone.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind};
+use rd_core::{EventEnvelope, EventKind, Timestamp};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqliteConnection, SqlitePool};
 
@@ -49,7 +48,7 @@ pub(crate) async fn set_site_rule_switch(
     key: &str,
     enabled: bool,
 ) -> Result<EventEnvelope> {
-    let now = Utc::now().to_rfc3339();
+    let now = Timestamp::now().to_rfc3339();
     let mut transaction = sqlx::Connection::begin(connection).await?;
     sqlx::query(
         "INSERT INTO site_rule_switches (scope, \"key\", enabled, updated_at) \

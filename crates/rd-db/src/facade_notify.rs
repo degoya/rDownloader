@@ -36,7 +36,7 @@ impl Database {
     /// Deliveries whose next attempt is due.
     pub async fn due_notification_deliveries(
         &self,
-        now: chrono::DateTime<chrono::Utc>,
+        now: rd_core::Timestamp,
     ) -> Result<Vec<rd_notify::Delivery>> {
         notify_store::due_deliveries(&self.readers, now).await
     }
@@ -110,7 +110,7 @@ impl Database {
         id: rd_core::NotificationDeliveryId,
         state: rd_notify::DeliveryState,
         attempt: u32,
-        next_attempt_at: Option<chrono::DateTime<chrono::Utc>>,
+        next_attempt_at: Option<rd_core::Timestamp>,
         response_status: Option<u16>,
         response_excerpt: Option<String>,
     ) -> Result<()> {

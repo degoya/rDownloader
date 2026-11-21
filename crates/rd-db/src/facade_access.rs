@@ -29,7 +29,7 @@ impl Database {
         label: String,
         token_sha256: String,
         scopes: Vec<String>,
-        expires_at: Option<chrono::DateTime<chrono::Utc>>,
+        expires_at: Option<rd_core::Timestamp>,
     ) -> Result<rd_core::CaptureToken> {
         self.create_limited_capture_token(id, label, token_sha256, scopes, expires_at, None)
             .await
@@ -43,7 +43,7 @@ impl Database {
         label: String,
         token_sha256: String,
         scopes: Vec<String>,
-        expires_at: Option<chrono::DateTime<chrono::Utc>>,
+        expires_at: Option<rd_core::Timestamp>,
         calls_per_minute: Option<u32>,
     ) -> Result<rd_core::CaptureToken> {
         writer::request(&self.writer, |reply| SessionsCommand::CreateCaptureToken {

@@ -15,8 +15,8 @@ use crate::common;
 use std::sync::Arc;
 
 use axum::http::StatusCode;
-use chrono::{Duration, Utc};
 use common::{get_json, post_json, put_json, test_harness};
+use rd_core::{SignedDuration, Timestamp};
 use rd_update::{
     Artifact, Channel, MemoryFetcher, SigningKey, Sources, Target, TrustStore, UpdateManifest,
     install::Journal,
@@ -32,15 +32,15 @@ fn key() -> SigningKey {
 }
 
 fn manifest(version: &str, sequence: u64) -> UpdateManifest {
-    let now = Utc::now();
+    let now = Timestamp::now();
     UpdateManifest {
         schema_version: 1,
         sequence,
-        issued_at: now - Duration::minutes(5),
-        not_after: now + Duration::days(30),
+        issued_at: now - SignedDuration::from_mins(5),
+        not_after: now + SignedDuration::from_hours(24 * 30),
         channel: Channel::Stable,
         version: version.to_owned(),
-        released_at: now - Duration::minutes(5),
+        released_at: now - SignedDuration::from_mins(5),
         notes: "- A thing".to_owned(),
         changelog_anchor: Some("9900---2026-10-10".to_owned()),
         artifacts: vec![Artifact {

@@ -20,8 +20,7 @@
 
 use std::sync::{Arc, Mutex, OnceLock};
 
-use chrono::{DateTime, Utc};
-use rd_core::{LogDebugWindow, PLUGIN_LOG_SPAN, ServiceLogLevel};
+use rd_core::{LogDebugWindow, PLUGIN_LOG_SPAN, ServiceLogLevel, Timestamp};
 use serde::Serialize;
 use tracing_subscriber::{EnvFilter, Registry, reload};
 
@@ -37,7 +36,7 @@ pub type FilterLayer = reload::Layer<EnvFilter, Registry>;
 pub fn directives(
     level: ServiceLogLevel,
     window: Option<&LogDebugWindow>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> String {
     let level = level.as_str();
     let mut parts = vec![format!("rdownloader={level}"), format!("rd_={level}")];
@@ -71,7 +70,7 @@ pub fn directives(
 
 /// The window a start reopens: the stored one while it is still open at `now`, else none.
 #[must_use]
-pub fn reopened(stored: Option<LogDebugWindow>, now: DateTime<Utc>) -> Option<LogDebugWindow> {
+pub fn reopened(stored: Option<LogDebugWindow>, now: Timestamp) -> Option<LogDebugWindow> {
     stored.filter(|window| window.is_open(now))
 }
 
@@ -142,7 +141,11 @@ impl Controller {
             .and_then(|value| EnvFilter::try_new(value).ok());
         let locked = environment.is_some();
         let filter = environment.unwrap_or_else(|| {
-            EnvFilter::new(directives(ServiceLogLevel::default(), None, Utc::now()))
+            EnvFilter::new(directives(
+                ServiceLogLevel::default(),
+                None,
+                Timestamp::now(),
+            ))
         });
         let (layer, handle) = reload::Layer::new(filter);
         if let Ok(mut inner) = self.inner.lock() {
@@ -163,7 +166,7 @@ impl Controller {
             return FilterState::default();
         };
         let mut state = inner.state.clone();
-        state.debug = reopened(state.debug, Utc::now());
+        state.debug = reopened(state.debug, Timestamp::now());
         state
     }
 
@@ -178,7 +181,7 @@ impl Controller {
         level: ServiceLogLevel,
         window: Option<LogDebugWindow>,
     ) -> Result<FilterState, ApplyError> {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let window = reopened(window, now);
         let (generation, locked) = {
             let mut inner = self
@@ -208,13 +211,13 @@ impl Controller {
     }
 
     /// Falls back to the level at `until`, unless something applied in between.
-    fn close_at_end(&self, generation: u64, until: DateTime<Utc>) {
+    fn close_at_end(&self, generation: u64, until: Timestamp) {
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
             return;
         };
         let controller = self.clone();
         runtime.spawn(async move {
-            let wait = (until - Utc::now()).to_std().unwrap_or_default();
+            let wait = std::time::Duration::try_from(until - Timestamp::now()).unwrap_or_default();
             tokio::time::sleep(wait).await;
             let level = {
                 let Ok(inner) = controller.inner.lock() else {
@@ -281,7 +284,7 @@ pub async fn apply_stored(database: &rd_db::Database) {
         .service_settings_or_default()
         .await
         .unwrap_or_default();
-    let window = reopened(stored_window(database).await, Utc::now());
+    let window = reopened(stored_window(database).await, Timestamp::now());
     match controller().apply(settings.log_level, window) {
         Ok(_) | Err(ApplyError::LockedByEnvironment) => {}
         Err(error) => tracing::warn!(%error, "the stored log level was not applied"),
@@ -290,8 +293,7 @@ pub async fn apply_stored(database: &rd_db::Database) {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, Utc};
-    use rd_core::{LogDebugArea, LogDebugWindow, ServiceLogLevel};
+    use rd_core::{LogDebugArea, LogDebugWindow, ServiceLogLevel, SignedDuration, Timestamp};
 
     use super::{directives, reopened};
 
@@ -299,14 +301,14 @@ mod tests {
         LogDebugWindow {
             area,
             plugin_id: None,
-            until: Utc::now() + Duration::minutes(minutes),
+            until: Timestamp::now() + SignedDuration::from_mins(minutes),
         }
     }
 
     #[test]
     fn the_level_covers_the_applications_own_targets() {
         assert_eq!(
-            directives(ServiceLogLevel::Warn, None, Utc::now()),
+            directives(ServiceLogLevel::Warn, None, Timestamp::now()),
             "rdownloader=warn,rd_=warn"
         );
     }
@@ -314,12 +316,12 @@ mod tests {
     #[test]
     fn an_open_window_adds_its_area_and_a_closed_one_nothing() {
         let usenet = window(LogDebugArea::Usenet, 15);
-        let now = Utc::now();
+        let now = Timestamp::now();
         assert_eq!(
             directives(ServiceLogLevel::Info, Some(&usenet), now),
             "rdownloader=info,rd_=info,rd_usenet=debug"
         );
-        let later = now + Duration::minutes(16);
+        let later = now + SignedDuration::from_mins(16);
         assert_eq!(
             directives(ServiceLogLevel::Info, Some(&usenet), later),
             "rdownloader=info,rd_=info"
@@ -331,11 +333,11 @@ mod tests {
         let mut plugin = window(LogDebugArea::Plugin, 30);
         plugin.plugin_id = Some("019d0000-0000-7000-8000-00000000abcd".to_owned());
         assert!(
-            directives(ServiceLogLevel::Info, Some(&plugin), Utc::now())
+            directives(ServiceLogLevel::Info, Some(&plugin), Timestamp::now())
                 .ends_with(",[plugin_log{plugin_id=019d0000-0000-7000-8000-00000000abcd}]=debug")
         );
         plugin.plugin_id = Some("x],rd_=trace".to_owned());
-        let fallback = directives(ServiceLogLevel::Info, Some(&plugin), Utc::now());
+        let fallback = directives(ServiceLogLevel::Info, Some(&plugin), Timestamp::now());
         assert!(!fallback.contains("trace"), "{fallback}");
         assert!(fallback.contains("rd_plugin_host=debug"), "{fallback}");
     }
@@ -344,7 +346,7 @@ mod tests {
     fn a_resolver_window_reaches_the_resolver_plugins_lines() {
         let provider = window(LogDebugArea::Provider, 15);
         assert!(
-            directives(ServiceLogLevel::Info, Some(&provider), Utc::now())
+            directives(ServiceLogLevel::Info, Some(&provider), Timestamp::now())
                 .contains("[plugin_log{kind=resolver}]=debug")
         );
     }
@@ -352,12 +354,15 @@ mod tests {
     #[test]
     fn a_start_inside_the_window_reopens_it_and_one_after_does_not() {
         let stored = window(LogDebugArea::Torrent, 60);
-        let now = Utc::now();
+        let now = Timestamp::now();
         assert_eq!(
-            reopened(Some(stored.clone()), now + Duration::minutes(59)),
+            reopened(Some(stored.clone()), now + SignedDuration::from_mins(59)),
             Some(stored.clone())
         );
-        assert_eq!(reopened(Some(stored), now + Duration::minutes(61)), None);
+        assert_eq!(
+            reopened(Some(stored), now + SignedDuration::from_mins(61)),
+            None
+        );
         assert_eq!(reopened(None, now), None);
     }
 }

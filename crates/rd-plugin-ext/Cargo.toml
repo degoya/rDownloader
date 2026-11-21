@@ -11,7 +11,6 @@ test-support = []
 
 [dependencies]
 anyhow.workspace = true
-chrono.workspace = true
 tokio = { workspace = true, features = ["fs"] }
 rd-core = { path = "../rd-core" }
 async-trait.workspace = true

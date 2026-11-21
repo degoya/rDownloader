@@ -1,4 +1,4 @@
-use chrono::Utc;
+use crate::Timestamp;
 use url::Url;
 
 use super::{
@@ -30,8 +30,8 @@ fn profile(name: &str, bucket: Option<&str>) -> ObjectStorageProfile {
         has_session_token: false,
         checksums: true,
         enabled: true,
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
+        created_at: Timestamp::now(),
+        updated_at: Timestamp::now(),
         ambient_custom_endpoint: false,
     }
 }

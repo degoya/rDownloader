@@ -8,7 +8,8 @@
 //! person's behalf, so it stays out. `forget_remote_job` is the half that only touches this
 //! installation's own list, and it says so in its own answer. `submit_nzb_import_remote_job`
 //! hands an NZB import from the LinkGrabber to a provider the same way, and
-//! `submit_package_remote_job` the NZB behind a queued package (RD-191-13).
+//! `submit_package_remote_job` the NZB behind a queued package (RD-191-13), and
+//! `hand_over_collector_package` every link of a LinkGrabber package (RD-1440-07).
 //!
 //! `clear_remote_jobs` clears the list, or the part a provider and state filter selects
 //! (RD-1200-01), here only, behind the question every clearing tool asks first since RD-1190-21.
@@ -27,8 +28,8 @@ use super::{
     error::{McpToolResult, parse_id, respond},
     params_config::IdParams,
     params_insight::{
-        ClearRemoteJobsParams, RemoteJobChoiceParams, SubmitNzbImportRemoteJobParams,
-        SubmitPackageRemoteJobParams, SubmitRemoteJobParams,
+        ClearRemoteJobsParams, HandOverCollectorPackageParams, RemoteJobChoiceParams,
+        SubmitNzbImportRemoteJobParams, SubmitPackageRemoteJobParams, SubmitRemoteJobParams,
     },
 };
 use crate::remote_job_handlers::{
@@ -115,6 +116,32 @@ impl RdMcpServer {
             )
             .await?
             .0)
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Hand every link of a LinkGrabber package to one account's provider instead of the queue: a magnet, an http(s) address or an imported .torrent each becomes one remote job, through the same duplicate guard as submit_remote_job; the provider fetches the content on its side and the finished files come back into the LinkGrabber as links. Refused when the package or the account does not exist (package.not_found, remote_job.no_account) or no installed plugin runs remote jobs on the account's provider (collector.remote_job_not_remote_account). Otherwise answers `handed_over` (each link with its job; `already_running` true means the account already had that job and nothing was sent) and `stayed` (each link that could not go, with its code: refused by the provider, not claimed, a source no provider takes, hidden by a LinkFilter rule, a mirror that is not the chosen copy, being queued). The setting linkgrabber_hand_over_remove_links decides what becomes of the links handed over, never this call: on (default) they leave the LinkGrabber and a package left empty is deleted (`links_removed`, `package_removed`); off they stay marked `handed_over` and a second call sends nothing again. What stayed always stays."
+    )]
+    pub async fn hand_over_collector_package(
+        &self,
+        Parameters(params): Parameters<HandOverCollectorPackageParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let account_id = parse_id(&params.account_id)?;
+            Ok(
+                crate::collector_handlers::submit_collector_package_remote_job(
+                    State(self.state.clone()),
+                    AxumPath(id),
+                    Json(
+                        crate::collector_handlers::CollectorPackageRemoteJobRequest { account_id },
+                    ),
+                )
+                .await?
+                .0,
+            )
         }
         .await;
         respond(result)

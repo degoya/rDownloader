@@ -3,8 +3,7 @@
 
 use std::sync::Arc;
 
-use chrono::{Duration, Utc};
-use rd_core::{LogDebugArea, LogDebugWindow, ServiceLogLevel};
+use rd_core::{LogDebugArea, LogDebugWindow, ServiceLogLevel, SignedDuration, Timestamp};
 use rd_diagnostics::{
     capture::{CaptureStats, LogCaptureLayer},
     log_filter::{ApplyError, Controller},
@@ -32,7 +31,7 @@ fn messages(stream: &mut rd_diagnostics::LogStream) -> Vec<String> {
         .collect()
 }
 
-fn window(area: LogDebugArea, until: chrono::DateTime<Utc>) -> LogDebugWindow {
+fn window(area: LogDebugArea, until: Timestamp) -> LogDebugWindow {
     LogDebugWindow {
         area,
         plugin_id: None,
@@ -73,7 +72,7 @@ fn a_debug_window_opens_only_its_area() {
             ServiceLogLevel::Info,
             Some(window(
                 LogDebugArea::Usenet,
-                Utc::now() + Duration::minutes(15),
+                Timestamp::now() + SignedDuration::from_mins(15),
             )),
         )
         .expect("applied");
@@ -100,7 +99,7 @@ async fn a_debug_window_closes_by_itself_at_its_end() {
             ServiceLogLevel::Info,
             Some(window(
                 LogDebugArea::Scheduler,
-                Utc::now() + Duration::milliseconds(200),
+                Timestamp::now() + SignedDuration::from_millis(200),
             )),
         )
         .expect("applied");

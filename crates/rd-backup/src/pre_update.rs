@@ -23,7 +23,7 @@
 
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use crate::archive::{self, digest_file};
 use crate::create::{BackupError, BackupSources, archive_name, seal_backup, sweep_staging};
@@ -64,7 +64,7 @@ pub struct UpdatePlan<'a> {
     pub from_version: &'a str,
     /// The version the updater switches to.
     pub target_version: &'a str,
-    pub at: DateTime<Utc>,
+    pub at: Timestamp,
 }
 
 /// A database copy that passed its check.

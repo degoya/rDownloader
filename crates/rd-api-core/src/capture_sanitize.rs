@@ -171,7 +171,8 @@ pub fn sanitize(url: &Url, request: CapturedRequest) -> Result<SanitizedRequest,
     // compromised or buggy capture client cannot widen its own replay permissions.
     let approved_origins = derive_approved_origins(url, effective_url.as_ref());
     let expires_at = signed_url_expiry(effective_url.as_ref().unwrap_or(url));
-    if blocked_reason.is_none() && expires_at.is_some_and(|deadline| deadline <= chrono::Utc::now())
+    if blocked_reason.is_none()
+        && expires_at.is_some_and(|deadline| deadline <= rd_core::Timestamp::now())
     {
         blocked_reason = Some(ReplayBlockReason::Expired);
     }

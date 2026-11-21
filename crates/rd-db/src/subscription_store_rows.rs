@@ -1,12 +1,11 @@
 //! The row types of the subscription tables and their conversion into the domain types.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use rd_core::{
     CategoryId, DownloadPriority, FilterReason, Subscription, SubscriptionCardRatio,
     SubscriptionId, SubscriptionItem, SubscriptionItemCounts, SubscriptionItemId,
     SubscriptionItemState, SubscriptionKind, SubscriptionMode, SubscriptionReviewCount,
-    SubscriptionRun, SubscriptionRunId, SubscriptionView,
+    SubscriptionRun, SubscriptionRunId, SubscriptionView, Timestamp,
 };
 use sqlx::FromRow;
 use url::Url;
@@ -37,15 +36,15 @@ pub(super) struct SubscriptionRow {
     indexer_search_json: String,
     git_release_json: String,
     primed: i64,
-    last_run_at: Option<DateTime<Utc>>,
-    next_run_at: Option<DateTime<Utc>>,
+    last_run_at: Option<Timestamp>,
+    next_run_at: Option<Timestamp>,
     consecutive_failures: i64,
     last_error: Option<String>,
     etag: Option<String>,
     last_modified: Option<String>,
     secret_ref: Option<String>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
 }
 
 impl TryFrom<SubscriptionRow> for Subscription {
@@ -174,14 +173,14 @@ pub(super) struct ItemRow {
     item_key: String,
     title: String,
     url: String,
-    published_at: Option<DateTime<Utc>>,
+    published_at: Option<Timestamp>,
     duration_seconds: Option<i64>,
     state: String,
     reason: Option<String>,
     source_category: Option<String>,
     media_type: Option<String>,
     attributes_json: Option<String>,
-    discovered_at: DateTime<Utc>,
+    discovered_at: Timestamp,
 }
 
 #[derive(FromRow)]
@@ -207,7 +206,7 @@ impl From<ItemCountRow> for SubscriptionItemCounts {
 pub(super) struct ReviewCountRow {
     subscription_id: String,
     pending: i64,
-    newest_discovered_at: Option<DateTime<Utc>>,
+    newest_discovered_at: Option<Timestamp>,
 }
 
 impl TryFrom<ReviewCountRow> for SubscriptionReviewCount {
@@ -281,8 +280,8 @@ impl TryFrom<ItemRow> for SubscriptionItem {
 pub(super) struct RunRow {
     id: String,
     subscription_id: String,
-    started_at: DateTime<Utc>,
-    finished_at: Option<DateTime<Utc>>,
+    started_at: Timestamp,
+    finished_at: Option<Timestamp>,
     found: i64,
     accepted: i64,
     skipped: i64,

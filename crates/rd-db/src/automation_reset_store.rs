@@ -1,9 +1,8 @@
 //! Resetting an automation's version history (RD-1280-01): only the version in force stays.
 
 use anyhow::{Context, Result};
-use chrono::Utc;
 use rd_automation::VersionReset;
-use rd_core::{AutomationId, EventEnvelope};
+use rd_core::{AutomationId, EventEnvelope, Timestamp};
 use sqlx::{Connection, SqliteConnection};
 
 use crate::{
@@ -74,7 +73,7 @@ pub(crate) async fn reset_versions(
         .execute(&mut *transaction)
         .await?;
     sqlx::query("UPDATE automations SET version = 1, updated_at = ? WHERE id = ?")
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(&automation)
         .execute(&mut *transaction)
         .await?;

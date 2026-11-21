@@ -116,6 +116,36 @@
   "optionsInterceptHint": {
     "message": "Les téléchargements lancés dans le navigateur sont mis en pause puis transmis à rDownloader. Nécessite un jeton de capture."
   },
+  "optionsInterceptMode": {
+    "message": "Quels téléchargements"
+  },
+  "optionsInterceptModeAll": {
+    "message": "Tous les téléchargements"
+  },
+  "optionsInterceptModeOnly": {
+    "message": "Uniquement ces types de fichiers"
+  },
+  "optionsInterceptModeExcept": {
+    "message": "Tous sauf ces types de fichiers"
+  },
+  "optionsInterceptTypes": {
+    "message": "Types de fichiers"
+  },
+  "optionsInterceptTypesHint": {
+    "message": "Extensions de fichier séparées par des espaces ou des virgules, p. ex. .dlc .nzb ; dlc et *.dlc veulent dire la même chose. Un téléchargement est reconnu à son nom de fichier, à son adresse ou au nom que le site lui donne."
+  },
+  "optionsInterceptTypesInvalid": {
+    "message": "Pas une extension de fichier, ignoré : $1."
+  },
+  "optionsInterceptTypesTooMany": {
+    "message": "Seuls les $1 premiers types de fichiers sont utilisés."
+  },
+  "optionsInterceptTypesEmpty": {
+    "message": "La liste est vide : aucun téléchargement n'est repris."
+  },
+  "optionsInterceptTypesBrowserOnly": {
+    "message": "$1 : le navigateur télécharge ces fichiers lui-même. Ils ne vont à rDownloader que depuis un site que vous avez autorisé ci-dessous ; sinon, ils restent dans le navigateur."
+  },
   "menuSession": {
     "message": "Envoyer la session de ce site à rDownloader"
   },

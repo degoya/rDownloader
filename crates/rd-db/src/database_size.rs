@@ -9,7 +9,7 @@
 //! first, [`Database::rewrite`] the second; the clean-up in `rd-api-admin` decides when.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use sqlx::SqlitePool;
 use tokio::task::yield_now;
 
@@ -50,7 +50,7 @@ impl Database {
     /// would use, `None` when the retention keeps every item.
     pub async fn database_storage(
         &self,
-        compact_before: Option<DateTime<Utc>>,
+        compact_before: Option<Timestamp>,
     ) -> Result<DatabaseStorage> {
         let pool = &self.readers;
         let page_size = scalar(pool, "PRAGMA page_size").await?;
@@ -78,7 +78,7 @@ impl Database {
     /// Moves every skipped or dismissed subscription item discovered before `before` to its key
     /// (RD-1240-35), in bounded batches with a yield between them so the writer serves the queue
     /// in the gaps. Returns how many items went; their archive passwords leave the vault.
-    pub async fn compact_subscription_items(&self, before: DateTime<Utc>) -> Result<u64> {
+    pub async fn compact_subscription_items(&self, before: Timestamp) -> Result<u64> {
         let mut removed = 0;
         loop {
             let batch = writer::request(&self.writer, |reply| {

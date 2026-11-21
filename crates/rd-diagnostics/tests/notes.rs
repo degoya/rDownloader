@@ -7,7 +7,7 @@
 
 use std::{io::Read, path::PathBuf};
 
-use chrono::{TimeZone, Utc};
+use rd_core::Timestamp;
 use rd_diagnostics::{BundleInput, Check, CheckStatus, Note, bundle, notes};
 
 fn input() -> BundleInput {
@@ -217,10 +217,7 @@ fn the_digest_is_the_identity_of_the_entries_and_not_their_language() {
 
 #[test]
 fn the_manifest_says_in_english_what_each_file_holds_and_what_was_redacted() {
-    let now = Utc
-        .with_ymd_and_hms(2026, 9, 22, 12, 0, 0)
-        .single()
-        .expect("time");
+    let now = Timestamp::from_ymd_hms(2026, 9, 22, 12, 0, 0).expect("time");
     let ids: Vec<String> = bundle::inventory(&input())
         .expect("inventory")
         .entries

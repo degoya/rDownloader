@@ -94,7 +94,7 @@ pub(crate) enum NetworkCommand {
     /// One flush of the bytes each server delivered (RD-1100-05).
     RecordUsenetTraffic {
         counts: Vec<(rd_core::UsenetServerId, u64)>,
-        now: chrono::DateTime<chrono::Utc>,
+        now: rd_core::Timestamp,
         reply: Reply<Vec<UsenetQuotaReached>>,
     },
 }

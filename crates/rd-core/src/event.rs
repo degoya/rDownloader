@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
@@ -111,7 +111,7 @@ pub enum EventKind {
 pub struct EventEnvelope {
     pub id: EventId,
     pub kind: EventKind,
-    pub occurred_at: DateTime<Utc>,
+    pub occurred_at: Timestamp,
     pub payload: Value,
 }
 
@@ -122,7 +122,7 @@ impl EventEnvelope {
         Self {
             id: EventId::new(),
             kind,
-            occurred_at: Utc::now(),
+            occurred_at: Timestamp::now(),
             payload,
         }
     }

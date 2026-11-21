@@ -107,14 +107,15 @@ impl SchedulerHandle {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, Utc};
-    use rd_core::{DownloadFile, DownloadState, Failure, FailureKind, PackageId};
+    use rd_core::{
+        DownloadFile, DownloadState, Failure, FailureKind, PackageId, SignedDuration, Timestamp,
+    };
 
     use super::PackageOrder;
 
     /// A fixed clock: 2026-11-02 12:00:00 UTC.
-    fn now() -> DateTime<Utc> {
-        DateTime::from_timestamp(1_793_620_800, 0).expect("a valid instant")
+    fn now() -> Timestamp {
+        Timestamp::from_unix(1_793_620_800, 0).expect("a valid instant")
     }
 
     fn file(package: PackageId, state: DownloadState) -> DownloadFile {
@@ -151,7 +152,7 @@ mod tests {
     /// A file whose hoster's limit holds it for an hour.
     fn limited(package: PackageId) -> DownloadFile {
         let mut file = file(package, DownloadState::RetryWait);
-        file.next_retry_at = Some(now() + chrono::Duration::hours(1));
+        file.next_retry_at = Some(now() + SignedDuration::from_hours(1));
         file.last_error = Some(Failure::new(
             FailureKind::RateLimited {
                 retry_after_seconds: Some(3600),

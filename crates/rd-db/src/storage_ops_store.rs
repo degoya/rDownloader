@@ -2,8 +2,7 @@
 //! `migrations/0100_storage_operations.sql`.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{DownloadId, PackageId, StorageOperationKind, StorageOperationState};
+use rd_core::{DownloadId, PackageId, StorageOperationKind, StorageOperationState, Timestamp};
 use sqlx::{FromRow, SqliteConnection, SqlitePool};
 
 use crate::{parse_id, parse_time, timestamp};
@@ -79,8 +78,8 @@ pub struct StorageOperation {
     pub verified_digest: Option<String>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
-    pub started_at: DateTime<Utc>,
-    pub finished_at: Option<DateTime<Utc>>,
+    pub started_at: Timestamp,
+    pub finished_at: Option<Timestamp>,
 }
 
 #[derive(FromRow)]
@@ -187,7 +186,7 @@ pub(crate) async fn start_storage_operation(
     .bind(&operation.source_path)
     .bind(&operation.target_path)
     .bind(bytes(operation.size_bytes))
-    .bind(timestamp(&Utc::now()))
+    .bind(timestamp(&Timestamp::now()))
     .fetch_one(&mut *connection)
     .await?;
     sqlx::query("DELETE FROM storage_operations WHERE id <= ?")
@@ -216,7 +215,7 @@ pub(crate) async fn finish_storage_operation(
     .bind(outcome.verified_digest)
     .bind(outcome.error_code)
     .bind(outcome.error_message)
-    .bind(timestamp(&Utc::now()))
+    .bind(timestamp(&Timestamp::now()))
     .bind(id)
     .execute(connection)
     .await?;
@@ -232,7 +231,7 @@ pub(crate) async fn interrupt_running_storage_operations(
         "UPDATE storage_operations SET state = 'interrupted', finished_at = ? \
          WHERE state = 'running'",
     )
-    .bind(timestamp(&Utc::now()))
+    .bind(timestamp(&Timestamp::now()))
     .execute(connection)
     .await?;
     Ok(result.rows_affected())

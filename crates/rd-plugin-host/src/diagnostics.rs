@@ -137,7 +137,7 @@ impl ExecutionLog {
             // a bug report gives away nothing about the download it came from.
             correlation_id: uuid::Uuid::now_v7().to_string(),
             started: Instant::now(),
-            started_at: chrono::Utc::now(),
+            started_at: rd_core::Timestamp::now(),
         }
     }
 
@@ -198,7 +198,7 @@ pub struct Invocation {
     operation: &'static str,
     correlation_id: String,
     started: Instant,
-    started_at: chrono::DateTime<chrono::Utc>,
+    started_at: rd_core::Timestamp,
 }
 
 #[cfg(test)]
@@ -320,7 +320,7 @@ mod tests {
                     outcome: "crash".to_owned(),
                     error_class: None,
                     message: None,
-                    started_at: chrono::Utc::now(),
+                    started_at: rd_core::Timestamp::now(),
                     duration_ms: 1,
                 })
                 .await

@@ -8,8 +8,8 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-chrono.workspace = true
-chrono-tz.workspace = true
+jiff.workspace = true
+rd-core = { path = "../rd-core" }
 rd-files = { path = "../rd-files" }
 rd-limits = { path = "../rd-limits" }
 serde.workspace = true

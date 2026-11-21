@@ -5,8 +5,7 @@
 //! no reason other than a restart -- so the questions "is this due" and "whose callback is
 //! this" are answered by a query, and these tests are those queries.
 
-use chrono::{Duration, Utc};
-use rd_core::{AccountId, AuthFlowState};
+use rd_core::{AccountId, AuthFlowState, SignedDuration, Timestamp};
 use rd_db::{Database, NewAccount, UpsertAuthFlow};
 use tempfile::TempDir;
 
@@ -48,11 +47,11 @@ fn flow(account_id: AccountId) -> UpsertAuthFlow {
 }
 
 /// An authorised flow whose token dies at `expires_in` from now.
-fn renewable(account_id: AccountId, expires_in: Duration) -> UpsertAuthFlow {
+fn renewable(account_id: AccountId, expires_in: SignedDuration) -> UpsertAuthFlow {
     UpsertAuthFlow {
         state: AuthFlowState::Authorized,
         callback_state: None,
-        token_expires_at: Some(Utc::now() + expires_in),
+        token_expires_at: Some(Timestamp::now() + expires_in),
         refresh_ref: Some("vault://11111111-1111-1111-1111-111111111111".to_owned()),
         access_ref: None,
         key_ref: None,
@@ -73,7 +72,10 @@ async fn a_flow_waiting_for_a_redirect_is_never_polled() {
         .await
         .expect("upsert");
 
-    let due = database.due_auth_flows(Utc::now()).await.expect("due");
+    let due = database
+        .due_auth_flows(Timestamp::now())
+        .await
+        .expect("due");
     assert!(
         due.is_empty(),
         "a redirect flow must not be offered for polling"
@@ -94,7 +96,10 @@ async fn a_device_flow_alongside_it_is_still_polled() {
         .await
         .expect("upsert");
 
-    let due = database.due_auth_flows(Utc::now()).await.expect("due");
+    let due = database
+        .due_auth_flows(Timestamp::now())
+        .await
+        .expect("due");
     assert_eq!(due.len(), 1, "a device flow is still due");
 }
 
@@ -161,19 +166,19 @@ async fn renewal_becomes_due_only_once_the_expiry_is_within_reach() {
     let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
-        .upsert_auth_flow(renewable(account_id, Duration::minutes(10)))
+        .upsert_auth_flow(renewable(account_id, SignedDuration::from_mins(10)))
         .await
         .expect("upsert");
 
-    let now = Utc::now();
+    let now = Timestamp::now();
     let early = database
-        .due_refresh_auth_flows(now, now + Duration::minutes(1))
+        .due_refresh_auth_flows(now, now + SignedDuration::from_mins(1))
         .await
         .expect("due");
     assert!(early.is_empty(), "a token with ten minutes left is not due");
 
     let late = database
-        .due_refresh_auth_flows(now, now + Duration::minutes(11))
+        .due_refresh_auth_flows(now, now + SignedDuration::from_mins(11))
         .await
         .expect("due");
     assert_eq!(late.len(), 1, "a token inside the lead is due");
@@ -196,14 +201,14 @@ async fn a_flow_with_no_refresh_material_is_never_due_for_renewal() {
             refresh_ref: None,
             access_ref: None,
             key_ref: None,
-            ..renewable(account_id, Duration::minutes(-5))
+            ..renewable(account_id, SignedDuration::from_mins(-5))
         })
         .await
         .expect("upsert");
 
-    let now = Utc::now();
+    let now = Timestamp::now();
     let due = database
-        .due_refresh_auth_flows(now, now + Duration::minutes(1))
+        .due_refresh_auth_flows(now, now + SignedDuration::from_mins(1))
         .await
         .expect("due");
     assert!(due.is_empty());
@@ -217,14 +222,14 @@ async fn a_held_back_renewal_waits_its_turn() {
     let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
-        .upsert_auth_flow(renewable(account_id, Duration::minutes(-5)))
+        .upsert_auth_flow(renewable(account_id, SignedDuration::from_mins(-5)))
         .await
         .expect("upsert");
 
-    let now = Utc::now();
+    let now = Timestamp::now();
     assert_eq!(
         database
-            .due_refresh_auth_flows(now, now + Duration::minutes(1))
+            .due_refresh_auth_flows(now, now + SignedDuration::from_mins(1))
             .await
             .expect("due")
             .len(),
@@ -233,12 +238,12 @@ async fn a_held_back_renewal_waits_its_turn() {
     );
 
     database
-        .defer_auth_flow_renewal(account_id, now + Duration::minutes(5))
+        .defer_auth_flow_renewal(account_id, now + SignedDuration::from_mins(5))
         .await
         .expect("defer");
     assert!(
         database
-            .due_refresh_auth_flows(now, now + Duration::minutes(1))
+            .due_refresh_auth_flows(now, now + SignedDuration::from_mins(1))
             .await
             .expect("due")
             .is_empty(),
@@ -246,7 +251,10 @@ async fn a_held_back_renewal_waits_its_turn() {
     );
     assert_eq!(
         database
-            .due_refresh_auth_flows(now + Duration::minutes(6), now + Duration::minutes(7))
+            .due_refresh_auth_flows(
+                now + SignedDuration::from_mins(6),
+                now + SignedDuration::from_mins(7)
+            )
             .await
             .expect("due")
             .len(),
@@ -264,16 +272,16 @@ async fn what_a_renewal_needs_survives_a_restart() {
         let database = rd_testkit::temp_database(directory.path()).await;
         let account_id = account(&database).await;
         database
-            .upsert_auth_flow(renewable(account_id, Duration::minutes(-1)))
+            .upsert_auth_flow(renewable(account_id, SignedDuration::from_mins(-1)))
             .await
             .expect("upsert");
         account_id
     };
 
     let reopened = rd_testkit::temp_database(directory.path()).await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     let due = reopened
-        .due_refresh_auth_flows(now, now + Duration::minutes(1))
+        .due_refresh_auth_flows(now, now + SignedDuration::from_mins(1))
         .await
         .expect("due");
     assert_eq!(due.len(), 1, "the renewal is picked up after a restart");
@@ -339,7 +347,7 @@ async fn a_sign_in_s_parts_are_kept_one_by_one_and_go_with_the_flow() {
     let database = rd_testkit::temp_database(directory.path()).await;
     let account_id = account(&database).await;
     database
-        .upsert_auth_flow(renewable(account_id, Duration::hours(1)))
+        .upsert_auth_flow(renewable(account_id, SignedDuration::from_hours(1)))
         .await
         .expect("upsert");
 

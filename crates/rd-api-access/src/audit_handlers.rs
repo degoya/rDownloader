@@ -17,9 +17,11 @@ use axum::{
     http::{HeaderValue, header},
     response::{IntoResponse, Response},
 };
-use chrono::{DateTime, SecondsFormat, Utc};
 use rd_api_core::input_checks::optional_text;
-use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome, AuditRetentionSettings};
+use rd_core::{
+    AuditAction, AuditActorKind, AuditChannel, AuditOutcome, AuditRetentionSettings, SecondsFormat,
+    Timestamp,
+};
 use rd_db::AuditQuery;
 
 use crate::{
@@ -35,12 +37,12 @@ fn invalid(field: &str, message: &str) -> ApiError {
     ApiError::bad_request("audit.invalid_query", message).with_param("field", field)
 }
 
-fn parse_moment(value: Option<&str>, name: &str) -> Result<Option<DateTime<Utc>>, ApiError> {
+fn parse_moment(value: Option<&str>, name: &str) -> Result<Option<Timestamp>, ApiError> {
     let Some(text) = value.map(str::trim).filter(|text| !text.is_empty()) else {
         return Ok(None);
     };
-    DateTime::parse_from_rfc3339(text)
-        .map(|moment| Some(moment.with_timezone(&Utc)))
+    Timestamp::parse_rfc3339(text)
+        .map(Some)
         .map_err(|_| invalid(name, "An audit filter value could not be read"))
 }
 
@@ -179,7 +181,7 @@ pub async fn export_audit_records(
     }
     let name = format!(
         "rdownloader-audit-{}.ndjson",
-        Utc::now().format("%Y%m%dT%H%M%SZ")
+        Timestamp::now().strftime("%Y%m%dT%H%M%SZ")
     );
     let disposition = HeaderValue::from_str(&format!("attachment; filename=\"{name}\""))
         .map_err(anyhow::Error::new)?;

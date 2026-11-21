@@ -7,8 +7,9 @@
 //! none of them is.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Duration, NaiveDate, Utc};
-use rd_core::{EventEnvelope, EventKind, UsenetQuota, UsenetServerId};
+use rd_core::{
+    Date, EventEnvelope, EventKind, SignedDuration, Timestamp, UsenetQuota, UsenetServerId,
+};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::{parse_id, usenet_store::QuotaColumns, writer::insert_event};
@@ -50,10 +51,10 @@ pub struct UsenetQuotaReached {
 pub(crate) async fn record(
     connection: &mut SqliteConnection,
     counts: &[(UsenetServerId, u64)],
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<(Vec<UsenetQuotaReached>, Vec<EventEnvelope>)> {
-    let today = now.date_naive();
-    let day = today.to_string();
+    let today = now.date();
+    let day = Date::from_jiff(today).to_string();
     let mut reached = Vec::new();
     let mut events = Vec::new();
     let mut tx = connection.begin().await?;
@@ -155,8 +156,12 @@ struct TrafficRow {
 }
 
 /// Every configured server with its traffic as of `today`, in priority order.
-pub(crate) async fn list(pool: &SqlitePool, today: NaiveDate) -> Result<Vec<UsenetServerTraffic>> {
-    let since = |days: i64| (today - Duration::days(days)).to_string();
+pub(crate) async fn list(
+    pool: &SqlitePool,
+    today: jiff::civil::Date,
+) -> Result<Vec<UsenetServerTraffic>> {
+    let since =
+        |days: i64| Date::from_jiff(today - SignedDuration::from_hours(24 * days)).to_string();
     let rows = sqlx::query_as::<_, TrafficRow>(
         "SELECT s.id, s.name, s.enabled, \
            COALESCE(SUM(CASE WHEN t.day >= ? THEN t.bytes END), 0) AS today, \

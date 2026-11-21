@@ -179,7 +179,7 @@ async fn a_token_running_out_ends_its_stream() {
             "stream expiry".to_owned(),
             hex::encode(Sha256::digest(BEARER.as_bytes())),
             vec![rd_core::API_READ_SCOPE.to_owned()],
-            Some(chrono::Utc::now() + chrono::Duration::seconds(3)),
+            Some(rd_core::Timestamp::now() + rd_core::SignedDuration::from_secs(3)),
         )
         .await
         .expect("token");

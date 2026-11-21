@@ -9,8 +9,7 @@ use std::{
     time::Duration,
 };
 
-use chrono::{DateTime, Utc};
-use rd_core::{AccountId, AuthFlow, AuthFlowState, FailureKind};
+use rd_core::{AccountId, AuthFlow, AuthFlowState, FailureKind, Timestamp};
 use rd_plugin_ext::ProviderError;
 use rd_plugin_host::extension::{AuthProgress, TokenOutcome};
 use tokio_util::sync::CancellationToken;
@@ -260,11 +259,11 @@ fn renewal_action(outcome: Result<TokenOutcome, ProviderError>) -> RenewalAction
 /// `seconds` after `now`, held to [`rd_core::MAX_RETRY_AFTER_SECONDS`] (RA-HOST-02).
 ///
 /// Every such number here is a plugin's — a sign-in window, an "ask again in" — and
-/// `now + u64::MAX` seconds is a panic in `chrono`, not a date. A sign-in window or a poll
-/// interval longer than a day is no provider's.
-fn seconds_after(now: DateTime<Utc>, seconds: u64) -> DateTime<Utc> {
+/// `now + u64::MAX` seconds is a panic in the time arithmetic, not a date. A sign-in window or a
+/// poll interval longer than a day is no provider's.
+fn seconds_after(now: Timestamp, seconds: u64) -> Timestamp {
     let seconds = i64::try_from(rd_core::clamp_retry_after(seconds)).unwrap_or(MIN_INTERVAL);
-    now + chrono::Duration::seconds(seconds)
+    now + rd_core::SignedDuration::from_secs(seconds)
 }
 
 /// How long a renewal waits after a plugin reported this kind of failure, or `None` when
@@ -320,7 +319,7 @@ fn callback_failure(error: &ProviderError) -> String {
 fn sign_in_progress(
     result: Result<AuthProgress, ProviderError>,
     flow: &AuthFlow,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> AuthProgress {
     match result {
         Ok(progress) => progress,
@@ -351,7 +350,7 @@ fn sign_in_progress(
         Err(ProviderError::Failed(error)) => {
             tracing::warn!(%error, "a sign-in poll did not complete");
             if flow.expires_at.is_none()
-                && now - flow.started_at >= chrono::Duration::seconds(SIGN_IN_GRACE)
+                && now - flow.started_at >= rd_core::SignedDuration::from_secs(SIGN_IN_GRACE)
             {
                 return AuthProgress::Failed {
                     message: AUTH_PROVIDER_UNREACHABLE.to_owned(),

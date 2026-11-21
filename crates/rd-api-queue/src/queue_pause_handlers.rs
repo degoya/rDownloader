@@ -7,7 +7,7 @@
 //! downloads back without anybody pressing pause.
 
 use axum::{Json, extract::State};
-use chrono::{DateTime, Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -23,7 +23,7 @@ pub struct QueuePauseRequest {
     pub minutes: Option<u32>,
     /// When the pause ends; give this or `minutes`.
     #[serde(default)]
-    pub until: Option<DateTime<Utc>>,
+    pub until: Option<Timestamp>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -32,7 +32,7 @@ pub struct QueuePauseResponse {
     pub paused: bool,
     /// When it ends and the queue runs again; `null` while paused for a pause that lasts until
     /// it is resumed — the one the stop mark sets (RD-1210-02).
-    pub until: Option<DateTime<Utc>>,
+    pub until: Option<Timestamp>,
     /// The files it stopped; its end resumes those still paused.
     pub files: u32,
     /// The accounts whose traffic their hoster reports used up, the soonest to end first
@@ -53,7 +53,7 @@ pub struct SchedulePauseResponse {
     pub profile_id: rd_core::BandwidthProfileId,
     pub profile_name: String,
     /// When it ends, as the schedule or a switch by hand says; `null` when nothing ends it.
-    pub until: Option<DateTime<Utc>>,
+    pub until: Option<Timestamp>,
     /// Whether somebody switched it on by hand rather than the schedule.
     pub manual: bool,
 }
@@ -69,9 +69,9 @@ pub struct AccountTrafficHoldResponse {
     /// What the setting makes of it: `nothing`, `pause_account` or `pause_queue`.
     pub action: rd_core::AccountTrafficAction,
     /// When the hoster's wait ends and the waiting files try again.
-    pub until: DateTime<Utc>,
+    pub until: Timestamp,
     /// When the account is next checked for traffic; traffic above zero continues at once.
-    pub next_check_at: DateTime<Utc>,
+    pub next_check_at: Timestamp,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -93,7 +93,7 @@ pub async fn pause_queue(
     State(state): State<AppState>,
     Json(request): Json<QueuePauseRequest>,
 ) -> Result<Json<QueuePauseResponse>, ApiError> {
-    let until = pause_end(&request, Utc::now())?;
+    let until = pause_end(&request, Timestamp::now())?;
     let pause = state.scheduler.pause_queue_until(until).await?;
     Ok(Json(response(&state, Some(pause)).await))
 }
@@ -182,14 +182,14 @@ async fn account_traffic(state: &AppState) -> Vec<AccountTrafficHoldResponse> {
 /// Exactly one of `minutes` and `until`, ending at least a minute and at most thirty days ahead.
 pub(crate) fn pause_end(
     request: &QueuePauseRequest,
-    now: DateTime<Utc>,
-) -> Result<DateTime<Utc>, ApiError> {
+    now: Timestamp,
+) -> Result<Timestamp, ApiError> {
     let until = match (request.minutes, request.until) {
         (Some(minutes), None) if (1..=MAX_MINUTES).contains(&minutes) => {
-            Some(now + Duration::minutes(i64::from(minutes)))
+            Some(now + SignedDuration::from_mins(i64::from(minutes)))
         }
         (None, Some(until))
-            if until > now && until <= now + Duration::minutes(i64::from(MAX_MINUTES)) =>
+            if until > now && until <= now + SignedDuration::from_mins(i64::from(MAX_MINUTES)) =>
         {
             Some(until)
         }
@@ -206,25 +206,25 @@ pub(crate) fn pause_end(
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, Utc};
+    use rd_core::{SignedDuration, Timestamp};
 
     use super::{MAX_MINUTES, QueuePauseRequest, pause_end};
 
-    fn request(minutes: Option<u32>, until: Option<chrono::DateTime<Utc>>) -> QueuePauseRequest {
+    fn request(minutes: Option<u32>, until: Option<rd_core::Timestamp>) -> QueuePauseRequest {
         QueuePauseRequest { minutes, until }
     }
 
     #[test]
     fn minutes_count_from_now() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let end = pause_end(&request(Some(30), None), now).expect("end");
-        assert_eq!(end, now + Duration::minutes(30));
+        assert_eq!(end, now + SignedDuration::from_mins(30));
     }
 
     #[test]
     fn an_end_time_is_taken_as_given() {
-        let now = Utc::now();
-        let until = now + Duration::hours(3);
+        let now = Timestamp::now();
+        let until = now + SignedDuration::from_hours(3);
         assert_eq!(
             pause_end(&request(None, Some(until)), now).expect("end"),
             until
@@ -233,15 +233,15 @@ mod tests {
 
     #[test]
     fn exactly_one_end_within_thirty_days_is_accepted() {
-        let now = Utc::now();
-        let soon = now + Duration::hours(1);
+        let now = Timestamp::now();
+        let soon = now + SignedDuration::from_hours(1);
         for refused in [
             request(None, None),
             request(Some(30), Some(soon)),
             request(Some(0), None),
             request(Some(MAX_MINUTES + 1), None),
-            request(None, Some(now - Duration::minutes(1))),
-            request(None, Some(now + Duration::days(31))),
+            request(None, Some(now - SignedDuration::from_mins(1))),
+            request(None, Some(now + SignedDuration::from_hours(24 * 31))),
         ] {
             let error = pause_end(&refused, now).expect_err("refused");
             assert_eq!(error.code(), "queue.pause_end_invalid");

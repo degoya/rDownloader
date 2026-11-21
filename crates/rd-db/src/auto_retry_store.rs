@@ -8,8 +8,7 @@
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{DownloadFile, DownloadId, DownloadState, EventEnvelope, EventKind};
+use rd_core::{DownloadFile, DownloadId, DownloadState, EventEnvelope, EventKind, Timestamp};
 use sqlx::{Connection, Row, SqlitePool};
 
 use crate::{
@@ -87,11 +86,7 @@ impl Database {
     /// Sets or clears when the automatic retry takes a failed download up again; the time is
     /// kept in `next_retry_at`, which is what the queue shows. Only a row still `failed` is
     /// written; returns whether one was.
-    pub async fn schedule_auto_retry(
-        &self,
-        id: DownloadId,
-        at: Option<DateTime<Utc>>,
-    ) -> Result<bool> {
+    pub async fn schedule_auto_retry(&self, id: DownloadId, at: Option<Timestamp>) -> Result<bool> {
         writer::request(&self.writer, |reply| DownloadsCommand::ScheduleAutoRetry {
             id,
             at,
@@ -129,7 +124,7 @@ impl Writer {
     pub(crate) async fn schedule_auto_retry(
         &mut self,
         id: DownloadId,
-        at: Option<DateTime<Utc>>,
+        at: Option<Timestamp>,
     ) -> Result<bool> {
         // No `state` in the payload: the row's state does not change, and a `failed` here
         // would fire the "download failed" automations a second time.

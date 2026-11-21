@@ -11,10 +11,9 @@
 use std::{ffi::OsString, path::Path, time::Duration};
 
 use anyhow::Result;
-use chrono::Utc;
 use rd_core::{
     MAX_RECONNECTS, MAX_SEGMENTS, RecordingPolicy, RecordingSegment, RecordingState, SegmentEnd,
-    segment_name,
+    Timestamp, segment_name,
 };
 use rd_files::NoConsoleWindow as _;
 use rd_scheduler::ToolNetwork;
@@ -204,7 +203,7 @@ pub(crate) fn push_segment(
     index: u32,
     file_name: String,
     bytes: u64,
-    started_at: chrono::DateTime<Utc>,
+    started_at: Timestamp,
     outcome: SegmentOutcome,
 ) {
     state.segments.push(RecordingSegment {
@@ -212,7 +211,7 @@ pub(crate) fn push_segment(
         file_name,
         bytes,
         started_at,
-        ended_at: Some(Utc::now()),
+        ended_at: Some(Timestamp::now()),
         reason: end_reason(outcome),
     });
     if outcome == SegmentOutcome::Dropped {
@@ -234,8 +233,7 @@ mod tests {
         SegmentOutcome, SegmentTool, end_reason, next_name, push_segment, segment_args,
         should_continue, streamlink_command,
     };
-    use chrono::Utc;
-    use rd_core::{MAX_RECONNECTS, MAX_SEGMENTS, ProxyKind, RecordingState, SegmentEnd};
+    use rd_core::{MAX_RECONNECTS, MAX_SEGMENTS, ProxyKind, RecordingState, SegmentEnd, Timestamp};
     use rd_scheduler::{ToolNetwork, ToolProxy};
     use secrecy::SecretString;
 
@@ -286,7 +284,7 @@ mod tests {
             1,
             next_name("show", 1),
             100,
-            Utc::now(),
+            Timestamp::now(),
             SegmentOutcome::Split,
         );
         assert_eq!(state.reconnects, 0);
@@ -295,7 +293,7 @@ mod tests {
             2,
             next_name("show", 2),
             200,
-            Utc::now(),
+            Timestamp::now(),
             SegmentOutcome::Dropped,
         );
         assert_eq!(state.reconnects, 1);

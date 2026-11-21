@@ -14,10 +14,9 @@ use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
 };
-use chrono::{DateTime, Utc};
 use rd_api_core::input_checks::optional_text;
 use rd_backup::{DestinationConfig, RecordedArchive, RetentionPolicy, retention};
-use rd_core::{AuditAction, BackupOrigin, BackupVerifyState};
+use rd_core::{AuditAction, BackupOrigin, BackupVerifyState, Timestamp};
 use rd_db::{BackupArchive, BackupDestinationRecord, BackupVerification, NewBackupDestination};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -320,7 +319,7 @@ pub async fn preview_backup_retention(
             created_at: archive.created_at,
         })
         .collect();
-    let plan = retention::plan(&recorded, policy, &instance, Utc::now());
+    let plan = retention::plan(&recorded, policy, &instance, Timestamp::now());
     let pick = |ids: &[String]| -> Vec<BackupArchiveResponse> {
         ids.iter()
             .filter_map(|id| ledger.iter().find(|archive| &archive.id == id))

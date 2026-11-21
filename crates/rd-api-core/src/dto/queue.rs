@@ -164,7 +164,7 @@ pub struct CaptureSummaryResponse {
     pub paused: u32,
     /// When the timed pause of the whole queue ends, while one holds (RD-190-20); the tray says
     /// "paused until" with it.
-    pub paused_until: Option<chrono::DateTime<chrono::Utc>>,
+    pub paused_until: Option<rd_core::Timestamp>,
     /// Whether the token asking may control the queue (`capture:queue`, chosen when the agent was
     /// paired). The tray offers its queue and LinkGrabber entries only when it may (RD-1100-06,
     /// RD-1240-07).
@@ -173,7 +173,7 @@ pub struct CaptureSummaryResponse {
     /// the whole queue, as the setting says. A count, not names: this token sees no accounts.
     pub traffic_held_accounts: u32,
     /// The soonest of those accounts' next traffic checks; the tray says "next check" with it.
-    pub traffic_next_check: Option<chrono::DateTime<chrono::Utc>>,
+    pub traffic_next_check: Option<rd_core::Timestamp>,
 }
 
 /// New name for a package **and** for the folder its files live in (RD-106-13).

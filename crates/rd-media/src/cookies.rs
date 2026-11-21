@@ -19,8 +19,7 @@
 
 use std::path::Path;
 
-use chrono::Utc;
-use rd_core::{AuthMethod, AuthProfile, AuthProfileSelection, CookieRow};
+use rd_core::{AuthMethod, AuthProfile, AuthProfileSelection, CookieRow, Timestamp};
 use rd_db::Database;
 use rd_http::CookieScope;
 use rd_secrets::SecretStore;
@@ -143,7 +142,7 @@ pub fn materialize(
     profile: &AuthProfile,
     secret: &secrecy::SecretString,
     page_url: &Url,
-    now: chrono::DateTime<chrono::Utc>,
+    now: Timestamp,
 ) -> Result<CookieFile, CookieError> {
     CookieFile::from_rows(&scoped_rows(profile, secret, page_url, now)?)
 }
@@ -153,7 +152,7 @@ fn scoped_rows(
     profile: &AuthProfile,
     secret: &secrecy::SecretString,
     page_url: &Url,
-    now: chrono::DateTime<chrono::Utc>,
+    now: Timestamp,
 ) -> Result<Vec<CookieRow>, CookieError> {
     if !profile.is_usable(now) {
         return Err(CookieError::ProfileUnusable);
@@ -250,7 +249,7 @@ pub async fn rows_for_selection(
         .get(reference)
         .await
         .map_err(|_| CookieError::SecretUnavailable)?;
-    match scoped_rows(&profile, &secret, page_url, Utc::now()) {
+    match scoped_rows(&profile, &secret, page_url, Timestamp::now()) {
         Ok(rows) => Ok(Some(rows)),
         // A profile that merely happens to match and has nothing for this host is not a
         // failure; one the user pinned is.

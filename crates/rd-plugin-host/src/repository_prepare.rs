@@ -352,7 +352,7 @@ async fn record_delivery(database: &Database, source: &PreparedSource) {
             version: source.version.clone(),
             digest: source.digest.clone(),
             repository_id: source.repository_id.clone(),
-            installed_at: chrono::Utc::now().to_rfc3339(),
+            installed_at: rd_core::Timestamp::now().to_rfc3339(),
         })
         .await;
     if let Err(error) = recorded {

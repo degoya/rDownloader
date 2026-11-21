@@ -8,7 +8,9 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
+# `suppaftp`'s `MDTM` answers with a `chrono::NaiveDateTime`; converted in `client::naive_utc`.
 chrono.workspace = true
+jiff.workspace = true
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }
 rd-files = { path = "../rd-files" }

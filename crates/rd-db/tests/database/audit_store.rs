@@ -4,8 +4,7 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{Duration, Utc};
-use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome};
+use rd_core::{AuditAction, AuditActorKind, AuditChannel, AuditOutcome, SignedDuration, Timestamp};
 use rd_db::{AuditQuery, NewAuditRecord};
 
 fn record(action: AuditAction, outcome: AuditOutcome) -> NewAuditRecord {
@@ -227,7 +226,7 @@ async fn an_expired_record_goes_whatever_the_count_says() {
     let directory = tempfile::tempdir().expect("tempdir");
     let database = rd_testkit::temp_database(directory.path()).await;
     let mut old = record(AuditAction::SettingsChanged, AuditOutcome::Success);
-    old.recorded_at = Utc::now() - Duration::days(400);
+    old.recorded_at = Timestamp::now() - SignedDuration::from_hours(24 * 400);
     database
         .append_audit_records(vec![
             old,
@@ -236,7 +235,7 @@ async fn an_expired_record_goes_whatever_the_count_says() {
         .await
         .expect("append");
 
-    let cutoff = Utc::now() - Duration::days(365);
+    let cutoff = Timestamp::now() - SignedDuration::from_hours(24 * 365);
     let report = database
         .prune_audit_records(1_000_000, Some(cutoff), 100)
         .await

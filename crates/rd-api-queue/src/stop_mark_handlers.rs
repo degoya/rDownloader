@@ -5,8 +5,7 @@
 //! only place it; reading the pause names it too, so one read tells why the queue will stop.
 
 use axum::{Json, extract::State};
-use chrono::{DateTime, Utc};
-use rd_core::{DownloadId, PackageId};
+use rd_core::{DownloadId, PackageId, Timestamp};
 use rd_db::{StopMark, StopMarkTarget, StoreErrorKind};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -33,7 +32,7 @@ pub struct QueueStopMarkResponse {
     pub package_id: Option<PackageId>,
     /// The file's or the package's name, as the queue shows it.
     pub name: String,
-    pub set_at: DateTime<Utc>,
+    pub set_at: Timestamp,
 }
 
 #[derive(Serialize, ToSchema)]

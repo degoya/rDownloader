@@ -14,7 +14,8 @@ async fn intakes_during_quiet_hours_are_one_toast_when_they_end() {
     let quiet = Duration::from_millis(400);
     let window = Duration::from_millis(50);
     let started = Instant::now();
-    let until = chrono::Utc::now() + chrono::Duration::from_std(quiet).expect("duration");
+    let until =
+        rd_core::Timestamp::now() + rd_core::SignedDuration::try_from(quiet).expect("duration");
     let (sender, receiver) = tokio::sync::mpsc::channel(8);
     let shown = Arc::new(Mutex::new(Vec::new()));
     let collector = Arc::clone(&shown);

@@ -9,14 +9,14 @@
 //! The rules are evaluated in a fixed order and the *first* one that rejects wins, so the
 //! reported reason is stable rather than dependent on evaluation order.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_core::{BacklogPolicy, FilterReason, SubscriptionFilters};
 
 /// What a poll learned about one item, in the vocabulary the filters speak.
 #[derive(Clone, Debug, Default)]
 pub struct CandidateItem {
     pub title: String,
-    pub published_at: Option<DateTime<Utc>>,
+    pub published_at: Option<Timestamp>,
     pub duration_seconds: Option<u32>,
     pub language: Option<String>,
     pub height: Option<u32>,
@@ -38,7 +38,7 @@ pub fn evaluate(
     filters: &SubscriptionFilters,
     backlog: BacklogPolicy,
     primed: bool,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Decision {
     PreparedFilters::new(filters).evaluate(item, backlog, primed, now)
 }
@@ -74,7 +74,7 @@ impl<'a> PreparedFilters<'a> {
         item: &CandidateItem,
         backlog: BacklogPolicy,
         primed: bool,
-        now: DateTime<Utc>,
+        now: Timestamp,
     ) -> Decision {
         if !primed {
             backlog_decision(item, backlog, now)?;
@@ -115,7 +115,7 @@ impl TitlePattern {
 }
 
 /// The first poll's verdict on an item that already existed.
-fn backlog_decision(item: &CandidateItem, backlog: BacklogPolicy, now: DateTime<Utc>) -> Decision {
+fn backlog_decision(item: &CandidateItem, backlog: BacklogPolicy, now: Timestamp) -> Decision {
     match backlog {
         // Everything present at activation is history. This is the default because the
         // alternative — a channel's whole decade of uploads entering the queue at once — is
@@ -234,8 +234,8 @@ fn language_matches(wanted: &str, actual: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{CandidateItem, evaluate};
-    use chrono::{Duration, Utc};
     use rd_core::{BacklogPolicy, FilterReason, SubscriptionFilters};
+    use rd_core::{SignedDuration, Timestamp};
 
     fn item(title: &str) -> CandidateItem {
         CandidateItem {
@@ -246,7 +246,13 @@ mod tests {
 
     /// Filters only, with the backlog gate already passed.
     fn check(item: &CandidateItem, filters: &SubscriptionFilters) -> super::Decision {
-        evaluate(item, filters, BacklogPolicy::FromNow, true, Utc::now())
+        evaluate(
+            item,
+            filters,
+            BacklogPolicy::FromNow,
+            true,
+            Timestamp::now(),
+        )
     }
 
     #[test]
@@ -358,9 +364,9 @@ mod tests {
 
     #[test]
     fn the_first_poll_treats_existing_items_as_backlog() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let existing = CandidateItem {
-            published_at: Some(now - Duration::days(30)),
+            published_at: Some(now - SignedDuration::from_hours(24 * 30)),
             ..item("Old upload")
         };
         assert_eq!(
@@ -389,7 +395,7 @@ mod tests {
     #[test]
     fn an_item_without_a_date_is_backlog_on_the_first_poll() {
         // Otherwise a feed that omits dates imports its entire history on activation.
-        let now = Utc::now();
+        let now = Timestamp::now();
         assert_eq!(
             evaluate(
                 &item("Undated"),
@@ -404,10 +410,10 @@ mod tests {
 
     #[test]
     fn a_since_cutoff_admits_only_what_is_newer() {
-        let now = Utc::now();
-        let cutoff = now - Duration::days(7);
+        let now = Timestamp::now();
+        let cutoff = now - SignedDuration::from_hours(24 * 7);
         let make = |age: i64| CandidateItem {
-            published_at: Some(now - Duration::days(age)),
+            published_at: Some(now - SignedDuration::from_hours(24 * age)),
             ..item("x")
         };
         let decide = |candidate: &CandidateItem| {
@@ -425,9 +431,9 @@ mod tests {
 
     #[test]
     fn review_all_lets_the_whole_backlog_through_for_a_person_to_see() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let old = CandidateItem {
-            published_at: Some(now - Duration::days(3_650)),
+            published_at: Some(now - SignedDuration::from_hours(24 * 3_650)),
             ..item("Ancient")
         };
         assert!(

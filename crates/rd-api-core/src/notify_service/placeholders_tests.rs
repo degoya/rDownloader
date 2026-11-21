@@ -6,7 +6,10 @@ use rd_notify::{NotificationEvent, Placeholder as P, Values};
 use super::set_budget;
 
 fn values() -> Values {
-    Values::stamped(NotificationEvent::PackageCompleted, &chrono::Utc::now())
+    Values::stamped(
+        NotificationEvent::PackageCompleted,
+        &rd_core::Timestamp::now().to_zoned(jiff::tz::TimeZone::UTC),
+    )
 }
 
 #[test]

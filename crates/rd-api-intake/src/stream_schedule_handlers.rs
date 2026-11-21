@@ -92,8 +92,8 @@ pub(crate) fn schedule_input(
         lead_minutes: input.lead_minutes,
         trail_minutes: input.trail_minutes,
         replay_from_start: input.replay_from_start,
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        created_at: rd_core::Timestamp::now(),
+        updated_at: rd_core::Timestamp::now(),
     };
     rd_stream::validate_schedule(&probe)
         .map_err(|error| ApiError::unprocessable(error.code(), error.message()))?;

@@ -1,7 +1,7 @@
 //! Database facade methods for the persistent transfer statistics (RD-110-01).
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use crate::{
     Database,
@@ -17,7 +17,7 @@ impl Database {
     pub async fn list_transfer_stats(
         &self,
         resolution: StatsResolution,
-        since: DateTime<Utc>,
+        since: Timestamp,
     ) -> Result<Vec<TransferBucket>> {
         stats_store::list_buckets(&self.readers, resolution, since).await
     }

@@ -6,9 +6,9 @@
 use std::cmp::Ordering;
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use rd_core::{
     AuthMethod, AuthOrigin, AuthProfile, AuthProfileId, AuthScope, EventEnvelope, EventKind,
+    Timestamp,
 };
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 use url::Url;
@@ -23,7 +23,7 @@ pub struct NewAuthProfile {
     pub method: AuthMethod,
     pub origin: AuthOrigin,
     pub enabled: bool,
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
     pub username: Option<String>,
     pub secret_ref: Option<String>,
     pub certificate_ref: Option<String>,
@@ -37,7 +37,7 @@ pub struct UpdateAuthProfile {
     pub scope: AuthScope,
     pub method: AuthMethod,
     pub enabled: bool,
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
     pub username: Option<String>,
     pub secret_ref: Option<String>,
     pub certificate_ref: Option<String>,
@@ -59,7 +59,7 @@ pub(crate) async fn set_download_selection(
     )
     .bind(profile_id.map(|id| id.to_string()))
     .bind(pinned)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *connection)
     .await?;
@@ -107,7 +107,7 @@ pub(crate) async fn match_for_url(pool: &SqlitePool, url: &Url) -> Result<Option
     if url.host_str().is_none() {
         return Ok(None);
     }
-    let now = Utc::now();
+    let now = Timestamp::now();
     // Candidate set is narrowed by SQL to the host and its parent domains; the precise
     // subdomain and path rules live in AuthScope so they stay testable in one place.
     let candidates = sqlx::query_as::<_, ProfileRow>(sqlx::AssertSqlSafe(format!(
@@ -146,7 +146,7 @@ pub(crate) async fn create(
     connection: &mut SqliteConnection,
     input: NewAuthProfile,
 ) -> Result<(AuthProfile, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let value = AuthProfile {
         id: AuthProfileId::new(),
         name: input.name,
@@ -226,7 +226,7 @@ pub(crate) async fn update(
     .bind(&input.username)
     .bind(&input.secret_ref)
     .bind(&input.certificate_ref)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await
@@ -262,7 +262,7 @@ pub(crate) async fn set_enabled(
     let mut tx = connection.begin().await?;
     let updated = sqlx::query("UPDATE auth_profiles SET enabled = ?, updated_at = ? WHERE id = ?")
         .bind(enabled)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(&mut *tx)
         .await?;
@@ -324,12 +324,12 @@ struct ProfileRow {
     method: String,
     origin: String,
     enabled: bool,
-    expires_at: Option<DateTime<Utc>>,
+    expires_at: Option<Timestamp>,
     username: Option<String>,
     secret_ref: Option<String>,
     certificate_ref: Option<String>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
 }
 
 impl TryFrom<ProfileRow> for AuthProfile {

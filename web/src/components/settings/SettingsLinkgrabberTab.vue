@@ -8,12 +8,14 @@
  * question this page answers, and they save on their own rather than with the settings.
  *
  * One card per tab (RD-1240-26; owner, 2026-10-10): *General* holds the two switches that apply to
- * every link — mirrors and duplicates in the history — then the blocklist, the containers and the
- * LinkFilter rules, each the subject somebody comes to the page with.
+ * every link — mirrors and duplicates in the history — and the package hand-over to a remote
+ * provider (RD-1440-07), then the blocklist, the containers and the LinkFilter rules, each the
+ * subject somebody comes to the page with.
  */
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import type { PackageHandOverSettings } from '@/api/packageHandOver'
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import SettingsLinkFilters from '@/components/settings/SettingsLinkFilters.vue'
@@ -32,6 +34,20 @@ const endpoint = computed({
     settings.value.dlc_service_endpoint = value.trim() ? value : null
   }
 })
+
+/**
+ * The package hand-over's two switches (RD-1440-07), both on by default: whether the package
+ * menu offers it, and whether what was handed over leaves the LinkGrabber. Read through a cast
+ * until the schema is regenerated; a document without them reads as the default.
+ */
+function handOverSwitch(key: 'linkgrabber_hand_over_enabled' | 'linkgrabber_hand_over_remove_links') {
+  return computed({
+    get: () => (settings.value as PackageHandOverSettings)[key] !== false,
+    set: (value: boolean) => { (settings.value as PackageHandOverSettings)[key] = value }
+  })
+}
+const handOverEnabled = handOverSwitch('linkgrabber_hand_over_enabled')
+const handOverRemoves = handOverSwitch('linkgrabber_hand_over_remove_links')
 
 const FORMAT_KEYS = ['one_per_line', 'comments', 'www', 'subdomains'] as const
 </script>
@@ -62,6 +78,22 @@ const FORMAT_KEYS = ['one_per_line', 'comments', 'www', 'subdomains'] as const
           <UFormField data-settings-anchor="linkgrabber.duplicates_history" :label="t('settings.duplicates_history.label')" :description="t('settings.duplicates_history.description')" orientation="horizontal">
             <USwitch v-model="settings.duplicates_include_history" data-testid="duplicates-include-history" />
           </UFormField>
+          <!-- A package's links to a remote provider's account instead of the queue (RD-1440-07). -->
+          <USeparator />
+          <div data-settings-anchor="linkgrabber.hand_over" class="space-y-4">
+            <SectionHeader
+              :eyebrow="t('settings.collector.package_hand_over.eyebrow')"
+              :title="t('settings.collector.package_hand_over.title')"
+              :description="t('settings.collector.package_hand_over.description')"
+              level="sub"
+            />
+            <UFormField :label="t('settings.collector.package_hand_over.enabled.label')" :description="t('settings.collector.package_hand_over.enabled.description')" orientation="horizontal">
+              <USwitch v-model="handOverEnabled" data-testid="package-hand-over-enabled" />
+            </UFormField>
+            <UFormField :label="t('settings.collector.package_hand_over.remove.label')" :description="t('settings.collector.package_hand_over.remove.description')" orientation="horizontal">
+              <USwitch v-model="handOverRemoves" data-testid="package-hand-over-remove" />
+            </UFormField>
+          </div>
         </UCard>
       </template>
       <template #blocklist>

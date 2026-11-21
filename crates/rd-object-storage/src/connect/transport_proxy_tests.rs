@@ -7,7 +7,6 @@
 
 use std::{sync::Arc, time::Duration};
 
-use chrono::Utc;
 use object_store::{client::ClientOptions, path::Path};
 use rd_core::{
     ObjectAddressing, ObjectCredentialSource, ObjectStorageProfile, ObjectStorageProfileId,
@@ -253,8 +252,8 @@ fn profile(endpoint: &str) -> ObjectStorageProfile {
         has_session_token: false,
         checksums: false,
         enabled: true,
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
+        created_at: rd_core::Timestamp::now(),
+        updated_at: rd_core::Timestamp::now(),
     }
 }
 

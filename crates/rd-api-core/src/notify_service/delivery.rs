@@ -19,7 +19,7 @@ impl NotificationService {
     }
 
     pub(super) async fn sweep(&self) -> anyhow::Result<()> {
-        let now = chrono::Utc::now();
+        let now = rd_core::Timestamp::now();
         // Quiet hours group deliveries rather than dropping them: the queue keeps filling, and
         // what it held is one summary per target when the window ends (RD-1260-04).
         if self.inner.power.defers_notifications(now).await {
@@ -134,7 +134,7 @@ impl NotificationService {
 
         for delivery in batch {
             let attempt = delivery.attempt.saturating_add(1);
-            let (state, next) = settle(&outcome, attempt, chrono::Utc::now());
+            let (state, next) = settle(&outcome, attempt, rd_core::Timestamp::now());
             if state == DeliveryState::Failed {
                 // Repeated failure is worth surfacing: a target nobody notices is broken is
                 // worse than no target at all.

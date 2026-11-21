@@ -22,8 +22,7 @@
 use std::io::{Cursor, Write};
 
 use anyhow::{Context, Result, ensure};
-use chrono::{DateTime, SecondsFormat, Utc};
-use rd_core::{REDACTION_PLACEHOLDER, is_secret_parameter, redact_text};
+use rd_core::{REDACTION_PLACEHOLDER, SecondsFormat, Timestamp, is_secret_parameter, redact_text};
 use rd_db::LogRecord;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -309,7 +308,7 @@ pub fn inventory(input: &BundleInput) -> Result<Inventory> {
 pub fn build(
     input: &BundleInput,
     selected: &[String],
-    created_at: DateTime<Utc>,
+    created_at: Timestamp,
 ) -> Result<BuiltBundle> {
     let rendered = render_entries(input)?;
     let all: Vec<InventoryEntry> = rendered.iter().map(|(entry, _)| entry.clone()).collect();
@@ -378,10 +377,10 @@ pub fn build(
 
 /// `rdownloader-diagnostics-<UTC>.zip`, the only name a bundle file ever has.
 #[must_use]
-pub fn file_name(created_at: DateTime<Utc>) -> String {
+pub fn file_name(created_at: Timestamp) -> String {
     format!(
         "rdownloader-diagnostics-{}.zip",
-        created_at.format("%Y%m%dT%H%M%SZ")
+        created_at.strftime("%Y%m%dT%H%M%SZ")
     )
 }
 

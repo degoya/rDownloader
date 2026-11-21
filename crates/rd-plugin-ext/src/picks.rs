@@ -32,7 +32,7 @@ use std::{
     },
 };
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_siterules::{Crawl, PickList, Rule, Step};
 use tokio::sync::Notify;
 use url::Url;
@@ -104,7 +104,7 @@ pub struct PickPage {
     pub address: Url,
     /// The page's own name, which the rule's `package` read.
     pub package_name: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
     pub list: PickList,
     /// One per entry of `list`, in the same order.
     pub progress: Vec<EntryProgress>,
@@ -236,8 +236,8 @@ impl PickBoard {
         }
         let entries = list.entries.len();
         let number = self.counter.fetch_add(1, Ordering::Relaxed);
-        let created_at = Utc::now();
-        let id = format!("{:x}-{number}", created_at.timestamp_millis());
+        let created_at = Timestamp::now();
+        let id = format!("{:x}-{number}", created_at.unix_millis());
         let page = PickPage {
             id: id.clone(),
             rule: rule.clone(),

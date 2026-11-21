@@ -84,7 +84,7 @@ pub(crate) async fn pair_with_scopes(
 /// The moment a token asked to expire after `days` stops being accepted, or `None` for one
 /// that never expires. Out of range is refused, not clamped: a token that silently lives
 /// shorter or longer than its caller asked is the surprise this check exists to prevent.
-fn expiry(days: Option<u32>) -> Result<Option<chrono::DateTime<chrono::Utc>>, ApiError> {
+fn expiry(days: Option<u32>) -> Result<Option<rd_core::Timestamp>, ApiError> {
     let Some(days) = days else {
         return Ok(None);
     };
@@ -96,7 +96,7 @@ fn expiry(days: Option<u32>) -> Result<Option<chrono::DateTime<chrono::Utc>>, Ap
         .with_param("max", MAX_EXPIRY_DAYS));
     }
     Ok(Some(
-        chrono::Utc::now() + chrono::Duration::days(i64::from(days)),
+        rd_core::Timestamp::now() + rd_core::SignedDuration::from_hours(24 * i64::from(days)),
     ))
 }
 

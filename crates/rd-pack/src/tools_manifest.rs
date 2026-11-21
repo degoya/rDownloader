@@ -10,8 +10,8 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
-use chrono::Utc;
 use clap::{Args, Subcommand};
+use rd_core::Timestamp;
 
 #[derive(Subcommand)]
 pub enum ToolsCommand {
@@ -64,7 +64,7 @@ async fn sign_manifest(args: &SignManifestArgs) -> Result<()> {
     // the entries (managed name, https, SHA-256, size) before anything is written.
     let trust = rd_sign::TrustStore::new();
     trust.trust(args.key_id.clone(), key.verifying_key())?;
-    rd_tools::manifest::verify_with(&signed, &trust, None, Utc::now())
+    rd_tools::manifest::verify_with(&signed, &trust, None, Timestamp::now())
         .map_err(|error| anyhow!("the signed manifest does not verify: {error}"))?;
     tokio::fs::write(&args.output, &signed)
         .await
@@ -167,8 +167,8 @@ mod tests {
             .trust("test-tools-key".to_owned(), key.signing_key.verifying_key())
             .expect("trust");
         let bytes = std::fs::read(&signed).expect("signed");
-        let verified =
-            rd_tools::manifest::verify_with(&bytes, &trust, None, Utc::now()).expect("verify");
+        let verified = rd_tools::manifest::verify_with(&bytes, &trust, None, Timestamp::now())
+            .expect("verify");
         assert_eq!(verified.sequence, 7);
 
         let plain = directory.join("plain.json");

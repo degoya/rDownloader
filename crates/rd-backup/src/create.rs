@@ -20,7 +20,7 @@
 
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use crate::archive::{self, digest_file};
 use crate::crypto::BackupKey;
@@ -109,10 +109,10 @@ pub const ARCHIVE_PREFIX: &str = "rdownloader-backup-";
 /// within one installation, the same on every system, and telling installations apart
 /// (`crate::retention::is_own_archive`).
 #[must_use]
-pub fn archive_name(instance: &str, at: DateTime<Utc>) -> String {
+pub fn archive_name(instance: &str, at: Timestamp) -> String {
     format!(
         "{ARCHIVE_PREFIX}{instance}-{}.{}",
-        at.format("%Y%m%dT%H%M%SZ"),
+        at.strftime("%Y%m%dT%H%M%SZ"),
         crate::ARCHIVE_EXTENSION
     )
 }
@@ -148,7 +148,7 @@ pub async fn create_backup(
     destination: &dyn BackupDestination,
     staging_root: &Path,
     run_id: &str,
-    started_at: DateTime<Utc>,
+    started_at: Timestamp,
 ) -> Result<CreatedBackup, BackupError> {
     let sealed = seal_backup(database, sources, key, staging_root, run_id, started_at).await?;
     let stored = destination
@@ -179,7 +179,7 @@ pub async fn seal_backup(
     key: &BackupKey,
     staging_root: &Path,
     run_id: &str,
-    started_at: DateTime<Utc>,
+    started_at: Timestamp,
 ) -> Result<SealedBackup, BackupError> {
     let staging = staging_root.join(run_id);
     crate::private_folder(&staging)

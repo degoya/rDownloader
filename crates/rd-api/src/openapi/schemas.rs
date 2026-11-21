@@ -4,14 +4,14 @@
 use utoipa::OpenApi;
 
 use crate::{
-    bandwidth_handlers, bandwidth_manual_handlers, collision_handlers, container_handlers,
-    download_sources, dto, duplicates, indexer_handlers, indexer_search, media_dto, mfa_handlers,
-    notify_handlers, nzb_remote_job_handlers, oidc_settings_handlers, passkey_handlers,
-    plugin_lifecycle, queue_pause_handlers, reconnect_service, regex_tester, remote_job_handlers,
-    replay_dto, routing_backup, session_handlers, settings_backup, settings_backup_crypto,
-    settings_backup_dto, stop_mark_handlers, storage_capacity, storage_handlers,
-    stream_schedule_handlers, subscription_handlers, torrent_control, torrent_handlers,
-    torrent_trackers, web_push_handlers,
+    bandwidth_handlers, bandwidth_manual_handlers, collector_handlers, collision_handlers,
+    container_handlers, download_sources, dto, duplicates, indexer_handlers, indexer_search,
+    media_dto, mfa_handlers, notify_handlers, nzb_remote_job_handlers, oidc_settings_handlers,
+    passkey_handlers, plugin_lifecycle, queue_pause_handlers, reconnect_service, regex_tester,
+    remote_job_handlers, replay_dto, routing_backup, session_handlers, settings_backup,
+    settings_backup_crypto, settings_backup_dto, stop_mark_handlers, storage_capacity,
+    storage_handlers, stream_schedule_handlers, subscription_handlers, torrent_control,
+    torrent_handlers, torrent_trackers, web_push_handlers,
 };
 
 /// Domain and DTO schemas referenced by the operations of every area.
@@ -380,6 +380,10 @@ use crate::{
     rd_core::NzbHandOver,
     nzb_remote_job_handlers::NzbImportRemoteJobRequest,
     nzb_remote_job_handlers::NzbImportRemoteJobResponse,
+    collector_handlers::CollectorPackageRemoteJobRequest,
+    collector_handlers::CollectorPackageRemoteJobResponse,
+    collector_handlers::CandidateHandedOver,
+    collector_handlers::CandidateStayed,
     rd_core::NzbFileStatus,
     rd_core::NzbSegmentStatus,
     rd_core::NzbSegmentState,

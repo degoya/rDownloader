@@ -353,7 +353,9 @@ async fn clearing_remote_jobs_over_mcp_never_reaches_a_provider() {
             rd_db::AdvanceRemoteJob {
                 state: Some(rd_core::RemoteJobState::Ready),
                 remote_id: Some("TB-MCP".to_owned()),
-                next_poll_at: Some(Some(chrono::Utc::now() + chrono::Duration::days(1))),
+                next_poll_at: Some(Some(
+                    rd_core::Timestamp::now() + rd_core::SignedDuration::from_hours(24),
+                )),
                 ..rd_db::AdvanceRemoteJob::default()
             },
         )

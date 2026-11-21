@@ -16,6 +16,7 @@ use aws_lc_rs::{
     signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair, KeyPair as _},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use rd_core::Timestamp;
 
 /// The record size the header announces. One record carries the whole message.
 const RECORD_SIZE: u32 = 4096;
@@ -78,17 +79,13 @@ impl VapidKey {
     }
 
     /// The `Authorization` header for a push to `endpoint`: `vapid t=<token>, k=<public key>`.
-    pub(crate) fn authorization(
-        &self,
-        endpoint: &reqwest::Url,
-        now: chrono::DateTime<chrono::Utc>,
-    ) -> Result<String> {
+    pub(crate) fn authorization(&self, endpoint: &reqwest::Url, now: Timestamp) -> Result<String> {
         let audience = endpoint.origin().ascii_serialization();
         ensure!(audience != "null", "the push address has no origin");
         let header = URL_SAFE_NO_PAD.encode(br#"{"typ":"JWT","alg":"ES256"}"#);
         let claims = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&serde_json::json!({
             "aud": audience,
-            "exp": now.timestamp() + TOKEN_LIFETIME_SECONDS,
+            "exp": now.unix_seconds() + TOKEN_LIFETIME_SECONDS,
             "sub": CONTACT,
         }))?);
         let signing_input = format!("{header}.{claims}");

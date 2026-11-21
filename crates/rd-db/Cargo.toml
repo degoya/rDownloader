@@ -13,10 +13,10 @@ test-support = []
 
 [dependencies]
 anyhow.workspace = true
-chrono.workspace = true
 futures-util.workspace = true
+jiff.workspace = true
 rd-automation = { path = "../rd-automation" }
-rd-core = { path = "../rd-core" }
+rd-core = { path = "../rd-core", features = ["sqlx"] }
 rd-limits = { path = "../rd-limits" }
 rd-notify = { path = "../rd-notify" }
 rd-files = { path = "../rd-files" }

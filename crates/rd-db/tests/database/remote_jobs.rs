@@ -12,8 +12,7 @@
 //! before and after a crash -- is driven by
 //! `crates/rd-plugin-ext/tests/contract/torbox_remote_job_contract.rs`.
 
-use chrono::{Duration, Utc};
-use rd_core::{AccountId, RemoteJobSourceKind, RemoteJobState};
+use rd_core::{AccountId, RemoteJobSourceKind, RemoteJobState, SignedDuration, Timestamp};
 use rd_db::{AdvanceRemoteJob, ClaimRemoteJob, Database, NewAccount};
 use tempfile::TempDir;
 
@@ -207,7 +206,7 @@ async fn a_restart_between_the_claim_and_the_answer_leaves_a_row_that_adopts() {
 async fn the_plugins_bookkeeping_and_the_next_poll_both_survive_a_restart() {
     let directory = TempDir::new().expect("temp dir");
     let path = directory.path().join(rd_testkit::DATABASE_FILE);
-    let due_at = Utc::now() - Duration::seconds(5);
+    let due_at = Timestamp::now() - SignedDuration::from_secs(5);
     let id = {
         let database = Database::open(path.clone()).await.expect("database");
         let account_id = account(&database).await;
@@ -243,6 +242,9 @@ async fn the_plugins_bookkeeping_and_the_next_poll_both_survive_a_restart() {
     assert_eq!(job.state, RemoteJobState::Working);
     // And the sweep picks it up again, which is what makes a job started before a restart
     // carry on afterwards instead of waiting for somebody to notice.
-    let due = database.due_remote_jobs(Utc::now()).await.expect("due");
+    let due = database
+        .due_remote_jobs(Timestamp::now())
+        .await
+        .expect("due");
     assert!(due.iter().any(|row| row.id == id), "{due:?}");
 }

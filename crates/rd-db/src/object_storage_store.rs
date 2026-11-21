@@ -5,8 +5,7 @@
 //! secret store minted, exactly like [`crate::remote_store`].
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{EventEnvelope, EventKind, ObjectStorageProfile, ObjectStorageProfileId};
+use rd_core::{EventEnvelope, EventKind, ObjectStorageProfile, ObjectStorageProfileId, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::{enum_string, error::StoreError, parse_enum, writer::insert_event};
@@ -84,7 +83,7 @@ pub(crate) async fn create(
     connection: &mut SqliteConnection,
     input: NewObjectStorageProfile,
 ) -> Result<(ObjectStorageProfile, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let id = ObjectStorageProfileId::new();
     let event = changed_event();
     let mut tx = connection.begin().await?;
@@ -154,7 +153,7 @@ pub(crate) async fn update(
     .bind(&input.session_token_ref)
     .bind(input.checksums)
     .bind(input.enabled)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(input.ambient_custom_endpoint)
     .bind(id.to_string())
     .execute(&mut *tx)
@@ -231,8 +230,8 @@ struct ProfileRow {
     session_token_ref: Option<String>,
     checksums: bool,
     enabled: bool,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
     ambient_custom_endpoint: bool,
 }
 

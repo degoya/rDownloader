@@ -13,8 +13,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use chrono::{DateTime, Utc};
-use rd_core::DownloadState;
+use rd_core::{DownloadState, Timestamp};
 use serde::Serialize;
 use tokio::sync::RwLock;
 use utoipa::ToSchema;
@@ -45,7 +44,7 @@ pub enum ReconnectPhase {
 /// What happened last time.
 #[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct ReconnectAttempt {
-    pub at: DateTime<Utc>,
+    pub at: Timestamp,
     pub success: bool,
     pub old_address: Option<String>,
     pub new_address: Option<String>,
@@ -59,7 +58,7 @@ pub struct ReconnectStatus {
     pub phase: ReconnectPhase,
     pub last: Option<ReconnectAttempt>,
     /// Earliest time another attempt may run.
-    pub next_allowed_at: Option<DateTime<Utc>>,
+    pub next_allowed_at: Option<Timestamp>,
     /// Hosters currently held back by an address limit.
     pub blocked_hosts: Vec<BlockedHost>,
 }
@@ -67,14 +66,14 @@ pub struct ReconnectStatus {
 #[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct BlockedHost {
     pub host: String,
-    pub until: DateTime<Utc>,
+    pub until: Timestamp,
 }
 
 #[derive(Debug, Default)]
 struct State {
     phase: ReconnectPhase,
     last: Option<ReconnectAttempt>,
-    last_attempt_at: Option<DateTime<Utc>>,
+    last_attempt_at: Option<Timestamp>,
 }
 
 /// Cloneable handle of the reconnect loop.
@@ -124,7 +123,7 @@ impl ReconnectService {
             min_interval_minutes: settings.reconnect_min_interval_minutes,
             last_attempt: self.state.read().await.last_attempt_at,
             abort_active: settings.reconnect_abort_active,
-            now: Utc::now(),
+            now: Timestamp::now(),
         };
         if evaluate(&inputs, &downloads) != ReconnectVerdict::Go {
             return Ok(());
@@ -138,7 +137,7 @@ impl ReconnectService {
         {
             let mut state = self.state.write().await;
             state.phase = ReconnectPhase::Draining;
-            state.last_attempt_at = Some(Utc::now());
+            state.last_attempt_at = Some(Timestamp::now());
         }
         let timeout = Duration::from_secs(u64::from(settings.reconnect_timeout_seconds));
         // The whole attempt is bounded, not just the script: a router that comes back without
@@ -166,7 +165,7 @@ impl ReconnectService {
                     ),
                 }
                 ReconnectAttempt {
-                    at: Utc::now(),
+                    at: Timestamp::now(),
                     success: true,
                     old_address: old,
                     new_address: new,
@@ -177,7 +176,7 @@ impl ReconnectService {
                 let error = format!("{error:#}");
                 tracing::warn!(%error, resumed, "the reconnect failed");
                 ReconnectAttempt {
-                    at: Utc::now(),
+                    at: Timestamp::now(),
                     success: false,
                     old_address: None,
                     new_address: None,
@@ -291,7 +290,9 @@ impl ReconnectService {
     ) -> ReconnectStatus {
         let state = self.state.read().await;
         let next_allowed_at = state.last_attempt_at.map(|last| {
-            last + chrono::Duration::minutes(i64::from(settings.reconnect_min_interval_minutes))
+            last + rd_core::SignedDuration::from_mins(i64::from(
+                settings.reconnect_min_interval_minutes,
+            ))
         });
         ReconnectStatus {
             enabled: settings.reconnect_enabled,

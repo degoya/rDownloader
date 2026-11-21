@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
-use chrono::{TimeZone, Utc};
+use rd_core::Timestamp;
 
 use super::*;
 
@@ -26,18 +26,14 @@ fn copy_name(from: &str, to: &str, day: u32) -> String {
     rd_db::pre_migration::copy_name(
         from,
         to,
-        Utc.with_ymd_and_hms(2026, 10, day, 12, 0, 0)
-            .single()
-            .expect("time"),
+        Timestamp::from_ymd_hms(2026, 10, day, 12, 0, 0).expect("time"),
     )
 }
 
 fn archive_name(target: &str, day: u32) -> String {
     crate::archive_name(
         &format!("pre-update-{target}"),
-        Utc.with_ymd_and_hms(2026, 10, day, 12, 0, 0)
-            .single()
-            .expect("time"),
+        Timestamp::from_ymd_hms(2026, 10, day, 12, 0, 0).expect("time"),
     )
 }
 

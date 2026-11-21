@@ -134,7 +134,7 @@ pub(crate) async fn begin(
         &config.issuer,
         &config.client_id,
         Some(return_to),
-        chrono::Utc::now().timestamp(),
+        rd_core::Timestamp::now().unix_seconds(),
     );
     let request = flow.clone();
     let flow_state = state.access.oidc.flows.insert(client, flow);

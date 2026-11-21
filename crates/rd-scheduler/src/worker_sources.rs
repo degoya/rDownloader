@@ -22,9 +22,9 @@
 use std::{collections::HashMap, ops::ControlFlow, sync::Arc};
 
 use anyhow::Result;
-use chrono::Utc;
 use rd_core::{
     ChunkId, DownloadFile, DownloadSource, Failure, FailureKind, PieceHashes, SourceState,
+    Timestamp,
 };
 use rd_http::{
     ChunkSpec, DownloadEngine, DownloadOutcome, MultiSourceRequest, SourceEndpoint, chunks_aligned,
@@ -61,7 +61,7 @@ pub(super) async fn run(
     sources: Vec<DownloadSource>,
     cancellation: CancellationToken,
 ) -> Result<ControlFlow<()>> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let ready: Vec<&DownloadSource> = sources
         .iter()
         .filter(|source| source.state_at(now) == SourceState::Ready)
@@ -100,7 +100,7 @@ pub(super) async fn run(
     };
     if endpoints.is_empty() {
         let sources = scheduler.database.download_sources(file.id).await?;
-        record_error(scheduler, file, nothing_ready(&sources, Utc::now())).await?;
+        record_error(scheduler, file, nothing_ready(&sources, Timestamp::now())).await?;
         return Ok(ControlFlow::Break(()));
     }
 
@@ -325,13 +325,13 @@ pub(super) async fn only_its_own_address(
 }
 
 /// Why no source can be tried: all isolated is final, a backoff is a wait for the earliest.
-fn nothing_ready(sources: &[DownloadSource], now: chrono::DateTime<Utc>) -> Failure {
+fn nothing_ready(sources: &[DownloadSource], now: Timestamp) -> Failure {
     let wait = sources
         .iter()
         .filter(|source| source.state_at(now) == SourceState::BackingOff)
         .filter_map(|source| source.backoff_until)
         .min()
-        .map(|until| u64::try_from((until - now).num_seconds().max(1)).unwrap_or(1));
+        .map(|until| u64::try_from((until - now).as_secs().max(1)).unwrap_or(1));
     match wait {
         Some(seconds) => Failure::coded(
             FailureKind::Transient {

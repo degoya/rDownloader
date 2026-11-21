@@ -1,7 +1,6 @@
 //! The commands of `writer/downloads.rs`.
 
-use chrono::{DateTime, Utc};
-use rd_core::{ChunkId, DownloadFile, DownloadId, DownloadState};
+use rd_core::{ChunkId, DownloadFile, DownloadId, DownloadState, Timestamp};
 
 use super::Reply;
 use crate::models::{NewDownload, NewPackage, PersistedChunk};
@@ -61,7 +60,7 @@ pub(crate) enum DownloadsCommand {
     /// Queues a row its enqueue wrote paused, unless somebody touched it since `created_at`.
     JoinQueue {
         id: DownloadId,
-        created_at: DateTime<Utc>,
+        created_at: Timestamp,
         reply: Reply<DownloadFile>,
     },
     /// Blocks a download and records why, so a release path can tell the causes apart.
@@ -150,13 +149,13 @@ pub(crate) enum DownloadsCommand {
     RecordFailure {
         id: DownloadId,
         failure: rd_core::Failure,
-        retry_at: Option<DateTime<Utc>>,
+        retry_at: Option<Timestamp>,
         reply: Reply<DownloadFile>,
     },
     /// When the automatic retry takes a failed download up again (RD-191-12).
     ScheduleAutoRetry {
         id: DownloadId,
-        at: Option<DateTime<Utc>>,
+        at: Option<Timestamp>,
         reply: Reply<bool>,
     },
     /// A failed download back to `queued` with a fresh retry budget: a round of the automatic

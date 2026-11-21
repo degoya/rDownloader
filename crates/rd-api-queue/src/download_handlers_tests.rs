@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 /// Shared with `handlers`, which builds the capture summary out of the same queue.
 pub(crate) fn file(state: DownloadState, committed: u64, total: Option<u64>) -> DownloadFile {
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     DownloadFile {
         recording: None,
         id: DownloadId::new(),

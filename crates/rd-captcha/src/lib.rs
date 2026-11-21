@@ -64,7 +64,7 @@ struct Inner {
     solver_timing: SolverTiming,
     /// When a browser extension last polled the waiting widgets. In memory only, like the
     /// queue itself: presence is a live fact, not a setting.
-    browser_extension_seen: std::sync::Mutex<Option<chrono::DateTime<chrono::Utc>>>,
+    browser_extension_seen: std::sync::Mutex<Option<rd_core::Timestamp>>,
 }
 
 /// Shared entry point for solving captchas; cloning shares one queue.
@@ -141,7 +141,7 @@ impl CaptchaBroker {
     /// interface can say whether one is around to answer (RD-108-02).
     pub fn note_browser_extension(&self) {
         if let Ok(mut seen) = self.inner.browser_extension_seen.lock() {
-            *seen = Some(chrono::Utc::now());
+            *seen = Some(rd_core::Timestamp::now());
         }
     }
 
@@ -154,7 +154,7 @@ impl CaptchaBroker {
             .lock()
             .ok()
             .and_then(|seen| *seen);
-        presence::answerers(seen, chrono::Utc::now())
+        presence::answerers(seen, rd_core::Timestamp::now())
     }
 
     /// Submits an answer a person typed into the web interface.

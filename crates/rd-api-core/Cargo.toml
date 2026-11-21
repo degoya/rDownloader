@@ -19,10 +19,9 @@ axum.workspace = true
 base64.workspace = true
 # Sealing an exported link file (RD-1210-01), with the settings backup's cipher.
 chacha20poly1305.workspace = true
-chrono.workspace = true
-chrono-tz.workspace = true
 fs4.workspace = true
 hex.workspace = true
+jiff.workspace = true
 openidconnect.workspace = true
 percent-encoding.workspace = true
 rand.workspace = true

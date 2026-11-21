@@ -17,7 +17,7 @@ impl AuthFlowService {
     }
 
     async fn sweep(&self) -> anyhow::Result<()> {
-        let now = Utc::now();
+        let now = Timestamp::now();
         // Both halves run every tick, and the second one is reported separately: a provider
         // refusing to renew must not stop sign-ins from being advanced, or the other way
         // round.
@@ -29,7 +29,7 @@ impl AuthFlowService {
         sign_ins
     }
 
-    async fn sweep_sign_ins(&self, now: DateTime<Utc>) -> anyhow::Result<()> {
+    async fn sweep_sign_ins(&self, now: Timestamp) -> anyhow::Result<()> {
         let due = self.inner.database.due_auth_flows(now).await?;
         if due.is_empty() {
             return Ok(());
@@ -101,8 +101,8 @@ impl AuthFlowService {
     }
 
     /// Renews the tokens that are about to run out, without anybody being asked.
-    pub(super) async fn sweep_renewals(&self, now: DateTime<Utc>) -> anyhow::Result<()> {
-        let threshold = now + chrono::Duration::seconds(REFRESH_LEAD);
+    pub(super) async fn sweep_renewals(&self, now: Timestamp) -> anyhow::Result<()> {
+        let threshold = now + rd_core::SignedDuration::from_secs(REFRESH_LEAD);
         let due = self
             .inner
             .database
@@ -143,7 +143,7 @@ impl AuthFlowService {
                     let notice = crate::notify_notice::Notice::account_invalid(
                         account,
                         &message,
-                        now.date_naive(),
+                        now.date(),
                     );
                     if let Err(error) = self
                         .store(
@@ -165,11 +165,14 @@ impl AuthFlowService {
         Ok(())
     }
 
-    async fn defer(&self, account_id: AccountId, now: DateTime<Utc>, seconds: i64) {
+    async fn defer(&self, account_id: AccountId, now: Timestamp, seconds: i64) {
         if let Err(error) = self
             .inner
             .database
-            .defer_auth_flow_renewal(account_id, now + chrono::Duration::seconds(seconds))
+            .defer_auth_flow_renewal(
+                account_id,
+                now + rd_core::SignedDuration::from_secs(seconds),
+            )
             .await
         {
             tracing::warn!(%error, "a token renewal could not be held back");

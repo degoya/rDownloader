@@ -25,7 +25,7 @@
 
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_core::{
     AccountId, IngressSource, RemoteJob, RemoteJobId, RemoteJobSourceKind, RemoteJobState,
     SubmitStep,
@@ -336,7 +336,7 @@ fn handle_of(job: &RemoteJob) -> Option<RemoteJobHandle> {
 ///
 /// The host owns the clock: the suggestion is clamped by `poll_delay_seconds`, and a state
 /// that is not polled at all -- which cannot reach here, but is named -- waits the maximum.
-fn due_at(now: DateTime<Utc>, state: RemoteJobState, hint: Option<u64>) -> DateTime<Utc> {
+fn due_at(now: Timestamp, state: RemoteJobState, hint: Option<u64>) -> Timestamp {
     now + seconds(
         state
             .poll_delay_seconds(hint)
@@ -344,14 +344,15 @@ fn due_at(now: DateTime<Utc>, state: RemoteJobState, hint: Option<u64>) -> DateT
     )
 }
 
-/// `rd_core::MAX_POLL_SECONDS` as chrono wants it; asserted equal so the two cannot drift.
+/// `rd_core::MAX_POLL_SECONDS` as `SignedDuration::from_secs` wants it; asserted equal so the two
+/// cannot drift.
 const MAX_POLL: i64 = 900;
 const _: () = assert!(MAX_POLL.unsigned_abs() == rd_core::MAX_POLL_SECONDS);
 
 /// A wait in the host's bounds, as a duration. Never longer than the maximum, whatever the
 /// caller computed.
-fn seconds(value: u64) -> chrono::Duration {
-    chrono::Duration::seconds(
+fn seconds(value: u64) -> rd_core::SignedDuration {
+    rd_core::SignedDuration::from_secs(
         i64::try_from(value.min(rd_core::MAX_POLL_SECONDS)).unwrap_or(MAX_POLL),
     )
 }
@@ -373,11 +374,9 @@ fn backoff(job: &RemoteJob) -> u64 {
         // Rounded, not truncated: the store stamps `updated_at` a few milliseconds after
         // the due time was computed, and truncation would turn every thirty into a
         // twenty-nine and the ladder into 29, 58, 116.
-        (Some(_), Some(due)) => {
-            u64::try_from(((due - job.updated_at).num_milliseconds() + 500) / 1_000)
-                .unwrap_or(default)
-                .max(default)
-        }
+        (Some(_), Some(due)) => u64::try_from(((due - job.updated_at).as_millis() + 500) / 1_000)
+            .unwrap_or(default)
+            .max(default),
         _ => default,
     };
     previous.saturating_mul(2).min(rd_core::MAX_POLL_SECONDS)

@@ -1,7 +1,7 @@
 //! The manifest half of the managed tool service: the document in force, its refresh from
 //! the configured URL and the bounded fetch behind it.
 
-use chrono::Utc;
+use rd_core::Timestamp;
 
 use super::{CACHED_MANIFEST, ManagedToolService, empty_manifest};
 use crate::{
@@ -71,7 +71,7 @@ impl ManagedToolService {
             reason: format!("no answer within {REFRESH_TIMEOUT_SECONDS} seconds"),
         })??;
         let known = self.known_sequence().await;
-        let manifest = manifest::verify(&bytes, known, Utc::now())?;
+        let manifest = manifest::verify(&bytes, known, Timestamp::now())?;
         self.0
             .database
             .accept_tool_manifest(

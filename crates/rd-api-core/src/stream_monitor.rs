@@ -101,8 +101,9 @@ impl StreamMonitorService {
     /// service was down becomes a visible *missed* row rather than staying "planned"
     /// forever.
     async fn plan_and_expire(&self) -> Result<()> {
-        let now = chrono::Utc::now();
-        let horizon = now + chrono::Duration::days(rd_core::PLANNING_HORIZON_DAYS);
+        let now = rd_core::Timestamp::now();
+        let horizon =
+            now + rd_core::SignedDuration::from_hours(24 * rd_core::PLANNING_HORIZON_DAYS);
         for schedule in self.inner.database.enabled_stream_schedules().await? {
             let occurrences = match rd_stream::occurrences(&schedule, now, horizon) {
                 Ok(occurrences) => occurrences,
@@ -149,7 +150,7 @@ impl StreamMonitorService {
     async fn active_run(
         &self,
         channel_id: StreamChannelId,
-        now: chrono::DateTime<chrono::Utc>,
+        now: rd_core::Timestamp,
     ) -> Option<(rd_core::StreamScheduledRun, rd_core::StreamSchedule)> {
         let schedules = self.inner.database.enabled_stream_schedules().await.ok()?;
         let runs = self.inner.database.open_stream_runs().await.ok()?;
@@ -237,7 +238,7 @@ impl StreamMonitorService {
             // A scheduled channel is watched only inside its window. Polling it round the
             // clock would defeat the point of scheduling it — and would record the wrong
             // broadcast if the channel goes live for something else (RD-080-08).
-            let now = chrono::Utc::now();
+            let now = rd_core::Timestamp::now();
             let active = self.active_run(channel.id, now).await;
             if active.is_none() && self.is_scheduled(channel.id).await {
                 continue;
@@ -253,7 +254,7 @@ impl StreamMonitorService {
             match probed {
                 Ok(probe) if probe.live => {
                     errors.remove(&channel.id);
-                    self.touch_channel(&channel, Some(chrono::Utc::now()), None)
+                    self.touch_channel(&channel, Some(rd_core::Timestamp::now()), None)
                         .await;
                     self.record_live_channel(
                         &channel,
@@ -281,7 +282,7 @@ impl StreamMonitorService {
     async fn touch_channel(
         &self,
         channel: &rd_core::StreamChannel,
-        live_at: Option<chrono::DateTime<chrono::Utc>>,
+        live_at: Option<rd_core::Timestamp>,
         probe_error: Option<String>,
     ) {
         if let Err(error) = self
@@ -425,7 +426,7 @@ pub async fn start_recording(
     let destination = crate::destination::resolve_destination(database, category_id)
         .await?
         .unwrap_or_else(|| scheduler.downloads_directory().to_path_buf());
-    let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
+    let stamp = rd_core::Timestamp::now().strftime("%Y%m%d-%H%M%S");
     let base = rd_files::sanitize_file_name(&format!("{name}-{stamp}"));
     let quality = quality
         .map(str::trim)

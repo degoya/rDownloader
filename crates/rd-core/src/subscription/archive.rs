@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -43,7 +43,7 @@ pub struct SubscriptionItem {
     pub title: String,
     #[schema(value_type = String, format = "uri")]
     pub url: Url,
-    pub published_at: Option<DateTime<Utc>>,
+    pub published_at: Option<Timestamp>,
     pub duration_seconds: Option<u32>,
     pub state: SubscriptionItemState,
     /// Which rule rejected it, when one did.
@@ -75,7 +75,7 @@ pub struct SubscriptionItem {
     /// an authenticated session.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
-    pub discovered_at: DateTime<Utc>,
+    pub discovered_at: Timestamp,
 }
 
 /// Counts of every item state in one subscription, independent of the selected page filter.
@@ -101,7 +101,7 @@ pub struct SubscriptionItemPage {
     /// watermark a decision about "all of this list" sends as `until` (RD-1250-13). `None` for an
     /// empty filter.
     #[serde(default)]
-    pub newest_discovered_at: Option<DateTime<Utc>>,
+    pub newest_discovered_at: Option<Timestamp>,
 }
 
 /// Pending review count for one indexer subscription.
@@ -111,7 +111,7 @@ pub struct SubscriptionReviewCount {
     pub pending: u64,
     /// When the newest pending item was found: the watermark of the counted hits (RD-1250-13).
     #[serde(default)]
-    pub newest_discovered_at: Option<DateTime<Utc>>,
+    pub newest_discovered_at: Option<Timestamp>,
 }
 
 /// Lightweight indexer-review summary used before any item page is expanded.
@@ -142,8 +142,8 @@ pub struct SubscriptionHistoryClearResponse {
 pub struct SubscriptionRun {
     pub id: SubscriptionRunId,
     pub subscription_id: SubscriptionId,
-    pub started_at: DateTime<Utc>,
-    pub finished_at: Option<DateTime<Utc>>,
+    pub started_at: Timestamp,
+    pub finished_at: Option<Timestamp>,
     /// Items the source offered.
     pub found: u32,
     /// Items that were new *and* passed the filters.

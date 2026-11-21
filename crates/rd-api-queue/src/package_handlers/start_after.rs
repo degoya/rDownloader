@@ -8,8 +8,7 @@ use axum::{
     Json,
     extract::{Path, State},
 };
-use chrono::{DateTime, Utc};
-use rd_core::PackageId;
+use rd_core::{PackageId, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -21,7 +20,7 @@ use crate::{ApiError, AppState};
 pub struct PackageStartAfterRequest {
     /// The moment (RFC 3339) the package's files may start from; `null`, or a moment that has
     /// passed, removes it.
-    pub start_after: Option<DateTime<Utc>>,
+    pub start_after: Option<Timestamp>,
 }
 
 /// A package's "not before" as stored.
@@ -29,7 +28,7 @@ pub struct PackageStartAfterRequest {
 pub struct PackageStartAfterResponse {
     pub package_id: PackageId,
     /// `null` when the package starts as the queue reaches it.
-    pub start_after: Option<DateTime<Utc>>,
+    pub start_after: Option<Timestamp>,
 }
 
 /// Sets or removes the moment a package's files may start from; the next dispatch pass follows.
@@ -49,7 +48,7 @@ pub async fn set_package_start_after(
     Path(id): Path<PackageId>,
     Json(request): Json<PackageStartAfterRequest>,
 ) -> Result<Json<PackageStartAfterResponse>, ApiError> {
-    let start_after = request.start_after.filter(|at| *at > Utc::now());
+    let start_after = request.start_after.filter(|at| *at > Timestamp::now());
     if !state
         .database
         .set_package_start_after(id, start_after)

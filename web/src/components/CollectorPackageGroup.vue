@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { Category, CollectorPackage, DownloadPriority, LinkCandidate } from '@/api/types'
 import DragHandle from '@/components/DragHandle.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
+import type { PackageHandOverTarget } from '@/composables/usePackageHandOver'
 import { priorityItems, formatBytes } from '@/utils/format'
 import { pickableCategories } from '@/utils/pickableCategories'
 import { NO_SELECTION } from '@/utils/select'
@@ -30,6 +31,10 @@ const props = defineProps<{
   dragging: boolean
   /** Whether the view is currently rendering this package's link rows below the header. */
   open: boolean
+  /** Accounts the package's links can be handed to (RD-1440-07); none hides the entry. */
+  remoteTargets?: PackageHandOverTarget[]
+  /** A hand-over of this package is under way. */
+  handingOver?: boolean
 }>()
 const emit = defineEmits<{
   select: [ids: string[], selected: boolean]
@@ -44,6 +49,8 @@ const emit = defineEmits<{
   copyLinks: [id: string]
   /** The package as a link file (RD-1210-01). */
   export: [id: string]
+  /** Every link of the package to one account's provider instead of the queue (RD-1440-07). */
+  handOver: [id: string, accountId: string]
   dragstart: [id: string]
   drop: [id: string]
   /** Keyboard alternative to the drag: -1 moves the package up, 1 moves it down. */
@@ -85,10 +92,24 @@ const categoryModel = computed({
   set: (value: string) => emit('category', props.package.id, value === NO_SELECTION ? null : value)
 })
 /**
- * The row's menu: the export, then what acts on the list rather than on this package (RD-1170-01);
- * a right-click on the header opens the same entries (RD-1240-14).
+ * The row's menu: the hand-over to a remote provider with one entry per account (RD-1440-07) and
+ * the export, then what acts on the list rather than on this package (RD-1170-01); a right-click
+ * on the header opens the same entries (RD-1240-14).
  */
+const handOverItems = computed(() => (props.remoteTargets ?? []).length
+  ? [{
+      label: t('linkgrabber.package_hand_over.action'),
+      icon: 'i-lucide-cloud-upload',
+      disabled: props.handingOver === true,
+      children: (props.remoteTargets ?? []).map(target => ({
+        label: target.label,
+        icon: 'i-lucide-cloud-upload',
+        onSelect: () => emit('handOver', props.package.id, target.accountId)
+      }))
+    }]
+  : [])
 const listActions = computed(() => [[
+  ...handOverItems.value,
   { label: t('common.export.action'), icon: 'i-lucide-file-down', onSelect: () => emit('export', props.package.id) }
 ], [
   { label: t('common.package_groups.open_all'), icon: 'i-lucide-chevrons-up-down', onSelect: () => emit('openAll') },

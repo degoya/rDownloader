@@ -2,10 +2,10 @@
 //! runs the configured action exactly once for it, and lets a person cancel a power action
 //! while the countdown runs.
 
+use jiff::tz::TimeZone;
+use rd_core::{SignedDuration, Timestamp};
 use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
-use chrono_tz::Tz;
 use serde::Serialize;
 use tokio::sync::RwLock;
 use utoipa::ToSchema;
@@ -19,7 +19,7 @@ use crate::{
 #[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct PendingAction {
     pub action: CompletionAction,
-    pub runs_at: DateTime<Utc>,
+    pub runs_at: Timestamp,
     /// The work cycle this action belongs to; a restart mid-countdown resumes the same one.
     pub cycle: u64,
 }
@@ -34,10 +34,10 @@ pub struct PowerStatus {
     pub approval_missing: bool,
     pub pending: Option<PendingAction>,
     pub quiet: bool,
-    pub quiet_until: Option<DateTime<Utc>>,
+    pub quiet_until: Option<Timestamp>,
     /// Set while quiet hours hold notifications back: when they go out, as one summary
     /// (RD-1260-04). The web interface holds its own desktop notifications until then too.
-    pub notifications_quiet_until: Option<DateTime<Utc>>,
+    pub notifications_quiet_until: Option<Timestamp>,
     /// Why the queue is paused by the network context, if it is.
     pub paused_reason: Option<&'static str>,
     /// Whether the machine is currently being kept awake.
@@ -47,7 +47,7 @@ pub struct PowerStatus {
 #[derive(Debug)]
 struct ServiceState {
     settings: PowerSettings,
-    timezone: Tz,
+    timezone: TimeZone,
     state: PowerState,
     /// Increments whenever the queue goes from idle to busy; the action fires once per
     /// cycle, which is what makes it exactly-once across restarts and queue flicker.
@@ -74,7 +74,7 @@ impl Default for ServiceState {
     fn default() -> Self {
         Self {
             settings: PowerSettings::default(),
-            timezone: Tz::UTC,
+            timezone: TimeZone::UTC,
             state: PowerState::default(),
             cycle: 0,
             completed_cycle: 0,
@@ -102,7 +102,7 @@ pub struct PowerService {
 #[derive(Debug)]
 struct QuietSnapshot {
     hours: rd_limits::QuietHours,
-    timezone: Tz,
+    timezone: TimeZone,
     defers_notifications: bool,
 }
 
@@ -110,7 +110,7 @@ impl Default for QuietSnapshot {
     fn default() -> Self {
         Self {
             hours: rd_limits::QuietHours::default(),
-            timezone: Tz::UTC,
+            timezone: TimeZone::UTC,
             defers_notifications: false,
         }
     }
@@ -141,7 +141,9 @@ impl PowerService {
     }
 
     /// Applies the settings and the schedule timezone; called on start and on every save.
-    pub async fn apply(&self, settings: PowerSettings, timezone: Tz) {
+    /// The zone goes in as the stored [`rd_core::IanaZone`] or as a jiff zone.
+    pub async fn apply(&self, settings: PowerSettings, timezone: impl Into<TimeZone>) {
+        let timezone = timezone.into();
         let mut state = self.state.write().await;
         // Turning the action off or withdrawing the approval cancels a running countdown:
         // the user just said they do not want it.
@@ -155,7 +157,7 @@ impl PowerService {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = QuietSnapshot {
             hours: settings.quiet_hours.clone(),
-            timezone,
+            timezone: timezone.clone(),
             defers_notifications: settings.quiet_hours_defer_notifications,
         };
         state.settings = settings;
@@ -165,7 +167,7 @@ impl PowerService {
     /// When the notifications quiet hours hold back go out, or `None` while none are held
     /// (RD-1260-04). Synchronous, for the capture stream's frame filter.
     #[must_use]
-    pub fn notifications_quiet_until(&self, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+    pub fn notifications_quiet_until(&self, now: Timestamp) -> Option<Timestamp> {
         let quiet = self
             .quiet
             .lock()
@@ -173,7 +175,7 @@ impl PowerService {
         if !quiet.defers_notifications {
             return None;
         }
-        quiet.hours.ends_after(quiet.timezone, now)
+        quiet.hours.ends_after(&quiet.timezone, now)
     }
 
     /// Restores the cycle counters after a restart, so a completed cycle stays completed.
@@ -208,30 +210,30 @@ impl PowerService {
     }
 
     /// Whether resource-intensive work should wait right now.
-    pub async fn is_quiet(&self, now: DateTime<Utc>) -> bool {
+    pub async fn is_quiet(&self, now: Timestamp) -> bool {
         let state = self.state.read().await;
-        state.settings.quiet_hours.is_quiet(state.timezone, now)
+        state.settings.quiet_hours.is_quiet(&state.timezone, now)
     }
 
     /// Whether post-processing should be deferred right now.
-    pub async fn defers_postprocess(&self, now: DateTime<Utc>) -> bool {
+    pub async fn defers_postprocess(&self, now: Timestamp) -> bool {
         let state = self.state.read().await;
         state.settings.quiet_hours_defer_postprocess
-            && state.settings.quiet_hours.is_quiet(state.timezone, now)
+            && state.settings.quiet_hours.is_quiet(&state.timezone, now)
     }
 
     /// Whether notification delivery should be grouped until the quiet period ends.
-    pub async fn defers_notifications(&self, now: DateTime<Utc>) -> bool {
+    pub async fn defers_notifications(&self, now: Timestamp) -> bool {
         let state = self.state.read().await;
         state.settings.quiet_hours_defer_notifications
-            && state.settings.quiet_hours.is_quiet(state.timezone, now)
+            && state.settings.quiet_hours.is_quiet(&state.timezone, now)
     }
 
     /// Feeds the queue's busy state in and returns an action that is now due.
     ///
     /// `busy` covers the queue *and* post-processing: an action must not fire while a
     /// package is still being unpacked.
-    pub async fn observe(&self, busy: bool, now: DateTime<Utc>) -> Option<PendingAction> {
+    pub async fn observe(&self, busy: bool, now: Timestamp) -> Option<PendingAction> {
         let mut state = self.state.write().await;
         if busy {
             if !state.busy {
@@ -275,7 +277,7 @@ impl PowerService {
                 cycle: state.cycle,
             });
         }
-        let countdown = chrono::Duration::seconds(i64::from(
+        let countdown = SignedDuration::from_secs(i64::from(
             state.settings.completion_countdown_seconds.max(1),
         ));
         state.pending = Some(PendingAction {
@@ -306,7 +308,7 @@ impl PowerService {
         }
     }
 
-    pub async fn status(&self, now: DateTime<Utc>) -> PowerStatus {
+    pub async fn status(&self, now: Timestamp) -> PowerStatus {
         let state = self.state.read().await;
         let action = state.settings.completion_action;
         PowerStatus {
@@ -315,10 +317,10 @@ impl PowerService {
             action,
             approval_missing: action.is_destructive() && !state.settings.power_actions_allowed,
             pending: state.pending.clone(),
-            quiet: state.settings.quiet_hours.is_quiet(state.timezone, now),
-            quiet_until: state.settings.quiet_hours.ends_after(state.timezone, now),
+            quiet: state.settings.quiet_hours.is_quiet(&state.timezone, now),
+            quiet_until: state.settings.quiet_hours.ends_after(&state.timezone, now),
             notifications_quiet_until: if state.settings.quiet_hours_defer_notifications {
-                state.settings.quiet_hours.ends_after(state.timezone, now)
+                state.settings.quiet_hours.ends_after(&state.timezone, now)
             } else {
                 None
             },

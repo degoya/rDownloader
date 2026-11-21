@@ -26,9 +26,8 @@ use axum::{
     http::{HeaderValue, header},
     response::{IntoResponse, Response},
 };
-use chrono::Utc;
 use rd_collector::{LinksDocument, LinksEntry, LinksPackage};
-use rd_core::{DownloadFile, DownloadKind, PackageId};
+use rd_core::{DownloadFile, DownloadKind, PackageId, Timestamp};
 
 use crate::{
     ApiError, AppState,
@@ -141,7 +140,7 @@ pub async fn export_file(
         return Err(rd_api_core::dlc_import::links_limit());
     }
     let packages = document.packages.len();
-    let stamp = Utc::now().format("%Y%m%d-%H%M%S");
+    let stamp = Timestamp::now().strftime("%Y%m%d-%H%M%S");
     let (extension, content_type, bytes) = match request.format {
         PackageExportFormat::Rdlinks => {
             let bytes = match &passphrase {

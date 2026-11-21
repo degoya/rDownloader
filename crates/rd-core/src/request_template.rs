@@ -11,7 +11,7 @@
 //!   it cannot be serialized into an API or SSE payload by accident.
 //! * [`CapturedBody`] carries field *names* only. Values never leave the secret store.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use url::Url;
@@ -171,7 +171,7 @@ pub struct CapturedBody {
 /// A person's explicit approval of one replay, bound to the template it was given for.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
 pub struct ReplayConsent {
-    pub granted_at: DateTime<Utc>,
+    pub granted_at: Timestamp,
     /// [`stable_hash`] of the template at the moment consent was granted.
     pub template_hash: String,
     /// Origins the person approved, always a subset of the server-derived set.
@@ -202,7 +202,7 @@ pub struct RequestTemplate {
 pub struct ReplaySummary {
     pub method: ReplayMethod,
     pub has_body: bool,
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
     pub replayable: bool,
     pub blocked_reason: Option<ReplayBlockReason>,
 }
@@ -340,7 +340,7 @@ mod tests {
         CapturedBody, ReplayBodyKind, ReplayMethod, derive_approved_origins, needs_consent,
         origin_of, stable_hash,
     };
-    use crate::CapturedRequest;
+    use crate::{CapturedRequest, Timestamp};
     use url::Url;
 
     fn url(input: &str) -> Url {
@@ -449,7 +449,7 @@ mod tests {
         ));
 
         let (_, mut expiring) = request("GET", "https://cdn.example/f.bin");
-        expiring.expires_at = Some(chrono::Utc::now());
+        expiring.expires_at = Some(Timestamp::now());
         assert!(needs_consent(&expiring));
     }
 

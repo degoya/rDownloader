@@ -18,6 +18,18 @@ use rd_core::{
 
 use crate::{connect::Store, error};
 
+/// An object's `last_modified`, which `object_store` gives as a chrono instant, as a
+/// `Timestamp` — the chrono boundary of this crate (RD-1440-05). Past jiff's range (years
+/// beyond ±9999, which no store reports) it is held at the nearer end.
+pub(crate) fn instant(at: chrono::DateTime<chrono::Utc>) -> rd_core::Timestamp {
+    let seconds = at.timestamp();
+    rd_core::Timestamp::from_unix(seconds, at.timestamp_subsec_nanos()).unwrap_or(if seconds < 0 {
+        rd_core::Timestamp::MIN
+    } else {
+        rd_core::Timestamp::MAX
+    })
+}
+
 /// Lists every object below the address's prefix.
 pub(crate) async fn walk(store: &Store, address: &ObjectAddress) -> Result<RemoteListing, Failure> {
     let prefix = address.key.trim_end_matches('/');
@@ -59,7 +71,7 @@ pub(crate) async fn walk(store: &Store, address: &ObjectAddress) -> Result<Remot
             path: relative.to_owned(),
             is_dir: false,
             size: ByteCount::new(meta.size).ok(),
-            modified: Some(meta.last_modified),
+            modified: Some(instant(meta.last_modified)),
             etag: meta.e_tag.clone(),
         });
     }

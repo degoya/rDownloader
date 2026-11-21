@@ -647,5 +647,15 @@
     "delete_title": "Supprimer des liens ?",
     "delete_description": "{count} lien sera supprimé du LinkGrabber par une règle de suppression. | {count} liens seront supprimés du LinkGrabber par une règle de suppression.",
     "delete_confirm": "Appliquer et supprimer"
+  },
+  "package_hand_over": {
+    "action": "Confier à un fournisseur distant",
+    "badge": "Confié à {provider}",
+    "badge_hint": "Le lien reste dans le LinkGrabber, car les réglages conservent les liens confiés ; confier à nouveau le paquet ne l'envoie pas deux fois.",
+    "done": "« {name} » : {done} lien confié à {provider} | « {name} » : {done} liens confiés à {provider}",
+    "partly": "« {name} » : {done} liens sur {total} confiés à {provider}, {stayed} restent dans le LinkGrabber",
+    "nothing": "« {name} » : aucun lien n'a pu être confié à {provider}",
+    "failed": "« {name} » n'a pas pu être confié",
+    "provider_fallback": "un fournisseur"
   }
 }

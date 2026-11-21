@@ -36,7 +36,7 @@ impl Writer {
                 send(reply, purge_old_events(&mut self.connection).await);
             }
             MaintenanceCommand::PruneTransferStats { retention, reply } => {
-                let now = chrono::Utc::now();
+                let now = rd_core::Timestamp::now();
                 send(
                     reply,
                     crate::stats_store::prune(&mut self.connection, retention, now).await,

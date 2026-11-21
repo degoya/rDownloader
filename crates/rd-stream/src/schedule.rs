@@ -9,39 +9,41 @@
 //! instead of a zone would move every schedule by an hour twice a year, and nobody would
 //! notice until a recording started at the wrong time.
 
-use chrono::{DateTime, Datelike, Duration, LocalResult, NaiveDate, NaiveTime, TimeZone, Utc};
-use chrono_tz::Tz;
+use jiff::civil::{Date, Time};
+use jiff::tz::{AmbiguousOffset, TimeZone};
 use rd_core::{
-    MAX_ROLL_MINUTES, MAX_WINDOW_MINUTES, MINUTES_PER_DAY, ScheduleError, ScheduleKind,
-    StreamSchedule,
+    IanaZone, MAX_ROLL_MINUTES, MAX_WINDOW_MINUTES, MINUTES_PER_DAY, ScheduleError, ScheduleKind,
+    SignedDuration, StreamSchedule, Timestamp,
 };
 
 /// One concrete occurrence, in UTC.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Occurrence {
     /// The nominal start. This is the idempotency key: one row per schedule and instant.
-    pub starts_at: DateTime<Utc>,
+    pub starts_at: Timestamp,
     /// The nominal end, before any post-roll.
-    pub ends_at: DateTime<Utc>,
+    pub ends_at: Timestamp,
 }
 
 impl Occurrence {
     /// The interval the monitor actually watches, widened by the lead and trail.
     #[must_use]
-    pub(crate) fn watch_window(&self, schedule: &StreamSchedule) -> (DateTime<Utc>, DateTime<Utc>) {
+    pub(crate) fn watch_window(&self, schedule: &StreamSchedule) -> (Timestamp, Timestamp) {
         (
-            self.starts_at - Duration::minutes(i64::from(schedule.lead_minutes)),
-            self.ends_at + Duration::minutes(i64::from(schedule.trail_minutes)),
+            self.starts_at - SignedDuration::from_mins(i64::from(schedule.lead_minutes)),
+            self.ends_at + SignedDuration::from_mins(i64::from(schedule.trail_minutes)),
         )
     }
 }
 
 /// Validates a schedule's fields, returning the resolved time zone.
-pub fn validate(schedule: &StreamSchedule) -> Result<Tz, ScheduleError> {
-    let zone: Tz = schedule
-        .timezone
-        .parse()
-        .map_err(|_| ScheduleError::UnknownTimezone)?;
+///
+/// The name is matched exactly, as stored: an offset such as `+01:00` or a name in the wrong
+/// case is no zone.
+pub fn validate(schedule: &StreamSchedule) -> Result<TimeZone, ScheduleError> {
+    let zone: TimeZone = IanaZone::parse(&schedule.timezone)
+        .map_err(|_| ScheduleError::UnknownTimezone)?
+        .into();
     if schedule.window_minutes == 0 || schedule.window_minutes > MAX_WINDOW_MINUTES {
         return Err(ScheduleError::WindowOutOfRange);
     }
@@ -68,11 +70,11 @@ pub fn validate(schedule: &StreamSchedule) -> Result<Tz, ScheduleError> {
 /// starts is still found — otherwise a restart in the middle of a broadcast would lose it.
 pub fn occurrences(
     schedule: &StreamSchedule,
-    from: DateTime<Utc>,
-    to: DateTime<Utc>,
+    from: Timestamp,
+    to: Timestamp,
 ) -> Result<Vec<Occurrence>, ScheduleError> {
     let zone = validate(schedule)?;
-    let window = Duration::minutes(i64::from(schedule.window_minutes));
+    let window = SignedDuration::from_mins(i64::from(schedule.window_minutes));
 
     match &schedule.kind {
         ScheduleKind::Once { start } => {
@@ -91,14 +93,14 @@ pub fn occurrences(
         ScheduleKind::Weekly { days, start_minute } => {
             let mut found = Vec::new();
             // Start a day early: an occurrence that began yesterday can still be running.
-            let first = (from - window - Duration::days(1))
-                .with_timezone(&zone)
-                .date_naive();
-            let last = to.with_timezone(&zone).date_naive();
+            let first = zone
+                .to_datetime((from - window - SignedDuration::from_hours(24)).as_jiff())
+                .date();
+            let last = zone.to_datetime(to.as_jiff()).date();
             let mut date = first;
             while date <= last {
                 if days.contains(&day_number(date))
-                    && let Some(starts_at) = local_start(zone, date, *start_minute)
+                    && let Some(starts_at) = local_start(&zone, date, *start_minute)
                 {
                     let occurrence = Occurrence {
                         starts_at,
@@ -108,7 +110,7 @@ pub fn occurrences(
                         found.push(occurrence);
                     }
                 }
-                let Some(next) = date.succ_opt() else { break };
+                let Ok(next) = date.tomorrow() else { break };
                 date = next;
             }
             found.sort_by_key(|occurrence| occurrence.starts_at);
@@ -119,8 +121,8 @@ pub fn occurrences(
 }
 
 /// ISO weekday, `1` = Monday through `7` = Sunday.
-fn day_number(date: NaiveDate) -> u8 {
-    u8::try_from(date.weekday().number_from_monday()).unwrap_or(1)
+fn day_number(date: Date) -> u8 {
+    u8::try_from(date.weekday().to_monday_one_offset()).unwrap_or(1)
 }
 
 /// Resolves a local wall-clock time to an instant, handling both daylight-saving edges.
@@ -131,18 +133,23 @@ fn day_number(date: NaiveDate) -> u8 {
 /// * **Nonexistent** (the clocks went forward, so the hour never happens): `None`. A window
 ///   at a time that does not exist on that date genuinely has no occurrence, and inventing
 ///   one by shifting it would start a recording at a time the user never asked for.
-fn local_start(zone: Tz, date: NaiveDate, start_minute: u32) -> Option<DateTime<Utc>> {
-    let time = NaiveTime::from_num_seconds_from_midnight_opt(start_minute * 60, 0)?;
-    match zone.from_local_datetime(&date.and_time(time)) {
-        LocalResult::Single(local) => Some(local.with_timezone(&Utc)),
-        LocalResult::Ambiguous(first, _) => Some(first.with_timezone(&Utc)),
-        LocalResult::None => None,
+fn local_start(zone: &TimeZone, date: Date, start_minute: u32) -> Option<Timestamp> {
+    let hour = i8::try_from(start_minute / 60).ok()?;
+    let minute = i8::try_from(start_minute % 60).ok()?;
+    let local = date.to_datetime(Time::new(hour, minute, 0, 0).ok()?);
+    let resolved = zone.to_ambiguous_timestamp(local);
+    match resolved.offset() {
+        AmbiguousOffset::Gap { .. } => None,
+        // For a fold `earlier` is the first pass; for a single offset it is the only one.
+        AmbiguousOffset::Unambiguous { .. } | AmbiguousOffset::Fold { .. } => {
+            resolved.earlier().ok().map(Timestamp::from_jiff)
+        }
     }
 }
 
 /// Whether `now` falls inside an occurrence's watch window.
 #[must_use]
-pub fn is_watching(schedule: &StreamSchedule, occurrence: &Occurrence, now: DateTime<Utc>) -> bool {
+pub fn is_watching(schedule: &StreamSchedule, occurrence: &Occurrence, now: Timestamp) -> bool {
     let (start, end) = occurrence.watch_window(schedule);
     now >= start && now <= end
 }
@@ -150,13 +157,10 @@ pub fn is_watching(schedule: &StreamSchedule, occurrence: &Occurrence, now: Date
 #[cfg(test)]
 mod tests {
     use super::{Occurrence, is_watching, occurrences, validate};
-    use chrono::{DateTime, Duration, TimeZone, Utc};
-    use rd_core::{ScheduleError, ScheduleKind, StreamSchedule};
+    use rd_core::{ScheduleError, ScheduleKind, SignedDuration, StreamSchedule, Timestamp};
 
-    fn at(text: &str) -> DateTime<Utc> {
-        DateTime::parse_from_rfc3339(text)
-            .expect("timestamp")
-            .with_timezone(&Utc)
+    fn at(text: &str) -> Timestamp {
+        Timestamp::parse_rfc3339(text).expect("timestamp")
     }
 
     fn weekly(days: Vec<u8>, start_minute: u32, timezone: &str) -> StreamSchedule {
@@ -171,8 +175,8 @@ mod tests {
             lead_minutes: 5,
             trail_minutes: 10,
             replay_from_start: false,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: Timestamp::now(),
+            updated_at: Timestamp::now(),
         }
     }
 
@@ -250,8 +254,8 @@ mod tests {
         // A restart in the middle of a broadcast must not lose the run.
         let schedule = weekly(vec![3], 20 * 60, "Europe/Berlin");
         let mid_show = at("2026-01-07T19:30:00Z");
-        let found =
-            occurrences(&schedule, mid_show, mid_show + Duration::minutes(1)).expect("occurrences");
+        let found = occurrences(&schedule, mid_show, mid_show + SignedDuration::from_mins(1))
+            .expect("occurrences");
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].starts_at, at("2026-01-07T19:00:00Z"));
     }
@@ -387,6 +391,5 @@ mod tests {
         )
         .expect("occurrences");
         assert_eq!(found[0].starts_at, at("2026-01-07T20:00:00Z"));
-        let _ = Utc.timestamp_opt(0, 0);
     }
 }

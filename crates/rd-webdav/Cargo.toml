@@ -7,7 +7,6 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-chrono.workspace = true
 httpdate.workspace = true
 percent-encoding.workspace = true
 quick-xml.workspace = true

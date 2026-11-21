@@ -11,7 +11,7 @@
 //! chat, none of which knows the reader's language, and the event code is what a receiver
 //! translates or filters on.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use rd_notify::{NotificationEvent, Placeholder as P, Values};
 
 /// How close a premium end is before an account check announces it.
@@ -212,11 +212,7 @@ impl Notice {
     /// The premium of an account ends on `until`, or ended then (`None`: a date the plugin
     /// did not state).
     #[must_use]
-    pub fn account_expiring(
-        account: &rd_core::Account,
-        until: Option<NaiveDate>,
-        today: NaiveDate,
-    ) -> Self {
+    pub fn account_expiring(account: &rd_core::Account, until: Option<Date>, today: Date) -> Self {
         let name = account_name(account);
         let (when, body) = match until {
             Some(until) if until >= today => (
@@ -243,7 +239,7 @@ impl Notice {
 
     /// An account no longer signs in. At most one a day per account, whichever way it is noticed.
     #[must_use]
-    pub fn account_invalid(account: &rd_core::Account, reason: &str, today: NaiveDate) -> Self {
+    pub fn account_invalid(account: &rd_core::Account, reason: &str, today: Date) -> Self {
         let name = account_name(account);
         Self {
             event: NotificationEvent::AccountInvalid,
@@ -272,7 +268,7 @@ fn account_name(account: &rd_core::Account) -> String {
 pub fn account_check_notices(
     account: &rd_core::Account,
     status: &rd_plugin_host::AccountStatus,
-    today: NaiveDate,
+    today: Date,
 ) -> Vec<Notice> {
     if !status.valid {
         return vec![Notice::account_invalid(
@@ -291,7 +287,7 @@ pub fn account_check_notices(
                 .get("until")
                 .map(String::as_str)
                 .and_then(premium_end)
-            && (until - today).num_days() <= EXPIRY_WARNING_DAYS
+            && until.duration_since(today).as_hours() / 24 <= EXPIRY_WARNING_DAYS
         {
             notices.push(Notice::account_expiring(account, Some(until), today));
         }
@@ -304,7 +300,7 @@ pub fn account_check_notices(
 pub fn account_failure_notice(
     account: &rd_core::Account,
     failure: &rd_core::Failure,
-    today: NaiveDate,
+    today: Date,
 ) -> Option<Notice> {
     matches!(
         failure.category,
@@ -315,9 +311,11 @@ pub fn account_failure_notice(
 
 /// The date a premium end starts with: `2027-01-31`, `2027-01-31 00:00:00` and RFC 3339 all
 /// begin with it, which is every shape the plugins state.
-fn premium_end(text: &str) -> Option<NaiveDate> {
+fn premium_end(text: &str) -> Option<Date> {
     let date = text.trim().get(..10)?;
-    NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()
+    date.parse::<rd_core::Date>()
+        .ok()
+        .map(rd_core::Date::as_jiff)
 }
 
 /// Queues `notice` to every rule that wants it and has not had it yet.
@@ -343,7 +341,7 @@ async fn queue(database: &rd_db::Database, notice: &Notice) -> anyhow::Result<u6
         .iter()
         .any(rd_notify::NotificationRule::has_template)
         .then(|| {
-            let mut values = Values::stamped(notice.event, &chrono::Local::now());
+            let mut values = Values::stamped(notice.event, &jiff::Zoned::now());
             values.extend(&notice.values);
             values
         });

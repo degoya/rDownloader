@@ -42,9 +42,9 @@ async fn a_switch_stopped_between_its_renames_is_finished_by_the_next_start() {
     prepared(&fixture.archive, &work).await;
     let pending = PendingRestore {
         phase: Phase::Staged,
-        staged_at: chrono::Utc::now(),
+        staged_at: rd_core::Timestamp::now(),
         archive_name: "fixture.rdbackup".to_owned(),
-        backup_created_at: chrono::Utc::now(),
+        backup_created_at: rd_core::Timestamp::now(),
         app_version: "1.6.0-windows".to_owned(),
         minted_secrets: Vec::new(),
     };

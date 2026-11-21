@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-use chrono::Utc;
+use rd_core::Timestamp;
 use rd_db::SubscriptionItemRetention;
 use serde::Serialize;
 use utoipa::ToSchema;
@@ -81,7 +81,7 @@ pub(crate) async fn clean_up(
     pass: Pass,
 ) -> Result<DatabaseCleanup, ApiError> {
     let retention: SubscriptionItemRetention = state.database.service_settings_or_default().await?;
-    let before = retention.compact_before(Utc::now());
+    let before = retention.compact_before(Timestamp::now());
     let measured = state.database.database_storage(before).await?;
     let mut summary = DatabaseCleanup {
         file_bytes: measured.file_bytes,

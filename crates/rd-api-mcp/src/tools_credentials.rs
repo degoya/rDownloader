@@ -373,7 +373,7 @@ impl RdMcpServer {
                 .reset_on
                 .as_deref()
                 .map(|day| {
-                    chrono::NaiveDate::parse_from_str(day, "%Y-%m-%d").map_err(|_| {
+                    day.parse::<rd_core::Date>().map_err(|_| {
                         ApiError::bad_request(
                             "usenet.quota_invalid",
                             "reset_on must be a day written YYYY-MM-DD",

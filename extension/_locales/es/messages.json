@@ -116,6 +116,36 @@
   "optionsInterceptHint": {
     "message": "Las descargas iniciadas en el navegador se pausan y se transfieren a rDownloader. Requiere un token de captura."
   },
+  "optionsInterceptMode": {
+    "message": "Qué descargas"
+  },
+  "optionsInterceptModeAll": {
+    "message": "Todas las descargas"
+  },
+  "optionsInterceptModeOnly": {
+    "message": "Solo estos tipos de archivo"
+  },
+  "optionsInterceptModeExcept": {
+    "message": "Todas excepto estos tipos de archivo"
+  },
+  "optionsInterceptTypes": {
+    "message": "Tipos de archivo"
+  },
+  "optionsInterceptTypesHint": {
+    "message": "Extensiones de archivo separadas por espacios o comas, p. ej. .dlc .nzb; dlc y *.dlc significan lo mismo. Una descarga se reconoce por su nombre de archivo, su dirección o el nombre que le da el sitio."
+  },
+  "optionsInterceptTypesInvalid": {
+    "message": "No es una extensión de archivo, se ignora: $1."
+  },
+  "optionsInterceptTypesTooMany": {
+    "message": "Solo se usan los primeros $1 tipos de archivo."
+  },
+  "optionsInterceptTypesEmpty": {
+    "message": "La lista está vacía: no se toma ninguna descarga."
+  },
+  "optionsInterceptTypesBrowserOnly": {
+    "message": "$1: estos archivos los descarga el propio navegador. Solo llegan a rDownloader desde un sitio que hayas permitido abajo; si no, se quedan en el navegador."
+  },
   "menuSession": {
     "message": "Enviar la sesión de este sitio a rDownloader"
   },

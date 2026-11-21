@@ -10,7 +10,7 @@
 //! source and belong to the caller.
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use url::Url;
 
 use rd_core::{Subscription, SubscriptionKind};
@@ -22,7 +22,7 @@ pub struct DiscoveredItem {
     pub source_id: Option<String>,
     pub title: String,
     pub url: Url,
-    pub published_at: Option<DateTime<Utc>>,
+    pub published_at: Option<Timestamp>,
     pub duration_seconds: Option<u32>,
     pub language: Option<String>,
     pub height: Option<u32>,
@@ -97,7 +97,7 @@ pub struct PollOutcome {
     pub not_modified: bool,
     /// The source asked not to be asked again before this instant (RD-190-13): an API whose
     /// request budget this poll used up. The next poll waits for it, whatever the interval says.
-    pub paused_until: Option<DateTime<Utc>>,
+    pub paused_until: Option<Timestamp>,
 }
 
 /// A poll the source refused for its rate limit, with when it may be asked again (RD-190-13).
@@ -107,7 +107,7 @@ pub struct PollOutcome {
 /// doubled on every refusal would wait longer than it asked for.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RateLimited {
-    pub until: DateTime<Utc>,
+    pub until: Timestamp,
 }
 
 /// The shortest pause a refusal gets, and the one it gets when it names no time.
@@ -119,11 +119,11 @@ impl RateLimited {
     /// `retry_after_seconds` is the server's word, capped like every other one
     /// ([`rd_core::clamp_retry_after`]); without one, or below it, the source waits a minute.
     #[must_use]
-    pub fn after(now: DateTime<Utc>, retry_after_seconds: Option<u64>) -> Self {
+    pub fn after(now: Timestamp, retry_after_seconds: Option<u64>) -> Self {
         let seconds = rd_core::clamp_retry_after(retry_after_seconds.unwrap_or_default())
             .max(MIN_PAUSE_SECONDS);
         Self {
-            until: now + chrono::Duration::seconds(i64::try_from(seconds).unwrap_or_default()),
+            until: now + SignedDuration::from_secs(i64::try_from(seconds).unwrap_or_default()),
         }
     }
 }
@@ -133,7 +133,7 @@ impl std::fmt::Display for RateLimited {
         write!(
             formatter,
             "rate limit reached; the next request waits until {}",
-            self.until.format("%Y-%m-%d %H:%M UTC")
+            self.until.strftime("%Y-%m-%d %H:%M UTC")
         )
     }
 }

@@ -14,8 +14,7 @@
 use std::sync::atomic::Ordering;
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use rd_core::{DownloadFile, FailureKind};
+use rd_core::{DownloadFile, FailureKind, SignedDuration, Timestamp};
 
 use crate::SchedulerHandle;
 
@@ -44,8 +43,8 @@ impl AutoRetry {
         self.max_rounds == 0 || spent < self.max_rounds
     }
 
-    fn interval(self) -> chrono::Duration {
-        chrono::Duration::hours(i64::from(self.interval_hours))
+    fn interval(self) -> SignedDuration {
+        SignedDuration::from_hours(i64::from(self.interval_hours))
     }
 }
 
@@ -84,7 +83,7 @@ impl SchedulerHandle {
 
     /// One pass of the automatic retry; called by the supervise loop once a minute.
     pub(crate) async fn supervise_auto_retry(&self) -> Result<()> {
-        self.auto_retry_pass(Utc::now()).await.map(|_| ())
+        self.auto_retry_pass(Timestamp::now()).await.map(|_| ())
     }
 
     /// Sets, moves or clears the due time of every failed download and puts the ones that are
@@ -93,7 +92,7 @@ impl SchedulerHandle {
     /// Switched off it does nothing, except once after it was on (and once after a start): the
     /// due times it had set are cleared then, so the queue does not announce a retry that will
     /// not come.
-    pub(crate) async fn auto_retry_pass(&self, now: DateTime<Utc>) -> Result<usize> {
+    pub(crate) async fn auto_retry_pass(&self, now: Timestamp) -> Result<usize> {
         let settings = self.auto_retry();
         let was_enabled = self
             .auto_retry_was_enabled

@@ -1,7 +1,7 @@
 //! Download rows: creation, resolver refresh and pins, completion, kinds and media rows.
 
-use chrono::{Duration, Utc};
 use rd_core::{AuthProfileSelection, DownloadId, IngressSource, PackageId};
+use rd_core::{SignedDuration, Timestamp};
 
 use super::{SELECTION, probe_url};
 use crate::{Database, NewDownload, NewPackage};
@@ -95,7 +95,7 @@ async fn a_second_resume_re_refreshes_instead_of_reusing_a_stored_url() {
                 .expect("URL"),
         ),
         method: "GET".to_owned(),
-        expires_at: Some(Utc::now() - Duration::hours(2)),
+        expires_at: Some(Timestamp::now() - SignedDuration::from_hours(2)),
         approved_origins: vec!["https://cdn.example.net".to_owned()],
         ..rd_core::CapturedRequest::default()
     };
@@ -117,7 +117,7 @@ async fn a_second_resume_re_refreshes_instead_of_reusing_a_stored_url() {
             replay: Some(Box::new(crate::NewReplayTemplate {
                 request: captured.clone(),
                 consent: rd_core::ReplayConsent {
-                    granted_at: Utc::now(),
+                    granted_at: Timestamp::now(),
                     template_hash: "hash".to_owned(),
                     approved_origins: vec!["https://cdn.example.net".to_owned()],
                 },

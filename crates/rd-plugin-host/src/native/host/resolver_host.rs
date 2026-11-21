@@ -383,7 +383,7 @@ impl ResolverHost for NativeHost {
             None => previous.clone(),
         };
         let expires_at =
-            expires_in_seconds.map(|seconds| token_expiry(chrono::Utc::now(), seconds));
+            expires_in_seconds.map(|seconds| token_expiry(rd_core::Timestamp::now(), seconds));
         if let Err(error) = self
             .database
             .set_auth_flow_renewal(

@@ -55,12 +55,13 @@ ignore = [
   { id = "RUSTSEC-2026-0372", reason = "zvariant_derive via zbus 5, required by the latest notify-rust and secret-service; merged into zbus 6, no flaw reported." },
   # chrono, chrono-tz and humantime were declared unmaintained on 2026-11 (chronotope/chrono#1768;
   # humantime because it wraps chrono). No flaw is reported, and no safe upgrade exists: chrono
-  # is in nearly every workspace crate's API and in sqlx, object_store, rmcp, russh-sftp,
-  # suppaftp, openidconnect, croner and librqbit-dht, so leaving it is a migration of its own
-  # (to jiff or time), not an update (RD-1430-02). Drop the three
-  # once the workspace and these dependencies are off chrono.
-  { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained, no flaw reported; in the workspace API and in sqlx, object_store, rmcp and others, migration is RD-1440-05 (owner, 2026-11-19)." },
-  { id = "RUSTSEC-2026-0555", reason = "chrono-tz unmaintained with chrono, no flaw reported; time zones of the schedules, see RUSTSEC-2026-0543." },
+  # left the workspace in 1.44 (RD-1440-05, jiff behind rd_core::Timestamp) except at three
+  # dependency boundaries (rd-authn: openidconnect; rd-ftp: suppaftp; rd-object-storage:
+  # object_store) and rd-core's cross-check tests (chrono, chrono-tz as dev-dependencies). It
+  # stays in the build through sqlx, object_store, rmcp, russh-sftp, suppaftp, openidconnect,
+  # oauth2, schemars and librqbit-dht. Drop the three once those dependencies are off chrono.
+  { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained, no flaw reported; the workspace left it in 1.44 (RD-1440-05), sqlx, object_store, rmcp and others still pull it." },
+  { id = "RUSTSEC-2026-0555", reason = "chrono-tz unmaintained with chrono, no flaw reported; only rd-core's cross-check tests (dev-dependency) since 1.44, see RUSTSEC-2026-0543." },
   { id = "RUSTSEC-2026-0542", reason = "humantime unmaintained because it wraps chrono, no flaw reported; reached only via object_store." },
 ]
 
@@ -178,10 +179,6 @@ skip = [
   { crate = "strum:0.27", reason = "croner 4" },
   { crate = "strum_macros:0.27", reason = "croner 4 via strum 0.27" },
 
-  # chrono-tz 0.10 (rd-api, rd-limits, rd-power, rd-scheduler, rd-stream).
-  { crate = "phf:0.12", reason = "chrono-tz 0.10" },
-  { crate = "phf_shared:0.12", reason = "chrono-tz 0.10 via phf 0.12" },
-
   # tao 0.37 / tray-icon 0.25 / muda (rd-capture). The GTK3 stack is a Linux dependency of
   # crates rd-capture only builds on Windows and macOS (see the advisories above): graph artefacts,
   # compiled for no target we ship.
@@ -199,7 +196,7 @@ skip = [
   { crate = "miniz_oxide:0.8", reason = "png 0.18 (muda via tray-icon, rd-capture's tray icon); flate2 uses 0.9" },
 
   # windows-sys: one line per holder.
-  { crate = "windows-sys:0.59", reason = "global-hotkey 0.9 (rd-capture)" },
+  { crate = "windows-sys:0.59", reason = "global-hotkey 0.10 (rd-capture)" },
 
   # One holder each.
   { crate = "untrusted:0.7", reason = "aws-lc-rs 1.18 (object_store, librqbit-sha1-wrapper); ring uses 0.9" },

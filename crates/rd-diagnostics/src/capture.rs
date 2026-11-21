@@ -19,8 +19,9 @@ use std::{
     },
 };
 
-use chrono::Utc;
-use rd_core::{LogLevel, REDACTION_PLACEHOLDER, is_secret_parameter, redact_header_value};
+use rd_core::{
+    LogLevel, REDACTION_PLACEHOLDER, Timestamp, is_secret_parameter, redact_header_value,
+};
 use rd_db::NewLogRecord;
 use tokio::sync::mpsc;
 use tracing::{
@@ -281,7 +282,7 @@ where
         }
         let code = visitor.fields.remove("code");
         let record = NewLogRecord {
-            recorded_at: Utc::now(),
+            recorded_at: Timestamp::now(),
             level: level_of(metadata.level()),
             component: metadata.target().to_owned(),
             code,

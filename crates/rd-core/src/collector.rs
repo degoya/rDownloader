@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -109,7 +109,7 @@ pub struct CollectorBatch {
     pub id: BatchId,
     pub source: IngressSource,
     pub source_label: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
 }
 
 /// An analyzed link awaiting review or enqueue.
@@ -152,7 +152,7 @@ pub struct LinkCandidate {
     #[serde(default)]
     pub position: i64,
     /// When the last online check finished.
-    pub checked_at: Option<DateTime<Utc>>,
+    pub checked_at: Option<Timestamp>,
     /// When a provider last said it holds this file in its own cache (RD-120-36).
     ///
     /// Set only by a check that answered [`LinkStatus::Cached`], and cleared by every check
@@ -160,7 +160,7 @@ pub struct LinkCandidate {
     /// changes without telling anybody, so the interface shows the time with it and treats the
     /// value as a measurement, never as a promise. The candidate's state stays `Online`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cached_at: Option<DateTime<Utc>>,
+    pub cached_at: Option<Timestamp>,
     /// Which provider gave the cache answer `cached_at` records, by its slug (RD-130-11).
     ///
     /// Set and cleared together with `cached_at`, never without it. `None` next to a time is
@@ -169,7 +169,7 @@ pub struct LinkCandidate {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cached_by: Option<String>,
     /// When the link was added to the collector.
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
     /// Extractor metadata and variant choice for media links.
     #[serde(default)]
     pub media: Option<crate::MediaInfo>,
@@ -236,6 +236,13 @@ pub struct LinkCandidate {
     /// "Show hidden" switch, and an enqueue takes it only when it names it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hidden_by_filter: Option<LinkFilterRuleId>,
+    /// The remote job this link was handed to (RD-1440-07), while that job's row exists.
+    ///
+    /// Set only when the setting that removes handed-over links is off: the link then stays in
+    /// the LinkGrabber, marked, and a second hand-over of its package sends it nowhere again.
+    /// Removing the job from the remote-job list clears the mark, as for an NZB import.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handed_over: Option<crate::NzbHandOver>,
 }
 
 /// What the online check leaves on a candidate: the English sentence, and the stable code
@@ -302,7 +309,7 @@ pub struct EnrichmentField {
     /// indistinguishable from something the application knows itself.
     pub plugin_id: String,
     /// When it was looked up, so a stale value is recognisable as one.
-    pub fetched_at: DateTime<Utc>,
+    pub fetched_at: Timestamp,
 }
 
 /// A group of links in the LinkGrabber that becomes one download package.
@@ -320,7 +327,7 @@ pub struct CollectorPackage {
     /// The stored archive password, in clear; see `DownloadPackage::password` (RD-104-04).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
     /// Explicit post-processing level for the enqueued package; `None` inherits.
     #[serde(default)]
     pub postprocess_level: Option<PostprocessLevel>,

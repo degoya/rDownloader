@@ -33,7 +33,7 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 pub(crate) use rd_files::durable::{exists, remove_any, sync_directory};
 use serde::{Deserialize, Serialize};
 
@@ -254,8 +254,8 @@ pub struct Journal {
     /// The same in words, for the log.
     #[serde(default)]
     pub detail: Option<String>,
-    pub started_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub started_at: Timestamp,
+    pub updated_at: Timestamp,
     /// Whether the leftovers of a finished update were removed.
     #[serde(default)]
     pub cleaned: bool,
@@ -265,7 +265,7 @@ impl Journal {
     /// A journal for `plan` in phase [`Phase::Handed`], not yet written.
     #[must_use]
     pub fn begin(plan: Plan) -> Self {
-        let now = Utc::now();
+        let now = Timestamp::now();
         Self {
             plan,
             phase: Phase::Handed,
@@ -318,7 +318,7 @@ impl Journal {
     ///
     /// When it cannot be written; nothing may act on a step the journal does not record.
     pub fn write(&mut self) -> Result<()> {
-        self.updated_at = Utc::now();
+        self.updated_at = Timestamp::now();
         let path = Self::path(&self.plan.data_dir);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;

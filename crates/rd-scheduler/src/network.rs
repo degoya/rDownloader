@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use rd_core::{AccountId, DownloadState, Failure};
+use rd_core::{AccountId, DownloadState, Failure, Timestamp};
 use rd_http::SharedNetworkDefaults;
 use url::Url;
 
@@ -112,14 +112,14 @@ impl SchedulerHandle {
     }
 
     /// Holds back a hoster's free downloads until `until` after it reported an IP limit.
-    pub(crate) fn block_host(&self, source: &url::Url, until: chrono::DateTime<chrono::Utc>) {
+    pub(crate) fn block_host(&self, source: &url::Url, until: Timestamp) {
         self.host_blocks.block(source, until);
     }
 
     /// The hosters currently held back by an IP limit, soonest to free up first.
     #[must_use]
-    pub fn blocked_hosts(&self) -> Vec<(String, chrono::DateTime<chrono::Utc>)> {
-        self.host_blocks.active(chrono::Utc::now())
+    pub fn blocked_hosts(&self) -> Vec<(String, Timestamp)> {
+        self.host_blocks.active(Timestamp::now())
     }
 
     /// Forgets every IP limit, because they were tied to an address we no longer have.

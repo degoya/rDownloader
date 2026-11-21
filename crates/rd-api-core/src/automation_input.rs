@@ -40,8 +40,8 @@ pub fn validated(request: AutomationRequest) -> Result<rd_db::NewAutomation, Api
         request.trigger,
         request.schedule.as_ref(),
         &request.actions,
-        chrono::Utc::now(),
-        &chrono::Local,
+        rd_core::Timestamp::now(),
+        &jiff::tz::TimeZone::system(),
     )
     .map_err(refused)?;
     // A schedule left over from a trigger the editor switched away from means nothing; the

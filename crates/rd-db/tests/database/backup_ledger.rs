@@ -1,8 +1,7 @@
 //! The full backup's destinations, archive ledger, per-destination history and verifications
 //! (RD-160-02, migration 0110).
 
-use chrono::{Duration, Utc};
-use rd_core::{BackupOrigin, BackupRunState, BackupVerifyState};
+use rd_core::{BackupOrigin, BackupRunState, BackupVerifyState, SignedDuration, Timestamp};
 use rd_db::{
     BackupRunDestinationEnd, BackupVerification, BackupVerificationOutcome, NewBackupArchive,
     NewBackupDestination, NewBackupRun,
@@ -28,7 +27,7 @@ fn archive(destination_id: &str, run: &str, name: &str, days_ago: i64) -> NewBac
         location: format!("/mnt/nas/{name}"),
         size_bytes: 4096,
         sha256: "ab".repeat(32),
-        created_at: Utc::now() - Duration::days(days_ago),
+        created_at: Timestamp::now() - SignedDuration::from_hours(24 * days_ago),
     }
 }
 
@@ -180,7 +179,7 @@ async fn each_destination_of_a_run_has_its_row_and_a_stop_interrupts_them() {
     let run = |id: &str| NewBackupRun {
         id: id.to_owned(),
         origin: BackupOrigin::Manual,
-        started_at: Utc::now(),
+        started_at: Timestamp::now(),
         destination_id: None,
         destination: None,
     };
@@ -248,7 +247,7 @@ async fn a_verification_lands_in_the_history_and_on_its_archive() {
         destination_id: Some(nas.clone()),
         destination: "/mnt/nas".to_owned(),
         archive_name: "a.rdbackup".to_owned(),
-        started_at: Utc::now(),
+        started_at: Timestamp::now(),
         finished_at: None,
         content_checked: None,
         error_code: None,
@@ -294,7 +293,7 @@ async fn a_verification_lands_in_the_history_and_on_its_archive() {
     let failed = history.iter().find(|row| row.id == "v1").expect("v1");
     assert_eq!(failed.state, BackupVerifyState::Failed);
 
-    let due = Utc::now() + Duration::days(7);
+    let due = Timestamp::now() + SignedDuration::from_hours(24 * 7);
     database.arm_backup_verify(Some(due)).await.expect("arm");
     assert_eq!(
         database
@@ -302,7 +301,7 @@ async fn a_verification_lands_in_the_history_and_on_its_archive() {
             .await
             .expect("config")
             .verify_next_run_at
-            .map(|at| at.timestamp()),
-        Some(due.timestamp())
+            .map(|at| at.unix_seconds()),
+        Some(due.unix_seconds())
     );
 }

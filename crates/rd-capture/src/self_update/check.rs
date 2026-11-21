@@ -1,7 +1,7 @@
 //! One check of the agent's own update: the service's manifests, the service's key, the agent's
 //! archive (RD-1210-03).
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_update::agent::AgentSetup;
 use rd_update::{
     Channel, Fetcher, HttpFetcher, InstallKind, Sources, Target, TrustStore, UpdateError,
@@ -22,7 +22,7 @@ pub(crate) async fn check_now(
     state: &mut State,
     running: &str,
 ) -> Result<(), UpdateError> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let trust = rd_update::manifest::release_trust(now)?;
     let channel = setup.channel(service_channel.or(state.service_channel));
     check_with(
@@ -46,7 +46,7 @@ pub(crate) async fn check_with(
     (sources, trust): (&Sources, &TrustStore),
     channel: Channel,
     state: &mut State,
-    (running, now): (&str, DateTime<Utc>),
+    (running, now): (&str, Timestamp),
 ) {
     let report = rd_update::check(fetcher, sources, trust, channel, state.floors, now).await;
     state.floors = report.floors;

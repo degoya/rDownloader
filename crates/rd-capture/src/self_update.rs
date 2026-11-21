@@ -22,7 +22,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_update::agent::AgentSetup;
 use rd_update::agent::report::{AgentReport, CHANNEL_HEADER, REQUEST_HEADER, SelfUpdate};
 use rd_update::{Channel, Floors, Offer, UpdateAction, is_newer};
@@ -82,7 +82,7 @@ impl Default for Config {
 #[serde(default)]
 pub(crate) struct State {
     pub(crate) floors: Floors,
-    pub(crate) last_checked: Option<DateTime<Utc>>,
+    pub(crate) last_checked: Option<Timestamp>,
     /// The stable code of what the last check refused or could not reach.
     pub(crate) last_error: Option<String>,
     pub(crate) offer: Option<Offer>,

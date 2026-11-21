@@ -69,7 +69,7 @@ impl Writer {
         change: Move,
     ) -> Result<Vec<Result<bool>>> {
         let next = change.next();
-        let now = chrono::Utc::now();
+        let now = rd_core::Timestamp::now();
         let mut outcomes = Vec::with_capacity(ids.len());
         let mut moved = Vec::new();
         let mut announced = std::collections::HashSet::new();

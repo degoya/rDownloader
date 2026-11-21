@@ -166,7 +166,7 @@ async fn hand_over(
     let content = rd_collector::render_nzb(
         &document(import.password.clone(), files),
         Some(&rd_collector::container_name(&import.name)),
-        import.created_at.timestamp(),
+        import.created_at.unix_seconds(),
     );
     if content.len() > MAX_REMOTE_JOB_CONTAINER_BYTES {
         let max_mib = MAX_REMOTE_JOB_CONTAINER_BYTES / (1024 * 1024);

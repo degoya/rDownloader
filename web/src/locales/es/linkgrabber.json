@@ -647,5 +647,15 @@
     "delete_title": "¿Eliminar enlaces?",
     "delete_description": "{count} enlace se eliminará del LinkGrabber por una regla de eliminación. | {count} enlaces se eliminarán del LinkGrabber por una regla de eliminación.",
     "delete_confirm": "Aplicar y eliminar"
+  },
+  "package_hand_over": {
+    "action": "Entregar a un proveedor remoto",
+    "badge": "Entregado a {provider}",
+    "badge_hint": "El enlace sigue en el LinkGrabber porque los ajustes conservan los enlaces entregados; volver a entregar el paquete no lo envía dos veces.",
+    "done": "«{name}»: {done} enlace entregado a {provider} | «{name}»: {done} enlaces entregados a {provider}",
+    "partly": "«{name}»: {done} de {total} enlaces entregados a {provider}, {stayed} siguen en el LinkGrabber",
+    "nothing": "«{name}»: no se pudo entregar ningún enlace a {provider}",
+    "failed": "«{name}» no se pudo entregar",
+    "provider_fallback": "un proveedor"
   }
 }

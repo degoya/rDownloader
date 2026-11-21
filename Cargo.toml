@@ -165,7 +165,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.43.0"
+version = "1.44.0"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.99"
@@ -198,7 +198,7 @@ clipboard-win = { version = "5.4", features = ["std"] }
 crc32fast = "1"
 # Cron expressions for scheduled subscriptions (RD-130-19): POSIX weekdays and five-field
 # patterns, which is what people copy out of a crontab.
-croner = "4"
+croner = { version = "4", default-features = false, features = ["jiff"] }
 ctr = "0.10"
 dunce = "1"
 directories = "6"
@@ -211,7 +211,7 @@ futures-util = "0.3"
 fs4 = { version = "1.1", default-features = false }
 # System-wide shortcuts for the capture agent's tray commands (RD-1180-03); the same family as
 # `tray-icon`. Linux registers under X11 only, through x11rb, which `arboard` links already.
-global-hotkey = "0.9"
+global-hotkey = "0.10"
 governor = "0.10"
 hex = "0.4"
 hmac = "0.13"
@@ -226,6 +226,12 @@ hyper-util = { version = "0.1", default-features = false, features = ["client-pr
 # `ring` alongside the `aws-lc-rs` reqwest already uses, and rustls then refuses to pick a
 # process-wide provider at all.
 lettre = { version = "0.11", default-features = false, features = ["aws-lc-rs", "builder", "hostname", "smtp-transport", "tokio1", "tokio1-rustls", "webpki-roots"] }
+# Dates, times and zones (RD-1440-05): `rd_core::Timestamp` wraps its `Timestamp`, and the IANA
+# zones of the schedules come from it instead of `chrono-tz`. `tzdb-bundle-always` embeds the
+# zone database as the fallback where the system has none (a slim container, Windows); a system
+# `zoneinfo` still wins on Linux and macOS. Never in a plugin: a component has no clock and no
+# zone database, the host's `now_unix_seconds` is its time.
+jiff = { version = "0.2.46", features = ["tzdb-bundle-always"] }
 keyring = "4.1.6"
 # `rust-tls` rather than `default-tls`: it puts librqbit on the same rustls/aws-lc-rs stack
 # the rest of the workspace uses, and picks the `sha1-ring` info-hash backend instead of
@@ -236,8 +242,9 @@ keyring = "4.1.6"
 librqbit = { version = "9", default-features = false, features = ["rust-tls", "disable-upload"] }
 # XZ decompression for the managed-tool archives (RD-102-04). Pure Rust and decoder-only:
 # unpacking bytes fetched from a release host is exactly the place not to link liblzma.
-# It stays on the version sevenz-rust2 links, so the build carries one (dependabot.yml).
-lzma-rust2 = { version = "0.23", default-features = false, features = ["std", "xz"] }
+# It stays on the version sevenz-rust2 links, so the build carries one (dependabot.yml): the two
+# move together, 0.25 with sevenz-rust2 0.25 (RD-1440-03).
+lzma-rust2 = { version = "0.25", default-features = false, features = ["std", "xz"] }
 md-5 = "0.11"
 mime_guess = "2"
 # Interface enumeration for torrent binding; librqbit links the same crate for UPnP.
@@ -300,13 +307,13 @@ security-framework = "3.7.0"
 subtle = "2.6"
 zeroize = "1.9"
 semver = "1"
-sevenz-rust2 = "0.24"
+sevenz-rust2 = "0.25"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_path_to_error = "0.1.20"
 sha1 = "0.11"
 sha2 = "0.11"
-sqlx = { version = "0.9", default-features = false, features = ["chrono", "macros", "migrate", "runtime-tokio", "sqlite", "uuid"] }
+sqlx = { version = "0.9", default-features = false, features = ["macros", "migrate", "runtime-tokio", "sqlite", "uuid"] }
 # `deprecated` is what gates `connect_secure_implicit`, i.e. implicit FTPS on port 990.
 # It is deprecated as a protocol, not as an API, and RD-060-01 requires it.
 suppaftp = { version = "12", default-features = false, features = ["tokio", "tokio-rustls-aws-lc-rs", "deprecated"] }
@@ -326,7 +333,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tray-icon = "0.26"
 unicode-normalization = "0.1"
 url = { version = "2", features = ["serde"] }
-utoipa = { version = "6", features = ["axum_extras", "chrono", "uuid"] }
+# `chrono` and `jiff_0_2` only teach the derive type names (no dependency): a field typed
+# `Timestamp` renders as `{type: string, format: date-time}` exactly as `DateTime<Utc>` did, and
+# `Date` as `format: date` (RD-1440-05).
+utoipa = { version = "6", features = ["axum_extras", "jiff_0_2", "uuid"] }
 uuid = { version = "1", features = ["serde", "v7"] }
 # The version wasmtime brings (wasmtime 50: 0.261), so the pre-validation adds no second copy;
 # raise it together with wasmtime (RD-150-21).
@@ -358,7 +368,8 @@ winsafe = { version = "0.0.29", default-features = false, features = ["kernel"] 
 wit-bindgen = "0.63"
 # The capture agent's concealment mark under Wayland and X11 (RD-1200-03): the protocol clients
 # `arboard` reads the text with, asked for the `x-kde-passwordManagerHint` it does not read.
-# x11rb stays on the major `arboard` and `global-hotkey` link, so the agent carries one (dependabot.yml).
+# x11rb stays on the major `arboard` and `global-hotkey` link, so the agent carries one (dependabot.yml);
+# arboard 3.7 and global-hotkey 0.10 still link 0.13 (RD-1440-04, 2026-11-21).
 wl-clipboard-rs = "0.9.4"
 x11rb = "0.13"
 zip = { version = "9", default-features = false, features = ["deflate", "aes-crypto"] }

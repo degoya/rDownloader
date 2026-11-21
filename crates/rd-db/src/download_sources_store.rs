@@ -6,10 +6,9 @@
 //! a restart finds the same order, the same failures and the same isolated mirrors.
 
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, Utc};
 use rd_core::{
     CandidateId, ChecksumAlgorithm, ChunkId, DownloadId, DownloadSource, PieceHashes,
-    SourceOutcome, SourceProtocol, SourceSet, source_backoff,
+    SourceOutcome, SourceProtocol, SourceSet, Timestamp, source_backoff,
 };
 use sqlx::{Connection, Row, SqliteConnection, SqlitePool};
 
@@ -28,7 +27,7 @@ pub(crate) async fn insert_set(
     connection: &mut SqliteConnection,
     download_id: DownloadId,
     set: &SourceSet,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     for (position, source) in set.sources.iter().enumerate() {
         let protocol = SourceProtocol::from_scheme(source.url.scheme())
@@ -140,7 +139,7 @@ pub(crate) async fn record_outcome(
     download_id: DownloadId,
     position: u32,
     outcome: &SourceOutcome,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     let id = download_id.to_string();
     let position = i64::from(position);
@@ -249,7 +248,7 @@ pub(crate) async fn mark_chunk(
     )
     .bind(source_position.map(i64::from))
     .bind(i64::from(verified))
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(chunk_id.to_string())
     .execute(&mut *connection)
     .await?;
@@ -286,7 +285,7 @@ pub(crate) async fn rewind_chunk(
         "UPDATE chunks SET committed_offset = ?, verified = 0, updated_at = ? WHERE id = ?",
     )
     .bind(value)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(chunk_id.to_string())
     .execute(&mut *connection)
     .await?;
@@ -295,7 +294,7 @@ pub(crate) async fn rewind_chunk(
          start_offset), 0) FROM chunks WHERE download_id = ?), updated_at = ? WHERE id = ?",
     )
     .bind(&download_id)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(&download_id)
     .execute(&mut *connection)
     .await?;

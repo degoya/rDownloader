@@ -23,7 +23,7 @@ async fn token_expiring(
             format!("expiry {bearer}"),
             hex::encode(Sha256::digest(bearer.as_bytes())),
             vec![scope.to_owned()],
-            Some(chrono::Utc::now() + chrono::Duration::minutes(minutes)),
+            Some(rd_core::Timestamp::now() + rd_core::SignedDuration::from_mins(minutes)),
         )
         .await
         .expect("token")
@@ -130,14 +130,15 @@ async fn minting_takes_an_expiry_in_days_and_lists_it() {
     )
     .await;
     assert_eq!(status, StatusCode::CREATED, "{monthly}");
-    let expires_at: chrono::DateTime<chrono::Utc> = monthly["token"]["expires_at"]
+    let expires_at: rd_core::Timestamp = monthly["token"]["expires_at"]
         .as_str()
         .expect("an expiry")
         .parse()
         .expect("a timestamp");
-    let ahead = expires_at - chrono::Utc::now();
+    let ahead = expires_at - rd_core::Timestamp::now();
     assert!(
-        ahead > chrono::Duration::days(29) && ahead <= chrono::Duration::days(30),
+        ahead > rd_core::SignedDuration::from_hours(24 * 29)
+            && ahead <= rd_core::SignedDuration::from_hours(24 * 30),
         "{ahead}"
     );
 

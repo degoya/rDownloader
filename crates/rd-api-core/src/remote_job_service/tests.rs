@@ -14,8 +14,7 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use rd_core::{AccountId, FailureKind, RemoteJobId, RemoteJobState};
+use rd_core::{AccountId, FailureKind, RemoteJobId, RemoteJobState, Timestamp};
 use rd_plugin_api::{ClientIdentity, HostHttpRequest, HostHttpResponse, ResolverHost};
 use rd_plugin_ext::{PollOutcome, RemoteJobDriver, RemoteJobRunners, RunnerInfo};
 use rd_plugin_host::extension::{
@@ -315,13 +314,13 @@ impl Harness {
             .expect("the row")
     }
 
-    pub(super) async fn sweep(&self, now: DateTime<Utc>) {
+    pub(super) async fn sweep(&self, now: Timestamp) {
         self.service.sweep_once(now).await.expect("sweep");
     }
 }
 
-pub(super) fn later(now: DateTime<Utc>, seconds: i64) -> DateTime<Utc> {
-    now + chrono::Duration::seconds(seconds)
+pub(super) fn later(now: Timestamp, seconds: i64) -> Timestamp {
+    now + rd_core::SignedDuration::from_secs(seconds)
 }
 
 /// The second acceptance criterion: two submits of the same content are one row, and the
@@ -412,7 +411,7 @@ async fn a_magnet_ends_as_one_package_in_the_link_grabber_and_only_one() {
     });
     let harness = harness(&provider).await;
     let id = harness.start().await;
-    let now = Utc::now();
+    let now = Timestamp::now();
 
     // Tick one: the attempt is counted, the source goes over, the identifier comes back.
     harness.sweep(now).await;
@@ -492,7 +491,7 @@ async fn a_restart_inside_the_submit_window_adopts_before_it_submits_again() {
         .expect("counted");
 
     // Nothing is in memory; the first tick after the restart reads the row.
-    harness.sweep(Utc::now()).await;
+    harness.sweep(Timestamp::now()).await;
     let job = harness.job(id).await;
     assert_eq!(provider.calls(), vec!["adopt".to_owned()]);
     assert_eq!(job.remote_id.as_deref(), Some("ORPHAN01"));
@@ -521,7 +520,7 @@ async fn a_restart_creates_no_second_job_when_the_provider_can_adopt_nothing() {
     let id = harness.start().await;
 
     // The identifier came back and was written; then the process died.
-    harness.sweep(Utc::now()).await;
+    harness.sweep(Timestamp::now()).await;
     let job = harness.job(id).await;
     let remote_id = job.remote_id.clone().expect("an identifier");
     assert_eq!(provider.calls(), vec!["submit".to_owned()]);
@@ -529,7 +528,7 @@ async fn a_restart_creates_no_second_job_when_the_provider_can_adopt_nothing() {
     // The restart: nothing is in memory, and the row is read again. It names a job at the
     // provider, so the next thing is a poll and never a second submit -- the adoption is not
     // even reached, which is why a provider that cannot adopt loses nothing here.
-    harness.sweep(Utc::now()).await;
+    harness.sweep(Timestamp::now()).await;
     let job = harness.job(id).await;
     assert_eq!(job.remote_id, Some(remote_id));
     assert_eq!(job.submit_attempts, 1, "the content was handed over once");
@@ -588,7 +587,7 @@ async fn two_attempts_and_an_adoption_check_are_the_ceiling() {
     provider.will_adopt(None);
     let harness = harness(&provider).await;
     let id = harness.start().await;
-    let now = Utc::now();
+    let now = Timestamp::now();
 
     harness.sweep(now).await;
     let job = harness.job(id).await;
@@ -655,7 +654,7 @@ async fn a_job_waiting_for_a_choice_is_not_polled_until_one_is_made() {
     });
     let harness = harness(&provider).await;
     let id = harness.start().await;
-    let now = Utc::now();
+    let now = Timestamp::now();
 
     harness.sweep(now).await;
     harness.sweep(later(now, 20)).await;
@@ -695,7 +694,7 @@ async fn a_job_waiting_for_a_choice_is_not_polled_until_one_is_made() {
     assert_eq!(provider.calls()[2], "choose REMOTE02 [2]");
 
     // And now it is polled again.
-    harness.sweep(later(Utc::now(), 1)).await;
+    harness.sweep(later(Timestamp::now(), 1)).await;
     assert_eq!(provider.calls().len(), 4);
     assert_eq!(provider.calls()[3], "poll REMOTE02");
 
@@ -716,7 +715,7 @@ async fn nothing_is_deleted_at_the_provider_without_an_explicit_confirmation() {
     provider.will_submit(Ok(handle("REMOTE05")));
     let harness = harness(&provider).await;
     let id = harness.start().await;
-    harness.sweep(Utc::now()).await;
+    harness.sweep(Timestamp::now()).await;
     assert_eq!(provider.calls(), vec!["submit".to_owned()]);
 
     // An unconfirmed request reaches no provider and changes no row.
@@ -774,7 +773,7 @@ async fn removing_a_job_from_the_list_deletes_nothing_at_the_provider() {
     provider.will_submit(Ok(handle("REMOTE06")));
     let harness = harness(&provider).await;
     let id = harness.start().await;
-    harness.sweep(Utc::now()).await;
+    harness.sweep(Timestamp::now()).await;
 
     assert!(harness.service.forget(id).await.expect("forget"));
     assert_eq!(
@@ -815,7 +814,7 @@ async fn a_late_answer_for_a_discarded_job_is_refused() {
     provider.will_submit(Ok(handle("REMOTE03")));
     let harness = harness(&provider).await;
     let id = harness.start().await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     harness.sweep(now).await;
     let snapshot = harness.job(id).await;
     assert_eq!(snapshot.state, RemoteJobState::Preparing);
@@ -866,7 +865,7 @@ async fn a_row_whose_plugin_is_gone_fails_once() {
         Arc::new(NoHost),
         RemoteJobRunners::none(),
     );
-    orphan.sweep_once(Utc::now()).await.expect("sweep");
+    orphan.sweep_once(Timestamp::now()).await.expect("sweep");
     let job = harness.job(id).await;
     assert_eq!(job.state, RemoteJobState::Failed);
     assert_eq!(job.code.as_deref(), Some("remote_job.no_plugin"));
@@ -891,7 +890,7 @@ async fn a_failure_to_load_the_plugins_skips_the_tick_and_ends_no_job() {
             Ok(runners_for(&provider)),
         ],
     );
-    let now = Utc::now();
+    let now = Timestamp::now();
 
     let first = restarted.sweep_once(now).await;
     assert!(first.is_err(), "the tick reports the load failure");
@@ -932,15 +931,15 @@ async fn a_refusal_that_names_no_wait_doubles_the_previous_one_and_a_success_res
     provider.will_answer(outage());
     let harness = harness(&provider).await;
     let id = harness.start().await;
-    harness.sweep(Utc::now()).await;
+    harness.sweep(Timestamp::now()).await;
 
     // The wait is read back off the row, so it is asserted the same way: due minus written.
     let waited = |job: &rd_core::RemoteJob| {
-        ((job.next_poll_at.expect("waiting") - job.updated_at).num_milliseconds() + 500) / 1_000
+        ((job.next_poll_at.expect("waiting") - job.updated_at).as_millis() + 500) / 1_000
     };
     for ladder in [30, 60, 120] {
         // Due on the wall clock, whatever the last wait was.
-        harness.sweep(later(Utc::now(), 1_000)).await;
+        harness.sweep(later(Timestamp::now(), 1_000)).await;
         let job = harness.job(id).await;
         assert_eq!(
             job.state,
@@ -956,13 +955,13 @@ async fn a_refusal_that_names_no_wait_doubles_the_previous_one_and_a_success_res
     }
     // One good answer clears the code, and the next outage starts over from the default
     // of the state it finds the row in -- `working`, thirty seconds, doubled once.
-    harness.sweep(later(Utc::now(), 1_000)).await;
+    harness.sweep(later(Timestamp::now(), 1_000)).await;
     let job = harness.job(id).await;
     assert_eq!(job.state, RemoteJobState::Working);
     assert_eq!(job.code, None);
     // The good answer was due on the tick's clock, a thousand seconds ahead of the wall, so
     // the outage after it has to be further ahead still to find the row due.
-    harness.sweep(later(Utc::now(), 2_000)).await;
+    harness.sweep(later(Timestamp::now(), 2_000)).await;
     let job = harness.job(id).await;
     let seconds = waited(&job);
     assert!((59..=61).contains(&seconds), "reset to 60s, got {seconds}s");
@@ -972,7 +971,7 @@ async fn a_refusal_that_names_no_wait_doubles_the_previous_one_and_a_success_res
 /// state's default, and never passes the maximum.
 #[test]
 fn the_backoff_ladder_starts_at_the_default_and_stops_at_the_maximum() {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut job = rd_core::RemoteJob {
         id: RemoteJobId::new(),
         account_id: AccountId::new(),
@@ -999,16 +998,16 @@ fn the_backoff_ladder_starts_at_the_default_and_stops_at_the_maximum() {
     assert_eq!(backoff(&job), 30);
     // A refusal that waited 300 seconds: twice that.
     job.code = Some("mock.refused".to_owned());
-    job.next_poll_at = Some(now + chrono::Duration::seconds(300));
+    job.next_poll_at = Some(now + rd_core::SignedDuration::from_secs(300));
     assert_eq!(backoff(&job), 600);
     // And the ladder stops at the maximum rather than climbing past it.
-    job.next_poll_at = Some(now + chrono::Duration::seconds(600));
+    job.next_poll_at = Some(now + rd_core::SignedDuration::from_secs(600));
     assert_eq!(backoff(&job), rd_core::MAX_POLL_SECONDS);
-    job.next_poll_at = Some(now + chrono::Duration::seconds(900));
+    job.next_poll_at = Some(now + rd_core::SignedDuration::from_secs(900));
     assert_eq!(backoff(&job), rd_core::MAX_POLL_SECONDS);
     // A recorded wait shorter than the default -- a provider's own five seconds -- still
     // doubles from the default, never below it.
-    job.next_poll_at = Some(now + chrono::Duration::seconds(5));
+    job.next_poll_at = Some(now + rd_core::SignedDuration::from_secs(5));
     assert_eq!(backoff(&job), 30);
 }
 
@@ -1020,7 +1019,7 @@ async fn a_job_discarded_while_its_ready_poll_was_in_flight_gets_no_batch() {
     provider.will_submit(Ok(handle("REMOTE07")));
     let harness = harness(&provider).await;
     let id = harness.start().await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     harness.sweep(now).await;
     let snapshot = harness.job(id).await;
     harness
@@ -1101,7 +1100,7 @@ async fn an_address_runs_through_the_host_to_the_queue() {
         "identifying reaches no provider"
     );
 
-    let now = Utc::now();
+    let now = Timestamp::now();
     harness.sweep(now).await;
     assert_eq!(
         provider.submitted(),
@@ -1166,7 +1165,7 @@ async fn a_container_runs_through_the_host_to_the_plugin() {
         "identifying reaches no provider"
     );
 
-    harness.sweep(Utc::now()).await;
+    harness.sweep(Timestamp::now()).await;
     assert_eq!(
         provider.submitted(),
         vec![RemoteJobSource::Container(torrent)],
@@ -1197,7 +1196,7 @@ async fn a_question_asked_again_after_the_answer_ends_the_job_and_never_reopens_
     provider.will_answer(question());
     let harness = harness(&provider).await;
     let id = harness.start().await;
-    let now = Utc::now();
+    let now = Timestamp::now();
 
     harness.sweep(now).await;
     harness.sweep(later(now, 20)).await;
@@ -1208,7 +1207,7 @@ async fn a_question_asked_again_after_the_answer_ends_the_job_and_never_reopens_
     };
     assert_eq!(job.state, RemoteJobState::Working);
 
-    harness.sweep(later(Utc::now(), 1)).await;
+    harness.sweep(later(Timestamp::now(), 1)).await;
     let job = harness.job(id).await;
     assert_ne!(job.state, RemoteJobState::AwaitingChoice);
     assert_eq!(job.state, RemoteJobState::Failed);
@@ -1232,7 +1231,7 @@ async fn a_question_asked_again_after_the_answer_ends_the_job_and_never_reopens_
     );
 
     // Ended is ended: nothing polls it again, and no answer reopens it.
-    harness.sweep(later(Utc::now(), 86_400)).await;
+    harness.sweep(later(Timestamp::now(), 86_400)).await;
     assert_eq!(provider.calls().len(), 4);
     let ChoiceOutcome::Refused(refused) = harness.service.choose(id, &[1]).await.expect("choose")
     else {

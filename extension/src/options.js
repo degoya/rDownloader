@@ -1,5 +1,6 @@
 import { hostPattern, isLoopback, normalizeServer, ping, sendsTokenInClear } from './api.js'
 import { api, loadConfig, message, saveConfig } from './browser.js'
+import { MAX_TYPES, browserOnlyEntries, normalizeMode, parseExtensions } from './file-types.js'
 import { loadSites, revokeSite } from './files.js'
 
 /**
@@ -40,6 +41,36 @@ export function saveStatus(outcome) {
   if (outcome === 'invalid') return { key: 'serverInvalid', ok: false }
   if (outcome === 'deniedLoopback') return { key: 'permissionDeniedLoopback', ok: false }
   return { key: 'permissionDenied', ok: false }
+}
+
+/**
+ * What the options page says under the list of file types (RD-1440-08), as message keys with
+ * their substitutions: entries that are no file extension, entries beyond the cap, an empty
+ * `only` list, and the selected types the browser downloads itself — those reach rDownloader only
+ * from a site the person allowed, otherwise they stay in the browser.
+ */
+export function typesNotices(mode, text) {
+  const { extensions, invalid, overflow } = parseExtensions(text)
+  const notices = []
+  if (invalid.length) notices.push({ key: 'optionsInterceptTypesInvalid', substitutions: [invalid.join(', ')] })
+  if (overflow) notices.push({ key: 'optionsInterceptTypesTooMany', substitutions: [String(MAX_TYPES)] })
+  if (normalizeMode(mode) === 'only') {
+    if (!extensions.length) notices.push({ key: 'optionsInterceptTypesEmpty', substitutions: undefined })
+    const own = browserOnlyEntries(extensions)
+    if (own.length) notices.push({ key: 'optionsInterceptTypesBrowserOnly', substitutions: [own.join(', ')] })
+  }
+  return notices
+}
+
+/** Greys the list out while every download is taken, and says what the list means. */
+function showTypes() {
+  const mode = document.getElementById('intercept-mode').value
+  const types = document.getElementById('intercept-types')
+  types.disabled = normalizeMode(mode) === 'all'
+  const notices = types.disabled ? [] : typesNotices(mode, types.value)
+  const notice = document.getElementById('intercept-types-notice')
+  notice.textContent = notices.map(({ key, substitutions }) => message(key, substitutions)).join(' ')
+  notice.hidden = notices.length === 0
 }
 
 function localize() {
@@ -97,19 +128,29 @@ async function init() {
   document.getElementById('token').value = config.token
   document.getElementById('intercept').checked = config.interceptDownloads !== false
   document.getElementById('click-and-load').checked = config.clickAndLoad !== false
+  document.getElementById('intercept-mode').value = config.interceptMode
+  document.getElementById('intercept-types').value = config.interceptTypes.join(' ')
+  document.getElementById('intercept-mode').addEventListener('change', showTypes)
+  document.getElementById('intercept-types').addEventListener('input', showTypes)
+  showTypes()
   document.getElementById('save').addEventListener('click', async () => {
     const server = normalizeServer(document.getElementById('server').value)
     const token = document.getElementById('token').value.trim()
     const interceptDownloads = document.getElementById('intercept').checked
     const clickAndLoad = document.getElementById('click-and-load').checked
+    const interceptMode = normalizeMode(document.getElementById('intercept-mode').value)
+    const interceptTypes = parseExtensions(document.getElementById('intercept-types').value).extensions
     const outcome = await ensurePermission(server)
     const status = saveStatus(outcome)
     if (outcome !== 'granted') {
       setStatus(message(status.key), status.ok)
       return
     }
-    await saveConfig({ server, token, interceptDownloads, clickAndLoad })
+    await saveConfig({ server, token, interceptDownloads, interceptMode, interceptTypes, clickAndLoad })
     document.getElementById('server').value = server
+    // The list as it is stored: normalised, without what was dropped.
+    document.getElementById('intercept-types').value = interceptTypes.join(' ')
+    showTypes()
     setStatus(message(status.key), status.ok)
   })
   document.getElementById('test').addEventListener('click', async () => {

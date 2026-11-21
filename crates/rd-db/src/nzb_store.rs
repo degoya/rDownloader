@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
-use chrono::Utc;
 use rd_core::{
     ByteCount, EventEnvelope, EventKind, NzbFileId, NzbImport, NzbImportId, NzbImportState,
+    Timestamp,
 };
 use sqlx::{Connection, SqliteConnection};
 use url::Url;
@@ -122,7 +122,7 @@ pub(crate) async fn add_import(
         password: new.password.clone(),
         position,
         handed_over: None,
-        created_at: Utc::now(),
+        created_at: Timestamp::now(),
     };
     insert_import_row(&mut transaction, &import).await?;
     insert_import_files(&mut transaction, &import, new.files).await?;

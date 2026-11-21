@@ -274,7 +274,7 @@ pub fn to_record(event: AuditEvent) -> NewAuditRecord {
         .map(|(key, value)| (key.clone(), clean_detail(key, value)))
         .collect();
     NewAuditRecord {
-        recorded_at: chrono::Utc::now(),
+        recorded_at: rd_core::Timestamp::now(),
         action: event.action,
         outcome: event.outcome,
         actor_kind: event.actor.kind,

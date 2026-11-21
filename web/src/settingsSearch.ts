@@ -128,6 +128,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('linkgrabber.mirrors', 'linkgrabber', 'settings.mirrors.label', { tab: 'general', descriptionKey: 'settings.mirrors.description' }),
   card('linkgrabber.link_filters', 'linkgrabber', 'settings.link_filters.list_title', { tab: 'filters', descriptionKey: 'settings.link_filters.description', keywordsKey: `${K}.link_filters`, terms: ['LinkFilter'] }),
   field('linkgrabber.duplicates_history', 'linkgrabber', 'settings.duplicates_history.label', { tab: 'general', descriptionKey: 'settings.duplicates_history.description' }),
+  card('linkgrabber.hand_over', 'linkgrabber', 'settings.collector.package_hand_over.title', { tab: 'general', descriptionKey: 'settings.collector.package_hand_over.description', terms: ['TorBox', 'Real-Debrid', 'Premiumize'] }),
   // Bandwidth
   field('bandwidth.speed_limit', 'bandwidth', 'settings.speed_limit.label', { tab: 'status', descriptionKey: 'settings.limits.description', keywordsKey: `${K}.speed_limit` }),
   field('bandwidth.upload_limit', 'bandwidth', 'settings.upload_limit.label', { tab: 'status', descriptionKey: 'settings.upload_limit.description', keywordsKey: `${K}.speed_limit` }),

@@ -38,7 +38,7 @@ async fn written() -> Written {
         &key,
         &staging_root(&data),
         "run",
-        chrono::Utc::now(),
+        rd_core::Timestamp::now(),
     )
     .await
     .expect("seal");

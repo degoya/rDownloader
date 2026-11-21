@@ -17,9 +17,8 @@ use crate::common;
 use std::collections::BTreeMap;
 
 use axum::http::StatusCode;
-use chrono::Utc;
 use common::{get_json, post_json, test_harness};
-use rd_core::{AuditAction, AuditOutcome, LogLevel};
+use rd_core::{AuditAction, AuditOutcome, LogLevel, Timestamp};
 use rd_db::{NewAuditRecord, NewDelivery, NewLogRecord};
 use rd_notify::{DeliveryState, NotificationEvent};
 use serde_json::json;
@@ -43,7 +42,7 @@ async fn seed(database: &rd_db::Database) {
         .append_log_records(
             (0..4)
                 .map(|index| NewLogRecord {
-                    recorded_at: Utc::now(),
+                    recorded_at: Timestamp::now(),
                     level: LogLevel::Info,
                     component: "rd_api".to_owned(),
                     code: None,
@@ -240,7 +239,8 @@ async fn seed_deliveries(database: &rd_db::Database) {
                 delivery.id,
                 state,
                 1,
-                (state == DeliveryState::Retrying).then(|| Utc::now() + chrono::Duration::hours(1)),
+                (state == DeliveryState::Retrying)
+                    .then(|| Timestamp::now() + rd_core::SignedDuration::from_hours(1)),
                 None,
                 None,
             )

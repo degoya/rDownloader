@@ -1,6 +1,6 @@
 //! The operational notices' keys and the account check's reading (RD-190-19).
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use rd_notify::NotificationEvent;
 use rd_plugin_host::{AccountStatus, LabelPart};
 
@@ -20,8 +20,8 @@ fn account() -> rd_core::Account {
     }
 }
 
-fn day(text: &str) -> NaiveDate {
-    NaiveDate::parse_from_str(text, "%Y-%m-%d").expect("date")
+fn day(text: &str) -> Date {
+    text.parse().expect("date")
 }
 
 fn status(valid: bool, label: Vec<LabelPart>) -> AccountStatus {

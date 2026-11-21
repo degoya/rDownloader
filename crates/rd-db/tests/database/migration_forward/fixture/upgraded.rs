@@ -1,7 +1,6 @@
 //! What the release fixture must look like after the upgrade.
 
-use chrono::SecondsFormat;
-use rd_core::PackageState;
+use rd_core::{PackageState, SecondsFormat};
 use sqlx::Connection;
 
 use super::{

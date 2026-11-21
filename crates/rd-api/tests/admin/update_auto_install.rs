@@ -10,9 +10,9 @@ use crate::common;
 use crate::updates::{ARTIFACT_BYTES, install_reaches, installable};
 
 use axum::http::StatusCode;
-use chrono::{Duration, Timelike, Utc};
 use common::{get_json, post_json, put_json};
 use rd_api::update_auto_install::{AutoInstaller, Tick};
+use rd_core::{SignedDuration, Timestamp};
 use rd_update::auto_install::Wait;
 use serde_json::json;
 
@@ -79,10 +79,10 @@ async fn switched_on_it_installs_after_the_quiet_period_and_off_never() {
     assert_eq!(status["installs_itself"], true, "{status}");
 
     let mut installer = AutoInstaller::default();
-    let now = Utc::now();
+    let now = Timestamp::now();
     for minutes in [0, 10, 600] {
         let tick = installer
-            .tick(&harness.state, now + Duration::minutes(minutes))
+            .tick(&harness.state, now + SignedDuration::from_mins(minutes))
             .await;
         assert_eq!(tick, Tick::Waiting(Wait::Off));
     }
@@ -98,7 +98,7 @@ async fn switched_on_it_installs_after_the_quiet_period_and_off_never() {
     );
     assert_eq!(
         installer
-            .tick(&harness.state, now + Duration::minutes(6))
+            .tick(&harness.state, now + SignedDuration::from_mins(6))
             .await,
         Tick::Started("99.0.0".to_owned())
     );
@@ -136,7 +136,7 @@ async fn switched_on_it_installs_after_the_quiet_period_and_off_never() {
     // version waits for a person.
     assert_eq!(
         installer
-            .tick(&harness.state, now + Duration::minutes(7))
+            .tick(&harness.state, now + SignedDuration::from_mins(7))
             .await,
         Tick::Waiting(Wait::Installing)
     );
@@ -152,7 +152,7 @@ async fn switched_on_it_installs_after_the_quiet_period_and_off_never() {
     for minutes in [20, 30] {
         assert_eq!(
             installer
-                .tick(&harness.state, now + Duration::minutes(minutes))
+                .tick(&harness.state, now + SignedDuration::from_mins(minutes))
                 .await,
             Tick::Waiting(Wait::FailedBefore)
         );
@@ -180,11 +180,11 @@ async fn an_installation_that_does_not_install_itself_is_left_alone() {
     let (_, status) = get_json(&harness.router, "/api/v1/system/update").await;
     assert_eq!(status["installs_itself"], false, "{status}");
     let mut installer = AutoInstaller::default();
-    let now = Utc::now();
+    let now = Timestamp::now();
     for minutes in [0, 10] {
         assert_eq!(
             installer
-                .tick(&harness.state, now + Duration::minutes(minutes))
+                .tick(&harness.state, now + SignedDuration::from_mins(minutes))
                 .await,
             Tick::Waiting(Wait::Unsupported)
         );
@@ -202,8 +202,10 @@ async fn the_install_window_is_kept_and_validated() {
         ARTIFACT_BYTES,
     )
     .await;
-    let now = Utc::now();
-    let minute = u16::try_from(now.hour() * 60 + now.minute()).expect("minute");
+    let now = Timestamp::now();
+    let clock = now.utc_datetime();
+    let minute =
+        u16::try_from(i32::from(clock.hour()) * 60 + i32::from(clock.minute())).expect("minute");
     let (_, settings) = get_json(&harness.router, "/api/v1/settings").await;
     let mut empty = settings.clone();
     empty["admin_login_disabled"] = json!(true);
@@ -240,13 +242,13 @@ async fn the_install_window_is_kept_and_validated() {
     );
     assert_eq!(
         installer
-            .tick(&harness.state, now + Duration::minutes(6))
+            .tick(&harness.state, now + SignedDuration::from_mins(6))
             .await,
         Tick::Waiting(Wait::OutsideWindow)
     );
     assert_eq!(
         installer
-            .tick(&harness.state, now + Duration::minutes(61))
+            .tick(&harness.state, now + SignedDuration::from_mins(61))
             .await,
         Tick::Started("99.0.0".to_owned())
     );

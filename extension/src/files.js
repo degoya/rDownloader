@@ -25,6 +25,7 @@
 // - The browser's copy is removed only after rDownloader said it took the file.
 
 import { request } from './api.js'
+import { captureFilter, passesTypeFilter } from './file-types.js'
 import { baseName, handOverName, headerValue, staysInBrowser } from './intercept.js'
 import { toNetscape } from './session.js'
 import { withCookieData } from './data-collection.js'
@@ -276,6 +277,8 @@ export function createFileHandover({
   async function attach(details, disposition, mime) {
     const config = await loadConfig()
     if (!config?.token || config.interceptDownloads === false) return
+    // A type the person's list leaves out is not copied either (RD-1440-08).
+    if (!passesTypeFilter({ mime, url: details.url }, { contentDisposition: disposition }, captureFilter(config))) return
     if (!(await siteConsented(api, details.url))) return
     let filter
     try {

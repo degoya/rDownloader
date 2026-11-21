@@ -224,7 +224,7 @@ async fn quality_language_and_exclusion_filters_reach_a_release_name() {
                 &subscription.filters,
                 subscription.backlog,
                 subscription.primed,
-                chrono::Utc::now(),
+                rd_core::Timestamp::now(),
             );
             (
                 item.title.clone(),

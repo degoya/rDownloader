@@ -55,12 +55,15 @@ pub(super) fn schedule_input(request: &SubscriptionRequest) -> Result<Option<Str
             "Only a script subscription runs on a schedule",
         ));
     }
-    rd_subscription::next_scheduled(expression, chrono::Utc::now(), &chrono::Local).map_err(
-        |error| {
-            ApiError::unprocessable("subscription.schedule_invalid", error.to_string())
-                .with_param("value", expression.chars().take(64).collect::<String>())
-        },
-    )?;
+    rd_subscription::next_scheduled(
+        expression,
+        rd_core::Timestamp::now(),
+        &jiff::tz::TimeZone::system(),
+    )
+    .map_err(|error| {
+        ApiError::unprocessable("subscription.schedule_invalid", error.to_string())
+            .with_param("value", expression.chars().take(64).collect::<String>())
+    })?;
     Ok(Some(expression.to_owned()))
 }
 

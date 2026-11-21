@@ -271,8 +271,8 @@ impl AuthService {
                 return None;
             }
         };
-        let stale = chrono::Utc::now() - session.last_used_at
-            > chrono::Duration::seconds(rd_db::SESSION_TOUCH_INTERVAL_SECONDS);
+        let stale = rd_core::Timestamp::now() - session.last_used_at
+            > rd_core::SignedDuration::from_secs(rd_db::SESSION_TOUCH_INTERVAL_SECONDS);
         if stale && let Err(error) = state.database.touch_session(digest).await {
             // Losing the timestamp costs accuracy in the inventory and nothing else, so it
             // must not cost the request its authentication.

@@ -647,5 +647,15 @@
     "delete_title": "Delete links?",
     "delete_description": "{count} link will be deleted from the LinkGrabber by a delete rule. | {count} links will be deleted from the LinkGrabber by a delete rule.",
     "delete_confirm": "Apply and delete"
+  },
+  "package_hand_over": {
+    "action": "Hand over to remote provider",
+    "badge": "Handed to {provider}",
+    "badge_hint": "The link stays in the LinkGrabber because the settings keep links that were handed over; handing the package over again does not send it twice.",
+    "done": "“{name}”: {done} link handed to {provider} | “{name}”: {done} links handed to {provider}",
+    "partly": "“{name}”: {done} of {total} links handed to {provider}, {stayed} stay in the LinkGrabber",
+    "nothing": "“{name}”: no link could be handed to {provider}",
+    "failed": "“{name}” could not be handed over",
+    "provider_fallback": "a provider"
   }
 }

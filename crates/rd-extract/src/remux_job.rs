@@ -220,16 +220,15 @@ pub(crate) fn segments_of(state: &rd_core::RecordingState, directory: &Path) -> 
 #[cfg(test)]
 mod tests {
     use super::{ffmpeg_arguments, segments_of};
-    use chrono::Utc;
-    use rd_core::{RecordingSegment, RecordingState, SegmentEnd};
+    use rd_core::{RecordingSegment, RecordingState, SegmentEnd, Timestamp};
 
     fn segment(index: u32, name: &str) -> RecordingSegment {
         RecordingSegment {
             index,
             file_name: name.to_owned(),
             bytes: 10,
-            started_at: Utc::now(),
-            ended_at: Some(Utc::now()),
+            started_at: Timestamp::now(),
+            ended_at: Some(Timestamp::now()),
             reason: SegmentEnd::Finished,
         }
     }

@@ -13,7 +13,7 @@
 use std::path::Path;
 
 use anyhow::Context;
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};
 
 use crate::{error::ToolError, store::validate_segment};
@@ -27,7 +27,7 @@ pub struct ActivePointer {
     /// Directory name under the tool's directory.
     pub version: String,
     /// When this version was activated, for the status display.
-    pub activated_at: DateTime<Utc>,
+    pub activated_at: Timestamp,
 }
 
 /// Reads the pointer, or `None` when there is none or it cannot be read.
@@ -53,7 +53,7 @@ pub async fn read(tool_directory: &Path) -> Option<ActivePointer> {
 pub async fn write(tool_directory: &Path, version: &str) -> Result<ActivePointer, ToolError> {
     let pointer = ActivePointer {
         version: version.to_owned(),
-        activated_at: Utc::now(),
+        activated_at: Timestamp::now(),
     };
     let encoded = serde_json::to_vec_pretty(&pointer)
         .context("serialise the active-version pointer")

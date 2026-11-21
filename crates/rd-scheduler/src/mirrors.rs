@@ -17,7 +17,7 @@
 //! which the LinkGrabber has no business deciding: who runs, who waits, who takes over when
 //! an attempt fails, and when the group is out of mirrors.
 
-use rd_core::{DownloadFile, DownloadState, Failure, FailureKind};
+use rd_core::{DownloadFile, DownloadState, Failure, FailureKind, Timestamp};
 
 /// A resume refused because another link to the same file is already downloading.
 ///
@@ -79,10 +79,7 @@ pub const fn groups_mirrors(kind: rd_core::DownloadKind) -> bool {
 /// gone, refused, limited, out of captchas. Only a plain `Transient` and a rejected captcha
 /// stay where they are, because those two genuinely mean "this mirror, in a moment".
 #[must_use]
-pub(crate) fn hands_over(
-    failure: &Failure,
-    retry_at: Option<chrono::DateTime<chrono::Utc>>,
-) -> bool {
+pub(crate) fn hands_over(failure: &Failure, retry_at: Option<Timestamp>) -> bool {
     if is_local(failure) {
         return false;
     }
@@ -207,7 +204,7 @@ pub(crate) const fn is_contending(state: DownloadState) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use rd_core::{Failure, FailureKind};
+    use rd_core::{Failure, FailureKind, Timestamp};
 
     use super::{groups_mirrors, hands_over, is_local};
 
@@ -229,7 +226,7 @@ mod tests {
         // Even with a retry still scheduled: another hoster serves now, this one does not.
         assert!(hands_over(
             &Failure::new(FailureKind::Offline, "no route"),
-            Some(chrono::Utc::now()),
+            Some(Timestamp::now()),
         ));
     }
 
@@ -250,11 +247,11 @@ mod tests {
                 },
                 "wait 15 minutes",
             ),
-            Some(chrono::Utc::now()),
+            Some(Timestamp::now()),
         ));
         assert!(hands_over(
             &Failure::new(FailureKind::AccountInvalid, "refused"),
-            Some(chrono::Utc::now()),
+            Some(Timestamp::now()),
         ));
     }
 
@@ -290,7 +287,7 @@ mod tests {
             "502 bad gateway",
         );
         assert!(
-            !hands_over(&blip, Some(chrono::Utc::now())),
+            !hands_over(&blip, Some(Timestamp::now())),
             "one hiccup must not burn a mirror while a retry is scheduled"
         );
         assert!(

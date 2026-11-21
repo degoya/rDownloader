@@ -6,8 +6,7 @@
 //! somebody else.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use rd_core::{PackageId, PostprocessKind};
+use rd_core::{PackageId, PostprocessKind, Timestamp};
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 
 /// What a full package reset may delete beyond its downloads' own files, read before it starts.
@@ -27,7 +26,7 @@ pub(crate) async fn record(
     connection: &mut SqliteConnection,
     package_id: PackageId,
     paths: &[String],
-    at: DateTime<Utc>,
+    at: Timestamp,
 ) -> Result<()> {
     let mut transaction = connection.begin().await?;
     for path in paths {

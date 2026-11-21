@@ -11,13 +11,12 @@
 use std::path::PathBuf;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
-use chrono::{DateTime, Utc};
 use rd_backup::{
     BackupKey,
     schedule::Due,
     verify::{ExpectedArchive, verify_at},
 };
-use rd_core::{AuditAction, BackupOrigin, BackupVerifyState};
+use rd_core::{AuditAction, BackupOrigin, BackupVerifyState, Timestamp};
 use rd_db::{BackupArchive, BackupVerification, BackupVerificationOutcome};
 
 use crate::audit::{AuditContext, AuditEvent};
@@ -33,7 +32,7 @@ pub fn scratch_root(state: &AppState) -> PathBuf {
 }
 
 /// One look at the verification schedule at `now`; returns how many verifications it started.
-pub async fn tick(state: &AppState, now: DateTime<Utc>) -> usize {
+pub async fn tick(state: &AppState, now: Timestamp) -> usize {
     let config = match state.database.backup_config().await {
         Ok(config) => config,
         Err(error) => {
@@ -136,7 +135,7 @@ pub(crate) async fn start_verification(
         destination_id: Some(record.id.clone()),
         destination: backup_delivery::label(&record),
         archive_name: archive.archive_name.clone(),
-        started_at: Utc::now(),
+        started_at: Timestamp::now(),
         finished_at: None,
         content_checked: None,
         error_code: None,

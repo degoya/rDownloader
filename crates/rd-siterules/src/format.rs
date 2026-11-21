@@ -6,7 +6,7 @@
 //! domains — plus what this project needs to keep a rule honest: a real address to probe
 //! (RD-110-09) and the date the service was last measured alive.
 
-use chrono::NaiveDate;
+use rd_core::Date;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -73,7 +73,7 @@ pub struct Rule {
     /// A real address the self-test (RD-110-09) fetches. Must be one this rule claims.
     pub probe: String,
     /// The date the service was last measured alive.
-    pub checked: NaiveDate,
+    pub checked: Date,
 }
 
 /// Whether a flag is off, for `skip_serializing_if`.

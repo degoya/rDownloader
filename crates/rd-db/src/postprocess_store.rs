@@ -1,7 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use rd_core::{
     EventEnvelope, EventKind, NzbFileId, PostprocessKind, PostprocessState, PostprocessStep,
+    Timestamp,
 };
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -126,7 +126,7 @@ fn checkpoint_event(checkpoint: &NzbCheckpoint) -> EventEnvelope {
 async fn write_checkpoint(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     checkpoint: NzbCheckpoint,
-    at: DateTime<Utc>,
+    at: Timestamp,
 ) -> Result<()> {
     match checkpoint {
         NzbCheckpoint::FileOutput { id, output_path } => {
@@ -206,7 +206,7 @@ async fn write_assembly_segments(
     name: String,
     declared_size: u64,
     segments: Vec<AssembledSegment>,
-    at: DateTime<Utc>,
+    at: Timestamp,
 ) -> Result<()> {
     anyhow::ensure!(
         !segments.is_empty(),
@@ -270,7 +270,7 @@ async fn upsert_step(
     code: Option<String>,
     params: rd_core::MessageParams,
     checkpoint: Option<Vec<u8>>,
-    at: DateTime<Utc>,
+    at: Timestamp,
 ) -> Result<()> {
     let running = state == PostprocessState::Running;
     // An empty parameter map is stored as NULL rather than as `{}`: the two mean the
@@ -314,7 +314,7 @@ async fn enqueue_steps(
     tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     owner_id: String,
     steps: Vec<(PostprocessKind, String, i64)>,
-    at: DateTime<Utc>,
+    at: Timestamp,
 ) -> Result<()> {
     for (kind, source_path, position) in steps {
         sqlx::query(
@@ -346,7 +346,7 @@ async fn write_progress(
     stage: rd_core::PostprocessStage,
     percent: Option<u8>,
     current: Option<String>,
-    at: DateTime<Utc>,
+    at: Timestamp,
 ) -> Result<()> {
     sqlx::query(
         "UPDATE postprocess_steps SET progress_percent = ?, updated_at = ? \
@@ -397,10 +397,10 @@ struct StepRow {
     message: Option<String>,
     code: Option<String>,
     params_json: Option<String>,
-    updated_at: chrono::DateTime<Utc>,
+    updated_at: rd_core::Timestamp,
     position: i64,
     progress_percent: Option<i64>,
-    started_at: Option<chrono::DateTime<Utc>>,
+    started_at: Option<rd_core::Timestamp>,
     checkpoint: Option<Vec<u8>>,
 }
 

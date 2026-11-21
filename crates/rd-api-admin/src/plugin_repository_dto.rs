@@ -35,7 +35,7 @@ pub struct PluginRepositoryResponse {
 impl PluginRepositoryResponse {
     pub(crate) fn from_row(
         row: rd_db::PluginRepository,
-        expires_at: Option<chrono::DateTime<chrono::Utc>>,
+        expires_at: Option<rd_core::Timestamp>,
     ) -> Self {
         Self {
             url: row

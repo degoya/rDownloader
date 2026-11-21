@@ -88,7 +88,7 @@ async fn a_backup_opens_with_the_passphrase_and_every_part_matches_its_manifest(
         .await
         .expect("destination");
     let staging = staging_root(&setup.directory.path().join("data"));
-    let started = chrono::Utc::now();
+    let started = rd_core::Timestamp::now();
     let created = create_backup(
         &setup.database,
         sources(&setup),
@@ -190,7 +190,7 @@ async fn the_plugin_trust_comes_back_through_the_archive_table_for_table() {
         &destination,
         &staging,
         "run-trust",
-        chrono::Utc::now(),
+        rd_core::Timestamp::now(),
     )
     .await
     .expect("backup");
@@ -258,7 +258,7 @@ async fn a_member_the_manifest_does_not_name_is_refused() {
     let (size, sha256) =
         rd_backup::archive::digest_file(&staging.join("settings.json")).expect("digest");
     let manifest = rd_backup::Manifest::new(
-        chrono::Utc::now(),
+        rd_core::Timestamp::now(),
         "test".to_owned(),
         vec![rd_backup::ManifestPart {
             name: "settings.json".to_owned(),

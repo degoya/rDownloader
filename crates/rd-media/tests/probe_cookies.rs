@@ -131,7 +131,7 @@ impl Harness {
             .expect("store cookies");
         let expires_at = profile
             .expired
-            .then(|| chrono::Utc::now() - chrono::Duration::hours(1));
+            .then(|| rd_core::Timestamp::now() - rd_core::SignedDuration::from_hours(1));
         self.database
             .create_auth_profile(NewAuthProfile {
                 name: profile.host.to_owned(),

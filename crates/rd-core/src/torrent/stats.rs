@@ -10,7 +10,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::ByteCount;
+use crate::{ByteCount, Timestamp};
 
 /// Number of buckets the piece bitfield is folded into, regardless of torrent size.
 pub const PIECE_BUCKETS: usize = 512;
@@ -44,7 +44,7 @@ pub struct TorrentAggregateStats {
     pub ratio: f64,
     /// Total seconds spent seeding, across restarts.
     pub seeded_seconds: u64,
-    pub sampled_at: chrono::DateTime<chrono::Utc>,
+    pub sampled_at: Timestamp,
     /// Session incarnation the sample came from. A changed generation tells a client that
     /// the engine was rebuilt and older samples are not comparable.
     pub session_generation: u64,
@@ -86,7 +86,7 @@ pub struct TorrentPeerPage {
     /// Opaque cursor for the next page; `None` on the last page.
     pub next_cursor: Option<String>,
     pub live: bool,
-    pub sampled_at: chrono::DateTime<chrono::Utc>,
+    pub sampled_at: Timestamp,
 }
 
 /// Bucketed piece availability, so the payload stays constant for a 50-piece torrent and a
@@ -100,17 +100,13 @@ pub struct TorrentPieceAvailability {
     /// [`PIECE_BUCKETS`], so the payload does not grow with the torrent.
     pub buckets: Vec<u8>,
     pub live: bool,
-    pub sampled_at: chrono::DateTime<chrono::Utc>,
+    pub sampled_at: Timestamp,
 }
 
 impl TorrentPieceAvailability {
     /// Folds a have-bitfield into [`PIECE_BUCKETS`] percentage buckets.
     #[must_use]
-    pub fn from_bitfield(
-        have: &[bool],
-        sampled_at: chrono::DateTime<chrono::Utc>,
-        live: bool,
-    ) -> Self {
+    pub fn from_bitfield(have: &[bool], sampled_at: Timestamp, live: bool) -> Self {
         let piece_count = have.len();
         if piece_count == 0 {
             return Self {
@@ -166,7 +162,7 @@ pub fn mask_peer_address(address: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use chrono::Utc;
+    use crate::Timestamp;
 
     use super::{
         PIECE_BUCKETS, TorrentAggregateStats, TorrentPieceAvailability, mask_peer_address,
@@ -180,9 +176,10 @@ mod tests {
 
     #[test]
     fn a_large_bitfield_folds_into_a_fixed_number_of_buckets() {
-        let small = TorrentPieceAvailability::from_bitfield(&vec![true; 50_000], Utc::now(), true);
+        let small =
+            TorrentPieceAvailability::from_bitfield(&vec![true; 50_000], Timestamp::now(), true);
         let huge =
-            TorrentPieceAvailability::from_bitfield(&vec![true; 5_000_000], Utc::now(), true);
+            TorrentPieceAvailability::from_bitfield(&vec![true; 5_000_000], Timestamp::now(), true);
         // The payload is bounded and does not grow with the torrent.
         assert!(small.buckets.len() <= PIECE_BUCKETS);
         assert!(huge.buckets.len() <= PIECE_BUCKETS);
@@ -193,14 +190,14 @@ mod tests {
     #[test]
     fn a_small_bitfield_keeps_one_bucket_per_piece() {
         let have = vec![true, false, true, false];
-        let availability = TorrentPieceAvailability::from_bitfield(&have, Utc::now(), true);
+        let availability = TorrentPieceAvailability::from_bitfield(&have, Timestamp::now(), true);
         assert_eq!(availability.buckets, vec![100, 0, 100, 0]);
         assert_eq!(availability.pieces_per_bucket, 1);
     }
 
     #[test]
     fn an_empty_bitfield_yields_no_buckets() {
-        let availability = TorrentPieceAvailability::from_bitfield(&[], Utc::now(), false);
+        let availability = TorrentPieceAvailability::from_bitfield(&[], Timestamp::now(), false);
         assert!(availability.buckets.is_empty());
         assert!(!availability.live);
     }

@@ -4,8 +4,7 @@
 //! the sweep loop reads what is due, and the interface reads state rather than driving it.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use rd_core::{AccountId, AuthFlow, AuthFlowState, EventEnvelope, EventKind};
+use rd_core::{AccountId, AuthFlow, AuthFlowState, EventEnvelope, EventKind, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 /// A flow being started or advanced.
@@ -16,11 +15,11 @@ pub struct UpsertAuthFlow {
     pub state: AuthFlowState,
     pub verification_url: Option<String>,
     pub user_code: Option<String>,
-    pub expires_at: Option<DateTime<Utc>>,
-    pub next_poll_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
+    pub next_poll_at: Option<Timestamp>,
     pub message: Option<String>,
     /// When the access token stops working, for a flow that produced one with an expiry.
-    pub token_expires_at: Option<DateTime<Utc>>,
+    pub token_expires_at: Option<Timestamp>,
     /// Vault reference to the material that mints the next access token. Never returned.
     pub refresh_ref: Option<String>,
     /// Vault reference to the access token, for a provider that keeps it here. Never returned.
@@ -44,7 +43,7 @@ pub(crate) async fn upsert(
     connection: &mut SqliteConnection,
     input: UpsertAuthFlow,
 ) -> Result<((AuthFlow, Vec<String>), EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let previous = flow_references(&mut *connection, input.account_id).await?;
     sqlx::query(
         "INSERT INTO auth_flows \
@@ -189,7 +188,7 @@ pub(crate) async fn get(pool: &SqlitePool, account_id: AccountId) -> Result<Opti
 /// A flow holding a callback state is left out: it is waiting for a browser to come back, not
 /// for us to ask again, and polling it would drive it through the device-flow plugins -- which
 /// do not claim its provider and would fail it on the first tick.
-pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<AuthFlow>> {
+pub(crate) async fn due(pool: &SqlitePool, now: Timestamp) -> Result<Vec<AuthFlow>> {
     sqlx::query_as::<_, FlowRow>(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE state IN ('waiting_for_user', 'polling') AND callback_state IS NULL \
          AND (next_poll_at IS NULL OR next_poll_at <= ?) ORDER BY started_at"
@@ -211,7 +210,7 @@ pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Aut
 pub(crate) async fn set_renewal(
     connection: &mut SqliteConnection,
     account_id: AccountId,
-    token_expires_at: Option<DateTime<Utc>>,
+    token_expires_at: Option<Timestamp>,
     refresh_ref: Option<&str>,
     access_ref: Option<&str>,
 ) -> Result<(Option<String>, EventEnvelope)> {
@@ -270,7 +269,7 @@ pub(crate) async fn set_session(
          access_ref = excluded.access_ref, key_ref = excluded.key_ref",
     )
     .bind(account_id.to_string())
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(access_ref)
     .bind(key_ref)
     .execute(&mut *connection)
@@ -384,7 +383,7 @@ pub(crate) async fn take_callback(
 pub(crate) async fn defer_renewal(
     connection: &mut SqliteConnection,
     account_id: AccountId,
-    next_poll_at: DateTime<Utc>,
+    next_poll_at: Timestamp,
 ) -> Result<EventEnvelope> {
     sqlx::query("UPDATE auth_flows SET next_poll_at = ? WHERE account_id = ?")
         .bind(next_poll_at)
@@ -403,8 +402,8 @@ pub(crate) async fn defer_renewal(
 /// one renews behind their back, and the two share neither their candidate rows nor their order.
 pub(crate) async fn due_refresh(
     pool: &SqlitePool,
-    now: DateTime<Utc>,
-    threshold: DateTime<Utc>,
+    now: Timestamp,
+    threshold: Timestamp,
 ) -> Result<Vec<AuthFlow>> {
     sqlx::query_as::<_, FlowRow>(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE state = 'authorized' AND refresh_ref IS NOT NULL \
@@ -431,11 +430,11 @@ struct FlowRow {
     state: String,
     verification_url: Option<String>,
     user_code: Option<String>,
-    expires_at: Option<DateTime<Utc>>,
-    next_poll_at: Option<DateTime<Utc>>,
+    expires_at: Option<Timestamp>,
+    next_poll_at: Option<Timestamp>,
     message: Option<String>,
-    started_at: DateTime<Utc>,
-    token_expires_at: Option<DateTime<Utc>>,
+    started_at: Timestamp,
+    token_expires_at: Option<Timestamp>,
     refresh_ref: Option<String>,
     access_ref: Option<String>,
     key_ref: Option<String>,

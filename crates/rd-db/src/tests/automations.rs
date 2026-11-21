@@ -1,6 +1,6 @@
 //! Automations: versions, runs and retries.
 
-use chrono::{Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 
 use crate::Database;
 
@@ -226,7 +226,10 @@ async fn a_run_interrupted_mid_flight_is_queued_again_after_a_restart() {
         database.recover_automation_runs().await.expect("recover"),
         1
     );
-    let due = database.due_automation_runs(Utc::now()).await.expect("due");
+    let due = database
+        .due_automation_runs(Timestamp::now())
+        .await
+        .expect("due");
     assert_eq!(due.len(), 1);
     assert_eq!(due[0].state, rd_automation::RunState::Queued);
 }
@@ -264,7 +267,7 @@ async fn a_retry_only_becomes_due_once_its_backoff_has_passed() {
         .expect("runs")
         .remove(0);
 
-    let later = Utc::now() + Duration::minutes(5);
+    let later = Timestamp::now() + SignedDuration::from_mins(5);
     database
         .record_automation_attempt(
             run.id,
@@ -279,7 +282,7 @@ async fn a_retry_only_becomes_due_once_its_backoff_has_passed() {
 
     assert!(
         database
-            .due_automation_runs(Utc::now())
+            .due_automation_runs(Timestamp::now())
             .await
             .expect("due")
             .is_empty(),
@@ -287,7 +290,7 @@ async fn a_retry_only_becomes_due_once_its_backoff_has_passed() {
     );
     assert_eq!(
         database
-            .due_automation_runs(later + Duration::seconds(1))
+            .due_automation_runs(later + SignedDuration::from_secs(1))
             .await
             .expect("due")
             .len(),

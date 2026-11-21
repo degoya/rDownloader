@@ -18,8 +18,7 @@
 //! trigger say why, and a pause set again keeps the queue paused without a second moment.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use rd_core::{DownloadId, DownloadState};
+use rd_core::{DownloadId, DownloadState, Timestamp};
 use serde::{Deserialize, Serialize};
 
 use crate::{HoldSource, SchedulerHandle};
@@ -35,7 +34,7 @@ const HOLD_REASON: &str = "queue_paused";
 pub struct QueuePause {
     /// When it ends; `None` for a pause that lasts until somebody resumes the queue — the one a
     /// stop mark sets (RD-1210-02).
-    pub until: Option<DateTime<Utc>>,
+    pub until: Option<Timestamp>,
     /// The files this pause stopped; its end resumes those still paused, and no others.
     pub files: Vec<DownloadId>,
     /// Who set it last (RD-1290-04).
@@ -82,14 +81,14 @@ impl SchedulerHandle {
     ///
     /// A pause that is already in force is moved to the new end and keeps the files it holds,
     /// so pausing "for one more hour" never forgets what the first pause stopped.
-    pub async fn pause_queue_until(&self, until: DateTime<Utc>) -> Result<QueuePause> {
+    pub async fn pause_queue_until(&self, until: Timestamp) -> Result<QueuePause> {
         self.pause_queue_until_by(until, PauseReason::Manual).await
     }
 
     /// [`Self::pause_queue_until`] on somebody else's behalf, the game mode's (RD-1290-04).
     pub async fn pause_queue_until_by(
         &self,
-        until: DateTime<Utc>,
+        until: Timestamp,
         reason: PauseReason,
     ) -> Result<QueuePause> {
         self.pause_queue(Some(until), pausable, reason).await
@@ -117,7 +116,7 @@ impl SchedulerHandle {
 
     async fn pause_queue(
         &self,
-        until: Option<DateTime<Utc>>,
+        until: Option<Timestamp>,
         stops: fn(DownloadState) -> bool,
         reason: PauseReason,
     ) -> Result<QueuePause> {
@@ -239,7 +238,7 @@ impl SchedulerHandle {
             .await
             .as_ref()
             .and_then(|pause| pause.until)
-            .is_some_and(|until| until <= Utc::now());
+            .is_some_and(|until| until <= Timestamp::now());
         if due {
             let resumed = self.resume_queue().await?;
             tracing::info!(resumed, "the timed queue pause ended");

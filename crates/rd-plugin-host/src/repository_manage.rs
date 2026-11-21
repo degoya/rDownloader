@@ -3,7 +3,7 @@
 //!
 //! Split out of `repository.rs` (PLUG-21).
 
-use chrono::Utc;
+use rd_core::Timestamp;
 use rd_db::PluginRepository;
 use rd_sign::TrustStore;
 use serde::Deserialize;
@@ -27,7 +27,7 @@ impl PluginRepositoryService {
         for key_id in signature_key_ids(&bytes) {
             let trust = TrustStore::new();
             trust.trust(key_id.clone(), key)?;
-            match index::verify_with(&bytes, &trust, None, Utc::now()) {
+            match index::verify_with(&bytes, &trust, None, Timestamp::now()) {
                 Ok(index) => {
                     return Ok(RepositoryProbe {
                         url,

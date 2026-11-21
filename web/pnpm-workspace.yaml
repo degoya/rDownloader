@@ -25,6 +25,10 @@ allowBuilds:
 overrides:
   glob: ^14.0.2
   editorconfig>minimatch: ^11.0.5
+  # @vue/test-utils 2.6.0 (via @testing-library/vue) no longer writes a click through to the
+  # plain model object four component tests hand in; held on 2.5.1 until RD-1450-04 moves the
+  # tests to 2.6 (2026-11-21).
+  '@vue/test-utils': 2.5.1
 
 # Nuxt UI 4.13.0 is younger than pnpm's minimum release age; the owner took it on 2026-11-19.
 # Remove the entry once the version is older than the age.

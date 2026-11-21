@@ -19,8 +19,8 @@
 //! digests and plugin signing keys that are no longer acceptable, and comes with the index's
 //! signature and sequence, so a replayed older index cannot take a withdrawal back.
 
-use chrono::{DateTime, Utc};
 use rd_core::PluginId;
+use rd_core::Timestamp;
 use rd_sign::{Role, SignedDocument, VerifyError, replay};
 use serde::{Deserialize, Serialize};
 
@@ -73,11 +73,11 @@ pub struct PluginIndex {
     /// [`rd_sign::replay`].
     pub sequence: u64,
     /// When the publisher says it signed this.
-    pub issued_at: DateTime<Utc>,
+    pub issued_at: Timestamp,
     /// After this instant the index is stale. Required, unlike the tool manifest's: an index
     /// is fetched from the network on every refresh, and without an expiry a first contact
     /// would accept a replay of any genuine index ever published.
-    pub not_after: DateTime<Utc>,
+    pub not_after: Timestamp,
     /// Every package offered, at most one entry per plugin id and version. The official index
     /// keeps, per plugin, contract and minimum core version, the newest entry of every index
     /// before it ([`carry_over`], RD-1260-02).
@@ -340,7 +340,7 @@ impl IndexPackage {
 pub fn verify(
     bytes: &[u8],
     known_sequence: Option<u64>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<PluginIndex, IndexError> {
     let trust = rd_sign::trust_store_for(Role::Repository, now)
         .map_err(|error| IndexError::Untrusted(error.to_string()))?;
@@ -353,7 +353,7 @@ pub fn verify_with(
     bytes: &[u8],
     trust: &rd_sign::TrustStore,
     known_sequence: Option<u64>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<PluginIndex, IndexError> {
     if bytes.len() > MAX_INDEX_BYTES {
         return Err(IndexError::TooLarge);

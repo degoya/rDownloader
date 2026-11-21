@@ -5,8 +5,7 @@
 //! with the size and SHA-256 it had, and retention deletes nothing that is not in it.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{BackupRunState, BackupVerifyState};
+use rd_core::{BackupRunState, BackupVerifyState, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::full_backup_store::{BackupDestinationRecord, NewBackupDestination};
@@ -31,9 +30,9 @@ pub struct BackupArchive {
     pub size_bytes: u64,
     pub sha256: String,
     /// When the run that wrote it started: the archive's point in time.
-    pub created_at: DateTime<Utc>,
-    pub stored_at: DateTime<Utc>,
-    pub verified_at: Option<DateTime<Utc>>,
+    pub created_at: Timestamp,
+    pub stored_at: Timestamp,
+    pub verified_at: Option<Timestamp>,
     /// `passed` or `failed`, from the last verification.
     pub verify_state: Option<BackupVerifyState>,
     pub verify_code: Option<String>,
@@ -48,7 +47,7 @@ pub struct NewBackupArchive {
     pub location: String,
     pub size_bytes: u64,
     pub sha256: String,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
 }
 
 /// How one destination of a run fared.
@@ -65,7 +64,7 @@ pub struct BackupRunDestination {
     pub pruned: u32,
     pub error_code: Option<String>,
     pub error_detail: Option<String>,
-    pub finished_at: Option<DateTime<Utc>>,
+    pub finished_at: Option<Timestamp>,
 }
 
 /// The end of one destination's delivery.
@@ -91,7 +90,7 @@ struct DestinationRow {
     enabled: bool,
     keep_last: Option<i64>,
     keep_days: Option<i64>,
-    created_at: DateTime<Utc>,
+    created_at: Timestamp,
 }
 
 impl TryFrom<DestinationRow> for BackupDestinationRecord {
@@ -121,9 +120,9 @@ struct ArchiveRow {
     location: String,
     size_bytes: i64,
     sha256: String,
-    created_at: DateTime<Utc>,
-    stored_at: DateTime<Utc>,
-    verified_at: Option<DateTime<Utc>>,
+    created_at: Timestamp,
+    stored_at: Timestamp,
+    verified_at: Option<Timestamp>,
     verify_state: Option<String>,
     verify_code: Option<String>,
 }
@@ -161,7 +160,7 @@ struct RunDestinationRow {
     pruned: i64,
     error_code: Option<String>,
     error_detail: Option<String>,
-    finished_at: Option<DateTime<Utc>>,
+    finished_at: Option<Timestamp>,
 }
 
 const DESTINATION_COLUMNS: &str =
@@ -199,7 +198,7 @@ pub(crate) async fn create_destination(
     destination: NewBackupDestination,
 ) -> Result<String> {
     let id = uuid::Uuid::now_v7().to_string();
-    let now = Utc::now();
+    let now = Timestamp::now();
     sqlx::query(
         "INSERT INTO backup_destinations (id, kind, name, config_json, enabled, keep_last, \
          keep_days, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -234,7 +233,7 @@ pub(crate) async fn update_destination(
     .bind(destination.enabled)
     .bind(destination.keep_last.map(i64::from))
     .bind(destination.keep_days.map(i64::from))
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id)
     .execute(connection)
     .await?;
@@ -277,7 +276,7 @@ pub(crate) async fn record_archive(
     .bind(i64::try_from(archive.size_bytes).unwrap_or(i64::MAX))
     .bind(&archive.sha256)
     .bind(archive.created_at)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .execute(connection)
     .await?;
     Ok(id)
@@ -376,7 +375,7 @@ pub(crate) async fn finish_run_destination(
     .bind(i64::from(end.pruned))
     .bind(end.error_code)
     .bind(end.error_detail)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(end.run_id)
     .bind(end.destination_id)
     .execute(connection)

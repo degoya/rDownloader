@@ -6,10 +6,9 @@
 use std::cmp::Ordering;
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use rd_core::{
     EventEnvelope, EventKind, RemoteAuthMode, RemoteCredential, RemoteCredentialId, RemoteProtocol,
-    RemoteTarget,
+    RemoteTarget, Timestamp,
 };
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -130,7 +129,7 @@ pub(crate) async fn create(
     connection: &mut SqliteConnection,
     input: NewRemoteCredential,
 ) -> Result<(RemoteCredential, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let value = RemoteCredential {
         id: RemoteCredentialId::new(),
         name: input.name,
@@ -215,7 +214,7 @@ pub(crate) async fn update(
     .bind(&input.key_ref)
     .bind(&input.passphrase_ref)
     .bind(input.enabled)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await
@@ -385,8 +384,8 @@ struct CredentialRow {
     key_ref: Option<String>,
     passphrase_ref: Option<String>,
     enabled: bool,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
 }
 
 impl TryFrom<CredentialRow> for RemoteCredential {

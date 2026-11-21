@@ -67,13 +67,13 @@ pub fn quiet_summary(held: &[Delivery]) -> Option<Message> {
 
 #[cfg(test)]
 mod tests {
-    use rd_core::{NotificationDeliveryId, NotificationRuleId, NotificationTargetId};
+    use rd_core::{NotificationDeliveryId, NotificationRuleId, NotificationTargetId, Timestamp};
 
     use super::{SUMMARY_NAMED, quiet_summary};
     use crate::{Delivery, DeliveryState, NotificationEvent};
 
     fn held(index: usize, event: NotificationEvent) -> Delivery {
-        let now = chrono::Utc::now();
+        let now = Timestamp::now();
         Delivery {
             id: NotificationDeliveryId::new(),
             rule_id: NotificationRuleId::new(),

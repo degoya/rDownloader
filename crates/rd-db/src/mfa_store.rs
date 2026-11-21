@@ -5,8 +5,7 @@
 //! shows — kind, label, and when it was created, confirmed and last used.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{MfaCredential, MfaCredentialId, MfaKind};
+use rd_core::{MfaCredential, MfaCredentialId, MfaKind, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::parse_id;
@@ -22,7 +21,7 @@ pub(crate) async fn create_credential(
         id,
         kind,
         label,
-        created_at: Utc::now(),
+        created_at: Timestamp::now(),
         confirmed_at: None,
         last_used_at: None,
     };
@@ -92,8 +91,8 @@ pub(crate) async fn confirm_credential(
         "UPDATE mfa_credentials SET confirmed_at = ?, last_used_at = ? \
          WHERE id = ? AND confirmed_at IS NULL",
     )
-    .bind(Utc::now())
-    .bind(Utc::now())
+    .bind(Timestamp::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(connection)
     .await
@@ -114,7 +113,7 @@ pub(crate) async fn repoint_material(
     let result =
         sqlx::query("UPDATE mfa_credentials SET material_ref = ?, last_used_at = ? WHERE id = ?")
             .bind(material_ref)
-            .bind(Utc::now())
+            .bind(Timestamp::now())
             .bind(id.to_string())
             .execute(connection)
             .await
@@ -140,7 +139,7 @@ pub(crate) async fn accept_totp_step(
          WHERE id = ? AND (last_totp_step IS NULL OR last_totp_step < ?)",
     )
     .bind(step)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .bind(step)
     .execute(connection)
@@ -154,7 +153,7 @@ pub(crate) async fn touch_credential(
     id: MfaCredentialId,
 ) -> Result<()> {
     sqlx::query("UPDATE mfa_credentials SET last_used_at = ? WHERE id = ?")
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(connection)
         .await
@@ -205,7 +204,7 @@ pub(crate) async fn replace_recovery_codes(
     for digest in digests {
         sqlx::query("INSERT INTO mfa_recovery_codes (digest, created_at) VALUES (?, ?)")
             .bind(digest)
-            .bind(Utc::now())
+            .bind(Timestamp::now())
             .execute(&mut *transaction)
             .await
             .context("insert recovery code")?;
@@ -235,7 +234,7 @@ pub(crate) async fn spend_recovery_code(
     let result = sqlx::query(
         "UPDATE mfa_recovery_codes SET used_at = ? WHERE digest = ? AND used_at IS NULL",
     )
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(digest)
     .execute(connection)
     .await
@@ -275,9 +274,9 @@ struct CredentialRow {
     id: String,
     kind: String,
     label: String,
-    created_at: DateTime<Utc>,
-    confirmed_at: Option<DateTime<Utc>>,
-    last_used_at: Option<DateTime<Utc>>,
+    created_at: Timestamp,
+    confirmed_at: Option<Timestamp>,
+    last_used_at: Option<Timestamp>,
 }
 
 impl TryFrom<CredentialRow> for MfaCredential {

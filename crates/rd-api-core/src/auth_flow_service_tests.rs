@@ -69,7 +69,7 @@ impl ResolverHost for NoHost {
     }
 }
 
-fn flow(started_at: chrono::DateTime<chrono::Utc>) -> rd_core::AuthFlow {
+fn flow(started_at: rd_core::Timestamp) -> rd_core::AuthFlow {
     rd_core::AuthFlow {
         account_id: rd_core::AccountId::new(),
         plugin_id: "019d0000-0000-7000-8000-0000000001ff".to_owned(),
@@ -148,7 +148,7 @@ fn a_provider_that_refused_ends_the_renewal_and_one_that_was_busy_does_not() {
 /// The sign-in half, which had the same mistake mirrored: everything ended the flow.
 #[test]
 fn a_sign_in_without_a_plugin_fails_while_an_unreachable_provider_is_polled_again() {
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     let fresh = flow(now);
     assert_eq!(
         sign_in_progress(
@@ -177,8 +177,8 @@ fn a_sign_in_without_a_plugin_fails_while_an_unreachable_provider_is_polled_agai
 /// Deferred, but not forever: a flow the provider gave no window for is given up on.
 #[test]
 fn a_sign_in_nobody_named_a_window_for_is_given_up_on_after_the_grace() {
-    let now = chrono::Utc::now();
-    let old = flow(now - chrono::Duration::seconds(SIGN_IN_GRACE + 1));
+    let now = rd_core::Timestamp::now();
+    let old = flow(now - rd_core::SignedDuration::from_secs(SIGN_IN_GRACE + 1));
     assert_eq!(
         sign_in_progress(
             Err(ProviderError::Failed(anyhow::anyhow!("connection reset"))),
@@ -192,7 +192,7 @@ fn a_sign_in_nobody_named_a_window_for_is_given_up_on_after_the_grace() {
     // One that carries its own expiry keeps being polled until that expiry runs out,
     // which the sweep checks before it ever asks.
     let mut bounded = old.clone();
-    bounded.expires_at = Some(now + chrono::Duration::seconds(60));
+    bounded.expires_at = Some(now + rd_core::SignedDuration::from_secs(60));
     assert_eq!(
         sign_in_progress(
             Err(ProviderError::Failed(anyhow::anyhow!("connection reset"))),
@@ -226,7 +226,7 @@ async fn a_renewal_without_an_oauth_plugin_is_tried_once_and_then_fails() {
         })
         .await
         .expect("account");
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     database
         .upsert_auth_flow(rd_db::UpsertAuthFlow {
             account_id: account.id,
@@ -237,7 +237,7 @@ async fn a_renewal_without_an_oauth_plugin_is_tried_once_and_then_fails() {
             expires_at: None,
             next_poll_at: None,
             message: None,
-            token_expires_at: Some(now + chrono::Duration::seconds(10)),
+            token_expires_at: Some(now + rd_core::SignedDuration::from_secs(10)),
             refresh_ref: Some("account/example/refresh".to_owned()),
             access_ref: None,
             key_ref: None,
@@ -264,30 +264,30 @@ async fn a_renewal_without_an_oauth_plugin_is_tried_once_and_then_fails() {
 
     // And there is no second attempt: the row left the renewal queue instead of coming
     // back in five minutes for an attempt that could not have gone any differently.
-    let later = now + chrono::Duration::seconds(REFRESH_BACKOFF * 2);
+    let later = now + rd_core::SignedDuration::from_secs(REFRESH_BACKOFF * 2);
     assert!(
         database
-            .due_refresh_auth_flows(later, later + chrono::Duration::seconds(60))
+            .due_refresh_auth_flows(later, later + rd_core::SignedDuration::from_secs(60))
             .await
             .expect("due")
             .is_empty()
     );
 }
 
-/// RA-HOST-02: every duration here is a plugin's, and `now + u64::MAX` seconds panicked in
-/// `chrono`. Held to a day, a renewal's wait included.
+/// RA-HOST-02: every duration here is a plugin's, and `now + u64::MAX` seconds panics in
+/// the time arithmetic. Held to a day, a renewal's wait included.
 #[test]
 fn a_plugins_overlong_wait_is_held_to_a_day() {
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     let day = rd_core::MAX_RETRY_AFTER_SECONDS;
     let day_seconds = i64::try_from(day).expect("a day fits");
     assert_eq!(
         super::seconds_after(now, u64::MAX),
-        now + chrono::Duration::seconds(day_seconds)
+        now + rd_core::SignedDuration::from_secs(day_seconds)
     );
     assert_eq!(
         super::seconds_after(now, 30),
-        now + chrono::Duration::seconds(30)
+        now + rd_core::SignedDuration::from_secs(30)
     );
     assert_eq!(
         renewal_action(Ok(TokenOutcome::Pending {

@@ -78,8 +78,8 @@ fn subscription(id: &str, device: &str) -> WebPushSubscription {
         endpoint: format!("https://push.example.org/{id}"),
         device_name: device.to_owned(),
         events: Vec::new(),
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        created_at: rd_core::Timestamp::now(),
+        updated_at: rd_core::Timestamp::now(),
         p256dh: String::new(),
         auth: String::new(),
     }

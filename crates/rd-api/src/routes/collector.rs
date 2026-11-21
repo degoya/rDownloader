@@ -72,6 +72,12 @@ pub(crate) fn routes() -> Router<AppState> {
             "/api/v1/collector/packages/{id}/enqueue",
             post(collector_handlers::enqueue_collector_package),
         )
+        // The other way out of the LinkGrabber for a package: to a provider's account rather
+        // than the queue (RD-1440-07).
+        .route(
+            "/api/v1/collector/packages/{id}/remote-job",
+            post(collector_handlers::submit_collector_package_remote_job),
+        )
         .route(
             "/api/v1/collector/candidates/move",
             post(collector_handlers::move_candidates),
@@ -176,6 +182,7 @@ pub(crate) fn routes() -> Router<AppState> {
     collector_handlers::delete_collector_package,
     collector_handlers::enqueue_collector_package,
     collector_handlers::enqueue_collector_packages,
+    collector_handlers::submit_collector_package_remote_job,
     collector_handlers::move_candidates,
     collector_handlers::reorder_candidates,
     collector_handlers::check_candidates,

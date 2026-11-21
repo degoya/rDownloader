@@ -19,7 +19,7 @@
 //! it. An installation with no network, or one whose manifest URL is unreachable, therefore
 //! still has a manifest — it simply has an old one, and says so.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_sign::{Role, SignedDocument, VerifyError, replay};
 use serde::{Deserialize, Serialize};
 
@@ -60,10 +60,10 @@ pub struct ToolManifest {
     /// The publisher's monotonic counter. Never goes backwards; see [`rd_sign::replay`].
     pub sequence: u64,
     /// When the publisher says it signed this.
-    pub issued_at: DateTime<Utc>,
+    pub issued_at: Timestamp,
     /// After this instant the manifest is stale even if nothing newer has been seen.
     #[serde(default)]
-    pub not_after: Option<DateTime<Utc>>,
+    pub not_after: Option<Timestamp>,
     /// One entry per tool, version and platform.
     #[serde(default)]
     pub tools: Vec<ToolEntry>,
@@ -229,7 +229,7 @@ pub(crate) const EMBEDDED_MANIFEST_BYTES: &[u8] =
 /// resource was swapped between compile and release fails here instead of installing
 /// something. Freshness is checked with no known sequence, because this document *is* the
 /// starting point.
-pub fn embedded(now: DateTime<Utc>) -> Result<ToolManifest, ToolError> {
+pub fn embedded(now: Timestamp) -> Result<ToolManifest, ToolError> {
     verify(EMBEDDED_MANIFEST_BYTES, None, now)
 }
 
@@ -241,7 +241,7 @@ pub fn embedded(now: DateTime<Utc>) -> Result<ToolManifest, ToolError> {
 pub fn verify(
     bytes: &[u8],
     known_sequence: Option<u64>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<ToolManifest, ToolError> {
     let trust = rd_sign::trust_store_for(Role::ToolManifest, now)
         .map_err(|error| ToolError::ManifestUntrusted(error.to_string()))?;
@@ -254,7 +254,7 @@ pub fn verify_with(
     bytes: &[u8],
     trust: &rd_sign::TrustStore,
     known_sequence: Option<u64>,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<ToolManifest, ToolError> {
     let document = SignedDocument::parse(bytes)
         .map_err(|error| ToolError::ManifestUntrusted(error.to_string()))?;

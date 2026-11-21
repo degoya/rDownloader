@@ -21,7 +21,7 @@ use std::{
 };
 
 use anyhow::Context;
-use chrono::Utc;
+use rd_core::Timestamp;
 use rd_db::{Database, OFFICIAL_REPOSITORY_ID, PluginRepository, RepositoryCheck};
 use rd_sign::Role;
 /// The trust a repository index is verified against, as [`PluginRepositoryService::with_fetcher`]
@@ -235,7 +235,7 @@ impl PluginRepositoryService {
         // serves, so it does not ask: no request leaves for an answer that is refused anyway.
         if repository.is_official()
             && self.0.official_trust.is_none()
-            && rd_sign::keys_for(Role::Repository, Utc::now()).is_empty()
+            && rd_sign::keys_for(Role::Repository, Timestamp::now()).is_empty()
         {
             return Err(RepositoryError::OfficialKeyMissing);
         }
@@ -253,7 +253,7 @@ impl PluginRepositoryService {
                 .sequence
                 .and_then(|sequence| u64::try_from(sequence).ok())
         };
-        let index = index::verify_with(&bytes, &trust, known, Utc::now())?;
+        let index = index::verify_with(&bytes, &trust, known, Timestamp::now())?;
         self.accept(repository, &url, bytes, index).await
     }
 
@@ -316,7 +316,7 @@ impl PluginRepositoryService {
 
     /// When the loaded index of `id` expires, if one is loaded.
     #[must_use]
-    pub fn index_expiry(&self, id: &str) -> Option<chrono::DateTime<Utc>> {
+    pub fn index_expiry(&self, id: &str) -> Option<Timestamp> {
         self.0
             .indexes
             .read()
@@ -362,9 +362,11 @@ impl PluginRepositoryService {
         if repository.is_official() {
             return match &self.0.official_trust {
                 Some(trust) => Ok(trust.clone()),
-                None => rd_sign::trust_store_for(Role::Repository, Utc::now()).map_err(|error| {
-                    RepositoryError::Index(IndexError::Untrusted(error.to_string()))
-                }),
+                None => {
+                    rd_sign::trust_store_for(Role::Repository, Timestamp::now()).map_err(|error| {
+                        RepositoryError::Index(IndexError::Untrusted(error.to_string()))
+                    })
+                }
             };
         }
         let (Some(key_id), Some(public_key)) = (&repository.key_id, &repository.public_key) else {
@@ -386,7 +388,7 @@ impl PluginRepositoryService {
         let url = repository_url(repository)?;
         // No known sequence, as in the tool manifest's cache: this document *is* the floor, and
         // passing the floor in would make the cache a replay of itself.
-        let index = index::verify_with(bytes, &self.trust(repository)?, None, Utc::now())?;
+        let index = index::verify_with(bytes, &self.trust(repository)?, None, Timestamp::now())?;
         if let Some(floor) = repository.sequence
             && i64::try_from(index.sequence).unwrap_or(i64::MAX) < floor
         {

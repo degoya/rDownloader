@@ -21,7 +21,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -40,7 +40,7 @@ pub(crate) use watch::spawn;
 /// Beside `capture.json`: the install this agent started and has not heard the end of.
 const PENDING_FILE: &str = "server-update.json";
 /// How long an install may stay silent before the agent stops waiting for its outcome.
-const PENDING_LIMIT: chrono::Duration = chrono::Duration::minutes(30);
+const PENDING_LIMIT: SignedDuration = SignedDuration::from_mins(30);
 /// How long a second choice installs while downloads run, after the service said they do.
 pub(crate) const CONFIRM_WINDOW: Duration = Duration::from_secs(120);
 /// Between two readings while nothing is being installed: the service checks daily.
@@ -99,7 +99,7 @@ impl Installing {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Pending {
     pub target: String,
-    pub requested_at: DateTime<Utc>,
+    pub requested_at: Timestamp,
 }
 
 impl Pending {
@@ -240,11 +240,7 @@ pub(crate) enum Resolution {
     Ended(String),
 }
 
-pub(crate) fn resolve(
-    pending: &Pending,
-    reading: Option<&Reading>,
-    now: DateTime<Utc>,
-) -> Resolution {
+pub(crate) fn resolve(pending: &Pending, reading: Option<&Reading>, now: Timestamp) -> Resolution {
     let outcome = reading
         .and_then(|reading| reading.install.as_ref())
         .filter(|install| install.ended() && install.target_version == pending.target);

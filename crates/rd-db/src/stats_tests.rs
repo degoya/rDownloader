@@ -6,8 +6,10 @@ use std::sync::{
     atomic::{AtomicUsize, Ordering},
 };
 
-use chrono::{Duration, Utc};
-use rd_core::{AuthProfileSelection, DownloadId, DownloadKind, DownloadState, PackageId};
+use rd_core::{
+    AuthProfileSelection, DownloadId, DownloadKind, DownloadState, PackageId, SignedDuration,
+    Timestamp,
+};
 
 use crate::{
     Database, NewAccount, NewDownload, NewPackage,
@@ -136,7 +138,7 @@ async fn outcomes_are_counted_by_kind_and_provider_in_bucket_and_totals() {
                 },
                 "reset",
             ),
-            Some(Utc::now() + Duration::minutes(5)),
+            Some(Timestamp::now() + SignedDuration::from_mins(5)),
         )
         .await
         .expect("retry");
@@ -172,14 +174,18 @@ async fn outcomes_are_counted_by_kind_and_provider_in_bucket_and_totals() {
     );
 
     let buckets = database
-        .list_transfer_stats(StatsResolution::Hour, Utc::now() - Duration::hours(1))
+        .list_transfer_stats(
+            StatsResolution::Hour,
+            Timestamp::now() - SignedDuration::from_hours(1),
+        )
         .await
         .expect("buckets");
     assert_eq!(buckets.len(), 2, "{buckets:?}");
     assert!(
         buckets
             .iter()
-            .all(|bucket| bucket.bucket_start == StatsResolution::Hour.bucket_start(Utc::now()))
+            .all(|bucket| bucket.bucket_start
+                == StatsResolution::Hour.bucket_start(Timestamp::now()))
     );
     let rendered = format!("{buckets:?}{totals:?}");
     for forbidden in ["secret-name", "example.test", "Alex", "alex@"] {
@@ -196,15 +202,15 @@ async fn outcomes_are_counted_by_kind_and_provider_in_bucket_and_totals() {
 #[tokio::test]
 async fn stale_hours_fold_into_days_and_expired_days_go() {
     let (_directory, database) = open("prune.sqlite").await;
-    let now = Utc::now();
-    let old_day = now - Duration::days(40);
+    let now = Timestamp::now();
+    let old_day = now - SignedDuration::from_hours(24 * 40);
     for hour in 0..24 {
-        let start = StatsResolution::Hour.bucket_start(old_day - Duration::hours(hour));
+        let start = StatsResolution::Hour.bucket_start(old_day - SignedDuration::from_hours(hour));
         seed_hour(&database, &start, "http", 100).await;
     }
     let fresh = StatsResolution::Hour.bucket_start(now);
     seed_hour(&database, &fresh, "http", 7).await;
-    let expired = StatsResolution::Day.bucket_start(now - Duration::days(400));
+    let expired = StatsResolution::Day.bucket_start(now - SignedDuration::from_hours(24 * 400));
     sqlx::query(
         "INSERT INTO transfer_stats (resolution, bucket_start, kind, provider, completed) \
          VALUES ('day', ?, 'http', 'direct', 1)",
@@ -226,7 +232,10 @@ async fn stale_hours_fold_into_days_and_expired_days_go() {
     assert!(!report.more);
 
     let days = database
-        .list_transfer_stats(StatsResolution::Day, now - Duration::days(60))
+        .list_transfer_stats(
+            StatsResolution::Day,
+            now - SignedDuration::from_hours(24 * 60),
+        )
         .await
         .expect("days");
     let folded: i64 = days.iter().map(|bucket| bucket.bytes).sum();
@@ -237,7 +246,10 @@ async fn stale_hours_fold_into_days_and_expired_days_go() {
         "24 hours fold into at most two calendar days: {days:?}"
     );
     let hours = database
-        .list_transfer_stats(StatsResolution::Hour, now - Duration::days(60))
+        .list_transfer_stats(
+            StatsResolution::Hour,
+            now - SignedDuration::from_hours(24 * 60),
+        )
         .await
         .expect("hours");
     assert_eq!(hours.len(), 1, "only the fresh hour survives: {hours:?}");
@@ -256,11 +268,12 @@ async fn stale_hours_fold_into_days_and_expired_days_go() {
 #[tokio::test]
 async fn a_sweep_over_thousands_of_rows_does_not_block_a_queue_write() {
     let (directory, database) = open("sweep.sqlite").await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     let rows = PRUNE_BATCH * 6;
     for index in 0..rows {
-        let start = StatsResolution::Hour
-            .bucket_start(now - Duration::days(400) - Duration::hours(index.into()));
+        let start = StatsResolution::Hour.bucket_start(
+            now - SignedDuration::from_hours(24 * 400) - SignedDuration::from_hours(index.into()),
+        );
         seed_hour(&database, &start, "http", 1).await;
     }
     let retention = StatsRetention {

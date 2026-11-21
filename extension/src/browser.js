@@ -1,12 +1,24 @@
 // Cross-browser namespace with promise-based APIs (Firefox `browser`, Chrome `chrome`).
+import { DEFAULT_CAPTURE_MODE, normalizeExtensions, normalizeMode } from './file-types.js'
+
 export const api = globalThis.browser ?? globalThis.chrome
 
 export async function loadConfig() {
-  const stored = await api.storage.local.get({ server: 'http://127.0.0.1:8710', token: '', interceptDownloads: true, clickAndLoad: true })
+  const stored = await api.storage.local.get({
+    server: 'http://127.0.0.1:8710',
+    token: '',
+    interceptDownloads: true,
+    interceptMode: DEFAULT_CAPTURE_MODE,
+    interceptTypes: [],
+    clickAndLoad: true
+  })
   return {
     server: stored.server,
     token: stored.token,
     interceptDownloads: stored.interceptDownloads !== false,
+    // Which downloads by their file type (RD-1440-08): every one unless a list says otherwise.
+    interceptMode: normalizeMode(stored.interceptMode),
+    interceptTypes: Array.isArray(stored.interceptTypes) ? normalizeExtensions(stored.interceptTypes) : [],
     // Click'n'Load without the desktop agent (RD-1260-10): on unless switched off.
     clickAndLoad: stored.clickAndLoad !== false
   }
@@ -17,6 +29,8 @@ export async function saveConfig(config) {
     server: config.server,
     token: config.token,
     interceptDownloads: config.interceptDownloads !== false,
+    interceptMode: normalizeMode(config.interceptMode),
+    interceptTypes: normalizeExtensions(config.interceptTypes ?? []),
     clickAndLoad: config.clickAndLoad !== false
   })
 }

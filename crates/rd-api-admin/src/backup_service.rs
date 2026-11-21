@@ -18,10 +18,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use base64::{Engine, engine::general_purpose::STANDARD};
-use chrono::{DateTime, Utc};
 use rd_api_core::notify_notice::Notice;
 use rd_backup::{BackupError, BackupKey, BackupSources, RetryPolicy, schedule::Due};
-use rd_core::{AuditAction, BackupOrigin};
+use rd_core::{AuditAction, BackupOrigin, Timestamp};
 use rd_db::{BackupConfig, BackupRunOutcome, NewBackupRun};
 
 use crate::audit::{AuditContext, AuditEvent};
@@ -44,7 +43,7 @@ pub fn start(state: AppState) {
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             ticker.tick().await;
-            let now = Utc::now();
+            let now = Timestamp::now();
             tick(&state, now).await;
             crate::backup_verify_service::tick(&state, now).await;
         }
@@ -89,7 +88,7 @@ pub async fn recover(state: &AppState) {
 }
 
 /// One look at the schedule at `now`; returns the id of the run it started, if any.
-pub async fn tick(state: &AppState, now: DateTime<Utc>) -> Option<String> {
+pub async fn tick(state: &AppState, now: Timestamp) -> Option<String> {
     let config = match state.database.backup_config().await {
         Ok(config) => config,
         Err(error) => {
@@ -155,7 +154,7 @@ pub(crate) async fn start_run(
 ) -> Result<rd_db::BackupRun, ApiError> {
     let config = state.database.backup_config().await?;
     let run_id = uuid::Uuid::now_v7().to_string();
-    let started_at = Utc::now();
+    let started_at = Timestamp::now();
     let destinations: Vec<_> = config
         .destinations
         .iter()
@@ -221,7 +220,7 @@ async fn execute(
     config: BackupConfig,
     run_id: String,
     origin: BackupOrigin,
-    started_at: DateTime<Utc>,
+    started_at: Timestamp,
     audit: AuditContext,
 ) {
     let destinations: Vec<_> = config

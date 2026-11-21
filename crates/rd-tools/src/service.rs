@@ -18,8 +18,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use chrono::Utc;
-use rd_core::ManagedToolSettings;
+use rd_core::{ManagedToolSettings, Timestamp};
 use rd_db::Database;
 
 use crate::{
@@ -88,7 +87,7 @@ impl ManagedToolService {
     /// manages nothing" — not "install from an unverified document".
     #[must_use]
     pub fn new(database: Database, root: PathBuf, settings: ManagedToolSettings) -> Self {
-        let manifest = match manifest::embedded(Utc::now()) {
+        let manifest = match manifest::embedded(Timestamp::now()) {
             Ok(manifest) => manifest,
             Err(error) => {
                 tracing::error!(%error, "the compiled-in tool manifest does not verify");
@@ -125,7 +124,7 @@ impl ManagedToolService {
             // already and its sequence *is* the stored floor, so passing that floor back in
             // would make the cache a replay of itself and every restart would fall back to
             // the built-in manifest. Signature, schema and expiry are all still checked.
-            match manifest::verify(&bytes, None, Utc::now()) {
+            match manifest::verify(&bytes, None, Timestamp::now()) {
                 Ok(cached_manifest) if cached_manifest.sequence >= self.manifest().sequence => {
                     self.replace_manifest(cached_manifest);
                 }
@@ -471,7 +470,7 @@ fn empty_manifest() -> ToolManifest {
     ToolManifest {
         schema_version: manifest::TOOL_MANIFEST_SCHEMA_VERSION,
         sequence: 0,
-        issued_at: chrono::DateTime::UNIX_EPOCH,
+        issued_at: Timestamp::UNIX_EPOCH,
         not_after: None,
         tools: Vec::new(),
         compatibility: Vec::new(),

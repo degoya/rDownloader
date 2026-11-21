@@ -11,8 +11,8 @@
 //! archive at its destination the ledger does not know yet, and `backup.after_retention_removal`,
 //! an archive removed there that the ledger still lists.
 
-use chrono::{DateTime, Utc};
 use rd_core::BackupRunState;
+use rd_core::Timestamp;
 use rd_db::{BackupDestinationRecord, BackupRunDestinationEnd, Database, NewBackupArchive};
 
 use crate::create::SealedBackup;
@@ -51,7 +51,7 @@ pub struct Run<'a> {
     /// This installation's id, which retention tells its own archives by.
     pub instance_id: &'a str,
     pub sealed: &'a SealedBackup,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
 }
 
 /// Delivers the sealed archive to every opened target at once, records each archive in the
@@ -227,7 +227,7 @@ pub async fn prune(
             created_at: archive.created_at,
         })
         .collect();
-    let plan = retention::plan(&recorded, policy, instance_id, Utc::now());
+    let plan = retention::plan(&recorded, policy, instance_id, Timestamp::now());
     let mut forgotten = Vec::new();
     for id in plan.remove {
         let Some(archive) = ledger.iter().find(|archive| archive.id == id) else {

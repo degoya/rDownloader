@@ -41,7 +41,7 @@ pub(crate) enum StreamsCommand {
     },
     /// Marks open runs whose window has closed as missed.
     ExpireStreamRuns {
-        cutoff: chrono::DateTime<chrono::Utc>,
+        cutoff: rd_core::Timestamp,
         reply: Reply<u32>,
     },
     CreateStreamChannel {
@@ -59,7 +59,7 @@ pub(crate) enum StreamsCommand {
     },
     TouchStreamChannel {
         id: rd_core::StreamChannelId,
-        live_at: Option<chrono::DateTime<chrono::Utc>>,
+        live_at: Option<rd_core::Timestamp>,
         error: Option<String>,
         reply: Reply<()>,
     },

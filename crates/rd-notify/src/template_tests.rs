@@ -1,7 +1,7 @@
 //! RD-1280-02: a rule's own wording, filled from the placeholder table.
 
-use chrono::{FixedOffset, TimeZone as _, Utc};
-use rd_core::{NotificationDeliveryId, NotificationRuleId, NotificationTargetId};
+use jiff::tz::{Offset, TimeZone};
+use rd_core::{NotificationDeliveryId, NotificationRuleId, NotificationTargetId, Timestamp};
 
 use super::{
     MAX_BODY_BYTES, MAX_BODY_CHARS, MAX_TITLE_CHARS, TemplateError, TemplatePart, Values, render,
@@ -27,10 +27,9 @@ fn rule(title: Option<&str>, body: Option<&str>) -> NotificationRule {
 }
 
 fn values(event: NotificationEvent) -> Values {
-    let at = FixedOffset::east_opt(2 * 3600)
-        .expect("offset")
-        .with_ymd_and_hms(2026, 10, 13, 14, 32, 0)
-        .single()
+    let at = jiff::civil::date(2026, 10, 13)
+        .at(14, 32, 0, 0)
+        .to_zoned(TimeZone::fixed(Offset::constant(2)))
         .expect("moment");
     Values::stamped(event, &at)
 }
@@ -318,7 +317,7 @@ fn the_webhook_body_keeps_its_structure() {
         "Photos (completed)",
         &filled,
     );
-    let now = Utc::now();
+    let now = Timestamp::now();
     let delivery = Delivery {
         id: NotificationDeliveryId::new(),
         rule_id: NotificationRuleId::new(),
@@ -347,11 +346,9 @@ fn the_webhook_body_keeps_its_structure() {
 
 #[test]
 fn time_and_date_are_read_in_the_zone_they_are_given() {
-    let late = Utc
-        .with_ymd_and_hms(2026, 10, 13, 23, 30, 0)
-        .single()
+    let late = Timestamp::from_ymd_hms(2026, 10, 13, 23, 30, 0)
         .expect("moment")
-        .with_timezone(&FixedOffset::east_opt(2 * 3600).expect("offset"));
+        .to_zoned(TimeZone::fixed(Offset::constant(2)));
     let stamped = Values::stamped(NotificationEvent::BackupFailed, &late);
     assert_eq!(stamped.get(Placeholder::Time), "01:30");
     assert_eq!(stamped.get(Placeholder::Date), "2026-10-14");

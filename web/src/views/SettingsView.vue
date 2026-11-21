@@ -45,6 +45,7 @@ import { useTransfersStore } from '@/stores/transfers'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 import { setShowItemImages } from '@/utils/itemImages'
 import { setShowNzbHandOver } from '@/utils/nzbHandOver'
+import { setShowPackageHandOver } from '@/utils/packageHandOver'
 import { setPackagesClosedByDefault } from '@/utils/packageGroups'
 import { setTitleStatus } from '@/utils/titleStatus'
 import { MIB } from '@/utils/format'
@@ -201,6 +202,7 @@ function applyLoadedSettings(value: Settings): void {
   setByteUnit(value.byte_unit)
   setShowItemImages(value.subscription_item_images_enabled)
   setShowNzbHandOver(value)
+  setShowPackageHandOver(value)
   setTitleStatus(value.title_status_enabled)
   setPackagesClosedByDefault(value)
   // The status bar sets the speed limit and the parallel downloads too (RD-1120-22); what this

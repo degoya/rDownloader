@@ -8,7 +8,6 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
-chrono.workspace = true
 rd-api-core = { path = "../rd-api-core" }
 rd-api-intake = { path = "../rd-api-intake" }
 rd-api-queue = { path = "../rd-api-queue" }

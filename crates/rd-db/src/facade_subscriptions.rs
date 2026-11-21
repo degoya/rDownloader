@@ -19,7 +19,7 @@ impl Database {
     /// Subscriptions whose next poll is due at `now`, oldest first.
     pub async fn due_subscriptions(
         &self,
-        now: chrono::DateTime<chrono::Utc>,
+        now: rd_core::Timestamp,
     ) -> Result<Vec<rd_core::Subscription>> {
         crate::subscription_store::due(&self.readers, now).await
     }
@@ -42,7 +42,7 @@ impl Database {
         state: Option<rd_core::SubscriptionItemState>,
         limit: i64,
         offset: i64,
-        until: Option<chrono::DateTime<chrono::Utc>>,
+        until: Option<rd_core::Timestamp>,
     ) -> Result<rd_core::SubscriptionItemPage> {
         let mut page =
             crate::subscription_store::item_page(&self.readers, id, state, limit, offset, until)
@@ -58,7 +58,7 @@ impl Database {
     pub async fn pending_subscription_item_ids(
         &self,
         id: rd_core::SubscriptionId,
-        until: Option<chrono::DateTime<chrono::Utc>>,
+        until: Option<rd_core::Timestamp>,
     ) -> Result<Vec<rd_core::SubscriptionItemId>> {
         crate::subscription_store::pending_item_ids(&self.readers, id, until).await
     }
@@ -232,7 +232,7 @@ impl Database {
     pub async fn arm_subscription(
         &self,
         id: rd_core::SubscriptionId,
-        next_run_at: chrono::DateTime<chrono::Utc>,
+        next_run_at: rd_core::Timestamp,
     ) -> Result<bool> {
         crate::writer::request(&self.writer, |reply| {
             crate::commands::SubscriptionsCommand::ArmSubscription {
@@ -247,7 +247,7 @@ impl Database {
     pub async fn finish_subscription_run(
         &self,
         subscription_id: rd_core::SubscriptionId,
-        started_at: chrono::DateTime<chrono::Utc>,
+        started_at: rd_core::Timestamp,
         result: crate::subscription_store::PollResult,
     ) -> Result<()> {
         crate::writer::request(&self.writer, |reply| {

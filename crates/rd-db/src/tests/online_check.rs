@@ -303,7 +303,7 @@ async fn a_cache_answer_is_a_time_and_the_next_check_clears_it() {
         media: None,
     };
 
-    let before = chrono::Utc::now();
+    let before = rd_core::Timestamp::now();
     database
         .record_candidate_check(
             id,

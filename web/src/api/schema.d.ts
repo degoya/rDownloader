@@ -2534,6 +2534,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/collector/packages/{id}/remote-job": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hands every link of a LinkGrabber package to one account's provider as remote jobs.
+         * @description Refused before anything leaves the machine when the package or the account does not exist,
+         *     or when no installed plugin runs remote jobs on the account's provider. Past that the answer
+         *     is `200` whatever each link's outcome: what went and what stayed are both listed.
+         */
+        post: operations["submit_collector_package_remote_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/collector/picks": {
         parameters: {
             query?: never;
@@ -8589,6 +8611,16 @@ export interface components {
         CandidateCheckRequest: {
             ids?: components["schemas"]["CandidateId"][] | null;
         };
+        /** @description One link that reached the provider. */
+        CandidateHandedOver: {
+            /**
+             * @description True when the account already had a job for this content, or the link was marked with
+             *     one by an earlier hand-over. Nothing was written and nothing was sent.
+             */
+            already_running: boolean;
+            candidate_id: components["schemas"]["CandidateId"];
+            job: components["schemas"]["RemoteJob"];
+        };
         /** Format: uuid */
         CandidateId: string;
         /**
@@ -8655,6 +8687,14 @@ export interface components {
             protocol: components["schemas"]["SourceProtocol"];
             /** @description The address, with credentials and signed query values replaced. */
             url: string;
+        };
+        /** @description One link that stayed, and why. */
+        CandidateStayed: {
+            candidate_id: components["schemas"]["CandidateId"];
+            /** @description Stable code: `collector.remote_job_*`, `remote_job.*`, or a provider's own. */
+            code: string;
+            /** @description The English wording, shown when no catalogue translates the code. */
+            message: string;
         };
         /** @description Hidden links to show again. */
         CandidateUnhideRequest: {
@@ -9678,6 +9718,28 @@ export interface components {
         };
         /** Format: uuid */
         CollectorPackageId: string;
+        /** @description Which account's provider a LinkGrabber package goes to. */
+        CollectorPackageRemoteJobRequest: {
+            /**
+             * @description A remote-job account (`GET /api/v1/remote-jobs/providers` names the providers that run
+             *     remote jobs, with `container=torrent` those that take a `.torrent` file).
+             */
+            account_id: components["schemas"]["AccountId"];
+        };
+        /** @description What handing a LinkGrabber package over produced, link by link. */
+        CollectorPackageRemoteJobResponse: {
+            /** @description The links that are at the provider now, each with its job. */
+            handed_over: components["schemas"]["CandidateHandedOver"][];
+            /**
+             * @description Whether the links handed over left the LinkGrabber (`linkgrabber_hand_over_remove_links`)
+             *     or stay marked with their job.
+             */
+            links_removed: boolean;
+            /** @description Whether the package left the LinkGrabber because no link was left in it. */
+            package_removed: boolean;
+            /** @description The links that stayed in the LinkGrabber, each with the reason. */
+            stayed: components["schemas"]["CandidateStayed"][];
+        };
         CollectorPackageReorderRequest: {
             ids: components["schemas"]["CollectorPackageId"][];
         };
@@ -11707,6 +11769,7 @@ export interface components {
              *     look alike afterwards; only this says which it was.
              */
             file_name_declared?: boolean;
+            handed_over?: components["schemas"]["NzbHandOver"] | null;
             hidden_by_filter?: components["schemas"]["LinkFilterRuleId"] | null;
             id: components["schemas"]["CandidateId"];
             listing?: components["schemas"]["RemoteListingSummary"] | null;
@@ -12966,7 +13029,10 @@ export interface components {
             subject: string;
             total_bytes: components["schemas"]["ByteCount"];
         };
-        /** @description Where an NZB import went when it was handed to a provider instead of the queue. */
+        /**
+         * @description Where an NZB import went when it was handed to a provider instead of the queue, and where a
+         *     LinkGrabber link went that stayed after its hand-over (RD-1440-07).
+         */
         NzbHandOver: {
             /** @description The account whose provider runs the job; the LinkGrabber names the provider by it. */
             account_id: components["schemas"]["AccountId"];
@@ -15865,6 +15931,23 @@ export interface components {
              * @default true
              */
             keep_import_history: boolean;
+            /**
+             * @description Whether the menu of a LinkGrabber package offers handing its links to a remote-job
+             *     provider (RD-1440-07). On by default, and offered only where an account's provider takes
+             *     one of the package's kinds of source. A display choice: the REST route and the MCP tool
+             *     keep working, and a link already marked keeps its badge.
+             * @default true
+             */
+            linkgrabber_hand_over_enabled: boolean;
+            /**
+             * @description Whether a link handed to a remote-job provider from the LinkGrabber leaves it (RD-1440-07;
+             *     owner, 2026-11-21). On by default: every link handed over is removed, and a package left
+             *     without links with it. Off, the links stay, each marked with its job, so handing the
+             *     package over again sends nothing twice. Read on the server; the request cannot override
+             *     it. What could not be handed over stays either way.
+             * @default true
+             */
+            linkgrabber_hand_over_remove_links: boolean;
             /**
              * @description The same default for the LinkGrabber's packages (RD-1170-01). Off by default, as the
              *     LinkGrabber always showed a package's links: they are there to be reviewed.
@@ -25075,6 +25158,46 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    submit_collector_package_remote_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["CollectorPackageId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectorPackageRemoteJobRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectorPackageRemoteJobResponse"];
+                };
+            };
+            /** @description No installed plugin runs remote jobs on the account's provider */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The package or the account does not exist */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

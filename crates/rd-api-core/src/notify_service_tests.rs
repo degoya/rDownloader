@@ -13,7 +13,7 @@ fn reported(category: FailureKind, message: &str) -> anyhow::Error {
 
 #[test]
 fn a_failure_the_plugin_calls_permanent_fails_at_once_with_its_reason() {
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     for category in [
         FailureKind::Permanent,
         FailureKind::AuthRequired,
@@ -31,7 +31,7 @@ fn a_failure_the_plugin_calls_permanent_fails_at_once_with_its_reason() {
 
 #[test]
 fn a_failure_the_plugin_calls_temporary_is_still_retried() {
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
     for category in [
         FailureKind::Transient {
             retry_after_seconds: None,
@@ -81,7 +81,7 @@ fn an_error_without_a_category_stays_retryable() {
     let attempt = plugin_failure(&anyhow::anyhow!("wasm trap: out of fuel"));
     assert!(attempt.retryable);
     assert_eq!(
-        settle(&Attempt::succeeded(), 1, chrono::Utc::now()),
+        settle(&Attempt::succeeded(), 1, rd_core::Timestamp::now()),
         (DeliveryState::Delivered, None)
     );
 }

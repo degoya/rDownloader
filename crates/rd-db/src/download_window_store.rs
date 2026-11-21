@@ -6,8 +6,7 @@
 //! transaction.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{CategoryId, DownloadWindow, EventEnvelope, EventKind, PackageId};
+use rd_core::{CategoryId, DownloadWindow, EventEnvelope, EventKind, PackageId, Timestamp};
 use sqlx::{Connection, SqliteConnection};
 
 use crate::{
@@ -62,7 +61,7 @@ pub(crate) async fn set_package_download_window(
     let changed =
         sqlx::query("UPDATE packages SET download_window_json = ?, updated_at = ? WHERE id = ?")
             .bind(window_json(window.as_ref())?)
-            .bind(Utc::now())
+            .bind(Timestamp::now())
             .bind(id.to_string())
             .execute(&mut *transaction)
             .await?
@@ -87,7 +86,7 @@ pub(crate) async fn set_category_download_window(
     let changed =
         sqlx::query("UPDATE categories SET download_window_json = ?, updated_at = ? WHERE id = ?")
             .bind(window_json(window.as_ref())?)
-            .bind(Utc::now())
+            .bind(Timestamp::now())
             .bind(id.to_string())
             .execute(&mut *transaction)
             .await?

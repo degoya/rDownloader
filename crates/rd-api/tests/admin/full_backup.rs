@@ -289,15 +289,16 @@ async fn a_scheduled_backup_runs_once_when_due_and_its_time_survives_a_restart()
         .expect("config")
         .next_run_at
         .expect("armed");
-    assert!(due > chrono::Utc::now());
+    assert!(due > rd_core::Timestamp::now());
 
     // Not yet due: nothing.
     assert_eq!(
-        rd_api::backup_service::tick(&harness.state, due - chrono::Duration::minutes(1)).await,
+        rd_api::backup_service::tick(&harness.state, due - rd_core::SignedDuration::from_mins(1))
+            .await,
         None
     );
     // Due: one run, and the due time moves on before it starts.
-    let now = due + chrono::Duration::minutes(1);
+    let now = due + rd_core::SignedDuration::from_mins(1);
     let id = rd_api::backup_service::tick(&harness.state, now)
         .await
         .expect("a run");
@@ -424,7 +425,7 @@ async fn a_failed_scheduled_backup_is_announced_and_a_failed_manual_one_is_not()
         .next_run_at
         .expect("armed");
     let scheduled =
-        rd_api::backup_service::tick(&harness.state, due + chrono::Duration::minutes(1))
+        rd_api::backup_service::tick(&harness.state, due + rd_core::SignedDuration::from_mins(1))
             .await
             .expect("a run");
     assert_eq!(

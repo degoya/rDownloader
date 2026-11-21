@@ -17,8 +17,10 @@
 //! `0 6 * * *` means six o'clock, not six o'clock give or take a few minutes, so a scheduled
 //! run is never jittered.
 
-use chrono::{DateTime, Duration, TimeZone, Utc};
-use rd_core::{MAX_POLL_INTERVAL_SECONDS, MIN_POLL_INTERVAL_SECONDS, exponential_backoff};
+use rd_core::{
+    MAX_POLL_INTERVAL_SECONDS, MIN_POLL_INTERVAL_SECONDS, SignedDuration, Timestamp,
+    exponential_backoff,
+};
 
 /// Longest cron expression accepted, in bytes. Five fields with lists fit many times over.
 pub const MAX_SCHEDULE_LEN: usize = 120;
@@ -39,9 +41,9 @@ pub const JITTER_PERCENT: u32 = rd_core::RETRY_JITTER_PERCENT;
 /// every schedule and a test can assert on the result. Spreading is what it is for, not
 /// unpredictability.
 #[must_use]
-pub fn next_success(now: DateTime<Utc>, interval_seconds: u32, seed: u64) -> DateTime<Utc> {
+pub fn next_success(now: Timestamp, interval_seconds: u32, seed: u64) -> Timestamp {
     let interval = i64::from(clamp_interval(interval_seconds));
-    now + Duration::seconds(interval + jitter(interval, seed))
+    now + SignedDuration::from_secs(interval + jitter(interval, seed))
 }
 
 /// When to retry after a failed poll.
@@ -51,11 +53,11 @@ pub fn next_success(now: DateTime<Utc>, interval_seconds: u32, seed: u64) -> Dat
 /// retry is not punished harder than the ordinary rhythm.
 #[must_use]
 pub fn next_failure(
-    now: DateTime<Utc>,
+    now: Timestamp,
     interval_seconds: u32,
     consecutive_failures: u32,
     seed: u64,
-) -> DateTime<Utc> {
+) -> Timestamp {
     let interval = u64::from(clamp_interval(interval_seconds));
     // `saturating_sub(1)` so the first failure waits one plain interval. The shared backoff
     // (audit 1.9.1, INTAKE-12) gives the same figures the local formula did: any shift past
@@ -66,7 +68,7 @@ pub fn next_failure(
         MAX_BACKOFF_SECONDS.unsigned_abs(),
     );
     let delay = i64::try_from(delay).unwrap_or(MAX_BACKOFF_SECONDS);
-    now + Duration::seconds(delay + jitter(delay, seed))
+    now + SignedDuration::from_secs(delay + jitter(delay, seed))
 }
 
 /// Deterministic spread of ±[`JITTER_PERCENT`] around a delay, the shared hash of
@@ -104,21 +106,21 @@ pub fn parse_schedule(expression: &str) -> anyhow::Result<croner::Cron> {
 
 /// The first time after `after` that `expression` names, read in `zone`.
 ///
-/// The zone is the service's own in production (`chrono::Local`): `0 6 * * *` is six in the
+/// The zone is the service's own in production (`jiff::tz::TimeZone::system()`): `0 6 * * *` is six in the
 /// morning where the service runs, including across a change to or from summer time. A test
 /// passes a fixed zone instead, so the answer does not depend on the machine running it.
 ///
 /// # Errors
 ///
 /// When the expression does not parse, or names no time at all (`0 0 30 2 *`).
-pub fn next_scheduled<Tz: TimeZone>(
+pub fn next_scheduled(
     expression: &str,
-    after: DateTime<Utc>,
-    zone: &Tz,
-) -> anyhow::Result<DateTime<Utc>> {
+    after: Timestamp,
+    zone: &jiff::tz::TimeZone,
+) -> anyhow::Result<Timestamp> {
     let cron = parse_schedule(expression)?;
-    cron.find_next_occurrence(&after.with_timezone(zone), false)
-        .map(|next| next.with_timezone(&Utc))
+    cron.find_next_occurrence(&after.to_zoned(zone.clone()), false)
+        .map(Timestamp::from)
         .map_err(|error| anyhow::anyhow!("schedule names no future time: {error}"))
 }
 
@@ -129,12 +131,12 @@ pub fn next_scheduled<Tz: TimeZone>(
 /// a run past the one the schedule asks for anyway.
 #[must_use]
 pub fn next_scheduled_failure(
-    scheduled: DateTime<Utc>,
-    now: DateTime<Utc>,
+    scheduled: Timestamp,
+    now: Timestamp,
     interval_seconds: u32,
     consecutive_failures: u32,
     seed: u64,
-) -> DateTime<Utc> {
+) -> Timestamp {
     next_failure(now, interval_seconds, consecutive_failures, seed).min(scheduled)
 }
 
@@ -144,11 +146,11 @@ mod tests {
         JITTER_PERCENT, MAX_BACKOFF_SECONDS, next_failure, next_scheduled, next_scheduled_failure,
         next_success, parse_schedule,
     };
-    use chrono::{TimeZone, Utc};
-    use rd_core::MIN_POLL_INTERVAL_SECONDS;
+    use jiff::tz::{Offset, TimeZone};
+    use rd_core::{MIN_POLL_INTERVAL_SECONDS, SignedDuration, Timestamp};
 
-    fn now() -> chrono::DateTime<Utc> {
-        Utc.timestamp_opt(1_800_000_000, 0).single().expect("now")
+    fn now() -> Timestamp {
+        Timestamp::from_unix_seconds(1_800_000_000).expect("now")
     }
 
     #[test]
@@ -156,7 +158,7 @@ mod tests {
         let interval = 3_600_i64;
         let span = interval * i64::from(JITTER_PERCENT) / 100;
         for seed in 0..50 {
-            let delay = (next_success(now(), 3_600, seed) - now()).num_seconds();
+            let delay = (next_success(now(), 3_600, seed) - now()).as_secs();
             assert!(
                 (interval - span..=interval + span).contains(&delay),
                 "seed {seed} gave {delay}"
@@ -168,7 +170,7 @@ mod tests {
     fn subscriptions_created_together_do_not_poll_together() {
         // Without spreading, everything added in one minute polls in one burst forever.
         let delays: std::collections::HashSet<i64> = (0..20)
-            .map(|seed| (next_success(now(), 3_600, seed) - now()).num_seconds())
+            .map(|seed| (next_success(now(), 3_600, seed) - now()).as_secs())
             .collect();
         assert!(
             delays.len() > 10,
@@ -189,7 +191,7 @@ mod tests {
 
     #[test]
     fn a_short_interval_is_clamped_before_it_is_used() {
-        let delay = (next_success(now(), 1, 7) - now()).num_seconds();
+        let delay = (next_success(now(), 1, 7) - now()).as_secs();
         let minimum = i64::from(MIN_POLL_INTERVAL_SECONDS);
         let span = minimum * i64::from(JITTER_PERCENT) / 100;
         assert!(delay >= minimum - span, "{delay}");
@@ -198,7 +200,7 @@ mod tests {
     #[test]
     fn the_first_failure_waits_one_ordinary_interval() {
         // One failure is usually a hiccup and does not deserve a punishment.
-        let delay = (next_failure(now(), 3_600, 1, 3) - now()).num_seconds();
+        let delay = (next_failure(now(), 3_600, 1, 3) - now()).as_secs();
         let span = 3_600 * i64::from(JITTER_PERCENT) / 100;
         assert!((3_600 - span..=3_600 + span).contains(&delay), "{delay}");
     }
@@ -206,7 +208,7 @@ mod tests {
     #[test]
     fn repeated_failures_back_off_and_then_stop_growing() {
         let delays: Vec<i64> = (1..=12)
-            .map(|failures| (next_failure(now(), 3_600, failures, 5) - now()).num_seconds())
+            .map(|failures| (next_failure(now(), 3_600, failures, 5) - now()).as_secs())
             .collect();
         // Monotone while it is still doubling.
         assert!(delays[0] < delays[1] && delays[1] < delays[2], "{delays:?}");
@@ -218,19 +220,15 @@ mod tests {
         assert!(delays[11] >= MAX_BACKOFF_SECONDS - span, "{:?}", delays[11]);
     }
 
-    fn at(zone: &chrono::FixedOffset, text: &str) -> chrono::DateTime<Utc> {
-        let naive =
-            chrono::NaiveDateTime::parse_from_str(text, "%Y-%m-%d %H:%M").expect("naive time");
-        zone.from_local_datetime(&naive)
-            .single()
-            .expect("local time")
-            .with_timezone(&Utc)
+    fn at(zone: &TimeZone, text: &str) -> Timestamp {
+        let civil = jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M", text).expect("civil time");
+        Timestamp::from(civil.to_zoned(zone.clone()).expect("local time"))
     }
 
     #[test]
     fn a_daily_schedule_runs_at_that_hour_in_the_service_s_zone() {
         // RD-130-19. Six in the morning where the service runs, not six UTC.
-        let berlin = chrono::FixedOffset::east_opt(2 * 3_600).expect("zone");
+        let berlin = TimeZone::fixed(Offset::constant(2));
         let before = at(&berlin, "2026-09-25 05:00");
         assert_eq!(
             next_scheduled("0 6 * * *", before, &berlin).expect("next"),
@@ -243,7 +241,7 @@ mod tests {
         );
         // A plain UTC reading of the same instant gives another answer, which is the point.
         assert_ne!(
-            next_scheduled("0 6 * * *", before, &Utc).expect("next"),
+            next_scheduled("0 6 * * *", before, &TimeZone::UTC).expect("next"),
             at(&berlin, "2026-09-25 06:00")
         );
     }
@@ -252,7 +250,7 @@ mod tests {
     fn weekdays_are_posix_weekdays() {
         // 2026-09-25 is a Friday. `1-5` is Monday to Friday in every crontab; a parser that
         // counted Sunday as 1 would move this to Saturday.
-        let zone = chrono::FixedOffset::east_opt(0).expect("zone");
+        let zone = TimeZone::UTC;
         assert_eq!(
             next_scheduled("30 7 * * 1-5", at(&zone, "2026-09-25 08:00"), &zone).expect("next"),
             at(&zone, "2026-09-28 07:30")
@@ -284,24 +282,23 @@ mod tests {
         }
         assert!(parse_schedule(&"1,".repeat(100)).is_err());
         // Parses, but never happens: refused when the next time is asked for.
-        let zone = chrono::FixedOffset::east_opt(0).expect("zone");
+        let zone = TimeZone::UTC;
         assert!(next_scheduled("0 0 30 2 *", at(&zone, "2026-09-25 08:00"), &zone).is_err());
     }
 
     #[test]
     fn a_failed_scheduled_run_retries_but_never_past_the_next_scheduled_time() {
-        let scheduled = now() + chrono::Duration::hours(20);
+        let scheduled = now() + SignedDuration::from_hours(20);
         let retry = next_scheduled_failure(scheduled, now(), 3_600, 1, 9);
         assert!(retry < scheduled && retry > now(), "{retry}");
         // A long streak backs off to six hours, which the next scheduled time then caps.
-        let soon = now() + chrono::Duration::minutes(30);
+        let soon = now() + SignedDuration::from_mins(30);
         assert_eq!(next_scheduled_failure(soon, now(), 3_600, 12, 9), soon);
     }
 
     #[test]
     fn an_absurd_failure_count_does_not_overflow() {
-        let delay =
-            (next_failure(now(), MIN_POLL_INTERVAL_SECONDS, u32::MAX, 1) - now()).num_seconds();
+        let delay = (next_failure(now(), MIN_POLL_INTERVAL_SECONDS, u32::MAX, 1) - now()).as_secs();
         let span = MAX_BACKOFF_SECONDS * i64::from(JITTER_PERCENT) / 100;
         assert!(delay <= MAX_BACKOFF_SECONDS + span, "{delay}");
         assert!(delay > 0);

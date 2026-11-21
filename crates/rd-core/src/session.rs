@@ -1,6 +1,6 @@
 //! A login session, as the owner sees it in the session list.
 
-use chrono::{DateTime, Duration, Utc};
+use crate::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -70,14 +70,14 @@ impl SessionLimits {
 
     /// The idle limit as a duration.
     #[must_use]
-    pub fn idle(&self) -> Duration {
-        Duration::hours(i64::from(self.idle_hours))
+    pub fn idle(&self) -> SignedDuration {
+        SignedDuration::from_hours(i64::from(self.idle_hours))
     }
 
     /// The maximum lifetime as a duration.
     #[must_use]
-    pub fn max(&self) -> Duration {
-        Duration::hours(i64::from(self.max_hours))
+    pub fn max(&self) -> SignedDuration {
+        SignedDuration::from_hours(i64::from(self.max_hours))
     }
 
     /// When `session` ends under these limits if it is not used again.
@@ -87,7 +87,7 @@ impl SessionLimits {
     /// outlive the cookie anyway); the maximum lifetime counted from sign-in; and the idle
     /// limit counted from the last recorded use.
     #[must_use]
-    pub fn ends_at(&self, session: &Session) -> DateTime<Utc> {
+    pub fn ends_at(&self, session: &Session) -> Timestamp {
         session
             .expires_at
             .min(session.created_at + self.max())
@@ -105,11 +105,11 @@ pub const MAX_USER_AGENT: usize = 200;
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct Session {
     pub id: SessionId,
-    pub created_at: DateTime<Utc>,
-    pub last_used_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub last_used_at: Timestamp,
     /// When the session ends if it is not used again: the earliest of the expiry fixed at
     /// sign-in and the two limits in force now (see [`SessionLimits::ends_at`]).
-    pub expires_at: DateTime<Utc>,
+    pub expires_at: Timestamp,
     /// The client's user agent, truncated, or `None` if it sent none.
     pub user_agent: Option<String>,
     /// Where the session was created from, as the proxy rules resolved it.
@@ -151,15 +151,11 @@ mod tests {
         assert_eq!(kept.chars().count(), MAX_USER_AGENT);
     }
 
-    fn at(hours_ago: i64) -> DateTime<Utc> {
-        Utc::now() - Duration::hours(hours_ago)
+    fn at(hours_ago: i64) -> Timestamp {
+        Timestamp::now() - SignedDuration::from_hours(hours_ago)
     }
 
-    fn session(
-        created: DateTime<Utc>,
-        last_used: DateTime<Utc>,
-        expires: DateTime<Utc>,
-    ) -> Session {
+    fn session(created: Timestamp, last_used: Timestamp, expires: Timestamp) -> Session {
         Session {
             id: SessionId::new(),
             created_at: created,
@@ -180,16 +176,27 @@ mod tests {
         };
         let created = at(9);
         // Used two hours ago, so the idle limit ends it now — an hour before the maximum.
-        let busy = session(created, at(2), created + Duration::hours(720));
+        let busy = session(created, at(2), created + SignedDuration::from_hours(720));
         assert_eq!(
             limits.ends_at(&busy),
-            busy.last_used_at + Duration::hours(2)
+            busy.last_used_at + SignedDuration::from_hours(2)
         );
         // Used a minute ago: now the maximum, counted from sign-in, comes first.
-        let active = session(created, Utc::now(), created + Duration::hours(720));
-        assert_eq!(limits.ends_at(&active), created + Duration::hours(10));
+        let active = session(
+            created,
+            Timestamp::now(),
+            created + SignedDuration::from_hours(720),
+        );
+        assert_eq!(
+            limits.ends_at(&active),
+            created + SignedDuration::from_hours(10)
+        );
         // Signed in under a shorter maximum than today's: the stored expiry still holds.
-        let older = session(created, Utc::now(), created + Duration::hours(4));
+        let older = session(
+            created,
+            Timestamp::now(),
+            created + SignedDuration::from_hours(4),
+        );
         assert_eq!(limits.ends_at(&older), older.expires_at);
     }
 

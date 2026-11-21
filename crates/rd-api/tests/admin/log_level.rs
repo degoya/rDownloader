@@ -102,13 +102,14 @@ async fn a_debug_window_opens_its_area_comes_back_after_a_restart_and_ends_on_re
     assert_eq!(status, StatusCode::OK, "{state}");
     assert_eq!(state["level"], "info");
     assert_eq!(state["debug"]["area"], "usenet");
-    let until: chrono::DateTime<chrono::Utc> = state["debug"]["until"]
+    let until: rd_core::Timestamp = state["debug"]["until"]
         .as_str()
         .and_then(|until| until.parse().ok())
         .expect("until");
-    let left = until - chrono::Utc::now();
+    let left = until - rd_core::Timestamp::now();
     assert!(
-        left > chrono::Duration::minutes(14) && left <= chrono::Duration::minutes(15),
+        left > rd_core::SignedDuration::from_mins(14)
+            && left <= rd_core::SignedDuration::from_mins(15),
         "{left}"
     );
     tracing::debug!(target: "rd_usenet::nntp", "probe usenet debug");
@@ -126,7 +127,7 @@ async fn a_debug_window_opens_its_area_comes_back_after_a_restart_and_ends_on_re
     let stored = log_filter::stored_window(&harness.database).await;
     assert!(stored.is_some());
     assert_eq!(
-        log_filter::reopened(stored, until + chrono::Duration::seconds(1)),
+        log_filter::reopened(stored, until + rd_core::SignedDuration::from_secs(1)),
         None
     );
 

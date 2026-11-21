@@ -4,7 +4,7 @@
 //! URLs are redacted before they leave the process, the body is described by its field
 //! names only, and credentials appear as *categories* paired with the host they would go to.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_core::{
     AuthMethod, AuthProfileId, CandidateId, CapturedBody, CapturedHeader, CredentialCategory,
     ReplayBlockReason, ReplayConsent, ReplayMethod,
@@ -21,7 +21,7 @@ pub struct AuthProfileSummary {
     /// Host the profile's scope covers, i.e. where its credentials would be sent.
     pub scope_host: String,
     pub has_client_certificate: bool,
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
 }
 
 /// Exactly what a replay of this capture would send, and to where.
@@ -47,7 +47,7 @@ pub struct ReplayPreviewResponse {
     /// Which categories of credential this replay would send.
     pub credential_categories: Vec<CredentialCategory>,
     pub auth_profile: Option<AuthProfileSummary>,
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
     pub replayable: bool,
     pub blocked_reason: Option<ReplayBlockReason>,
     /// Hash the consent is bound to; the client sends it back when approving.

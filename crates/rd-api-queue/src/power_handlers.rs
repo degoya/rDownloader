@@ -7,7 +7,7 @@ use crate::{AppState, error::ApiError};
 
 #[utoipa::path(get, path = "/api/v1/power/status", tag = "system", responses((status = 200, body = rd_power::PowerStatus)))]
 pub async fn power_status(State(state): State<AppState>) -> Json<rd_power::PowerStatus> {
-    Json(state.queue.power.status(chrono::Utc::now()).await)
+    Json(state.queue.power.status(rd_core::Timestamp::now()).await)
 }
 
 /// Aborts a counting-down standby or shutdown. The cycle counts as handled, so it does not

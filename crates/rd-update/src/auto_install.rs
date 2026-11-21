@@ -11,11 +11,11 @@
 //! over the clock [`AutoInstall::observe`] keeps, which the automatic restart (RD-1240-32,
 //! `crate::auto_restart`) decides with too.
 
-use chrono::{DateTime, TimeDelta, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 
 /// How long nothing may have run before an update is installed.
-pub(crate) const QUIET_PERIOD: TimeDelta = TimeDelta::minutes(5);
+pub(crate) const QUIET_PERIOD: SignedDuration = SignedDuration::from_mins(5);
 /// Minutes in a day; a window's bounds lie below it.
 pub const MINUTES_PER_DAY: u16 = 24 * 60;
 
@@ -113,7 +113,7 @@ impl Wait {
 #[derive(Clone, Debug, Default)]
 pub struct AutoInstall {
     /// Since when nothing runs; `None` while something does.
-    quiet_since: Option<DateTime<Utc>>,
+    quiet_since: Option<Timestamp>,
 }
 
 impl AutoInstall {
@@ -125,7 +125,7 @@ impl AutoInstall {
     /// # Errors
     ///
     /// The [`Wait`] that holds the install back.
-    pub fn decide<'a>(&mut self, moment: &Moment<'a>, now: DateTime<Utc>) -> Result<&'a str, Wait> {
+    pub fn decide<'a>(&mut self, moment: &Moment<'a>, now: Timestamp) -> Result<&'a str, Wait> {
         let quiet_since = self.observe(moment.busy, now);
         if !moment.enabled {
             return Err(Wait::Off);
@@ -147,7 +147,7 @@ impl AutoInstall {
     }
 
     /// Follows `busy` at `now`: since when nothing runs, `None` while something does.
-    pub fn observe(&mut self, busy: bool, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+    pub fn observe(&mut self, busy: bool, now: Timestamp) -> Option<Timestamp> {
         if busy {
             self.quiet_since = None;
             None
@@ -164,8 +164,8 @@ impl AutoInstall {
 ///
 /// [`Wait::Busy`], [`Wait::Settling`] or [`Wait::OutsideWindow`].
 pub fn settled(
-    quiet_since: Option<DateTime<Utc>>,
-    now: DateTime<Utc>,
+    quiet_since: Option<Timestamp>,
+    now: Timestamp,
     local_minute: u16,
     window: Option<InstallWindow>,
 ) -> Result<(), Wait> {

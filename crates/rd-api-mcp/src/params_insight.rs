@@ -144,6 +144,16 @@ pub(crate) struct SubmitPackageRemoteJobParams {
     pub account_id: String,
 }
 
+/// A LinkGrabber package handed to a provider instead of the queue (RD-1440-07).
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct HandOverCollectorPackageParams {
+    /// The LinkGrabber package (id from list_collector_packages).
+    pub id: String,
+    /// The account whose provider is to fetch its links. list_remote_job_providers names the
+    /// providers that run remote jobs; with `container` "torrent" those that take a .torrent.
+    pub account_id: String,
+}
+
 /// The optional narrowing of the remote-job provider list.
 #[derive(Debug, Default, Deserialize, schemars::JsonSchema)]
 pub(crate) struct RemoteJobProvidersParams {

@@ -159,7 +159,7 @@ pub async fn prepare(
         data_directory: &data,
         from_version: from,
         target_version: &target,
-        at: chrono::Utc::now(),
+        at: rd_core::Timestamp::now(),
     };
     sweep(&data).await;
     let event = AuditEvent::success(AuditAction::UpdatePrepared)

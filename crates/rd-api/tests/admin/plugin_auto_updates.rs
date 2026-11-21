@@ -113,8 +113,8 @@ fn signed_index(
     let index = index::PluginIndex {
         schema_version: index::PLUGIN_INDEX_SCHEMA_VERSION,
         sequence,
-        issued_at: chrono::Utc::now() - chrono::Duration::minutes(1),
-        not_after: chrono::Utc::now() + chrono::Duration::days(30),
+        issued_at: rd_core::Timestamp::now() - rd_core::SignedDuration::from_mins(1),
+        not_after: rd_core::Timestamp::now() + rd_core::SignedDuration::from_hours(24 * 30),
         packages: packages
             .iter()
             .map(|(id, version, bytes)| {

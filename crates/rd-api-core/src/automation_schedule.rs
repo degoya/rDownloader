@@ -12,23 +12,24 @@
 //! * **No double run.** The run's idempotency key names the automation and the slot, and the run
 //!   table refuses a second row under it — across a restart inside the window too.
 
-use chrono::{DateTime, TimeZone, Utc};
+use jiff::tz::TimeZone;
 use rd_automation::{EventContext, Trigger};
+use rd_core::Timestamp;
 
 /// How often the schedules are looked at; well inside the grace window.
 pub(crate) const TICK: std::time::Duration = std::time::Duration::from_secs(15);
 
 /// Queues a run for every time-triggered automation whose slot is due at `now`, read in
-/// `zone` — the service's own in production (`chrono::Local`), a fixed one in a test. Answers
+/// `zone` — the service's own in production (`TimeZone::system()`), a fixed one in a test. Answers
 /// how many runs were queued; a slot that already has its run counts none.
 ///
 /// # Errors
 ///
 /// The store's error.
-pub(crate) async fn queue_due<Tz: TimeZone>(
+pub(crate) async fn queue_due(
     database: &rd_db::Database,
-    now: DateTime<Utc>,
-    zone: &Tz,
+    now: Timestamp,
+    zone: &TimeZone,
 ) -> anyhow::Result<usize> {
     let mut queued = 0;
     for version in database.active_automation_versions().await? {

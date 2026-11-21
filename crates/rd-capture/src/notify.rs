@@ -34,6 +34,7 @@
 use std::{future::Future, time::Duration};
 
 use anyhow::{Result, bail};
+use rd_core::Timestamp;
 use serde::Deserialize;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -91,7 +92,7 @@ pub(crate) struct Intake {
     file_count: u32,
     /// Set while quiet hours hold notifications back: when they end.
     #[serde(default)]
-    quiet_until: Option<chrono::DateTime<chrono::Utc>>,
+    quiet_until: Option<Timestamp>,
     /// The browser extension handed it over and announces it itself (RD-1270-05).
     #[serde(default)]
     extension_notice: bool,
@@ -238,7 +239,7 @@ where
         // Quiet hours: what arrived waits for their end, together with whatever follows.
         if let Some(wait) = batch
             .quiet_until
-            .and_then(|until| (until - chrono::Utc::now()).to_std().ok())
+            .and_then(|until| Duration::try_from(until - Timestamp::now()).ok())
         {
             batch.held = true;
             collect_until(&mut intakes, &mut batch, tokio::time::sleep(wait)).await;

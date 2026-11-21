@@ -141,7 +141,7 @@ pub async fn set_usenet_server_quota(
     Path(id): Path<rd_core::UsenetServerId>,
     Json(request): Json<SetUsenetQuotaRequest>,
 ) -> Result<Json<rd_core::UsenetServer>, ApiError> {
-    let today = chrono::Utc::now().date_naive();
+    let today = rd_core::Date::from_jiff(rd_core::Timestamp::now().date());
     if request.limit_bytes == Some(0) || request.reset_on.is_some_and(|day| day < today) {
         return Err(ApiError::bad_request(
             "usenet.quota_invalid",

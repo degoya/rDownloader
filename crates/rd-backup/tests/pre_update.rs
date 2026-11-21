@@ -4,13 +4,13 @@
 
 use std::path::Path;
 
-use chrono::{Duration, Utc};
 use rd_backup::{
     BackupKey, BackupSources,
     archive::verify_archive,
     pre_update::{self, UpdatePlan},
 };
 use rd_core::BackupOrigin;
+use rd_core::{SignedDuration, Timestamp};
 use rd_db::{Database, NewBackupRun};
 use tempfile::TempDir;
 
@@ -24,7 +24,7 @@ fn sources() -> BackupSources {
     }
 }
 
-fn plan(data: &Path, at: chrono::DateTime<Utc>) -> UpdatePlan<'_> {
+fn plan(data: &Path, at: Timestamp) -> UpdatePlan<'_> {
     UpdatePlan {
         data_directory: data,
         from_version: "1.8.0-beta.1",
@@ -57,7 +57,7 @@ async fn open(directory: &TempDir) -> (Database, std::path::PathBuf) {
             .begin_backup_run(NewBackupRun {
                 id: "before-the-update".to_owned(),
                 origin: BackupOrigin::Manual,
-                started_at: Utc::now(),
+                started_at: Timestamp::now(),
                 destination_id: None,
                 destination: None,
             })
@@ -71,7 +71,7 @@ async fn open(directory: &TempDir) -> (Database, std::path::PathBuf) {
 async fn the_copy_is_checked_named_by_both_versions_and_holds_the_live_rows() {
     let directory = TempDir::new().expect("temp");
     let (database, data) = open(&directory).await;
-    let copy = pre_update::copy_database(&database, plan(&data, Utc::now()))
+    let copy = pre_update::copy_database(&database, plan(&data, Timestamp::now()))
         .await
         .expect("copy");
     let name = copy
@@ -111,9 +111,9 @@ async fn copies_and_archives_each_keep_their_newest_three() {
     let key = BackupKey::derive_new("correct horse battery")
         .await
         .expect("key");
-    let start = Utc::now();
+    let start = Timestamp::now();
     for step in 0..5 {
-        let at = start + Duration::seconds(step);
+        let at = start + SignedDuration::from_secs(step);
         pre_update::copy_database(&database, plan(&data, at))
             .await
             .expect("copy");
@@ -133,8 +133,8 @@ async fn copies_and_archives_each_keep_their_newest_three() {
     assert_eq!(copies, pre_update::KEPT, "{names:?}");
     assert_eq!(archives.len(), pre_update::KEPT, "{names:?}");
     // The newest stayed: the last one written is among them.
-    let newest = (start + Duration::seconds(4))
-        .format("%Y%m%dT%H%M%SZ")
+    let newest = (start + SignedDuration::from_secs(4))
+        .strftime("%Y%m%dT%H%M%SZ")
         .to_string();
     assert!(
         archives.iter().any(|name| name.contains(&newest)),
@@ -162,7 +162,7 @@ async fn the_folder_of_the_plain_copies_is_the_service_accounts_alone() {
     let folder = pre_update::directory(&data);
     std::fs::create_dir_all(&folder).expect("folder");
     std::fs::set_permissions(&folder, std::fs::Permissions::from_mode(0o755)).expect("chmod");
-    pre_update::copy_database(&database, plan(&data, Utc::now()))
+    pre_update::copy_database(&database, plan(&data, Timestamp::now()))
         .await
         .expect("copy");
     assert_eq!(mode(&folder), 0o700);
@@ -170,7 +170,7 @@ async fn the_folder_of_the_plain_copies_is_the_service_accounts_alone() {
     let key = BackupKey::derive_new("correct horse battery")
         .await
         .expect("key");
-    pre_update::seal_archive(&database, sources(), &key, plan(&data, Utc::now()))
+    pre_update::seal_archive(&database, sources(), &key, plan(&data, Timestamp::now()))
         .await
         .expect("archive");
     assert_eq!(mode(&folder), 0o700);
@@ -183,9 +183,10 @@ async fn the_archive_opens_again_under_its_key_and_only_under_it() {
     let key = BackupKey::derive_new("correct horse battery")
         .await
         .expect("key");
-    let archive = pre_update::seal_archive(&database, sources(), &key, plan(&data, Utc::now()))
-        .await
-        .expect("archive");
+    let archive =
+        pre_update::seal_archive(&database, sources(), &key, plan(&data, Timestamp::now()))
+            .await
+            .expect("archive");
     assert_eq!(archive.key_fingerprint, key.fingerprint());
     let manifest = verify_archive(&archive.path, &key).expect("verifies");
     assert!(!manifest.parts.is_empty());
@@ -201,7 +202,7 @@ async fn the_archive_opens_again_under_its_key_and_only_under_it() {
 async fn the_sweep_removes_leftovers_and_never_a_published_copy() {
     let directory = TempDir::new().expect("temp");
     let (database, data) = open(&directory).await;
-    let copy = pre_update::copy_database(&database, plan(&data, Utc::now()))
+    let copy = pre_update::copy_database(&database, plan(&data, Timestamp::now()))
         .await
         .expect("copy");
     let folder = pre_update::directory(&data);
@@ -227,7 +228,7 @@ async fn the_sweep_removes_leftovers_and_never_a_published_copy() {
 async fn a_version_that_is_no_file_name_writes_nothing() {
     let directory = TempDir::new().expect("temp");
     let (database, data) = open(&directory).await;
-    let mut bad = plan(&data, Utc::now());
+    let mut bad = plan(&data, Timestamp::now());
     bad.target_version = "../../escape";
     let error = pre_update::copy_database(&database, bad)
         .await

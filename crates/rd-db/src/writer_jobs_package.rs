@@ -183,7 +183,7 @@ impl Writer {
     ) -> Result<()> {
         sqlx::query("UPDATE packages SET extraction_result = ?, updated_at = ? WHERE id = ?")
             .bind(result.map(|value| value.to_string()))
-            .bind(chrono::Utc::now())
+            .bind(rd_core::Timestamp::now())
             .bind(package_id.to_string())
             .execute(&mut self.connection)
             .await?;

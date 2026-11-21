@@ -59,8 +59,8 @@ fn unsigned_index(sequence: u64, packages: Vec<IndexPackage>, revoked: Revocatio
     PluginIndex {
         schema_version: PLUGIN_INDEX_SCHEMA_VERSION,
         sequence,
-        issued_at: Utc::now() - Duration::minutes(1),
-        not_after: Utc::now() + Duration::days(30),
+        issued_at: Timestamp::now() - SignedDuration::from_mins(1),
+        not_after: Timestamp::now() + SignedDuration::from_hours(24 * 30),
         packages,
         revoked,
     }
@@ -317,8 +317,8 @@ async fn a_replay_is_refused_without_the_cache_and_a_stale_cache_is_dropped() {
     assert!(!cache.exists(), "a cache below the floor was kept");
 
     let mut expired = unsigned_index(9, Vec::new(), Revocations::default());
-    expired.issued_at = Utc::now() - Duration::days(40);
-    expired.not_after = Utc::now() - Duration::days(1);
+    expired.issued_at = Timestamp::now() - SignedDuration::from_hours(24 * 40);
+    expired.not_after = Timestamp::now() - SignedDuration::from_hours(24);
     std::fs::write(
         &cache,
         index::sign(REPOSITORY_KEY_ID, &repository_key(), &expired).expect("sign"),

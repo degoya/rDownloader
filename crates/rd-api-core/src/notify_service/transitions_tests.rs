@@ -92,8 +92,8 @@ fn a_captcha_answered_or_withdrawn_says_nothing() {
 /// A sixty-second countdown is one "pending" and one end; the action running is not notified.
 #[test]
 fn a_countdown_is_one_start_and_its_end_is_named() {
-    let now = chrono::Utc::now();
-    let runs_at = now + chrono::Duration::seconds(60);
+    let now = rd_core::Timestamp::now();
+    let runs_at = now + rd_core::SignedDuration::from_secs(60);
     let (title, body) = power_notice(
         &json!({ "state": "pending", "pending": "shutdown", "runs_at": runs_at }),
         now,

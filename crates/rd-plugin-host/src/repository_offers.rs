@@ -271,7 +271,7 @@ impl PluginRepositoryService {
                 version: offer.entry.version.clone(),
                 digest,
                 repository_id: offer.repository_id.clone(),
-                installed_at: chrono::Utc::now().to_rfc3339(),
+                installed_at: rd_core::Timestamp::now().to_rfc3339(),
             })
             .await?;
         Ok(())

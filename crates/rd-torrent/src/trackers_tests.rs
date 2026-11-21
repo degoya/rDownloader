@@ -147,9 +147,9 @@ fn a_hostile_tracker_message_cannot_flood_the_error_field() {
 
 #[test]
 fn counters_go_stale_after_the_freshness_window() {
-    let now = chrono::Utc::now();
-    assert!(!is_stale(now - chrono::Duration::minutes(5), now));
-    assert!(is_stale(now - chrono::Duration::minutes(20), now));
+    let now = rd_core::Timestamp::now();
+    assert!(!is_stale(now - rd_core::SignedDuration::from_mins(5), now));
+    assert!(is_stale(now - rd_core::SignedDuration::from_mins(20), now));
 }
 
 /// Serves one fixed raw HTTP response to every connection on a loopback port.

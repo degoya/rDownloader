@@ -7,8 +7,7 @@
 //! a client could not tell a finished poll from an unrelated edit. These tests hold the
 //! fields that make the difference.
 
-use chrono::Utc;
-use rd_core::EventKind;
+use rd_core::{EventKind, Timestamp};
 use rd_db::{NewSubscription, PollResult};
 use tempfile::TempDir;
 
@@ -44,7 +43,7 @@ fn result(error: Option<&str>) -> PollResult {
         accepted: 2,
         skipped: 5,
         error: error.map(ToOwned::to_owned),
-        next_run_at: Utc::now(),
+        next_run_at: Timestamp::now(),
         consecutive_failures: 0,
         etag: None,
         last_modified: None,
@@ -80,7 +79,7 @@ async fn a_finished_poll_names_its_subscription_and_what_it_found() {
 
     let mut events = database.subscribe();
     database
-        .finish_subscription_run(created.id, Utc::now(), result(None))
+        .finish_subscription_run(created.id, Timestamp::now(), result(None))
         .await
         .expect("run recorded");
 
@@ -108,7 +107,7 @@ async fn a_failed_poll_carries_its_reason() {
 
     let mut events = database.subscribe();
     database
-        .finish_subscription_run(created.id, Utc::now(), result(Some("poll timed out")))
+        .finish_subscription_run(created.id, Timestamp::now(), result(Some("poll timed out")))
         .await
         .expect("run recorded");
 

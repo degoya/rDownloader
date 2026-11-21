@@ -10,7 +10,7 @@ impl AuthFlowService {
         plugin_id: &str,
         progress: AuthProgress,
     ) -> anyhow::Result<AuthFlow> {
-        let now = Utc::now();
+        let now = Timestamp::now();
         // The one place every address a sign-in shows passes through, whichever world and
         // whichever call produced it: one that is no safe link ends the flow instead.
         let progress = match progress {

@@ -8,8 +8,8 @@ use std::sync::{
 };
 
 use async_trait::async_trait;
-use chrono::{Duration, TimeZone, Utc};
-use chrono_tz::Tz;
+use jiff::tz::TimeZone;
+use rd_core::{SignedDuration, Timestamp};
 use rd_power::{
     CompletionAction, PowerAdapter, PowerCapabilities, PowerService, PowerSettings, PowerState,
 };
@@ -70,9 +70,9 @@ fn settings(action: CompletionAction, approved: bool) -> PowerSettings {
 async fn a_script_action_fires_once_per_work_cycle() {
     let service = PowerService::new(capable());
     service
-        .apply(settings(CompletionAction::Script, false), Tz::UTC)
+        .apply(settings(CompletionAction::Script, false), TimeZone::UTC)
         .await;
-    let now = Utc.with_ymd_and_hms(2026, 9, 3, 12, 0, 0).unwrap();
+    let now = Timestamp::from_ymd_hms(2026, 9, 3, 12, 0, 0).expect("a valid instant");
 
     // Idle before anything happened: nothing to complete.
     assert!(service.observe(false, now).await.is_none());
@@ -93,9 +93,9 @@ async fn a_script_action_fires_once_per_work_cycle() {
 async fn a_power_action_waits_out_its_countdown_and_can_be_cancelled() {
     let service = PowerService::new(capable());
     service
-        .apply(settings(CompletionAction::Shutdown, true), Tz::UTC)
+        .apply(settings(CompletionAction::Shutdown, true), TimeZone::UTC)
         .await;
-    let start = Utc.with_ymd_and_hms(2026, 9, 3, 12, 0, 0).unwrap();
+    let start = Timestamp::from_ymd_hms(2026, 9, 3, 12, 0, 0).expect("a valid instant");
     service.observe(true, start).await;
 
     // The countdown starts; nothing is due yet.
@@ -103,10 +103,10 @@ async fn a_power_action_waits_out_its_countdown_and_can_be_cancelled() {
     let status = service.status(start).await;
     let pending = status.pending.expect("countdown running");
     assert_eq!(pending.action, CompletionAction::Shutdown);
-    assert_eq!(pending.runs_at, start + Duration::seconds(60));
+    assert_eq!(pending.runs_at, start + SignedDuration::from_secs(60));
     assert!(
         service
-            .observe(false, start + Duration::seconds(30))
+            .observe(false, start + SignedDuration::from_secs(30))
             .await
             .is_none()
     );
@@ -116,7 +116,7 @@ async fn a_power_action_waits_out_its_countdown_and_can_be_cancelled() {
     // Cancelling settles the cycle: it must not start counting down again.
     assert!(
         service
-            .observe(false, start + Duration::seconds(120))
+            .observe(false, start + SignedDuration::from_secs(120))
             .await
             .is_none()
     );
@@ -127,19 +127,19 @@ async fn a_power_action_waits_out_its_countdown_and_can_be_cancelled() {
 async fn a_countdown_that_runs_out_hands_the_action_over_exactly_once() {
     let service = PowerService::new(capable());
     service
-        .apply(settings(CompletionAction::Standby, true), Tz::UTC)
+        .apply(settings(CompletionAction::Standby, true), TimeZone::UTC)
         .await;
-    let start = Utc.with_ymd_and_hms(2026, 9, 3, 12, 0, 0).unwrap();
+    let start = Timestamp::from_ymd_hms(2026, 9, 3, 12, 0, 0).expect("a valid instant");
     service.observe(true, start).await;
     assert!(service.observe(false, start).await.is_none());
     let due = service
-        .observe(false, start + Duration::seconds(61))
+        .observe(false, start + SignedDuration::from_secs(61))
         .await
         .expect("countdown elapsed");
     assert_eq!(due.action, CompletionAction::Standby);
     assert!(
         service
-            .observe(false, start + Duration::seconds(120))
+            .observe(false, start + SignedDuration::from_secs(120))
             .await
             .is_none()
     );
@@ -149,38 +149,40 @@ async fn a_countdown_that_runs_out_hands_the_action_over_exactly_once() {
 async fn new_work_during_the_countdown_calls_the_action_off() {
     let service = PowerService::new(capable());
     service
-        .apply(settings(CompletionAction::Shutdown, true), Tz::UTC)
+        .apply(settings(CompletionAction::Shutdown, true), TimeZone::UTC)
         .await;
-    let start = Utc.with_ymd_and_hms(2026, 9, 3, 12, 0, 0).unwrap();
+    let start = Timestamp::from_ymd_hms(2026, 9, 3, 12, 0, 0).expect("a valid instant");
     service.observe(true, start).await;
     service.observe(false, start).await;
     assert!(service.status(start).await.pending.is_some());
 
     // Something was added again — the machine must stay on.
-    service.observe(true, start + Duration::seconds(10)).await;
+    service
+        .observe(true, start + SignedDuration::from_secs(10))
+        .await;
     assert!(service.status(start).await.pending.is_none());
     // The new cycle counts down on its own terms.
     assert!(
         service
-            .observe(false, start + Duration::seconds(20))
+            .observe(false, start + SignedDuration::from_secs(20))
             .await
             .is_none()
     );
     let pending = service
-        .status(start + Duration::seconds(20))
+        .status(start + SignedDuration::from_secs(20))
         .await
         .pending
         .expect("second countdown");
-    assert_eq!(pending.runs_at, start + Duration::seconds(80));
+    assert_eq!(pending.runs_at, start + SignedDuration::from_secs(80));
 }
 
 #[tokio::test]
 async fn without_the_local_approval_a_power_action_never_runs() {
     let service = PowerService::new(capable());
     service
-        .apply(settings(CompletionAction::Shutdown, false), Tz::UTC)
+        .apply(settings(CompletionAction::Shutdown, false), TimeZone::UTC)
         .await;
-    let now = Utc.with_ymd_and_hms(2026, 9, 3, 12, 0, 0).unwrap();
+    let now = Timestamp::from_ymd_hms(2026, 9, 3, 12, 0, 0).expect("a valid instant");
     service.observe(true, now).await;
     assert!(service.observe(false, now).await.is_none());
     let status = service.status(now).await;
@@ -193,15 +195,15 @@ async fn without_the_local_approval_a_power_action_never_runs() {
 async fn withdrawing_the_approval_stops_a_running_countdown() {
     let service = PowerService::new(capable());
     service
-        .apply(settings(CompletionAction::Shutdown, true), Tz::UTC)
+        .apply(settings(CompletionAction::Shutdown, true), TimeZone::UTC)
         .await;
-    let now = Utc.with_ymd_and_hms(2026, 9, 3, 12, 0, 0).unwrap();
+    let now = Timestamp::from_ymd_hms(2026, 9, 3, 12, 0, 0).expect("a valid instant");
     service.observe(true, now).await;
     service.observe(false, now).await;
     assert!(service.status(now).await.pending.is_some());
 
     service
-        .apply(settings(CompletionAction::Shutdown, false), Tz::UTC)
+        .apply(settings(CompletionAction::Shutdown, false), TimeZone::UTC)
         .await;
     assert!(service.status(now).await.pending.is_none());
 }
@@ -210,9 +212,9 @@ async fn withdrawing_the_approval_stops_a_running_countdown() {
 async fn a_missing_platform_capability_degrades_visibly_without_blocking_anything() {
     let service = PowerService::new(Arc::new(FakeAdapter::default()));
     service
-        .apply(settings(CompletionAction::Standby, true), Tz::UTC)
+        .apply(settings(CompletionAction::Standby, true), TimeZone::UTC)
         .await;
-    let now = Utc.with_ymd_and_hms(2026, 9, 3, 12, 0, 0).unwrap();
+    let now = Timestamp::from_ymd_hms(2026, 9, 3, 12, 0, 0).expect("a valid instant");
     let status = service.status(now).await;
     assert!(!status.capabilities.standby);
     assert!(!status.capabilities.battery);
@@ -246,7 +248,7 @@ async fn the_network_context_pauses_only_what_it_was_asked_to() {
     let service = PowerService::new(adapter);
     service.refresh_state().await;
 
-    service.apply(PowerSettings::default(), Tz::UTC).await;
+    service.apply(PowerSettings::default(), TimeZone::UTC).await;
     assert!(service.hold_reason().await.is_none(), "not configured");
 
     service
@@ -255,7 +257,7 @@ async fn the_network_context_pauses_only_what_it_was_asked_to() {
                 pause_on_battery: true,
                 ..PowerSettings::default()
             },
-            Tz::UTC,
+            TimeZone::UTC,
         )
         .await;
     service.refresh_state().await;
@@ -268,7 +270,7 @@ async fn the_network_context_pauses_only_what_it_was_asked_to() {
                 pause_on_metered: true,
                 ..PowerSettings::default()
             },
-            Tz::UTC,
+            TimeZone::UTC,
         )
         .await;
     service.refresh_state().await;
@@ -294,15 +296,15 @@ async fn quiet_hours_defer_only_the_configured_work() {
                 quiet_hours_defer_notifications: false,
                 ..PowerSettings::default()
             },
-            Tz::Europe__Berlin,
+            TimeZone::get("Europe/Berlin").expect("zone"),
         )
         .await;
     // 2026-01-16 01:00 Berlin = 00:00 UTC.
-    let night = Utc.with_ymd_and_hms(2026, 1, 16, 0, 0, 0).unwrap();
+    let night = Timestamp::from_ymd_hms(2026, 1, 16, 0, 0, 0).expect("a valid instant");
     assert!(service.is_quiet(night).await);
     assert!(service.defers_postprocess(night).await);
     assert!(!service.defers_notifications(night).await, "not configured");
 
-    let day = Utc.with_ymd_and_hms(2026, 1, 16, 11, 0, 0).unwrap();
+    let day = Timestamp::from_ymd_hms(2026, 1, 16, 11, 0, 0).expect("a valid instant");
     assert!(!service.defers_postprocess(day).await);
 }

@@ -10,7 +10,7 @@ use axum::{
     Json,
     extract::{Path as AxumPath, Query, State},
 };
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_core::{
     DownloadId, DownloadKind, DownloadState, PackageId, ReuseCapability, StorageOperationKind,
     StorageOperationState,
@@ -104,8 +104,8 @@ pub struct StorageOperationResponse {
     /// Stable code of a failure.
     pub error_code: Option<String>,
     pub error_message: Option<String>,
-    pub started_at: DateTime<Utc>,
-    pub finished_at: Option<DateTime<Utc>>,
+    pub started_at: Timestamp,
+    pub finished_at: Option<Timestamp>,
 }
 
 impl From<rd_db::StorageOperation> for StorageOperationResponse {

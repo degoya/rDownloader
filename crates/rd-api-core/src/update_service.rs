@@ -30,7 +30,7 @@ use std::{
     time::Duration,
 };
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_db::Database;
 use rd_update::{
     Channel, Fetcher, Floors, HttpFetcher, InstallKind, Offer, Sources, Target, TrustStore,
@@ -63,8 +63,8 @@ struct Progress {
     state: &'static str,
     target_version: String,
     reason: Option<String>,
-    started_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    started_at: Timestamp,
+    updated_at: Timestamp,
 }
 
 /// The background download of an offered version's artifact (`download_state`).
@@ -92,7 +92,7 @@ pub struct StoredState {
     #[serde(default)]
     pub floors: Floors,
     #[serde(default)]
-    pub last_checked: Option<DateTime<Utc>>,
+    pub last_checked: Option<Timestamp>,
     /// The stable code of the last check's problem.
     #[serde(default)]
     pub last_error: Option<String>,
@@ -241,7 +241,7 @@ impl UpdateService {
             Some(sources) => sources,
             None => Sources::official()?,
         };
-        let now = Utc::now();
+        let now = Timestamp::now();
         let trust = match trust {
             Some(trust) => trust,
             None => rd_update::manifest::release_trust(now)?,
@@ -318,7 +318,7 @@ impl UpdateService {
             .then(|| {
                 stored
                     .last_checked
-                    .map(|last| last + chrono::Duration::hours(i64::from(interval)))
+                    .map(|last| last + rd_core::SignedDuration::from_hours(i64::from(interval)))
             })
             .flatten()
             .map(|at| at.to_rfc3339());
@@ -424,15 +424,15 @@ impl UpdateService {
         if !settings.update_check_enabled {
             return false;
         }
-        let interval = chrono::Duration::hours(i64::from(settings.interval_hours()));
+        let interval = rd_core::SignedDuration::from_hours(i64::from(settings.interval_hours()));
         self.stored()
             .await
             .last_checked
-            .is_none_or(|last| Utc::now() - last >= interval)
+            .is_none_or(|last| Timestamp::now() - last >= interval)
     }
 }
 
 /// Whether this build lacks the release root (a fork or a build with the key blanked).
 fn release_root_missing() -> bool {
-    rd_update::manifest::release_trust(Utc::now()).is_err()
+    rd_update::manifest::release_trust(Timestamp::now()).is_err()
 }

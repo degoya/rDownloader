@@ -7,23 +7,23 @@
 //!
 //! Premium downloads are unaffected: the limit is a property of anonymous access.
 
+use rd_core::Timestamp;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
 
-use chrono::{DateTime, Utc};
 use url::Url;
 
 /// Hosts currently under an IP block, with the instant each one frees up again.
 #[derive(Clone, Default)]
 pub(crate) struct HostBlocks {
-    blocked: Arc<Mutex<HashMap<String, DateTime<Utc>>>>,
+    blocked: Arc<Mutex<HashMap<String, Timestamp>>>,
 }
 
 impl HostBlocks {
     /// Holds `source`'s hoster back until `until`, keeping the longest block already set.
-    pub(crate) fn block(&self, source: &Url, until: DateTime<Utc>) {
+    pub(crate) fn block(&self, source: &Url, until: Timestamp) {
         let Some(host) = block_key(source) else {
             return;
         };
@@ -38,7 +38,7 @@ impl HostBlocks {
 
     /// Whether an account-less download from `source` must wait. Expired entries are
     /// dropped as they are encountered, so the map stays as small as the active queue.
-    pub(crate) fn blocked_until(&self, source: &Url, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+    pub(crate) fn blocked_until(&self, source: &Url, now: Timestamp) -> Option<Timestamp> {
         let host = block_key(source)?;
         let mut blocked = self.blocked.lock().ok()?;
         match blocked.get(&host).copied() {
@@ -55,12 +55,12 @@ impl HostBlocks {
     ///
     /// Reported so a reconnect can say what it is waiting on, and so the interface can explain
     /// a queue that looks stalled but is deliberately waiting out a limit.
-    pub(crate) fn active(&self, now: DateTime<Utc>) -> Vec<(String, DateTime<Utc>)> {
+    pub(crate) fn active(&self, now: Timestamp) -> Vec<(String, Timestamp)> {
         let Ok(mut blocked) = self.blocked.lock() else {
             return Vec::new();
         };
         blocked.retain(|_, until| *until > now);
-        let mut active: Vec<(String, DateTime<Utc>)> = blocked
+        let mut active: Vec<(String, Timestamp)> = blocked
             .iter()
             .map(|(host, until)| (host.clone(), *until))
             .collect();
@@ -85,7 +85,7 @@ fn block_key(source: &Url) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, Utc};
+    use rd_core::{SignedDuration, Timestamp};
     use url::Url;
 
     use super::{HostBlocks, block_key};
@@ -97,10 +97,10 @@ mod tests {
     #[test]
     fn a_block_covers_every_link_of_the_same_hoster_but_no_other() {
         let blocks = HostBlocks::default();
-        let now = Utc::now();
+        let now = Timestamp::now();
         blocks.block(
             &url("https://rapidgator.net/file/one"),
-            now + Duration::minutes(15),
+            now + SignedDuration::from_mins(15),
         );
 
         assert!(
@@ -132,8 +132,11 @@ mod tests {
     #[test]
     fn an_expired_block_is_forgotten() {
         let blocks = HostBlocks::default();
-        let now = Utc::now();
-        blocks.block(&url("https://katfile.biz/a"), now - Duration::seconds(1));
+        let now = Timestamp::now();
+        blocks.block(
+            &url("https://katfile.biz/a"),
+            now - SignedDuration::from_secs(1),
+        );
 
         assert!(
             blocks
@@ -146,10 +149,13 @@ mod tests {
     #[test]
     fn the_longest_block_wins() {
         let blocks = HostBlocks::default();
-        let now = Utc::now();
-        let long = now + Duration::minutes(60);
+        let now = Timestamp::now();
+        let long = now + SignedDuration::from_mins(60);
         blocks.block(&url("https://ddownload.com/a"), long);
-        blocks.block(&url("https://ddownload.com/b"), now + Duration::minutes(5));
+        blocks.block(
+            &url("https://ddownload.com/b"),
+            now + SignedDuration::from_mins(5),
+        );
 
         assert_eq!(
             blocks.blocked_until(&url("https://ddownload.com/c"), now),
@@ -169,7 +175,7 @@ mod tests {
 
 #[cfg(test)]
 mod reporting_tests {
-    use chrono::{Duration, Utc};
+    use rd_core::{SignedDuration, Timestamp};
     use url::Url;
 
     use super::HostBlocks;
@@ -180,11 +186,20 @@ mod reporting_tests {
 
     #[test]
     fn active_blocks_are_reported_soonest_first_and_expired_ones_are_gone() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let blocks = HostBlocks::default();
-        blocks.block(&url("https://late.example/a"), now + Duration::minutes(30));
-        blocks.block(&url("https://soon.example/a"), now + Duration::minutes(5));
-        blocks.block(&url("https://gone.example/a"), now - Duration::minutes(1));
+        blocks.block(
+            &url("https://late.example/a"),
+            now + SignedDuration::from_mins(30),
+        );
+        blocks.block(
+            &url("https://soon.example/a"),
+            now + SignedDuration::from_mins(5),
+        );
+        blocks.block(
+            &url("https://gone.example/a"),
+            now - SignedDuration::from_mins(1),
+        );
 
         let active = blocks.active(now);
 
@@ -194,9 +209,12 @@ mod reporting_tests {
 
     #[test]
     fn clearing_lets_every_host_run_again() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let blocks = HostBlocks::default();
-        blocks.block(&url("https://one.example/a"), now + Duration::hours(1));
+        blocks.block(
+            &url("https://one.example/a"),
+            now + SignedDuration::from_hours(1),
+        );
 
         blocks.clear();
 

@@ -232,7 +232,7 @@ async fn a_confirmed_host_key_lets_the_transfer_through() {
             port: harness.fixture.port,
             algorithm: "ssh-ed25519".to_owned(),
             fingerprint: fingerprint.clone(),
-            first_seen: chrono::Utc::now(),
+            first_seen: rd_core::Timestamp::now(),
         })
         .await
         .expect("trust");
@@ -272,7 +272,7 @@ async fn a_changed_host_key_blocks_even_though_first_use_trust_is_on() {
             port: harness.fixture.port,
             algorithm: "ssh-ed25519".to_owned(),
             fingerprint: stored_fingerprint.clone(),
-            first_seen: chrono::Utc::now(),
+            first_seen: rd_core::Timestamp::now(),
         })
         .await
         .expect("trust");

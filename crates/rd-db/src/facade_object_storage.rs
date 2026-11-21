@@ -1,8 +1,7 @@
 //! Database facade methods for object storage profiles and uploads (RD-150-04).
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use rd_core::{ObjectStorageProfile, ObjectStorageProfileId};
+use rd_core::{ObjectStorageProfile, ObjectStorageProfileId, Timestamp};
 
 use crate::{
     Database,
@@ -78,7 +77,7 @@ impl Database {
     pub async fn object_uploads(
         &self,
         profile_id: Option<ObjectStorageProfileId>,
-        before: Option<DateTime<Utc>>,
+        before: Option<Timestamp>,
     ) -> Result<Vec<ObjectUpload>> {
         object_storage_store::uploads(&self.readers, profile_id, before).await
     }

@@ -12,8 +12,7 @@
 
 use std::collections::BTreeMap;
 
-use chrono::Utc;
-use rd_core::{AuditAction, AuditActorKind, AuditOutcome, LogLevel};
+use rd_core::{AuditAction, AuditActorKind, AuditOutcome, LogLevel, Timestamp};
 use rd_db::{
     AuditQuery, CLEARED_DETAIL_KEY, Database, LogQuery, NewAuditRecord, NewDelivery, NewLogRecord,
     StatsResolution,
@@ -29,7 +28,7 @@ async fn database_at(directory: &TempDir) -> (Database, std::path::PathBuf) {
 
 fn log_record(message: &str) -> NewLogRecord {
     NewLogRecord {
-        recorded_at: Utc::now(),
+        recorded_at: Timestamp::now(),
         level: LogLevel::Info,
         component: "rd_api".to_owned(),
         code: None,
@@ -53,7 +52,7 @@ async fn seed_stats(path: &std::path::Path, count: u32) {
         .expect("second connection");
     for hour in 0..count {
         let start = StatsResolution::Hour
-            .bucket_start(Utc::now() - chrono::Duration::hours(i64::from(hour)));
+            .bucket_start(Timestamp::now() - rd_core::SignedDuration::from_hours(i64::from(hour)));
         sqlx::query(
             "INSERT INTO transfer_stats \
                (resolution, bucket_start, kind, provider, completed, failed, retries, bytes, \
@@ -132,7 +131,7 @@ async fn seed_deliveries(database: &Database, states: &[DeliveryState]) {
                 *state,
                 1,
                 (*state == DeliveryState::Retrying)
-                    .then(|| Utc::now() + chrono::Duration::hours(1)),
+                    .then(|| Timestamp::now() + rd_core::SignedDuration::from_hours(1)),
                 None,
                 None,
             )
@@ -214,7 +213,7 @@ async fn clearing_the_audit_leaves_one_record_saying_who_cleared_it() {
     let mut marker = audit_record(AuditAction::AuditCleared);
     marker.actor_kind = AuditActorKind::Session;
     marker.actor_id = Some("session-7".to_owned());
-    let before = Utc::now();
+    let before = Timestamp::now();
     let removed = database.clear_audit_records(marker).await.expect("clear");
 
     assert_eq!(removed, 3, "the three seeded records went");
@@ -240,7 +239,7 @@ async fn clearing_the_audit_leaves_one_record_saying_who_cleared_it() {
         entry.details
     );
     assert!(
-        entry.recorded_at >= before - chrono::Duration::seconds(5),
+        entry.recorded_at >= before - rd_core::SignedDuration::from_secs(5),
         "the entry carries the moment of the clear"
     );
 }
@@ -327,7 +326,7 @@ async fn discarding_the_pending_notifications_keeps_the_finished_history() {
     );
     assert!(
         database
-            .due_notification_deliveries(Utc::now() + chrono::Duration::days(1))
+            .due_notification_deliveries(Timestamp::now() + rd_core::SignedDuration::from_hours(24))
             .await
             .expect("due")
             .is_empty(),
@@ -348,7 +347,7 @@ async fn an_attempt_recorded_after_its_delivery_was_discarded_changes_nothing() 
     let (database, _path) = database_at(&directory).await;
     seed_deliveries(&database, &[DeliveryState::Queued]).await;
     let picked_up = database
-        .due_notification_deliveries(Utc::now())
+        .due_notification_deliveries(Timestamp::now())
         .await
         .expect("due")
         .pop()
@@ -366,7 +365,7 @@ async fn an_attempt_recorded_after_its_delivery_was_discarded_changes_nothing() 
             picked_up.id,
             DeliveryState::Retrying,
             1,
-            Some(Utc::now()),
+            Some(Timestamp::now()),
             Some(503),
             None,
         )

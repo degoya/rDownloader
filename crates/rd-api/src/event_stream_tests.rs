@@ -20,7 +20,7 @@ fn an_intake_names_who_shows_it_and_until_when_it_waits() {
         with_toast_owner(intake(), false).payload["agent_toast"],
         false
     );
-    let until = chrono::Utc::now();
+    let until = rd_core::Timestamp::now();
     assert!(with_quiet_until(intake(), Some(until)).payload["quiet_until"].is_string());
     assert!(
         with_quiet_until(intake(), None)

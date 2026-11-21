@@ -26,7 +26,7 @@ pub(super) async fn produce(
     state: &AppState,
     config: BackupConfig,
     run_id: &str,
-    started_at: DateTime<Utc>,
+    started_at: Timestamp,
 ) -> Result<Written, BackupError> {
     // No key, no backup: there is no path that writes one unsealed.
     let record = config.key.as_ref().ok_or_else(|| {

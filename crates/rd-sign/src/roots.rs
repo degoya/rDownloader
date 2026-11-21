@@ -17,7 +17,7 @@
 //! lives in release CI, the plugin key is used far more often, and giving them one identity
 //! makes the more exposed of the two as powerful as the least.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use crate::trust::TrustStore;
 
@@ -123,20 +123,20 @@ pub const EMBEDDED_KEYS: &[EmbeddedKey] = &[
 /// An entry with an empty `public_key` is skipped rather than reported: a build that was not
 /// given a key for a feature nobody has published to yet is not misconfigured.
 #[must_use]
-pub fn keys_for(role: Role, now: DateTime<Utc>) -> Vec<&'static EmbeddedKey> {
+pub fn keys_for(role: Role, now: Timestamp) -> Vec<&'static EmbeddedKey> {
     keys_in(EMBEDDED_KEYS, role, now)
 }
 
 /// [`keys_for`] against an arbitrary table, so the rotation window is testable without
 /// editing the shipped roots.
-fn keys_in(table: &[EmbeddedKey], role: Role, now: DateTime<Utc>) -> Vec<&EmbeddedKey> {
+fn keys_in(table: &[EmbeddedKey], role: Role, now: Timestamp) -> Vec<&EmbeddedKey> {
     table
         .iter()
         .filter(|entry| entry.role == role)
         .filter(|entry| !entry.public_key.is_empty())
         .filter(|entry| match entry.not_after {
-            Some(text) => DateTime::parse_from_rfc3339(text)
-                .map(|expiry| now <= expiry.with_timezone(&Utc))
+            Some(text) => Timestamp::parse_rfc3339(text)
+                .map(|expiry| now <= expiry)
                 // An unparseable expiry means the table is wrong. Refusing the key is the
                 // safe reading: a root that cannot be dated cannot be relied on.
                 .unwrap_or(false),
@@ -148,7 +148,7 @@ fn keys_in(table: &[EmbeddedKey], role: Role, now: DateTime<Utc>) -> Vec<&Embedd
 /// [`keys_for`] at the current instant, for callers with no clock of their own.
 #[must_use]
 pub fn keys_for_now(role: Role) -> Vec<&'static EmbeddedKey> {
-    keys_for(role, Utc::now())
+    keys_for(role, Timestamp::now())
 }
 
 /// One signed document its publisher withdrew (DB-06), refused whoever signed it.
@@ -173,7 +173,7 @@ pub const REVOKED_DOCUMENTS: &[RevokedDocument] = &[];
 
 /// A trust store holding every configured root for `role`, with that role's withdrawn
 /// documents revoked.
-pub fn trust_store_for(role: Role, now: DateTime<Utc>) -> anyhow::Result<TrustStore> {
+pub fn trust_store_for(role: Role, now: Timestamp) -> anyhow::Result<TrustStore> {
     trust_store_in(EMBEDDED_KEYS, REVOKED_DOCUMENTS, role, now)
 }
 
@@ -183,7 +183,7 @@ fn trust_store_in(
     keys: &[EmbeddedKey],
     revoked: &[RevokedDocument],
     role: Role,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> anyhow::Result<TrustStore> {
     let store = TrustStore::new();
     for entry in keys_in(keys, role, now) {
@@ -214,8 +214,8 @@ fn decode_digest(text: &str) -> anyhow::Result<[u8; 32]> {
 mod tests {
     use super::*;
 
-    fn now() -> DateTime<Utc> {
-        DateTime::from_timestamp(1_760_000_000, 0).expect("timestamp")
+    fn now() -> Timestamp {
+        Timestamp::from_unix_seconds(1_760_000_000).expect("timestamp")
     }
 
     /// Every configured key has to decode, or the build ships a root nothing can use.
@@ -305,10 +305,8 @@ mod tests {
         ]
     }
 
-    fn instant(text: &str) -> DateTime<Utc> {
-        DateTime::parse_from_rfc3339(text)
-            .expect("date")
-            .with_timezone(&Utc)
+    fn instant(text: &str) -> Timestamp {
+        Timestamp::parse_rfc3339(text).expect("date")
     }
 
     /// During the overlap both keys verify — that is what makes a rotation survivable.

@@ -9,7 +9,7 @@
 //! * **The beta channel sees stable releases too**, so an installation on `1.8.0-beta.2` is
 //!   offered `1.8.0` once it is out, and keeps receiving the stable line from then on.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use semver::{Prerelease, Version};
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +23,7 @@ use crate::{
 pub struct Offer {
     pub version: String,
     pub channel: Channel,
-    pub released_at: DateTime<Utc>,
+    pub released_at: Timestamp,
     pub notes: String,
     /// The anchor of the version's `CHANGELOG.md` heading, when the manifest names it.
     #[serde(default)]

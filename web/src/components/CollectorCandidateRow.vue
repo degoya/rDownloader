@@ -33,7 +33,9 @@ const props = defineProps<{
   /** Set on a row that is one of those other mirrors rather than a candidate of its own. */
   mirrorMember?: boolean,
   /** The view's "Show metadata" switch is off: the enricher chips stay stored, only unshown (RD-150-19). */
-  hideMetadata?: boolean
+  hideMetadata?: boolean,
+  /** The provider the link went to when it stayed after its package's hand-over (RD-1440-07). */
+  handedOverTo?: string | null
 }>()
 const { lacksAccount, providerName } = useAccountProviders()
 /** Hoster link that will be fetched without any account — surfaced instead of failing later. */
@@ -307,6 +309,7 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
           <UBadge v-if="earlier" color="info" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-history" :title="earlierHint" :aria-label="t('linkgrabber.duplicates.history')" data-testid="history-badge" />
           <UBadge v-if="freeDownload" color="warning" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-user-x" :title="t('linkgrabber.candidate.no_account')" :aria-label="t('linkgrabber.candidate.no_account')" />
           <UBadge v-if="props.candidate.hidden_by_filter" color="neutral" variant="outline" size="sm" class="shrink-0" role="img" icon="i-lucide-filter" :title="t('linkgrabber.link_filter.hidden_hint')" :aria-label="t('linkgrabber.link_filter.hidden')" data-testid="filter-hidden-badge" />
+          <UBadge v-if="props.handedOverTo" color="primary" variant="subtle" size="sm" class="shrink-0" icon="i-lucide-cloud-upload" :title="t('linkgrabber.package_hand_over.badge_hint')" data-testid="candidate-handed-over">{{ t('linkgrabber.package_hand_over.badge', { provider: props.handedOverTo }) }}</UBadge>
           <UBadge v-if="sources.length" color="neutral" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-layers" :title="t('linkgrabber.sources.badge', { count: sources.length })" :aria-label="t('linkgrabber.sources.badge', { count: sources.length })" data-testid="candidate-sources-badge" />
           <!-- The group, and how sure it is. The word changes with the evidence, not only the
                colour: a proposal that merely looked different would read as a fact to anybody

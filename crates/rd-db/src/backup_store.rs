@@ -1,10 +1,9 @@
 //! Atomic replacement of all server-side configuration tables.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use rd_core::{
     AccountId, Category, CategoryRule, EventEnvelope, EventKind, HotFolderConfig, ProxyKind,
-    ProxyProfileId, StorageRootConfig, StreamChannelId, UsenetServerId,
+    ProxyProfileId, StorageRootConfig, StreamChannelId, Timestamp, UsenetServerId,
 };
 use sqlx::{Connection, SqliteConnection};
 use url::Url;
@@ -119,7 +118,7 @@ pub struct ReplacementAuthProfile {
     pub method: rd_core::AuthMethod,
     pub origin: rd_core::AuthOrigin,
     pub enabled: bool,
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
     pub username: Option<String>,
     pub secret_ref: Option<String>,
     pub certificate_ref: Option<String>,
@@ -173,7 +172,7 @@ pub(crate) async fn replace_all(
     // The same for categories: zero defaults leaves routing without a fallback for links no
     // rule matched, and two of them are refused outright by `idx_categories_single_default`.
     crate::config_store::normalize_category_defaults(&mut replacement.categories);
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
 
     // A few review/queue tables have nullable category foreign keys. Deferral lets preserved
@@ -235,7 +234,7 @@ async fn clear_replaced_rows(
 async fn insert_replacement(
     tx: &mut SqliteConnection,
     replacement: ConfigReplacement,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<()> {
     insert::insert_storage_roots(&mut *tx, replacement.storage_roots, now).await?;
     insert::insert_categories(&mut *tx, replacement.categories, now).await?;

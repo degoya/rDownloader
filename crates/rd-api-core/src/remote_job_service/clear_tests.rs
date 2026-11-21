@@ -377,8 +377,8 @@ fn row(account: AccountId, state: RemoteJobState) -> RemoteJob {
         message: None,
         code: None,
         next_poll_at: None,
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        created_at: rd_core::Timestamp::now(),
+        updated_at: rd_core::Timestamp::now(),
         job_state: None,
     }
 }

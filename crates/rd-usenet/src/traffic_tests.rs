@@ -3,8 +3,7 @@
 
 use std::{sync::Arc, time::Duration};
 
-use chrono::Utc;
-use rd_core::{UsenetQuota, UsenetQuotaAction, UsenetServer, UsenetServerId};
+use rd_core::{Timestamp, UsenetQuota, UsenetQuotaAction, UsenetServer, UsenetServerId};
 use rd_db::{Database, NewUsenetServer};
 use tokio_util::sync::CancellationToken;
 
@@ -109,7 +108,7 @@ async fn two_servers_are_each_credited_with_what_they_delivered() {
     traffic.flush(&database).await.expect("flush");
     assert!(traffic.pending().is_empty(), "the flush took every count");
     let rows = database
-        .list_usenet_server_traffic(Utc::now().date_naive())
+        .list_usenet_server_traffic(Timestamp::now().date())
         .await
         .expect("traffic");
     let total = |id: UsenetServerId| {
@@ -161,7 +160,7 @@ async fn the_flusher_writes_what_is_left_when_it_stops() {
         .fetch_add(777, std::sync::atomic::Ordering::AcqRel);
     flusher.shutdown().await;
     let rows = database
-        .list_usenet_server_traffic(Utc::now().date_naive())
+        .list_usenet_server_traffic(Timestamp::now().date())
         .await
         .expect("traffic");
     assert_eq!(rows[0].total, 777);
@@ -186,7 +185,7 @@ fn server(name: &str, enabled: bool, quota: Option<(UsenetQuotaAction, bool)>) -
             action,
             reset_on: None,
             used_bytes: if reached { 1_000 } else { 10 },
-            reached_at: reached.then(Utc::now),
+            reached_at: reached.then(Timestamp::now),
         }),
         busy_connections: 0,
     }

@@ -1,8 +1,7 @@
 //! Object storage profiles and the multipart upload records that outlive a restart
 //! (RD-150-04, RD-150-05).
 
-use chrono::Utc;
-use rd_core::{ObjectAddressing, ObjectCredentialSource, ObjectStorageProvider};
+use rd_core::{ObjectAddressing, ObjectCredentialSource, ObjectStorageProvider, Timestamp};
 use rd_db::{Database, NewObjectStorageProfile, ObjectUpload, ObjectUploadPart};
 
 async fn open() -> (tempfile::TempDir, Database) {
@@ -46,7 +45,7 @@ fn upload(profile_id: rd_core::ObjectStorageProfileId, id: &str) -> ObjectUpload
         upload_id: Some(format!("mpu-{id}")),
         checksums: true,
         completed_at: None,
-        created_at: Utc::now(),
+        created_at: Timestamp::now(),
         parts: Vec::new(),
     }
 }

@@ -6,7 +6,7 @@
 //! become queue rows. Entries are addressed by their path rather than by an index, because
 //! a re-listing of a live directory does not preserve ordering.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -27,7 +27,7 @@ pub struct RemoteEntry {
     pub path: String,
     pub is_dir: bool,
     pub size: Option<ByteCount>,
-    pub modified: Option<DateTime<Utc>>,
+    pub modified: Option<Timestamp>,
     /// Server-supplied validator (WebDAV `ETag`); `None` for FTP and SFTP.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub etag: Option<String>,
@@ -112,7 +112,7 @@ pub struct ResolvedRemoteEntry {
     pub path: String,
     pub is_dir: bool,
     pub size: Option<ByteCount>,
-    pub modified: Option<DateTime<Utc>>,
+    pub modified: Option<Timestamp>,
     pub included: bool,
 }
 

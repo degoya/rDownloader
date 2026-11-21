@@ -2,10 +2,9 @@
 //! moving candidates between packages.
 
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
 use rd_core::{
     CandidateId, CollectorPackage, CollectorPackageId, DownloadPriority, EventEnvelope,
-    GrabberEntryKind, GrabberEntryRef,
+    GrabberEntryKind, GrabberEntryRef, Timestamp,
 };
 use sqlx::{Connection, SqliteConnection};
 
@@ -23,7 +22,7 @@ pub(crate) async fn reorder(
     connection: &mut SqliteConnection,
     ids: &[CollectorPackageId],
 ) -> Result<EventEnvelope> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     let listed: Vec<String> = ids.iter().map(ToString::to_string).collect();
     let remaining: Vec<String> = sqlx::query_scalar::<_, String>(
@@ -85,7 +84,7 @@ pub(crate) async fn reorder_entries(
     entries: &[GrabberEntryRef],
     after: Option<GrabberEntryRef>,
 ) -> Result<EventEnvelope> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     let existing: Vec<(String, String, i64)> = sqlx::query_as(
         "SELECT kind, id, position FROM ( \

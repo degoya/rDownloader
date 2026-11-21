@@ -7,7 +7,7 @@
 //! the same bytes once, as it would have without the reading.
 
 use anyhow::Result;
-use chrono::Utc;
+use rd_core::Timestamp;
 use rd_limits::{BudgetReading, BudgetState};
 
 use super::BandwidthService;
@@ -42,7 +42,7 @@ impl BandwidthService {
         let Some(profile) = state.active_profile() else {
             return Ok(None);
         };
-        let now = Utc::now();
+        let now = Timestamp::now();
         // A profile the cycle has not counted yet starts where its first sample will.
         let mut budget = state
             .budgets

@@ -2,8 +2,7 @@
 //! throttled `download.progress` event, chunk MACs and the chunk plan itself.
 
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
-use rd_core::{ChunkId, DownloadId, EventEnvelope, EventKind};
+use rd_core::{ChunkId, DownloadId, EventEnvelope, EventKind, Timestamp};
 use sqlx::{Connection, Row};
 
 use crate::error::StoreError;
@@ -33,7 +32,7 @@ impl Writer {
         }
         sqlx::query("UPDATE chunks SET committed_offset = ?, updated_at = ? WHERE id = ?")
             .bind(value)
-            .bind(Utc::now())
+            .bind(Timestamp::now())
             .bind(chunk_id.to_string())
             .execute(&mut *tx)
             .await?;
@@ -43,7 +42,7 @@ impl Writer {
              FROM chunks WHERE download_id = ?), updated_at = ? WHERE id = ?",
         )
         .bind(&download_id)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(&download_id)
         .execute(&mut *tx)
         .await?;
@@ -70,7 +69,7 @@ impl Writer {
         )
         .bind(committed)
         .bind(total)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(&mut self.connection)
         .await?;
@@ -128,7 +127,7 @@ impl Writer {
         .bind(index)
         .bind(mac.to_vec())
         .bind(fingerprint)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
@@ -176,7 +175,7 @@ impl Writer {
             .bind(i64::try_from(chunk.start)?)
             .bind(chunk.end.map(i64::try_from).transpose()?)
             .bind(i64::try_from(chunk.committed)?)
-            .bind(Utc::now())
+            .bind(Timestamp::now())
             .execute(&mut *tx)
             .await?;
         }
@@ -186,7 +185,7 @@ impl Writer {
         .bind(total)
         .bind(etag)
         .bind(last_modified)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(&mut *tx)
         .await?;

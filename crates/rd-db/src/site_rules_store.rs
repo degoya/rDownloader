@@ -7,8 +7,7 @@
 //! no rule carries a signature, so no signer is recorded (`migrations/0134_site_rules_unsigned.sql`).
 
 use anyhow::{Context, Result};
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind};
+use rd_core::{EventEnvelope, EventKind, Timestamp};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -133,7 +132,7 @@ pub(crate) async fn upsert_site_rule(
     connection: &mut SqliteConnection,
     input: NewUserSiteRule,
 ) -> Result<(UserSiteRule, EventEnvelope)> {
-    let now = Utc::now().to_rfc3339();
+    let now = Timestamp::now().to_rfc3339();
     let rule_json = serde_json::to_string(&input.rule)?;
     let mut transaction = connection.begin().await?;
     sqlx::query(

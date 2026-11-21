@@ -138,8 +138,6 @@ pub(crate) const HOSTERS: &[&str] = &[
     "larhu.website",
     "lulu0.ovh",
     "lulustream.com",
-    "luluvdoo.com",
-    "luluvid.com",
     "media.cm",
     "medixiru.com",
     "mega4up.com",

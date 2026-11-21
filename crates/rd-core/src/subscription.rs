@@ -16,7 +16,7 @@
 mod archive;
 mod filters;
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -244,7 +244,7 @@ pub enum BacklogPolicy {
     #[default]
     FromNow,
     /// Act on items published at or after this instant; older ones are marked seen.
-    Since(DateTime<Utc>),
+    Since(Timestamp),
     /// Collect the whole backlog for review. Never queues it, whatever the mode says.
     ReviewAll,
 }
@@ -298,9 +298,9 @@ pub struct Subscription {
     /// Whether the first poll has happened. Until it has, the backlog policy applies.
     #[serde(default)]
     pub primed: bool,
-    pub last_run_at: Option<DateTime<Utc>>,
+    pub last_run_at: Option<Timestamp>,
     /// When the scheduler intends to poll next; also what a backoff pushes out.
-    pub next_run_at: Option<DateTime<Utc>>,
+    pub next_run_at: Option<Timestamp>,
     /// Consecutive failed polls, which is what the backoff is computed from.
     #[serde(default)]
     pub consecutive_failures: u32,
@@ -354,8 +354,8 @@ pub struct Subscription {
     /// kind.
     #[serde(default)]
     pub git_release: crate::GitReleaseOptions,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 impl Subscription {

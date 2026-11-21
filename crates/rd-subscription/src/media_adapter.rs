@@ -82,7 +82,7 @@ impl SourceAdapter for MediaAdapter {
 /// The date carries no time of day, so any instant within it would be a guess; midnight is
 /// the one that keeps ordering and comparisons honest.
 #[must_use]
-pub fn parse_upload_date(value: &str) -> Option<chrono::DateTime<chrono::Utc>> {
+pub fn parse_upload_date(value: &str) -> Option<rd_core::Timestamp> {
     let value = value.trim();
     if value.len() != 8 || !value.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
@@ -90,9 +90,9 @@ pub fn parse_upload_date(value: &str) -> Option<chrono::DateTime<chrono::Utc>> {
     let year = value[0..4].parse().ok()?;
     let month = value[4..6].parse().ok()?;
     let day = value[6..8].parse().ok()?;
-    chrono::NaiveDate::from_ymd_opt(year, month, day)
-        .and_then(|date| date.and_hms_opt(0, 0, 0))
-        .map(|naive| naive.and_utc())
+    jiff::civil::Date::new(year, month, day)
+        .ok()
+        .map(|date| rd_core::Timestamp::from_utc_datetime(date.at(0, 0, 0, 0)))
 }
 
 #[cfg(test)]

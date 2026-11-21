@@ -11,8 +11,7 @@
 use std::ops::RangeInclusive;
 
 use anyhow::Result;
-use chrono::{DateTime, Duration, Utc};
-use rd_core::EventEnvelope;
+use rd_core::{EventEnvelope, SignedDuration, Timestamp};
 use serde::Deserialize;
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 
@@ -54,10 +53,10 @@ impl SubscriptionItemRetention {
 
     /// Items discovered before this are compacted; `None` when the retention keeps them all.
     #[must_use]
-    pub fn compact_before(&self, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+    pub fn compact_before(&self, now: Timestamp) -> Option<Timestamp> {
         match self.days() {
             0 => None,
-            days => Some(now - Duration::days(i64::from(days))),
+            days => Some(now - SignedDuration::from_hours(24 * i64::from(days))),
         }
     }
 }
@@ -71,7 +70,7 @@ pub(crate) const COMPACTION_BATCH: i64 = 2_000;
 /// page a client shows change. The caller repeats while a batch comes back full.
 pub(crate) async fn compact_items(
     connection: &mut SqliteConnection,
-    before: DateTime<Utc>,
+    before: Timestamp,
 ) -> Result<(u64, Option<EventEnvelope>)> {
     let mut tx = connection.begin().await?;
     // The batch is read once and named by rowid, so the copy and the delete act on exactly the
@@ -111,7 +110,7 @@ pub(crate) async fn compact_items(
 }
 
 /// Settled items discovered before `before`: what a compaction would move now.
-pub(crate) async fn compactable_items(pool: &SqlitePool, before: DateTime<Utc>) -> Result<u64> {
+pub(crate) async fn compactable_items(pool: &SqlitePool, before: Timestamp) -> Result<u64> {
     let count: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM subscription_items \
          WHERE state IN ('skipped', 'dismissed') AND discovered_at < ?",
@@ -124,17 +123,20 @@ pub(crate) async fn compactable_items(pool: &SqlitePool, before: DateTime<Utc>) 
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, Utc};
+    use rd_core::{SignedDuration, Timestamp};
 
     use super::{DEFAULT_ITEM_RETENTION_DAYS, SubscriptionItemRetention};
 
     #[test]
     fn the_retention_reads_its_default_keeps_on_zero_and_falls_back_out_of_range() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let parsed: SubscriptionItemRetention =
             serde_json::from_value(serde_json::json!({ "other": 1 })).expect("slice");
         assert_eq!(parsed.days(), DEFAULT_ITEM_RETENTION_DAYS);
-        assert_eq!(parsed.compact_before(now), Some(now - Duration::days(30)));
+        assert_eq!(
+            parsed.compact_before(now),
+            Some(now - SignedDuration::from_hours(24 * 30))
+        );
         let keep = SubscriptionItemRetention {
             subscription_item_retention_days: 0,
         };

@@ -223,7 +223,7 @@ pub async fn test_auth_profile(
         .auth_profile(id)
         .await?
         .ok_or_else(not_found)?;
-    if profile.is_expired(chrono::Utc::now()) {
+    if profile.is_expired(rd_core::Timestamp::now()) {
         return Err(ApiError::bad_request(
             "authprofile.expired",
             "Auth profile has expired",

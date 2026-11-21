@@ -6,7 +6,7 @@
 //! other credential: the row holds its `vault://` reference, a client is told only whether one
 //! is stored.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use utoipa::ToSchema;
@@ -46,8 +46,8 @@ pub struct Indexer {
     /// How the LinkGrabber's search draws this indexer's hits (RD-190-16).
     #[serde(default)]
     pub list_style: IndexerListStyle,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
 }
 
 /// How the LinkGrabber's search draws one indexer's hits (RD-190-16).

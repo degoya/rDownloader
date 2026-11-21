@@ -3,7 +3,7 @@
 //! The passphrase travels in a request body only, `write_only` in the contract, and is never
 //! part of an answer, a log line or an audit record.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -110,7 +110,7 @@ pub struct RestorePreviewResponse {
     pub current_version: String,
     /// Whether a newer version wrote the backup; its database may not open here.
     pub from_newer_version: bool,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
     pub parts: Vec<RestorePartGroupResponse>,
     pub storage_roots: Vec<RestoreRootResponse>,
     /// Hot folders and unfinished transfers' folders, the first fifty.
@@ -193,10 +193,10 @@ pub struct RestoreStatusResponse {
     /// `failed` (the restored state did not start; the previous one runs).
     pub state: String,
     pub archive_name: Option<String>,
-    pub staged_at: Option<DateTime<Utc>>,
-    pub backup_created_at: Option<DateTime<Utc>>,
+    pub staged_at: Option<Timestamp>,
+    pub backup_created_at: Option<Timestamp>,
     pub app_version: Option<String>,
-    pub failed_at: Option<DateTime<Utc>>,
+    pub failed_at: Option<Timestamp>,
     pub reason: Option<String>,
 }
 

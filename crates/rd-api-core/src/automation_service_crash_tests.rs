@@ -90,7 +90,7 @@ async fn a_run_stopped_after_its_action_is_queued_again_at_that_action_and_compl
     {
         let guard = rd_core::failpoint::FailpointGuard::once("automation.before_outcome_recorded");
         let due = database
-            .due_automation_runs(chrono::Utc::now())
+            .due_automation_runs(rd_core::Timestamp::now())
             .await
             .expect("due");
         assert_eq!(due.len(), 1);
@@ -103,7 +103,7 @@ async fn a_run_stopped_after_its_action_is_queued_again_at_that_action_and_compl
     // Claimed: no sweep takes it up again without the recovery a start runs.
     assert!(
         database
-            .due_automation_runs(chrono::Utc::now())
+            .due_automation_runs(rd_core::Timestamp::now())
             .await
             .expect("due")
             .is_empty()
@@ -118,7 +118,7 @@ async fn a_run_stopped_after_its_action_is_queued_again_at_that_action_and_compl
     let mut passes = 0;
     loop {
         let due = database
-            .due_automation_runs(chrono::Utc::now())
+            .due_automation_runs(rd_core::Timestamp::now())
             .await
             .expect("due");
         let Some(run) = due.first() else {

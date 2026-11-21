@@ -1,3 +1,4 @@
+import type { PackageHandOverSettings } from '@/api/packageHandOver'
 import type { RestartSettings } from '@/api/restart'
 import type { Settings } from '@/api/types'
 import { GIB, MIB } from '@/utils/format'
@@ -8,9 +9,10 @@ import { isNumber } from '@/utils/numberInput'
  * tabs bind to, so no tab reads an undefined value while the first request is in flight.
  * Only the shape matters here; the values the service reports replace all of it.
  * `RestartSettings` names `restart_when_needed` (RD-1240-32), and the return type
- * `sequential_packages` (RD-1410-01), until the schema is regenerated.
+ * `sequential_packages` (RD-1410-01), `PackageHandOverSettings` the LinkGrabber package's
+ * hand-over switches (RD-1440-07), until the schema is regenerated.
  */
-export function defaultSettings(): RestartSettings & { sequential_packages: boolean } {
+export function defaultSettings(): RestartSettings & PackageHandOverSettings & { sequential_packages: boolean } {
   return {
     max_active_files: 3,
     sequential_packages: false,
@@ -76,6 +78,8 @@ export function defaultSettings(): RestartSettings & { sequential_packages: bool
     subscription_item_images_enabled: true,
     nzb_hand_over_linkgrabber_enabled: true,
     nzb_hand_over_downloads_enabled: true,
+    linkgrabber_hand_over_enabled: true,
+    linkgrabber_hand_over_remove_links: true,
     downloads_packages_closed_by_default: true,
     linkgrabber_packages_closed_by_default: false,
     dlc_service_endpoint: null,

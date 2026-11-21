@@ -1,7 +1,7 @@
 //! What the store keeps for a git-release subscription (RD-190-13): its options, the
 //! validators an options edit must drop, and a first poll that failed priming nothing.
 
-use chrono::Utc;
+use rd_core::Timestamp;
 use rd_db::{NewSubscription, PollResult};
 use tempfile::TempDir;
 
@@ -41,7 +41,7 @@ fn result(error: Option<&str>, etag: Option<&str>) -> PollResult {
         accepted: 0,
         skipped: 0,
         error: error.map(ToOwned::to_owned),
-        next_run_at: Utc::now(),
+        next_run_at: Timestamp::now(),
         consecutive_failures: u32::from(error.is_some()),
         etag: etag.map(ToOwned::to_owned),
         last_modified: None,
@@ -77,7 +77,7 @@ async fn a_failed_first_poll_leaves_the_backlog_decision_to_the_next() {
         .expect("subscription");
 
     database
-        .finish_subscription_run(created.id, Utc::now(), result(Some("HTTP 503"), None))
+        .finish_subscription_run(created.id, Timestamp::now(), result(Some("HTTP 503"), None))
         .await
         .expect("failed run");
     let after_failure = database
@@ -88,7 +88,7 @@ async fn a_failed_first_poll_leaves_the_backlog_decision_to_the_next() {
     assert!(!after_failure.primed);
 
     database
-        .finish_subscription_run(created.id, Utc::now(), result(None, None))
+        .finish_subscription_run(created.id, Timestamp::now(), result(None, None))
         .await
         .expect("run");
     let after_success = database
@@ -110,7 +110,7 @@ async fn an_options_edit_drops_the_validators_and_another_edit_keeps_them() {
         .await
         .expect("subscription");
     database
-        .finish_subscription_run(created.id, Utc::now(), result(None, Some("\"v1\"")))
+        .finish_subscription_run(created.id, Timestamp::now(), result(None, Some("\"v1\"")))
         .await
         .expect("run");
 

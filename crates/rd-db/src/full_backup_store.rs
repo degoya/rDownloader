@@ -6,8 +6,7 @@
 //! `backup_ledger_store` (RD-160-02).
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{BackupOrigin, BackupRunState};
+use rd_core::{BackupOrigin, BackupRunState, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 /// How many finished runs the history keeps; older ones are dropped when a run finishes.
@@ -26,7 +25,7 @@ pub struct BackupDestinationRecord {
     pub keep_last: Option<u32>,
     /// The days archives are kept; `None` is no limit by age.
     pub keep_days: Option<u32>,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
 }
 
 /// The key a backup is sealed with, as the store knows it: a reference, never the bytes.
@@ -37,7 +36,7 @@ pub struct BackupKeyRecord {
     /// Base64 of the Argon2id salt the key was derived with.
     pub salt: String,
     pub fingerprint: String,
-    pub set_at: DateTime<Utc>,
+    pub set_at: Timestamp,
 }
 
 /// The one backup configuration.
@@ -49,13 +48,13 @@ pub struct BackupConfig {
     /// Every destination, oldest first; each receives its own copy of every archive.
     pub destinations: Vec<BackupDestinationRecord>,
     pub key: Option<BackupKeyRecord>,
-    pub next_run_at: Option<DateTime<Utc>>,
+    pub next_run_at: Option<Timestamp>,
     /// This installation's id, part of every archive name (RD-160-02).
     pub instance_id: String,
     /// The scheduled verification's cron expression, read in `timezone`; `None` is off.
     pub verify_schedule: Option<String>,
-    pub verify_next_run_at: Option<DateTime<Utc>>,
-    pub updated_at: DateTime<Utc>,
+    pub verify_next_run_at: Option<Timestamp>,
+    pub updated_at: Timestamp,
 }
 
 /// A destination as it is created or replaced.
@@ -75,9 +74,9 @@ pub struct BackupConfigUpdate {
     pub enabled: bool,
     pub schedule: String,
     pub timezone: String,
-    pub next_run_at: Option<DateTime<Utc>>,
+    pub next_run_at: Option<Timestamp>,
     pub verify_schedule: Option<String>,
-    pub verify_next_run_at: Option<DateTime<Utc>>,
+    pub verify_next_run_at: Option<Timestamp>,
 }
 
 /// The start of a run.
@@ -85,7 +84,7 @@ pub struct BackupConfigUpdate {
 pub struct NewBackupRun {
     pub id: String,
     pub origin: BackupOrigin,
-    pub started_at: DateTime<Utc>,
+    pub started_at: Timestamp,
     pub destination_id: Option<String>,
     pub destination: Option<String>,
 }
@@ -115,8 +114,8 @@ pub struct BackupRun {
     pub id: String,
     pub origin: BackupOrigin,
     pub state: BackupRunState,
-    pub started_at: DateTime<Utc>,
-    pub finished_at: Option<DateTime<Utc>>,
+    pub started_at: Timestamp,
+    pub finished_at: Option<Timestamp>,
     pub destination: Option<String>,
     pub archive_name: Option<String>,
     pub size_bytes: Option<u64>,
@@ -139,12 +138,12 @@ struct ConfigRow {
     key_ref: Option<String>,
     key_salt: Option<String>,
     key_fingerprint: Option<String>,
-    key_set_at: Option<DateTime<Utc>>,
-    next_run_at: Option<DateTime<Utc>>,
+    key_set_at: Option<Timestamp>,
+    next_run_at: Option<Timestamp>,
     instance_id: Option<String>,
     verify_schedule: Option<String>,
-    verify_next_run_at: Option<DateTime<Utc>>,
-    updated_at: DateTime<Utc>,
+    verify_next_run_at: Option<Timestamp>,
+    updated_at: Timestamp,
 }
 
 #[derive(FromRow)]
@@ -152,8 +151,8 @@ struct RunRow {
     id: String,
     origin: String,
     state: String,
-    started_at: DateTime<Utc>,
-    finished_at: Option<DateTime<Utc>>,
+    started_at: Timestamp,
+    finished_at: Option<Timestamp>,
     destination: Option<String>,
     archive_name: Option<String>,
     size_bytes: Option<i64>,
@@ -275,7 +274,7 @@ pub(crate) async fn save_config(
     .bind(update.next_run_at)
     .bind(&update.verify_schedule)
     .bind(update.verify_next_run_at)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .execute(connection)
     .await?;
     Ok(())
@@ -300,7 +299,7 @@ pub(crate) async fn set_key(
     .bind(&key.salt)
     .bind(&key.fingerprint)
     .bind(key.set_at)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;
@@ -310,7 +309,7 @@ pub(crate) async fn set_key(
 /// Sets when the schedule is next due, leaving everything else alone.
 pub(crate) async fn arm(
     connection: &mut SqliteConnection,
-    next_run_at: Option<DateTime<Utc>>,
+    next_run_at: Option<Timestamp>,
 ) -> Result<()> {
     sqlx::query("UPDATE backup_config SET next_run_at = ? WHERE id = 1")
         .bind(next_run_at)
@@ -354,7 +353,7 @@ pub(crate) async fn finish_run(
     id: &str,
     outcome: BackupRunOutcome,
 ) -> Result<()> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     match outcome {
         BackupRunOutcome::Succeeded {
@@ -403,7 +402,7 @@ pub(crate) async fn finish_run(
 /// still running too (RD-160-02); called once when the process starts, when no run of this
 /// process can exist yet. Returns the runs marked.
 pub(crate) async fn interrupt_runs(connection: &mut SqliteConnection) -> Result<u64> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     let result = sqlx::query(
         "UPDATE backup_runs SET state = 'interrupted', finished_at = ?, error_code = ?, \

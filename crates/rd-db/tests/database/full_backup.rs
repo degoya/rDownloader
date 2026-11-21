@@ -4,8 +4,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use chrono::{Duration, Utc};
-use rd_core::{BackupOrigin, BackupRunState, ChunkId, DownloadId};
+use rd_core::{BackupOrigin, BackupRunState, ChunkId, DownloadId, SignedDuration, Timestamp};
 use rd_db::{
     BACKUP_INTERRUPTED, BackupConfigUpdate, BackupKeyRecord, BackupRunOutcome, Database,
     NewBackupRun, NewPluginRepository, NewPluginTrustedKey, NewPluginVersionChoice, PersistedChunk,
@@ -269,7 +268,7 @@ async fn the_configuration_keeps_its_schedule_and_hands_back_a_replaced_key() {
     assert!(initial.destinations.is_empty());
     assert!(initial.verify_schedule.is_none());
 
-    let due = Utc::now() + Duration::hours(3);
+    let due = Timestamp::now() + SignedDuration::from_hours(3);
     database
         .save_backup_config(BackupConfigUpdate {
             enabled: true,
@@ -277,15 +276,15 @@ async fn the_configuration_keeps_its_schedule_and_hands_back_a_replaced_key() {
             timezone: "Europe/Berlin".to_owned(),
             next_run_at: Some(due),
             verify_schedule: Some("0 5 * * 0".to_owned()),
-            verify_next_run_at: Some(due + Duration::days(1)),
+            verify_next_run_at: Some(due + SignedDuration::from_hours(24)),
         })
         .await
         .expect("save");
     let saved = database.backup_config().await.expect("config");
     assert_eq!(saved.timezone, "Europe/Berlin");
     assert_eq!(
-        saved.next_run_at.map(|at| at.timestamp()),
-        Some(due.timestamp())
+        saved.next_run_at.map(|at| at.unix_seconds()),
+        Some(due.unix_seconds())
     );
     assert_eq!(saved.verify_schedule.as_deref(), Some("0 5 * * 0"));
 
@@ -293,14 +292,14 @@ async fn the_configuration_keeps_its_schedule_and_hands_back_a_replaced_key() {
         reference: "vault://first".to_owned(),
         salt: "c2FsdA==".to_owned(),
         fingerprint: "0011".to_owned(),
-        set_at: Utc::now(),
+        set_at: Timestamp::now(),
     };
     assert_eq!(database.set_backup_key(first).await.expect("key"), None);
     let second = BackupKeyRecord {
         reference: "vault://second".to_owned(),
         salt: "c2FsdDI=".to_owned(),
         fingerprint: "2233".to_owned(),
-        set_at: Utc::now(),
+        set_at: Timestamp::now(),
     };
     assert_eq!(
         database.set_backup_key(second).await.expect("key"),
@@ -316,8 +315,8 @@ async fn the_configuration_keeps_its_schedule_and_hands_back_a_replaced_key() {
         .expect("reopen");
     let restarted = reopened.backup_config().await.expect("config");
     assert_eq!(
-        restarted.next_run_at.map(|at| at.timestamp()),
-        Some(due.timestamp())
+        restarted.next_run_at.map(|at| at.unix_seconds()),
+        Some(due.unix_seconds())
     );
 }
 
@@ -325,7 +324,7 @@ fn run(id: &str) -> NewBackupRun {
     NewBackupRun {
         id: id.to_owned(),
         origin: BackupOrigin::Manual,
-        started_at: Utc::now(),
+        started_at: Timestamp::now(),
         destination_id: None,
         destination: Some("/backups".to_owned()),
     }

@@ -1,14 +1,13 @@
 //! RD-1290-04: every pause source announces `paused` once, its end `resumed` once, a queue that
 //! ran empty `finished` once, and a pause set again announces nothing.
 
-use chrono::Utc;
-use rd_core::{DownloadFile, DownloadState};
+use rd_core::{DownloadFile, DownloadState, Timestamp};
 use rd_scheduler::PauseReason;
 
 use super::{QueueStateWatch, Sample};
 
 fn file(state: DownloadState) -> DownloadFile {
-    let now = Utc::now();
+    let now = Timestamp::now();
     DownloadFile {
         recording: None,
         id: rd_core::DownloadId::new(),

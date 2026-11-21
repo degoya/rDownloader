@@ -7,8 +7,7 @@
 //! that runs live in `rd_plugin_host::default_version`, not here.
 
 use anyhow::{Result, bail};
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind};
+use rd_core::{EventEnvelope, EventKind, Timestamp};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -93,7 +92,7 @@ pub(crate) async fn save_plugin_version_choice(
         previous_version: input.previous_version,
         staged_version: input.staged_version,
         update_policy: input.update_policy,
-        updated_at: Utc::now().to_rfc3339(),
+        updated_at: Timestamp::now().to_rfc3339(),
     };
     let mut transaction = connection.begin().await?;
     sqlx::query(

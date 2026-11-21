@@ -16,8 +16,7 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
-use rd_core::{DownloadFile, DownloadKind, DownloadState};
+use rd_core::{DownloadFile, DownloadKind, DownloadState, Timestamp};
 
 use crate::SchedulerHandle;
 
@@ -38,7 +37,7 @@ pub(super) enum Turn {
     Waits,
 }
 
-pub(super) fn turn(file: &DownloadFile, now: DateTime<Utc>) -> Turn {
+pub(super) fn turn(file: &DownloadFile, now: Timestamp) -> Turn {
     if file.state == DownloadState::Queued {
         return Turn::Offered;
     }
@@ -51,9 +50,7 @@ pub(super) fn turn(file: &DownloadFile, now: DateTime<Utc>) -> Turn {
     let plain = file.last_error.as_ref().is_none_or(|failure| {
         !failure.category.is_limit() && failure.category.retry_after().is_none()
     });
-    let close = (retry_at - now)
-        .to_std()
-        .is_ok_and(|left| left <= PLACE_KEPT_FOR);
+    let close = Duration::try_from(retry_at - now).is_ok_and(|left| left <= PLACE_KEPT_FOR);
     if close && plain {
         Turn::KeepsPlace
     } else {
@@ -77,17 +74,16 @@ impl SchedulerHandle {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, Duration, Utc};
-    use rd_core::{DownloadFile, DownloadState, Failure, FailureKind};
+    use rd_core::{DownloadFile, DownloadState, Failure, FailureKind, SignedDuration, Timestamp};
 
     use super::{PLACE_KEPT_FOR, Turn, turn};
 
     /// A fixed clock: 2026-10-11 12:00:00 UTC.
-    fn now() -> DateTime<Utc> {
-        DateTime::from_timestamp(1_791_720_000, 0).expect("a valid instant")
+    fn now() -> Timestamp {
+        Timestamp::from_unix(1_791_720_000, 0).expect("a valid instant")
     }
 
-    fn waiting(retry_at: Option<DateTime<Utc>>, category: FailureKind) -> DownloadFile {
+    fn waiting(retry_at: Option<Timestamp>, category: FailureKind) -> DownloadFile {
         DownloadFile {
             recording: None,
             id: rd_core::DownloadId::new(),
@@ -137,12 +133,12 @@ mod tests {
 
     #[test]
     fn a_plain_retry_seconds_away_keeps_its_place() {
-        let close = now() + Duration::seconds(4);
+        let close = now() + SignedDuration::from_secs(4);
         assert_eq!(
             turn(&waiting(Some(close), transient()), now()),
             Turn::KeepsPlace
         );
-        let edge = now() + Duration::from_std(PLACE_KEPT_FOR).expect("duration");
+        let edge = now() + SignedDuration::try_from(PLACE_KEPT_FOR).expect("duration");
         assert_eq!(
             turn(&waiting(Some(edge), FailureKind::Offline), now()),
             Turn::KeepsPlace
@@ -157,10 +153,11 @@ mod tests {
 
     #[test]
     fn a_longer_wait_a_stated_wait_and_a_hoster_limit_leave_the_place() {
-        let far =
-            now() + Duration::from_std(PLACE_KEPT_FOR).expect("duration") + Duration::seconds(1);
+        let far = now()
+            + SignedDuration::try_from(PLACE_KEPT_FOR).expect("duration")
+            + SignedDuration::from_secs(1);
         assert_eq!(turn(&waiting(Some(far), transient()), now()), Turn::Waits);
-        let close = now() + Duration::seconds(5);
+        let close = now() + SignedDuration::from_secs(5);
         for stated in [
             FailureKind::Transient {
                 retry_after_seconds: Some(5),

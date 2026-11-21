@@ -1340,7 +1340,15 @@
     "captcha.endpoint_plain_http": "El endpoint del servicio resolutor usa http sin cifrar, que enviaría la clave de la API en claro: usa https o permite http en los ajustes de captcha",
     "extract.tool_version_unknown": "No se pudo leer la versión de {tool} y la configuración rechaza una herramienta así para extraer: no se puede comprobar si es al menos la {minimum}; por debajo de ella, los enlaces de un archivo escriben fuera de la carpeta de destino. Apunta la ruta del programa directamente a {tool} o actualízalo.",
     "postprocess.rar_test_skipped_version_unknown": "Omitido: no se pudo leer la versión de la herramienta RAR",
-    "request.method_not_allowed": "Esta dirección no acepta este método HTTP"
+    "request.method_not_allowed": "Esta dirección no acepta este método HTTP",
+    "collector.remote_job_not_remote_account": "Ningún plugin instalado ejecuta trabajos remotos en el proveedor de esta cuenta",
+    "collector.remote_job_busy": "El enlace se está poniendo en cola",
+    "collector.remote_job_hidden": "Una regla de LinkFilter oculta este enlace",
+    "collector.remote_job_mirror_skipped": "Se entrega otro espejo de este archivo",
+    "collector.remote_job_secret_fragment": "La clave de este enlace se guarda en este equipo y no viaja a un proveedor",
+    "collector.remote_job_source_unsupported": "Solo un magnet, una dirección http(s) o un archivo torrent importado pueden ir a un proveedor",
+    "collector.remote_job_torrent_unreadable": "El archivo torrent de este enlace no está en el almacén de torrents o no se puede leer",
+    "collector.remote_job_failed": "No se pudo entregar el enlace"
   },
   "capabilities": {
     "media_download": "las descargas de medios",

@@ -11,8 +11,11 @@ impl SubscriptionService {
         // A stored expression that names no time fails the run with its reason, rather than
         // running on an interval nobody chose.
         if let Some(expression) = &subscription.schedule
-            && let Err(error) =
-                rd_subscription::next_scheduled(expression, started_at, &chrono::Local)
+            && let Err(error) = rd_subscription::next_scheduled(
+                expression,
+                started_at,
+                &jiff::tz::TimeZone::system(),
+            )
         {
             self.finish(&subscription, started_at, Err(error), seed)
                 .await;
@@ -253,7 +256,7 @@ impl SubscriptionService {
     pub(super) async fn finish(
         &self,
         subscription: &Subscription,
-        started_at: chrono::DateTime<chrono::Utc>,
+        started_at: rd_core::Timestamp,
         outcome: Result<PollCounts, anyhow::Error>,
         seed: u64,
     ) {
@@ -261,7 +264,7 @@ impl SubscriptionService {
         let interval = subscription.effective_interval();
         // The next time a schedule names, when the subscription has one that names any.
         let scheduled = subscription.schedule.as_deref().and_then(|expression| {
-            rd_subscription::next_scheduled(expression, now, &chrono::Local).ok()
+            rd_subscription::next_scheduled(expression, now, &jiff::tz::TimeZone::system()).ok()
         });
         let result = match outcome {
             Ok(counts) => PollResult {
@@ -360,7 +363,7 @@ fn item_records(
     subscription: &Subscription,
     items: &[rd_subscription::DiscoveredItem],
     primed: bool,
-    now: chrono::DateTime<chrono::Utc>,
+    now: rd_core::Timestamp,
 ) -> Vec<NewSubscriptionItem> {
     let mut records = Vec::with_capacity(items.len());
     let filters = rd_subscription::PreparedFilters::new(&subscription.filters);
@@ -418,5 +421,5 @@ pub(super) struct PollCounts {
     etag: Option<String>,
     last_modified: Option<String>,
     /// When the source asked to be asked again at the earliest (RD-190-13).
-    paused_until: Option<chrono::DateTime<chrono::Utc>>,
+    paused_until: Option<rd_core::Timestamp>,
 }

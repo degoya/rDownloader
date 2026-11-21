@@ -4,7 +4,7 @@
 //! with its size and SHA-256. A restore (RD-160-03) and the integrity check of RD-160-02 read it
 //! before anything else, and a member it does not name is refused rather than unpacked.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};
 
 /// The format name every manifest carries.
@@ -59,7 +59,7 @@ pub struct ManifestPart {
 pub struct Manifest {
     pub format: String,
     pub format_version: u32,
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
     /// The version of rDownloader that wrote the archive.
     pub app_version: String,
     pub parts: Vec<ManifestPart>,
@@ -68,7 +68,7 @@ pub struct Manifest {
 impl Manifest {
     /// A manifest of this format version.
     #[must_use]
-    pub fn new(created_at: DateTime<Utc>, app_version: String, parts: Vec<ManifestPart>) -> Self {
+    pub fn new(created_at: Timestamp, app_version: String, parts: Vec<ManifestPart>) -> Self {
         Self {
             format: FORMAT.to_owned(),
             format_version: FORMAT_VERSION,

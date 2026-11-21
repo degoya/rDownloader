@@ -64,7 +64,7 @@ pub struct OidcIdentity {
     pub issuer: String,
     /// What the provider called the person when it was linked.
     pub label: Option<String>,
-    pub linked_at: chrono::DateTime<chrono::Utc>,
+    pub linked_at: rd_core::Timestamp,
 }
 
 /// Configures the provider, or changes it.

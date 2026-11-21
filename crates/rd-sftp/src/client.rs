@@ -315,8 +315,7 @@ fn take(observed: &Observed) -> Option<Result<hostkey::OfferedKey, Rejection>> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::Utc;
-    use rd_core::{FailureKind, RemoteAuthMode, RemoteCredential, RemoteProtocol};
+    use rd_core::{FailureKind, RemoteAuthMode, RemoteCredential, RemoteProtocol, Timestamp};
 
     use super::login_user;
 
@@ -337,8 +336,8 @@ mod tests {
             has_key: false,
             has_passphrase: false,
             enabled: true,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_at: Timestamp::now(),
+            updated_at: Timestamp::now(),
         }
     }
 

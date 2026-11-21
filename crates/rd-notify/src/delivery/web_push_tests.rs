@@ -1,5 +1,6 @@
 use aws_lc_rs::agreement::{ECDH_P256, PrivateKey};
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use rd_core::Timestamp;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
 use rd_http::{
@@ -147,7 +148,7 @@ fn the_vapid_header_carries_a_token_the_public_key_verifies() {
     assert_eq!(public_key[0], 4);
 
     let endpoint = reqwest::Url::parse("https://push.example.org:8443/send/abc?x=1").expect("url");
-    let now = chrono::DateTime::from_timestamp(1_700_000_000, 0).expect("time");
+    let now = Timestamp::from_unix(1_700_000_000, 0).expect("time");
     let header = stored.authorization(&endpoint, now).expect("header");
     let (token, k) = header
         .strip_prefix("vapid t=")
@@ -188,8 +189,8 @@ fn subscription(endpoint: &str, events: Vec<NotificationEvent>) -> WebPushSubscr
         endpoint: endpoint.to_owned(),
         device_name: "Firefox on Linux".to_owned(),
         events,
-        created_at: chrono::Utc::now(),
-        updated_at: chrono::Utc::now(),
+        created_at: Timestamp::now(),
+        updated_at: Timestamp::now(),
         p256dh: "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4"
             .to_owned(),
         auth: "BTBZMqHH6r4Tts7J_aSIgg".to_owned(),

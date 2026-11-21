@@ -69,8 +69,8 @@ async fn a_chosen_end_is_the_next_switch_and_no_limits_is_a_choice() {
     let directory = tempfile::tempdir().expect("tempdir");
     let router = common::test_router(directory.path()).await;
     scheduled_day_and_spare_night(&router).await;
-    let until = (chrono::Utc::now() + chrono::Duration::hours(2))
-        .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let until = (rd_core::Timestamp::now() + rd_core::SignedDuration::from_hours(2))
+        .to_rfc3339_opts(rd_core::SecondsFormat::Secs, true);
 
     let (code, switched) = common::put_json(
         &router,
@@ -85,8 +85,8 @@ async fn a_chosen_end_is_the_next_switch_and_no_limits_is_a_choice() {
         "no limits: {switched}"
     );
     assert_eq!(switched["source"], "manual");
-    let asked: chrono::DateTime<chrono::Utc> = until.parse().expect("time");
-    let next: chrono::DateTime<chrono::Utc> = switched["next_switch_at"]
+    let asked: rd_core::Timestamp = until.parse().expect("time");
+    let next: rd_core::Timestamp = switched["next_switch_at"]
         .as_str()
         .expect("next switch")
         .parse()
@@ -121,8 +121,9 @@ async fn an_unknown_profile_or_a_bad_end_is_refused() {
     let directory = tempfile::tempdir().expect("tempdir");
     let router = common::test_router(directory.path()).await;
     let (_, night) = scheduled_day_and_spare_night(&router).await;
-    let past = (chrono::Utc::now() - chrono::Duration::minutes(1)).to_rfc3339();
-    let far = (chrono::Utc::now() + chrono::Duration::days(31)).to_rfc3339();
+    let past = (rd_core::Timestamp::now() - rd_core::SignedDuration::from_mins(1)).to_rfc3339();
+    let far =
+        (rd_core::Timestamp::now() + rd_core::SignedDuration::from_hours(24 * 31)).to_rfc3339();
     for (body, code) in [
         (
             serde_json::json!({

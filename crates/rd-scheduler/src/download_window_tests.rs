@@ -6,8 +6,7 @@
 
 use std::path::Path;
 
-use chrono::Utc;
-use rd_core::{DownloadKind, DownloadState, DownloadWindow, WeeklyWindow};
+use rd_core::{DownloadKind, DownloadState, DownloadWindow, Timestamp, WeeklyWindow};
 use rd_limits::ManualEnd;
 use tokio_util::sync::CancellationToken;
 
@@ -72,7 +71,7 @@ fn file(name: &str, kind: DownloadKind) -> FileSpec {
 /// in the timezone the scheduler reads windows in.
 async fn window_now(scheduler: &SchedulerHandle, open: bool) -> DownloadWindow {
     let (_, timezone) = scheduler.config.bandwidth.download_pause_policy().await;
-    let (_, minute) = rd_limits::local_position(timezone, Utc::now());
+    let (_, minute) = rd_limits::local_position(timezone.as_jiff(), Timestamp::now());
     let day = rd_limits::MINUTES_PER_DAY;
     let (start, end) = if open {
         ((minute + day - 60) % day, (minute + 60) % day)

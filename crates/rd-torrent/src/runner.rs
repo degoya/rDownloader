@@ -186,7 +186,7 @@ impl ExternalRunner for TorrentRunner {
         if crate::seeding::seeds_after_download(&self.service, file.id).await {
             crate::seeding::begin(&self.service, file.id, torrent_id, info_hash, generation).await;
             self.service
-                .record_job_state(file.id, |state| state.seed.start(chrono::Utc::now()))
+                .record_job_state(file.id, |state| state.seed.start(rd_core::Timestamp::now()))
                 .await;
             // Past the seed limit, the supervisor ends the longest seed now (RD-1240-16).
             if seed_limit.is_some() {

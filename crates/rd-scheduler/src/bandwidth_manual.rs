@@ -3,8 +3,7 @@
 //! A child of `bandwidth` so it reaches the shared state directly, as the reload does.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use rd_core::BandwidthProfileId;
+use rd_core::{BandwidthProfileId, Timestamp};
 use rd_limits::{BandwidthProfile, ManualEnd, ManualProfile};
 
 use crate::SchedulerHandle;
@@ -19,11 +18,11 @@ impl SchedulerHandle {
         &self,
         profile_id: Option<BandwidthProfileId>,
         ends: ManualEnd,
-        at: Option<DateTime<Utc>>,
+        at: Option<Timestamp>,
     ) -> Result<ManualProfile> {
         let manual = {
             let state = self.config.bandwidth.state.read().await;
-            ManualProfile::new(profile_id, ends, at, &state.schedule, Utc::now())
+            ManualProfile::new(profile_id, ends, at, &state.schedule, Timestamp::now())
         };
         self.store_manual_profile(Some(&manual)).await?;
         self.announce_manual(Some(&manual));
@@ -61,7 +60,7 @@ impl SchedulerHandle {
         let exists = manual
             .profile_id
             .is_none_or(|id| profiles.iter().any(|profile| profile.id == id));
-        if manual.in_force(Utc::now()) && exists {
+        if manual.in_force(Timestamp::now()) && exists {
             return Ok(Some(manual));
         }
         self.store_manual_profile(None).await?;

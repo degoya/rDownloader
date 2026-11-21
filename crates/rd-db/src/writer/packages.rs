@@ -106,7 +106,7 @@ impl Writer {
                     &mut self.connection,
                     id,
                     &paths,
-                    chrono::Utc::now(),
+                    rd_core::Timestamp::now(),
                 )
                 .await;
                 send(reply, result);

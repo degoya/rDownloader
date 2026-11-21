@@ -5,7 +5,7 @@
 //! where it was; this only picks one of them for a while.
 
 use axum::{Json, extract::State};
-use chrono::{DateTime, Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use serde::Deserialize;
 use utoipa::ToSchema;
 
@@ -28,7 +28,7 @@ pub struct ManualProfileRequest {
     pub ends: rd_limits::ManualEnd,
     /// The end for `ends: at`; ignored otherwise.
     #[serde(default)]
-    pub until: Option<DateTime<Utc>>,
+    pub until: Option<Timestamp>,
 }
 
 /// Switches to a profile by hand until the chosen end, then answers the status.
@@ -67,10 +67,12 @@ pub async fn return_to_bandwidth_schedule(
 }
 
 /// A chosen end that lies ahead, and not further than [`MAX_DAYS_AHEAD`].
-fn end_ahead(until: Option<DateTime<Utc>>) -> Result<DateTime<Utc>, ApiError> {
-    let now = Utc::now();
+fn end_ahead(until: Option<Timestamp>) -> Result<Timestamp, ApiError> {
+    let now = Timestamp::now();
     until
-        .filter(|until| *until > now && *until <= now + Duration::days(MAX_DAYS_AHEAD))
+        .filter(|until| {
+            *until > now && *until <= now + SignedDuration::from_hours(24 * MAX_DAYS_AHEAD)
+        })
         .ok_or_else(|| {
             ApiError::bad_request(
                 "bandwidth.manual_end_invalid",
@@ -82,16 +84,16 @@ fn end_ahead(until: Option<DateTime<Utc>>) -> Result<DateTime<Utc>, ApiError> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, Utc};
+    use rd_core::{SignedDuration, Timestamp};
 
     use super::end_ahead;
 
     #[test]
     fn an_end_must_lie_ahead_and_within_thirty_days() {
-        let now = Utc::now();
-        assert!(end_ahead(Some(now + Duration::hours(1))).is_ok());
+        let now = Timestamp::now();
+        assert!(end_ahead(Some(now + SignedDuration::from_hours(1))).is_ok());
         assert!(end_ahead(None).is_err());
-        assert!(end_ahead(Some(now - Duration::minutes(1))).is_err());
-        assert!(end_ahead(Some(now + Duration::days(31))).is_err());
+        assert!(end_ahead(Some(now - SignedDuration::from_mins(1))).is_err());
+        assert!(end_ahead(Some(now + SignedDuration::from_hours(24 * 31))).is_err());
     }
 }

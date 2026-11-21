@@ -19,8 +19,8 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use async_trait::async_trait;
-use chrono::{DateTime, Duration, Utc};
 use rd_core::{FilterReason, GitForge, Subscription, SubscriptionKind};
+use rd_core::{SignedDuration, Timestamp};
 use url::Url;
 
 use crate::{
@@ -224,19 +224,20 @@ fn download_headers(forge: GitForge, token: &str) -> Vec<(String, String)> {
 pub fn rate_limit_pause(
     status: u16,
     headers: &BTreeMap<String, String>,
-    now: DateTime<Utc>,
-) -> Option<DateTime<Utc>> {
+    now: Timestamp,
+) -> Option<Timestamp> {
     let header = |name: &str| headers.get(name).map(|value| value.trim());
     let retry_after = header("retry-after").and_then(|value| {
         value
             .parse::<i64>()
             .ok()
             // Bounded before it becomes a duration: a header's number is a stranger's.
-            .map(|seconds| now + Duration::seconds(seconds.clamp(0, MAX_PAUSE_SECONDS)))
+            .map(|seconds| now + SignedDuration::from_secs(seconds.clamp(0, MAX_PAUSE_SECONDS)))
             .or_else(|| {
-                DateTime::parse_from_rfc2822(value)
+                jiff::fmt::rfc2822::DateTimeParser::new()
+                    .parse_timestamp(value)
                     .ok()
-                    .map(|instant| instant.with_timezone(&Utc))
+                    .map(Timestamp::from_jiff)
             })
     });
     let remaining = header("x-ratelimit-remaining")
@@ -245,14 +246,14 @@ pub fn rate_limit_pause(
     let reset = header("x-ratelimit-reset")
         .or_else(|| header("ratelimit-reset"))
         .and_then(|value| value.parse::<i64>().ok())
-        .and_then(|seconds| DateTime::from_timestamp(seconds, 0));
+        .and_then(Timestamp::from_unix_seconds);
     let refused =
         status == 429 || (status == 403 && (remaining == Some(0) || retry_after.is_some()));
     let until = if refused {
         Some(
             retry_after
                 .or(reset)
-                .unwrap_or(now + Duration::seconds(MIN_PAUSE_SECONDS)),
+                .unwrap_or(now + SignedDuration::from_secs(MIN_PAUSE_SECONDS)),
         )
     } else if remaining == Some(0) {
         reset
@@ -260,8 +261,8 @@ pub fn rate_limit_pause(
         None
     }?;
     Some(until.clamp(
-        now + Duration::seconds(MIN_PAUSE_SECONDS),
-        now + Duration::seconds(MAX_PAUSE_SECONDS),
+        now + SignedDuration::from_secs(MIN_PAUSE_SECONDS),
+        now + SignedDuration::from_secs(MAX_PAUSE_SECONDS),
     ))
 }
 
@@ -301,7 +302,7 @@ impl SourceAdapter for GitReleaseAdapter {
                 MAX_RELEASE_LIST_BYTES,
             )
             .await?;
-        let now = Utc::now();
+        let now = Timestamp::now();
         let pause = rate_limit_pause(response.status, &response.headers, now);
         if is_refused_for_rate(response.status, &response.headers)
             && let Some(until) = pause

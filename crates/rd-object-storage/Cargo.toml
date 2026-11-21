@@ -21,8 +21,10 @@ anyhow.workspace = true
 async-trait.workspace = true
 # The shape checks of an Azure account key and a Google service account key (`credentials.rs`).
 base64.workspace = true
+# `object_store` reports `last_modified` as a chrono instant; converted in `listing::instant`.
 chrono.workspace = true
 futures-util.workspace = true
+jiff.workspace = true
 object_store.workspace = true
 rd-core = { path = "../rd-core" }
 rd-db = { path = "../rd-db" }

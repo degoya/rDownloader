@@ -1,7 +1,7 @@
 //! Database facade methods for the traffic per Usenet server and its quota (RD-1100-05).
 
 use anyhow::Result;
-use chrono::{DateTime, NaiveDate, Utc};
+use rd_core::Timestamp;
 
 use crate::{
     Database,
@@ -18,14 +18,15 @@ impl Database {
         &self,
         counts: Vec<(rd_core::UsenetServerId, u64)>,
     ) -> Result<Vec<UsenetQuotaReached>> {
-        self.record_usenet_traffic_at(counts, Utc::now()).await
+        self.record_usenet_traffic_at(counts, Timestamp::now())
+            .await
     }
 
     /// [`Self::record_usenet_traffic`] on the day `now` falls on.
     pub(crate) async fn record_usenet_traffic_at(
         &self,
         counts: Vec<(rd_core::UsenetServerId, u64)>,
-        now: DateTime<Utc>,
+        now: Timestamp,
     ) -> Result<Vec<UsenetQuotaReached>> {
         writer::request(&self.writer, |reply| NetworkCommand::RecordUsenetTraffic {
             counts,
@@ -38,7 +39,7 @@ impl Database {
     /// Every configured server with its traffic as of `today`, in priority order.
     pub async fn list_usenet_server_traffic(
         &self,
-        today: NaiveDate,
+        today: jiff::civil::Date,
     ) -> Result<Vec<UsenetServerTraffic>> {
         usenet_traffic_store::list(&self.readers, today).await
     }

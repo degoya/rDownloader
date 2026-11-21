@@ -2,8 +2,7 @@
 //! discarding what is still owed, and recording an attempt.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::NotificationDeliveryId;
+use rd_core::{NotificationDeliveryId, Timestamp};
 use rd_notify::DeliveryState;
 use sqlx::{Connection, SqliteConnection};
 
@@ -17,7 +16,7 @@ pub(crate) async fn queue_delivery(
     connection: &mut SqliteConnection,
     input: NewDelivery,
 ) -> Result<bool> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     let inserted = sqlx::query(
         "INSERT INTO notification_deliveries (id, rule_id, target_id, idempotency_key, event, \
@@ -95,7 +94,7 @@ pub(crate) async fn record_attempt(
     id: NotificationDeliveryId,
     state: DeliveryState,
     attempt: u32,
-    next_attempt_at: Option<DateTime<Utc>>,
+    next_attempt_at: Option<Timestamp>,
     response_status: Option<u16>,
     response_excerpt: Option<String>,
 ) -> Result<()> {
@@ -108,7 +107,7 @@ pub(crate) async fn record_attempt(
     .bind(next_attempt_at)
     .bind(response_status.map(i64::from))
     .bind(response_excerpt)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *connection)
     .await?;

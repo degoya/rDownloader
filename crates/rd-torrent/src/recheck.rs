@@ -32,7 +32,7 @@ impl TorrentService {
             .await?
             .context("download not found")?;
         self.update_job_state(id, |state| {
-            state.recheck = Some(TorrentRecheck::requested(chrono::Utc::now()));
+            state.recheck = Some(TorrentRecheck::requested(rd_core::Timestamp::now()));
         })
         .await
         .context("record the recheck")?;
@@ -83,7 +83,7 @@ impl TorrentService {
                     .recheck
                     .as_mut()
                     .filter(|recheck| recheck.is_pending())?;
-                recheck.finished_at = Some(chrono::Utc::now());
+                recheck.finished_at = Some(rd_core::Timestamp::now());
                 recheck.verified_bytes = verified_bytes;
                 recheck.total_bytes = total_bytes;
                 Some(())

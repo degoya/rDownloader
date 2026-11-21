@@ -1,7 +1,7 @@
 //! Tests for [`super`]: each refusal in the documented order, with its stable code, and the
 //! publishing half against a real signed package.
 
-use chrono::Duration;
+use rd_core::SignedDuration;
 use rd_sign::{SigningKey, TrustStore};
 
 use super::*;
@@ -12,8 +12,8 @@ const DIGEST: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789
 const FINGERPRINT: &str = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
 const EMPTY_COMPONENT: &[u8] = b"\0asm\x0d\0\x01\0";
 
-fn now() -> DateTime<Utc> {
-    DateTime::from_timestamp(1_790_000_000, 0).expect("timestamp")
+fn now() -> Timestamp {
+    Timestamp::from_unix_seconds(1_790_000_000).expect("timestamp")
 }
 
 fn key() -> SigningKey {
@@ -57,8 +57,8 @@ fn index() -> PluginIndex {
     PluginIndex {
         schema_version: PLUGIN_INDEX_SCHEMA_VERSION,
         sequence: 5,
-        issued_at: now() - Duration::hours(1),
-        not_after: now() + Duration::days(30),
+        issued_at: now() - SignedDuration::from_hours(1),
+        not_after: now() + SignedDuration::from_hours(24 * 30),
         packages: vec![package()],
         revoked: Revocations::default(),
     }
@@ -138,8 +138,8 @@ fn another_key_is_refused_whether_or_not_it_claims_the_trusted_id() {
 #[test]
 fn an_expired_index_is_stale() {
     let mut expired = index();
-    expired.issued_at = now() - Duration::days(40);
-    expired.not_after = now() - Duration::minutes(1);
+    expired.issued_at = now() - SignedDuration::from_hours(24 * 40);
+    expired.not_after = now() - SignedDuration::from_mins(1);
     let error = refused(&signed(&expired), None);
     assert_eq!(error.code(), "plugin_index.stale");
     assert!(matches!(
@@ -300,14 +300,15 @@ fn invalid_content_names_itself_and_refuses_the_index() {
         (
             "window too long",
             rule(|index: &mut PluginIndex| {
-                index.not_after = index.issued_at + Duration::days(MAX_VALIDITY_DAYS + 1)
+                index.not_after =
+                    index.issued_at + SignedDuration::from_hours(24 * (MAX_VALIDITY_DAYS + 1))
             }),
         ),
         (
             "backwards window",
             rule(|index: &mut PluginIndex| {
                 // Within the clock-skew allowance, so the window check is what refuses it.
-                index.issued_at = now() + Duration::minutes(30);
+                index.issued_at = now() + SignedDuration::from_mins(30);
                 index.not_after = index.issued_at;
             }),
         ),

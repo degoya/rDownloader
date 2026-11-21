@@ -199,7 +199,7 @@ async fn a_failure_that_will_be_retried_writes_nothing_and_a_failed_package_keep
                 },
                 "reset",
             ),
-            Some(chrono::Utc::now() + chrono::Duration::minutes(5)),
+            Some(rd_core::Timestamp::now() + rd_core::SignedDuration::from_mins(5)),
         )
         .await
         .expect("retry wait");
@@ -337,7 +337,7 @@ async fn the_filters_page_and_the_retention_and_the_clear_apply() {
     assert_eq!(none.total, 0);
     let later = database
         .list_download_history(&HistoryQuery {
-            finished_from: Some(chrono::Utc::now() + chrono::Duration::hours(1)),
+            finished_from: Some(rd_core::Timestamp::now() + rd_core::SignedDuration::from_hours(1)),
             ..HistoryQuery::default()
         })
         .await
@@ -346,7 +346,10 @@ async fn the_filters_page_and_the_retention_and_the_clear_apply() {
 
     // The count cap keeps the newest; the age cap removes everything older than now.
     let removed = database
-        .prune_download_history(3, chrono::Utc::now() - chrono::Duration::days(1))
+        .prune_download_history(
+            3,
+            rd_core::Timestamp::now() - rd_core::SignedDuration::from_hours(24),
+        )
         .await
         .expect("prune");
     assert_eq!(removed, 2);
@@ -357,7 +360,10 @@ async fn the_filters_page_and_the_retention_and_the_clear_apply() {
     assert_eq!(kept.total, 3);
     assert_eq!(kept.entries[2].name, "Series 2");
     let aged = database
-        .prune_download_history(100, chrono::Utc::now() + chrono::Duration::seconds(1))
+        .prune_download_history(
+            100,
+            rd_core::Timestamp::now() + rd_core::SignedDuration::from_secs(1),
+        )
         .await
         .expect("age");
     assert_eq!(aged, 3);

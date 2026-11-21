@@ -10,10 +10,9 @@
 //! duplicate preventable at a provider whose submit is not idempotent.
 
 use anyhow::{Result, bail};
-use chrono::{DateTime, Utc};
 use rd_core::{
     AccountId, CollectorPackageId, EventEnvelope, EventKind, RemoteJob, RemoteJobFile, RemoteJobId,
-    RemoteJobSourceKind, RemoteJobState,
+    RemoteJobSourceKind, RemoteJobState, Timestamp,
 };
 use sqlx::{FromRow, SqliteConnection, SqlitePool};
 
@@ -50,7 +49,7 @@ pub struct AdvanceRemoteJob {
     pub progress_permille: Option<Option<u16>>,
     pub message: Option<Option<String>>,
     pub code: Option<Option<String>>,
-    pub next_poll_at: Option<Option<DateTime<Utc>>>,
+    pub next_poll_at: Option<Option<Timestamp>>,
     pub package_id: Option<CollectorPackageId>,
     /// Adds one to the count of times the provider has been asked to create this job.
     pub count_submit_attempt: bool,
@@ -68,7 +67,7 @@ pub(crate) async fn claim(
     connection: &mut SqliteConnection,
     input: ClaimRemoteJob,
 ) -> Result<(RemoteJob, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let affected = sqlx::query(
         "INSERT INTO remote_jobs \
          (id, account_id, plugin_id, content_key, remote_id, state, source_kind, source, \
@@ -151,7 +150,7 @@ pub(crate) async fn advance(
     {
         bail!("remote job {id} already names another job at the provider");
     }
-    let now = Utc::now();
+    let now = Timestamp::now();
     sqlx::query(
         "UPDATE remote_jobs SET \
          state = COALESCE(?, state), \
@@ -244,7 +243,7 @@ pub(crate) async fn by_content(
 /// `awaiting_choice` is deliberately not in the list. Nothing at the provider changes until a
 /// person answers, and polling in the meantime would spend an account's request budget on
 /// re-reading a question nobody has got to yet.
-pub(crate) async fn due(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<RemoteJob>> {
+pub(crate) async fn due(pool: &SqlitePool, now: Timestamp) -> Result<Vec<RemoteJob>> {
     sqlx::query_as::<_, JobRow>(sqlx::AssertSqlSafe(format!(
         "{SELECT} WHERE state IN ('submitting', 'preparing', 'working') \
          AND (next_poll_at IS NULL OR next_poll_at <= ?) ORDER BY created_at"
@@ -370,9 +369,9 @@ struct JobRow {
     progress_permille: Option<i64>,
     message: Option<String>,
     code: Option<String>,
-    next_poll_at: Option<DateTime<Utc>>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    next_poll_at: Option<Timestamp>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
     job_state: Option<String>,
 }
 

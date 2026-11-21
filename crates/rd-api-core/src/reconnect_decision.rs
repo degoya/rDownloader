@@ -4,23 +4,21 @@
 //! condition here exists to avoid the two ways this feature goes wrong: reconnecting when it
 //! cannot help, and reconnecting so often that it becomes the problem.
 
-use chrono::{DateTime, Duration, Utc};
-use chrono_tz::Tz;
-use rd_core::{DownloadFile, DownloadState, FailureKind};
+use rd_core::{DownloadFile, DownloadState, FailureKind, IanaZone, SignedDuration, Timestamp};
 
 /// What the decision is made from.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct ReconnectInputs<'a> {
     pub enabled: bool,
     pub has_script: bool,
     /// Empty means any time.
     pub windows: &'a [rd_limits::QuietWindow],
-    pub timezone: Tz,
+    pub timezone: IanaZone,
     pub min_interval_minutes: u32,
-    pub last_attempt: Option<DateTime<Utc>>,
+    pub last_attempt: Option<Timestamp>,
     /// Whether running transfers may be paused to make room for the attempt.
     pub abort_active: bool,
-    pub now: DateTime<Utc>,
+    pub now: Timestamp,
 }
 
 /// Why a reconnect is not being attempted, or that it is.
@@ -50,7 +48,7 @@ pub(crate) fn evaluate(
         return ReconnectVerdict::OutsideWindow;
     }
     if let Some(last) = inputs.last_attempt {
-        let wait = Duration::minutes(i64::from(inputs.min_interval_minutes));
+        let wait = SignedDuration::from_mins(i64::from(inputs.min_interval_minutes));
         if last + wait > inputs.now {
             return ReconnectVerdict::TooSoon;
         }
@@ -83,7 +81,7 @@ fn inside_window(inputs: &ReconnectInputs<'_>) -> bool {
     if inputs.windows.is_empty() {
         return true;
     }
-    let (weekday, minute) = rd_limits::local_position(inputs.timezone, inputs.now);
+    let (weekday, minute) = rd_limits::local_position(inputs.timezone.as_jiff(), inputs.now);
     inputs.windows.iter().any(|window| {
         rd_limits::covers_local(
             window.days,
@@ -98,24 +96,25 @@ fn inside_window(inputs: &ReconnectInputs<'_>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{ReconnectInputs, ReconnectVerdict, evaluate};
-    use chrono::{Duration, Utc};
-    use rd_core::{DownloadFile, DownloadState, Failure, FailureKind};
+    use rd_core::{
+        DownloadFile, DownloadState, Failure, FailureKind, IanaZone, SignedDuration, Timestamp,
+    };
 
     fn inputs<'a>(windows: &'a [rd_limits::QuietWindow]) -> ReconnectInputs<'a> {
         ReconnectInputs {
             enabled: true,
             has_script: true,
             windows,
-            timezone: chrono_tz::Tz::UTC,
+            timezone: IanaZone::utc(),
             min_interval_minutes: 10,
             last_attempt: None,
             abort_active: false,
-            now: Utc::now(),
+            now: Timestamp::now(),
         }
     }
 
     fn file(state: DownloadState, blocked: bool, with_account: bool) -> DownloadFile {
-        let now = Utc::now();
+        let now = Timestamp::now();
         DownloadFile {
             recording: None,
             id: rd_core::DownloadId::new(),
@@ -242,14 +241,14 @@ mod tests {
     #[test]
     fn two_reconnects_keep_their_distance() {
         let mut recent = inputs(&[]);
-        recent.last_attempt = Some(recent.now - Duration::minutes(3));
+        recent.last_attempt = Some(recent.now - SignedDuration::from_mins(3));
         assert_eq!(
             evaluate(&recent, &[blocked_file()]),
             ReconnectVerdict::TooSoon
         );
 
         let mut long_ago = inputs(&[]);
-        long_ago.last_attempt = Some(long_ago.now - Duration::minutes(30));
+        long_ago.last_attempt = Some(long_ago.now - SignedDuration::from_mins(30));
         assert_eq!(evaluate(&long_ago, &[blocked_file()]), ReconnectVerdict::Go);
     }
 

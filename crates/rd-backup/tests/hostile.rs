@@ -32,7 +32,7 @@ async fn forged(
         .await
         .expect("key");
     let manifest = rd_backup::Manifest::new(
-        chrono::Utc::now(),
+        rd_core::Timestamp::now(),
         "test".to_owned(),
         vec![ManifestPart {
             name: "settings.json".to_owned(),

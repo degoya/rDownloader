@@ -11,8 +11,9 @@
 
 use anyhow::Result;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use chrono::{DateTime, TimeDelta, Utc};
-use rd_core::{DownloadFile, Failure, FailureKind, ReplayBlockReason, ReplayMethod};
+use rd_core::{
+    DownloadFile, Failure, FailureKind, ReplayBlockReason, ReplayMethod, SignedDuration, Timestamp,
+};
 use rd_http::{ReplayPayload, ReplayScope};
 use url::Url;
 
@@ -21,7 +22,7 @@ use crate::SchedulerHandle;
 /// How close to its deadline a signed URL is treated as already expired.
 ///
 /// A transfer that starts one second before expiry is a transfer that fails halfway.
-const REFRESH_SKEW: TimeDelta = TimeDelta::seconds(60);
+const REFRESH_SKEW: SignedDuration = SignedDuration::from_secs(60);
 
 /// Everything the transfer needs to reproduce one consented request.
 #[derive(Clone, Debug, Default)]
@@ -30,7 +31,7 @@ pub(crate) struct ReplayContext {
     pub body: Option<ReplayPayload>,
     pub approved_origins: Vec<String>,
     pub captured_user_agent: Option<String>,
-    pub expires_at: Option<DateTime<Utc>>,
+    pub expires_at: Option<Timestamp>,
 }
 
 impl ReplayContext {
@@ -106,7 +107,7 @@ pub(crate) fn staleness(
     source: &Url,
     replay: Option<&ReplayContext>,
     file: &DownloadFile,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Staleness {
     if let Some(failure) = &file.last_error
         && matches!(
@@ -174,7 +175,7 @@ pub(crate) async fn before_resume(
     source: &Url,
     replay: Option<&ReplayContext>,
 ) -> Result<Refreshed> {
-    if staleness(source, replay, file, Utc::now()) == Staleness::Fresh {
+    if staleness(source, replay, file, Timestamp::now()) == Staleness::Fresh {
         return Ok(Refreshed::Fresh);
     }
     // Bounded: a windowed budget separate from the one-shot reactive resolver refresh, so
@@ -285,8 +286,7 @@ pub(crate) fn blocked(reason: ReplayBlockReason) -> Failure {
 #[cfg(test)]
 mod tests {
     use super::{ReplayContext, Staleness, staleness};
-    use chrono::{TimeDelta, Utc};
-    use rd_core::{DownloadFile, Failure, FailureKind};
+    use rd_core::{DownloadFile, Failure, FailureKind, SignedDuration, Timestamp};
     use url::Url;
 
     fn url(input: &str) -> Url {
@@ -294,7 +294,7 @@ mod tests {
     }
 
     fn file(last_error: Option<Failure>) -> DownloadFile {
-        let now = Utc::now();
+        let now = Timestamp::now();
         DownloadFile {
             recording: None,
             id: rd_core::DownloadId::new(),
@@ -333,7 +333,7 @@ mod tests {
                 &url("https://cdn.example/f.bin"),
                 None,
                 &file(None),
-                Utc::now()
+                Timestamp::now()
             ),
             Staleness::Fresh
         );
@@ -346,7 +346,7 @@ mod tests {
                 &url("https://cdn.example/f.bin?sig=abc"),
                 None,
                 &file(None),
-                Utc::now()
+                Timestamp::now()
             ),
             Staleness::Signed
         );
@@ -354,8 +354,8 @@ mod tests {
 
     #[test]
     fn a_deadline_is_read_from_the_url_and_honoured_with_skew() {
-        let now = Utc::now();
-        let soon = (now + TimeDelta::seconds(30)).timestamp();
+        let now = Timestamp::now();
+        let soon = (now + SignedDuration::from_secs(30)).unix_seconds();
         // Inside the skew window: starting now would fail halfway.
         assert_eq!(
             staleness(
@@ -366,7 +366,7 @@ mod tests {
             ),
             Staleness::Expired
         );
-        let later = (now + TimeDelta::hours(2)).timestamp();
+        let later = (now + SignedDuration::from_hours(2)).unix_seconds();
         assert_eq!(
             staleness(
                 &url(&format!("https://cdn.example/f.bin?Expires={later}")),
@@ -380,9 +380,9 @@ mod tests {
 
     #[test]
     fn the_templates_expiry_wins_over_the_urls() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let replay = ReplayContext {
-            expires_at: Some(now - TimeDelta::hours(1)),
+            expires_at: Some(now - SignedDuration::from_hours(1)),
             ..ReplayContext::default()
         };
         assert_eq!(
@@ -404,7 +404,7 @@ mod tests {
                     &url("https://cdn.example/f.bin"),
                     None,
                     &file(Some(Failure::new(category, "denied"))),
-                    Utc::now()
+                    Timestamp::now()
                 ),
                 Staleness::PriorAuthFailure
             );
@@ -415,7 +415,7 @@ mod tests {
                 &url("https://cdn.example/f.bin"),
                 None,
                 &file(Some(Failure::new(FailureKind::Offline, "no route"))),
-                Utc::now()
+                Timestamp::now()
             ),
             Staleness::Fresh
         );

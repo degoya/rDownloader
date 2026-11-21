@@ -85,7 +85,7 @@ async fn an_unreadable_filter_set_fails_the_row_instead_of_accepting_everything(
     assert!(database.subscription(created.id).await.is_err());
     assert!(
         database
-            .due_subscriptions(chrono::Utc::now())
+            .due_subscriptions(rd_core::Timestamp::now())
             .await
             .is_err(),
         "above all it must not be polled: that is where the whole feed would be queued"

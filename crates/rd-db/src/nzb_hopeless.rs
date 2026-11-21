@@ -6,8 +6,7 @@
 //! of the set is fetched.
 
 use anyhow::{Context, Result};
-use chrono::Utc;
-use rd_core::{DownloadState, EventEnvelope, EventKind, Failure, PackageId};
+use rd_core::{DownloadState, EventEnvelope, EventKind, Failure, PackageId, Timestamp};
 use sqlx::{Connection, SqliteConnection};
 
 use crate::{Database, commands::NzbCommand, error::StoreError, writer, writer::insert_event};
@@ -62,7 +61,7 @@ pub(crate) async fn fail_hopeless(
 ) -> Result<Vec<EventEnvelope>> {
     let failure = rd_core::redact_failure(failure);
     let stored = serde_json::to_string(&failure)?;
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     let import_id: Option<String> =
         sqlx::query_scalar("SELECT nzb_import_id FROM packages WHERE id = ?")

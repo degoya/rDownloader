@@ -1,11 +1,12 @@
 //! Persistence of automations, their versions and the run history (RD-090-04).
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use rd_automation::{
     Action, Automation, AutomationVersion, ConditionNode, Run, RunState, Schedule, Trigger,
 };
-use rd_core::{AutomationId, AutomationRunId, AutomationVersionId, EventEnvelope, EventKind};
+use rd_core::{
+    AutomationId, AutomationRunId, AutomationVersionId, EventEnvelope, EventKind, Timestamp,
+};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::{error::StoreError, parse_id, writer::insert_event};
@@ -42,8 +43,8 @@ pub(crate) struct AutomationRow {
     name: String,
     enabled: bool,
     version: i64,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
 }
 
 #[derive(FromRow)]
@@ -55,7 +56,7 @@ struct VersionRow {
     schedule_json: Option<String>,
     condition_json: String,
     actions_json: String,
-    created_at: DateTime<Utc>,
+    created_at: Timestamp,
 }
 
 #[derive(FromRow)]
@@ -68,10 +69,10 @@ struct RunRow {
     state: String,
     action_index: i64,
     attempt: i64,
-    next_attempt_at: Option<DateTime<Utc>>,
+    next_attempt_at: Option<Timestamp>,
     message: Option<String>,
-    started_at: DateTime<Utc>,
-    finished_at: Option<DateTime<Utc>>,
+    started_at: Timestamp,
+    finished_at: Option<Timestamp>,
 }
 
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<Automation>> {
@@ -169,7 +170,7 @@ pub(crate) async fn runs(
 }
 
 /// Runs that are waiting to start or whose retry is due.
-pub(crate) async fn due_runs(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Run>> {
+pub(crate) async fn due_runs(pool: &SqlitePool, now: Timestamp) -> Result<Vec<Run>> {
     sqlx::query_as::<_, RunRow>(
         "SELECT id, automation_id, automation_version_id, event_id, package_id, state, \
                 action_index, attempt, next_attempt_at, message, started_at, finished_at \
@@ -195,7 +196,7 @@ pub(crate) async fn upsert(
     id: Option<AutomationId>,
     input: NewAutomation,
 ) -> Result<(Automation, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut transaction = connection.begin().await?;
     let id = match id {
         Some(id) => id,
@@ -281,7 +282,7 @@ pub(crate) async fn set_enabled(
     let mut transaction = connection.begin().await?;
     let result = sqlx::query("UPDATE automations SET enabled = ?, updated_at = ? WHERE id = ?")
         .bind(enabled)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(&mut *transaction)
         .await?;
@@ -338,7 +339,7 @@ pub(crate) fn changed_event(id: AutomationId) -> EventEnvelope {
 
 /// Queues a run. `false` means the idempotency key was already taken.
 pub(crate) async fn queue_run(connection: &mut SqliteConnection, input: NewRun) -> Result<bool> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut transaction = connection.begin().await?;
     let result = sqlx::query(
         "INSERT OR IGNORE INTO automation_runs (id, automation_id, automation_version_id, \
@@ -378,7 +379,7 @@ pub(crate) async fn record_attempt(
     state: RunState,
     action_index: u32,
     attempt: u32,
-    next_attempt_at: Option<DateTime<Utc>>,
+    next_attempt_at: Option<Timestamp>,
     message: Option<String>,
 ) -> Result<()> {
     let finished = matches!(state, RunState::Completed | RunState::Failed);
@@ -391,7 +392,7 @@ pub(crate) async fn record_attempt(
     .bind(i64::from(attempt))
     .bind(next_attempt_at)
     .bind(message)
-    .bind(finished.then(Utc::now))
+    .bind(finished.then(Timestamp::now))
     .bind(id.to_string())
     .execute(&mut *connection)
     .await?;

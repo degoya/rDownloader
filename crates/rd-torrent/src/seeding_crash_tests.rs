@@ -148,7 +148,7 @@ async fn a_seed_stopped_before_its_row_completed_is_taken_up_again_and_counts_it
     let mut state = first.job_state(id).await;
     state
         .seed
-        .start(chrono::Utc::now() - chrono::Duration::seconds(90));
+        .start(rd_core::Timestamp::now() - rd_core::SignedDuration::from_secs(90));
     first.store_job_state(id, state).await;
     first.inner.registry.write().await.register(
         id,

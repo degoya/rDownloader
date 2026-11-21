@@ -5,10 +5,9 @@
 //! checkpoint with a different build would hand a backend somebody else's private format.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use sqlx::{FromRow, Row, SqliteConnection, SqlitePool};
 
-use rd_core::DownloadId;
+use rd_core::{DownloadId, Timestamp};
 
 /// One running plugin transfer's resume state.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -16,7 +15,7 @@ pub struct PluginTransfer {
     pub plugin_id: String,
     pub plugin_version: String,
     pub checkpoint: Option<Vec<u8>>,
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: Timestamp,
 }
 
 #[derive(FromRow)]
@@ -24,7 +23,7 @@ struct PluginTransferRow {
     plugin_id: String,
     plugin_version: String,
     checkpoint: Option<Vec<u8>>,
-    updated_at: DateTime<Utc>,
+    updated_at: Timestamp,
 }
 
 pub(crate) async fn load_plugin_transfer(
@@ -68,7 +67,7 @@ pub(crate) async fn save_plugin_transfer(
     .bind(plugin_id)
     .bind(plugin_version)
     .bind(checkpoint)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .execute(&mut *connection)
     .await?;
     let row = sqlx::query(

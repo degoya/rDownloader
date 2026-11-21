@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use crate::{
     Database,
@@ -57,7 +57,7 @@ impl Database {
     }
 
     /// Sets when the schedule is next due.
-    pub async fn arm_backup(&self, next_run_at: Option<DateTime<Utc>>) -> Result<()> {
+    pub async fn arm_backup(&self, next_run_at: Option<Timestamp>) -> Result<()> {
         writer::request(&self.writer, |reply| FullBackupCommand::ArmBackup {
             next_run_at,
             reply,
@@ -238,7 +238,7 @@ impl Database {
     }
 
     /// Sets when the scheduled verification is next due.
-    pub async fn arm_backup_verify(&self, next_run_at: Option<DateTime<Utc>>) -> Result<()> {
+    pub async fn arm_backup_verify(&self, next_run_at: Option<Timestamp>) -> Result<()> {
         writer::request(&self.writer, |reply| BackupLedgerCommand::ArmBackupVerify {
             next_run_at,
             reply,

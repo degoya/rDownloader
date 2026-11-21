@@ -1,7 +1,6 @@
 //! Enrichment carried from indexers and candidates onto packages and downloads.
 
-use chrono::Utc;
-use rd_core::{AuthProfileSelection, DownloadId, IngressSource, PackageId};
+use rd_core::{AuthProfileSelection, DownloadId, IngressSource, PackageId, Timestamp};
 
 use crate::{Database, NewDownload, NewPackage};
 
@@ -81,7 +80,7 @@ async fn enrichment_is_carried_onto_the_package_and_its_downloads() {
         name: name.to_owned(),
         value: "9.3".to_owned(),
         plugin_id: "imdb-enricher".to_owned(),
-        fetched_at: Utc::now(),
+        fetched_at: Timestamp::now(),
     };
     let (package_id, download_id) = {
         let database = Database::open(path.clone()).await.expect("database");
@@ -189,7 +188,7 @@ async fn enrichment_survives_the_enqueue(when_written: EnrichedAt) {
         name: "imdb.score".to_owned(),
         value: "9.3".to_owned(),
         plugin_id: "imdb-enricher".to_owned(),
-        fetched_at: Utc::now(),
+        fetched_at: Timestamp::now(),
     };
     let (_, packages, candidates) = database
         .add_collector_batch(crate::NewCollectorBatch {

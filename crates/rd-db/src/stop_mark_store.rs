@@ -4,8 +4,7 @@
 //! mark goes with its file or package through the foreign keys; nothing here has to remember it.
 
 use anyhow::{Result, bail};
-use chrono::{DateTime, Utc};
-use rd_core::{DownloadId, PackageId};
+use rd_core::{DownloadId, PackageId, Timestamp};
 use sqlx::SqliteConnection;
 
 use crate::{Database, commands::PackagesCommand, parse_id, parse_time, timestamp, writer};
@@ -21,7 +20,7 @@ pub enum StopMarkTarget {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StopMark {
     pub target: StopMarkTarget,
-    pub set_at: DateTime<Utc>,
+    pub set_at: Timestamp,
 }
 
 impl StopMarkTarget {
@@ -82,7 +81,7 @@ pub(crate) async fn set_stop_mark(
     target: StopMarkTarget,
 ) -> Result<StopMark> {
     let (download, package) = target.columns();
-    let set_at = Utc::now();
+    let set_at = Timestamp::now();
     sqlx::query(
         "INSERT INTO queue_stop_mark (slot, download_id, package_id, set_at) VALUES (1, ?, ?, ?) \
          ON CONFLICT(slot) DO UPDATE SET \

@@ -1,7 +1,6 @@
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
-use rd_core::{Failure, FailureKind};
+use rd_core::{Failure, FailureKind, SignedDuration, Timestamp};
 
 /// Upper bound accepted for the configurable retry count.
 pub const MAX_CONFIGURABLE_RETRIES: u32 = 100;
@@ -114,7 +113,7 @@ pub(crate) fn retry_at(
     previous_attempts: u32,
     limit_waits: u32,
     schedule: RetrySchedule,
-) -> Option<DateTime<Utc>> {
+) -> Option<Timestamp> {
     let max_retries = schedule.max_retries;
     if !failure.category.is_retryable() || max_retries == 0 {
         return None;
@@ -134,7 +133,7 @@ pub(crate) fn retry_at(
     // RD-1340-01), each spread by ±`RETRY_JITTER_PERCENT` so links that failed together do not return
     // together. Seeded by the clock's sub-second part, as the notification retry is; the
     // spread is what matters, not unpredictability. A limit has its own waits below.
-    let now = Utc::now();
+    let now = Timestamp::now();
     let backoff = if failure.category.is_limit() {
         fast_backoff_ms(previous_attempts)
     } else {
@@ -144,7 +143,7 @@ pub(crate) fn retry_at(
     let spread = rd_core::jitter(
         backoff_ms,
         rd_core::RETRY_JITTER_PERCENT,
-        u64::from(now.timestamp_subsec_nanos()),
+        u64::from(now.subsec_nanos()),
     );
     let calculated =
         Duration::from_millis(u64::try_from(backoff_ms.saturating_add(spread)).unwrap_or(0));
@@ -162,9 +161,9 @@ pub(crate) fn retry_at(
         (None, _) => Duration::ZERO,
     };
     // A stated wait is kept as stated: the hoster named it, and the cap above is a day.
-    chrono::Duration::from_std(calculated.max(server))
+    SignedDuration::try_from(calculated.max(server))
         .ok()
-        .and_then(|delay| now.checked_add_signed(delay))
+        .and_then(|delay| now.checked_add(delay))
 }
 
 /// Whether a limit failure ended the download because its limit waits ran out.
@@ -194,7 +193,7 @@ pub(crate) fn limit_waits_exhausted(original: Failure, waits: u32) -> Failure {
 
 #[cfg(test)]
 mod tests {
-    use rd_core::{Failure, FailureKind};
+    use rd_core::{Failure, FailureKind, Timestamp};
 
     use super::{
         LIMIT_WAITS_EXHAUSTED_CODE, MAX_LIMIT_WAITS, RetrySchedule, limit_waits_exhausted,
@@ -253,7 +252,7 @@ mod tests {
         );
         let due = retry_at(&blocked, 0, 0, RetrySchedule::with_retries(100))
             .expect("ip blocks are retryable");
-        let delay = (due - chrono::Utc::now()).num_seconds();
+        let delay = (due - Timestamp::now()).as_secs();
         assert!(
             (14 * 60..=15 * 60 + 1).contains(&delay),
             "expected roughly the default hold-off, got {delay}s"
@@ -267,7 +266,7 @@ mod tests {
         );
         let due = retry_at(&hinted, 0, 0, RetrySchedule::with_retries(100))
             .expect("ip blocks are retryable");
-        let delay = (due - chrono::Utc::now()).num_seconds();
+        let delay = (due - Timestamp::now()).as_secs();
         assert!(
             (89..=92).contains(&delay),
             "expected the hoster's own wait, got {delay}s"
@@ -292,7 +291,7 @@ mod tests {
         ] {
             let due = retry_at(&transient(), attempts, 0, RetrySchedule::with_retries(100))
                 .expect("retryable");
-            let delay = (due - chrono::Utc::now()).num_milliseconds();
+            let delay = i64::try_from((due - Timestamp::now()).as_millis()).expect("milliseconds");
             let base = seconds * 1_000;
             let spread = base * i64::from(rd_core::RETRY_JITTER_PERCENT) / 100;
             assert!(
@@ -346,7 +345,7 @@ mod tests {
         ];
         for (schedule, attempts, seconds) in cases {
             let due = retry_at(&transient(), attempts, 0, schedule).expect("retryable");
-            let delay = (due - chrono::Utc::now()).num_milliseconds();
+            let delay = i64::try_from((due - Timestamp::now()).as_millis()).expect("milliseconds");
             let base = seconds * 1_000;
             let spread = base * i64::from(rd_core::RETRY_JITTER_PERCENT) / 100;
             assert!(
@@ -373,7 +372,7 @@ mod tests {
             );
             let due = retry_at(&failure, 0, 0, RetrySchedule::with_retries(8))
                 .expect("a rate limit is retryable");
-            let delay = (due - chrono::Utc::now()).num_seconds();
+            let delay = (due - Timestamp::now()).as_secs();
             let ceiling = i64::try_from(rd_core::MAX_RETRY_AFTER_SECONDS).expect("fits");
             assert!(
                 (ceiling - 1..=ceiling + 2).contains(&delay),
@@ -462,7 +461,7 @@ mod tests {
     fn a_rate_limit_without_a_stated_wait_waits_an_hour() {
         let due = retry_at(&daily_limit(), 0, 0, RetrySchedule::with_retries(8))
             .expect("a rate limit is retryable");
-        let delay = (due - chrono::Utc::now()).num_seconds();
+        let delay = (due - Timestamp::now()).as_secs();
         assert!(
             (59 * 60..=60 * 60 + 1).contains(&delay),
             "expected the hour, got {delay}s"

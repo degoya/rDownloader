@@ -12,10 +12,9 @@
 //!   support log that has lost `X-Amz-Signature` entirely is much harder to read than one
 //!   where the name is still visible with a placeholder value.
 
-use chrono::{DateTime, NaiveDateTime, Utc};
 use url::Url;
 
-use crate::{Failure, MessageParams};
+use crate::{Failure, MessageParams, SignedDuration, Timestamp};
 
 /// Replacement for every redacted value.
 ///
@@ -146,7 +145,7 @@ pub fn is_signed_url(url: &Url) -> bool {
 /// caller treats an unreadable expiry as "signed but unknown", which is a weaker signal
 /// than a wrong deadline.
 #[must_use]
-pub fn signed_url_expiry(url: &Url) -> Option<DateTime<Utc>> {
+pub fn signed_url_expiry(url: &Url) -> Option<Timestamp> {
     let mut parameters: Vec<(String, String)> = Vec::new();
     for (name, value) in url.query_pairs() {
         parameters.push((name.trim().to_ascii_lowercase(), value.into_owned()));
@@ -167,7 +166,7 @@ pub fn signed_url_expiry(url: &Url) -> Option<DateTime<Utc>> {
             && let Some(expires) = find(expires_key)
             && let Some(signed_at) = parse_basic_iso8601(date)
             && let Ok(seconds) = expires.parse::<i64>()
-            && let Some(deadline) = signed_at.checked_add_signed(chrono::TimeDelta::seconds(
+            && let Some(deadline) = signed_at.checked_add(SignedDuration::from_secs(
                 seconds.clamp(0, i64::from(u32::MAX)),
             ))
         {
@@ -197,26 +196,24 @@ pub fn signed_url_expiry(url: &Url) -> Option<DateTime<Utc>> {
 }
 
 /// `20240101T000000Z`, the basic ISO 8601 form AWS and GCS sign with.
-fn parse_basic_iso8601(value: &str) -> Option<DateTime<Utc>> {
-    NaiveDateTime::parse_from_str(value.trim(), "%Y%m%dT%H%M%SZ")
+fn parse_basic_iso8601(value: &str) -> Option<Timestamp> {
+    jiff::civil::DateTime::strptime("%Y%m%dT%H%M%SZ", value.trim())
         .ok()
-        .map(|naive| naive.and_utc())
+        .map(Timestamp::from_utc_datetime)
 }
 
-fn parse_rfc3339(value: &str) -> Option<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(value.trim())
-        .ok()
-        .map(|parsed| parsed.with_timezone(&Utc))
+fn parse_rfc3339(value: &str) -> Option<Timestamp> {
+    Timestamp::parse_rfc3339(value.trim()).ok()
 }
 
-fn parse_epoch_seconds(value: &str) -> Option<DateTime<Utc>> {
+fn parse_epoch_seconds(value: &str) -> Option<Timestamp> {
     let seconds = value.trim().parse::<i64>().ok()?;
     // Reject values that are obviously not a second-precision epoch (a millisecond
     // timestamp, a version number, a byte count) rather than reporting the year 1970.
     if !(1_000_000_000..=32_503_680_000).contains(&seconds) {
         return None;
     }
-    DateTime::from_timestamp(seconds, 0)
+    Timestamp::from_unix_seconds(seconds)
 }
 
 /// The URL with every credential-bearing query value and any userinfo replaced.

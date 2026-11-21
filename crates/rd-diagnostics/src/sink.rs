@@ -12,8 +12,10 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use chrono::{Duration as ChronoDuration, Utc};
-use rd_core::{AuditRetentionSettings, HistoryRetentionSettings, LogRetentionSettings};
+use rd_core::{
+    AuditRetentionSettings, HistoryRetentionSettings, LogRetentionSettings, SignedDuration,
+    Timestamp,
+};
 use rd_db::{Database, NewLogRecord, PruneReport};
 use tokio::{sync::oneshot, task::JoinHandle};
 
@@ -173,7 +175,8 @@ pub async fn prune_download_history(
     database: &Database,
     settings: &HistoryRetentionSettings,
 ) -> Result<u64> {
-    let older_than = Utc::now() - ChronoDuration::days(i64::from(settings.history_retention_days));
+    let older_than = Timestamp::now()
+        - SignedDuration::from_hours(24 * i64::from(settings.history_retention_days));
     database
         .prune_download_history(u64::from(settings.history_retention_entries), older_than)
         .await
@@ -204,7 +207,8 @@ pub(crate) async fn prune_audit(
     database: &Database,
     settings: &AuditRetentionSettings,
 ) -> Result<u64> {
-    let older_than = Utc::now() - ChronoDuration::days(i64::from(settings.audit_retention_days));
+    let older_than = Timestamp::now()
+        - SignedDuration::from_hours(24 * i64::from(settings.audit_retention_days));
     in_batches(|| {
         database.prune_audit_records(
             u64::from(settings.audit_retention_records),
@@ -218,7 +222,8 @@ pub(crate) async fn prune_audit(
 /// Applies the retention in bounded steps until nothing is over the cap. Returns the rows
 /// removed.
 pub async fn prune(database: &Database, settings: &LogRetentionSettings) -> Result<u64> {
-    let older_than = Utc::now() - ChronoDuration::days(i64::from(settings.log_retention_days));
+    let older_than =
+        Timestamp::now() - SignedDuration::from_hours(24 * i64::from(settings.log_retention_days));
     in_batches(|| {
         database.prune_log_records(
             u64::from(settings.log_retention_records),

@@ -122,7 +122,7 @@ pub(crate) async fn capture_events(
     let frame = move |event: EventEnvelope| {
         capture_frame(with_quiet_until(
             event,
-            power.notifications_quiet_until(chrono::Utc::now()),
+            power.notifications_quiet_until(rd_core::Timestamp::now()),
         ))
     };
     Sse::new(
@@ -277,10 +277,7 @@ fn with_toast_owner(mut event: EventEnvelope, agent_connected: bool) -> EventEnv
 
 /// An intake as the capture agent is sent it while quiet hours hold notifications back: with
 /// `quiet_until`, the moment the agent shows what it held as one toast (RD-1260-04).
-fn with_quiet_until(
-    mut event: EventEnvelope,
-    until: Option<chrono::DateTime<chrono::Utc>>,
-) -> EventEnvelope {
+fn with_quiet_until(mut event: EventEnvelope, until: Option<rd_core::Timestamp>) -> EventEnvelope {
     if event.kind == EventKind::CollectorIntake
         && let Some(until) = until
         && let Some(payload) = event.payload.as_object_mut()

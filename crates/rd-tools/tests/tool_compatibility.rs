@@ -35,7 +35,7 @@ fn manifest(rules: Vec<CompatRule>) -> ToolManifest {
     ToolManifest {
         schema_version: TOOL_MANIFEST_SCHEMA_VERSION,
         sequence: 1,
-        issued_at: chrono::Utc::now(),
+        issued_at: rd_core::Timestamp::now(),
         not_after: None,
         tools: Vec::new(),
         compatibility: rules,

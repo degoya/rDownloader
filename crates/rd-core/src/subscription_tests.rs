@@ -2,7 +2,7 @@ use super::{
     DEFAULT_POLL_INTERVAL_SECONDS, MAX_POLL_INTERVAL_SECONDS, MIN_POLL_INTERVAL_SECONDS,
     SITE_RULE_MIN_POLL_INTERVAL_SECONDS, Subscription, SubscriptionKind, SubscriptionMode,
 };
-use chrono::Utc;
+use crate::Timestamp;
 
 fn subscription(interval: u32) -> Subscription {
     Subscription {
@@ -36,8 +36,8 @@ fn subscription(interval: u32) -> Subscription {
         script_arguments: Vec::new(),
         indexer_search: crate::IndexerSearch::default(),
         git_release: crate::GitReleaseOptions::default(),
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
+        created_at: Timestamp::now(),
+        updated_at: Timestamp::now(),
     }
 }
 

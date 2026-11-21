@@ -1,7 +1,7 @@
 //! Token expiry (RD-1110-07): past its `expires_at` a token matches no live token, as after a
 //! revocation, yet stays listed until somebody revokes it.
 
-use chrono::{Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 
 use crate::Database;
 
@@ -15,8 +15,14 @@ async fn an_expired_token_is_no_live_token_but_stays_listed() {
     let current_sha = "dd".repeat(32);
     let never_sha = "ee".repeat(32);
     for (sha, expires_at) in [
-        (&expired_sha, Some(Utc::now() - Duration::minutes(1))),
-        (&current_sha, Some(Utc::now() + Duration::days(1))),
+        (
+            &expired_sha,
+            Some(Timestamp::now() - SignedDuration::from_mins(1)),
+        ),
+        (
+            &current_sha,
+            Some(Timestamp::now() + SignedDuration::from_hours(24)),
+        ),
         (&never_sha, None),
     ] {
         database

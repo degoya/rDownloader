@@ -1,8 +1,7 @@
 //! Persistence of bandwidth profiles, their weekly schedule and the traffic counters.
 
 use anyhow::{Context, Result};
-use chrono::Utc;
-use rd_core::{BandwidthProfileId, BandwidthWindowId, EventEnvelope, EventKind};
+use rd_core::{BandwidthProfileId, BandwidthWindowId, EventEnvelope, EventKind, Timestamp};
 use rd_limits::{
     BandwidthProfile, BudgetPeriod, BudgetState, BudgetStates, DaySet, ScheduleWindow, ScopeLimit,
 };
@@ -139,7 +138,7 @@ pub(crate) async fn create_profile(
         scopes: input.scopes,
         pause_downloads: input.pause_downloads,
     };
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = changed_event(value.id);
     let mut tx = connection.begin().await?;
     sqlx::query(
@@ -183,7 +182,7 @@ pub(crate) async fn update_profile(
         scopes: input.scopes,
         pause_downloads: input.pause_downloads,
     };
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = changed_event(id);
     let mut tx = connection.begin().await?;
     let updated = sqlx::query(
@@ -250,7 +249,7 @@ pub(crate) async fn replace_windows(
     connection: &mut SqliteConnection,
     windows: Vec<NewScheduleWindow>,
 ) -> Result<(Vec<ScheduleWindow>, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = EventEnvelope::new(
         EventKind::BandwidthChanged,
         serde_json::json!({ "entity": "schedule" }),
@@ -328,7 +327,7 @@ pub(crate) async fn store_budget_state(
     profile_id: BandwidthProfileId,
     state: BudgetState,
 ) -> Result<()> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     for (kind, period) in [("daily", &state.daily), ("monthly", &state.monthly)] {
         sqlx::query(

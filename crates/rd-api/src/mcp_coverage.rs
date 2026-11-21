@@ -371,6 +371,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
             // And the NZB behind a queued package, from the Downloads view; the longer prefix
             // takes it from the packages row.
             any("/api/v1/packages/{id}/remote-job"),
+            // And every link of a LinkGrabber package (RD-1440-07); the longer prefix takes it
+            // from the LinkGrabber packages row.
+            any("/api/v1/collector/packages/{id}/remote-job"),
             // Clearing the list (RD-1200-01), behind the question every clearing tool asks
             // first. The tool clears here only: the route's `at_provider` variant stays in the
             // web UI, like the single-job discard below (owner line, confirmed 2026-10-08).

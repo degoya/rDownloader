@@ -50,6 +50,7 @@ mod stream;
 mod stream_schedule;
 mod subscription;
 pub mod text;
+mod time;
 mod timing;
 mod toolpath;
 mod torrent;
@@ -262,6 +263,10 @@ pub use subscription::{
     SubscriptionItemCounts, SubscriptionItemPage, SubscriptionItemState, SubscriptionKind,
     SubscriptionMode, SubscriptionReviewCount, SubscriptionReviewSummary, SubscriptionRun,
     SubscriptionSettings, SubscriptionView,
+};
+// The time types every crate stores and sends, byte-identical to chrono (RD-1440-05).
+pub use time::{
+    Date, IanaZone, SecondsFormat, SignedDuration, TimeParseError, Timestamp, UnknownZone,
 };
 pub use timing::{RETRY_JITTER_PERCENT, clamp_retry_after, exponential_backoff, jitter};
 pub use toolpath::{

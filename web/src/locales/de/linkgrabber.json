@@ -647,5 +647,15 @@
     "delete_title": "Links löschen?",
     "delete_description": "{count} Link wird von einer Löschregel aus dem LinkGrabber gelöscht. | {count} Links werden von einer Löschregel aus dem LinkGrabber gelöscht.",
     "delete_confirm": "Anwenden und löschen"
+  },
+  "package_hand_over": {
+    "action": "An Remote-Anbieter übergeben",
+    "badge": "An {provider} übergeben",
+    "badge_hint": "Der Link bleibt im LinkGrabber, weil übergebene Links in den Einstellungen nicht entfernt werden; eine erneute Übergabe schickt ihn nicht noch einmal.",
+    "done": "„{name}“: {done} Link an {provider} übergeben | „{name}“: {done} Links an {provider} übergeben",
+    "partly": "„{name}“: {done} von {total} Links an {provider} übergeben, {stayed} bleiben im LinkGrabber",
+    "nothing": "„{name}“: Kein Link konnte an {provider} übergeben werden",
+    "failed": "„{name}“ konnte nicht übergeben werden",
+    "provider_fallback": "einen Anbieter"
   }
 }

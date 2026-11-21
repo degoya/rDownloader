@@ -583,6 +583,19 @@
         "label": "Mostrar la entrega en las descargas",
         "description": "Activado por defecto. La entrada del menú de un paquete que procede de un NZB aparece en cualquier estado del paquete, también fallido, pero solo si tienes una cuenta en un proveedor que acepte archivos NZB (TorBox, Premiumize). Un paquete ya entregado conserva su distintivo."
       }
+    },
+    "package_hand_over": {
+      "eyebrow": "Proveedores remotos",
+      "title": "Entregar paquetes a un proveedor",
+      "description": "Un paquete del LinkGrabber puede entregarse a una cuenta cuyo proveedor ejecute trabajos remotos (como TorBox, Real-Debrid o Premiumize): cada magnet, dirección y archivo torrent importado se convierte en un trabajo. El proveedor descarga el contenido por su cuenta; los archivos terminados vuelven al LinkGrabber como enlaces.",
+      "enabled": {
+        "label": "Mostrar la entrega en el menú del paquete",
+        "description": "Activado por defecto. La entrada solo aparece si tienes una cuenta con un proveedor que acepte alguna de las fuentes del paquete. Un enlace ya entregado conserva su marca."
+      },
+      "remove": {
+        "label": "Quitar los enlaces del LinkGrabber tras la entrega",
+        "description": "Activado por defecto: cada enlace entregado sale del LinkGrabber y un paquete que queda vacío se elimina. Desactivado: los enlaces se quedan, marcados con su trabajo, y volver a entregar el paquete no envía nada dos veces. Lo que no se pudo entregar siempre se queda."
+      }
     }
   },
   "notifications": {

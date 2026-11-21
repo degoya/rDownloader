@@ -11,7 +11,7 @@
 //! there, an archive of another installation writing to the same folder, a file renamed by
 //! hand — none of them is a candidate, so none of them can be deleted.
 
-use chrono::{DateTime, Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 
 /// How long and how many archives a destination keeps. `None` is no limit of that kind.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -34,7 +34,7 @@ pub struct RecordedArchive {
     pub id: String,
     pub name: String,
     /// When the run that wrote it started; the archive's point in time.
-    pub created_at: DateTime<Utc>,
+    pub created_at: Timestamp,
 }
 
 /// What a retention pass does, as ids of [`RecordedArchive`]s, newest first.
@@ -63,7 +63,7 @@ pub fn plan(
     archives: &[RecordedArchive],
     policy: RetentionPolicy,
     instance: &str,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> RetentionPlan {
     let mut ordered: Vec<&RecordedArchive> = archives.iter().collect();
     ordered.sort_by(|left, right| {
@@ -74,7 +74,7 @@ pub fn plan(
     });
     let cutoff = policy
         .keep_days
-        .map(|days| now - Duration::days(i64::from(days)));
+        .map(|days| now - SignedDuration::from_hours(24 * i64::from(days)));
     let mut plan = RetentionPlan::default();
     let mut own_seen = 0_u32;
     for archive in ordered {
@@ -97,8 +97,8 @@ pub fn plan(
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, TimeZone, Utc};
     use rand::RngExt;
+    use rd_core::{SignedDuration, Timestamp};
 
     use super::{RecordedArchive, RetentionPolicy, is_own_archive, plan};
     use crate::archive_name;
@@ -106,11 +106,8 @@ mod tests {
     const INSTANCE: &str = "0a1b2c3d";
 
     fn archive(id: usize, hours_ago: i64, own: bool) -> RecordedArchive {
-        let now = Utc
-            .with_ymd_and_hms(2026, 9, 28, 12, 0, 0)
-            .single()
-            .expect("now");
-        let created_at = now - Duration::hours(hours_ago);
+        let now = Timestamp::from_ymd_hms(2026, 9, 28, 12, 0, 0).expect("now");
+        let created_at = now - SignedDuration::from_hours(hours_ago);
         RecordedArchive {
             id: format!("a{id}"),
             name: if own {
@@ -122,10 +119,8 @@ mod tests {
         }
     }
 
-    fn now() -> chrono::DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 9, 28, 12, 0, 0)
-            .single()
-            .expect("now")
+    fn now() -> Timestamp {
+        Timestamp::from_ymd_hms(2026, 9, 28, 12, 0, 0).expect("now")
     }
 
     #[test]
@@ -223,7 +218,8 @@ mod tests {
                     assert!(!removed(candidate), "a foreign archive was removed");
                 }
                 if let Some(days) = policy.keep_days
-                    && candidate.created_at >= now() - Duration::days(i64::from(days))
+                    && candidate.created_at
+                        >= now() - SignedDuration::from_hours(24 * i64::from(days))
                 {
                     assert!(!removed(candidate), "a young archive was removed");
                 }

@@ -4,8 +4,7 @@
 //! parsed with `suppaftp`'s POSIX and DOS line parsers. Servers disagree wildly about
 //! `LIST` formatting, so a line that parses as neither is skipped rather than guessed at.
 
-use chrono::{DateTime, Utc};
-use rd_core::{ByteCount, RemoteEntry, RemoteListing};
+use rd_core::{ByteCount, RemoteEntry, RemoteListing, Timestamp};
 use rd_transfer_file::{DirectoryLister, ListedEntry};
 use suppaftp::list::{File, ListParser};
 
@@ -104,8 +103,10 @@ fn has_mlsd_facts(line: &str) -> bool {
     !name.is_empty() && facts.ends_with(';') && facts.contains('=')
 }
 
-fn modified_at(file: &File) -> Option<DateTime<Utc>> {
-    DateTime::<Utc>::from(file.modified()).into()
+fn modified_at(file: &File) -> Option<Timestamp> {
+    jiff::Timestamp::try_from(file.modified())
+        .ok()
+        .map(Timestamp::from_jiff)
 }
 
 #[cfg(test)]

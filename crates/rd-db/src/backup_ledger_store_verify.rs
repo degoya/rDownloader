@@ -2,8 +2,7 @@
 //! next due time (RD-160-02).
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{BackupOrigin, BackupVerifyState};
+use rd_core::{BackupOrigin, BackupVerifyState, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use super::BACKUP_VERIFICATIONS_KEPT;
@@ -18,8 +17,8 @@ pub struct BackupVerification {
     pub destination_id: Option<String>,
     pub destination: String,
     pub archive_name: String,
-    pub started_at: DateTime<Utc>,
-    pub finished_at: Option<DateTime<Utc>>,
+    pub started_at: Timestamp,
+    pub finished_at: Option<Timestamp>,
     pub content_checked: Option<bool>,
     pub error_code: Option<String>,
     pub error_detail: Option<String>,
@@ -41,8 +40,8 @@ struct VerificationRow {
     destination_id: Option<String>,
     destination: String,
     archive_name: String,
-    started_at: DateTime<Utc>,
-    finished_at: Option<DateTime<Utc>>,
+    started_at: Timestamp,
+    finished_at: Option<Timestamp>,
     content_checked: Option<bool>,
     error_code: Option<String>,
     error_detail: Option<String>,
@@ -76,7 +75,7 @@ pub(crate) async fn finish_verification(
     id: &str,
     outcome: BackupVerificationOutcome,
 ) -> Result<()> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let (state, content_checked, code, detail) = match outcome {
         BackupVerificationOutcome::Passed { content_checked } => {
             (BackupVerifyState::Passed, Some(content_checked), None, None)
@@ -156,7 +155,7 @@ pub(crate) async fn verifications(
 /// Sets when the scheduled verification is next due.
 pub(crate) async fn arm_verify(
     connection: &mut SqliteConnection,
-    next_run_at: Option<DateTime<Utc>>,
+    next_run_at: Option<Timestamp>,
 ) -> Result<()> {
     sqlx::query("UPDATE backup_config SET verify_next_run_at = ? WHERE id = 1")
         .bind(next_run_at)

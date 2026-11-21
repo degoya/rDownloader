@@ -21,9 +21,8 @@
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
-use chrono::Utc;
 use rd_api_core::notify_notice::{Notice, announce};
-use rd_core::AuditAction;
+use rd_core::{AuditAction, Timestamp};
 use rd_update::restart::{DEFAULT_HEALTH_TIMEOUT_SECS, RestartHow, RestartPlan};
 
 use crate::audit::{AuditContext, AuditEvent};
@@ -215,7 +214,11 @@ pub async fn begin(
     // Queued before the stop: the delivery after the restart finds it waiting.
     announce(
         &state.database,
-        Notice::service_restarting(&Utc::now().to_rfc3339(), &describe(&reasons), automatic),
+        Notice::service_restarting(
+            &Timestamp::now().to_rfc3339(),
+            &describe(&reasons),
+            automatic,
+        ),
     )
     .await;
     tracing::info!(how = how.as_str(), automatic, "rDownloader restarts");
@@ -260,7 +263,7 @@ fn plan(state: &AppState) -> anyhow::Result<RestartPlan> {
         service_args,
         service_cwd: std::env::current_dir()?,
         health_timeout_secs: DEFAULT_HEALTH_TIMEOUT_SECS,
-        requested_at: Utc::now(),
+        requested_at: Timestamp::now(),
     })
 }
 

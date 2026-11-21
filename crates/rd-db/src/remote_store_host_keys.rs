@@ -2,8 +2,7 @@
 //! trusting or forgetting one.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{EventEnvelope, SshHostKey};
+use rd_core::{EventEnvelope, SshHostKey, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use super::changed_event;
@@ -107,7 +106,7 @@ struct HostKeyRow {
     port: i64,
     algorithm: String,
     fingerprint: String,
-    first_seen: DateTime<Utc>,
+    first_seen: Timestamp,
 }
 
 impl TryFrom<HostKeyRow> for SshHostKey {

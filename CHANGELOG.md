@@ -5,6 +5,115 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.44.0] - 2026-11-21
+
+### Added
+
+- **A LinkGrabber package handed to a remote provider (RD-1440-07).** The package menu (and its
+  right-click menu) offers *Hand over to remote provider* with one entry per account whose
+  remote-job plugin takes one of the package's sources; every magnet, http(s) address and imported
+  `.torrent` becomes one remote job through `submit_named` and its duplicate guard, and a toast
+  counts what went and what stayed. A new setting decides what becomes of the links handed over
+  (`linkgrabber_hand_over_remove_links`, on by default): on, they leave the LinkGrabber and a
+  package left empty is deleted; off, they stay marked with their job (`LinkCandidate.handed_over`,
+  migration `0150`) and a second hand-over sends nothing again. What could not go (refused, not
+  claimed, an unsupported source, hidden by a LinkFilter rule, a mirror that is not the chosen
+  copy, a link whose key stays in the vault) always stays and is named with its code; an
+  `AlreadyOurs` counts as handed over. The menu entry has its own switch
+  (`linkgrabber_hand_over_enabled`, on); both are under *Settings › LinkGrabber › General*. REST
+  `POST /api/v1/collector/packages/{id}/remote-job`, MCP `hand_over_collector_package`.
+
+- **Browser extension: a list of file types to take over (RD-1440-08).** The options gain a mode —
+  all downloads (the default, unchanged), only these file types, all except these file types — and
+  a list of file extensions (`.dlc`, `dlc`, `*.dlc` read alike, lowercased, duplicates and empties
+  dropped, at most 64 entries of 24 characters), stored as `interceptMode` and `interceptTypes`.
+  The type is read from the file name, the address, an observed `Content-Disposition` and the
+  reported content type (`extension/src/file-types.js`). The list decides first, in
+  `downloads.js` and in Firefox's byte copy in `files.js`; a selected browser-only type such as
+  `.dlc` then takes its way as before — its bytes or address from an allowed site, otherwise it
+  stays in the browser, as the options page says next to it.
+
+### Changed
+
+- **Majors of 1.44 taken, dead hosts dropped (RD-1440-02, -03, -04, -06; Dependabot #42, #43,
+  #44).** `jsdom` 31.0.1 as Vitest's DOM; `sevenz-rust2` 0.25 together with `lzma-rust2` 0.25
+  (one `lzma-rust2` in the build; both APIs only grew, so the 7z and xz code is unchanged);
+  `global-hotkey` 0.10, whose macOS registration is now exclusive and answers a taken combination
+  with `AlreadyRegistered` — `rd-capture` counts it as a refused shortcut like any other failure,
+  so the settings page names it. `x11rb` stays on 0.13 while `arboard` 3.7 and `global-hotkey`
+  0.10 link it. GitHub Actions: `EmbarkStudios/cargo-deny-action` 2.1.2 and
+  `taiki-e/install-action` 2.90.5, pinned by commit SHA, `sdk/ci/plugin.yml` included.
+  `xfs-generic` 0.1.20 no longer offers `luluvdoo.com` and `luluvid.com` (NXDOMAIN on 2026-11-19
+  and 2026-11-21; `lulustream.com` and `lulu0.ovh` answer themselves, so no successor).
+
+- **Dependencies current before 1.44.0.** Every semver-compatible Rust crate, among them
+  wasmtime 50.0.3, cranelift 0.137.3 and clap 4.6.9, each raised with `cargo update --precise`
+  so the `windows-sys` edges stay where they were; `zip` stays on 9.7.3 and `leaky-bucket` on
+  1.1.2, whose next patches would pull a second `nix` and `parking_lot` into the build. Web:
+  `vue` 3.5.46, `vue-i18n` 11.4.23, `@iconify-json/lucide` 1.2.157. Not taken (a job each for
+  1.45): `notify` 9, `suppaftp` 13, Rust 1.100; `typescript` 7 waits on RD-1440-01. The 22
+  plugins whose component the new lock changed are raised as maintenance releases
+  (`scripts/plugin-bump.sh --cascade`). `@vue/test-utils` stays on 2.5.1 (override in
+  `web/pnpm-workspace.yaml`): 2.6.0 broke five component tests that hand in a plain model object;
+  RD-1450-04 moves them.
+
+- **`rd_core::Timestamp`, the foundation for replacing chrono (RD-1440-05, stage 1).** A UTC
+  instant on `jiff` whose every representation is chrono 0.4's `DateTime<Utc>`: serde, `Display`
+  and `FromStr` as chrono's (`…T14:00:00.123Z`, the relaxed grammar on input), SQLite as
+  `sqlx`'s chrono encoding (`…+00:00`, which sorts as the instants do; TEXT, INTEGER and Julian-day
+  REAL decoded as `sqlx` does, behind the new `rd-core` feature `sqlx`), OpenAPI as
+  `{type: string, format: date-time}` (utoipa's `jiff_0_2` feature recognises the name). Beside it
+  `Date` (`NaiveDate`'s `%Y-%m-%d`), `IanaZone` (`chrono_tz::Tz`'s name, exact and
+  case-sensitive), `SecondsFormat` and the re-exported `jiff::SignedDuration`; tests compare each
+  with chrono, chrono-tz and `sqlx`'s chrono impls on an in-memory SQLite. jiff joins the
+  workspace with its zone database bundled as the fallback. No crate is switched yet.
+
+- **`rd-db` off chrono (RD-1440-05, stage 2).** Every bound and read time is an
+  `rd_core::Timestamp` (feature `sqlx`), a stored day an `rd_core::Date` (the quota's reset day),
+  `jiff::civil::Date` for the day a reader counts from, durations `SignedDuration`. The text in
+  the tables is unchanged: binds as `sqlx`'s chrono form (`…+00:00`), the audit/log/collision
+  rows' milliseconds with `Z`, the stats buckets, the traffic days and the pre-migration copy
+  names through the same `strftime` patterns. No migration; `chrono` leaves `rd-db`'s
+  dependencies.
+
+- **The HTTP crates on `rd_core::Timestamp` (RD-1440-05, stage 2).** `rd-api`, `rd-api-core`,
+  `-access`, `-admin`, `-compat`, `-intake`, `-mcp` and `-queue`, their tests and the six `rd-api`
+  suites use `Timestamp`, `Date`, `IanaZone` and `SignedDuration` instead of chrono and chrono-tz;
+  the service's own zone is `jiff::tz::TimeZone::system()`. Every time a response, event, export
+  or adapter writes keeps its form: DTO fields typed `Timestamp`/`Date` (the OpenAPI document
+  unchanged), `to_rfc3339()` where it was, the history export's and audit export's
+  `to_rfc3339_opts`, the *arr adapters' unix seconds. All eight drop `chrono`; only `rd-authn`
+  keeps it, for `openidconnect`'s ID-token clock.
+
+- **rd-core and the schedules off chrono (RD-1440-05, stage 2, group core).** Every stored and
+  sent instant in `rd-core` is `Timestamp`, the Usenet quota's reset day `Date`; `rd-scheduler`,
+  `rd-limits`, `rd-power`, `rd-stream`, `rd-automation` and `rd-notify` compute with `Timestamp`,
+  `SignedDuration` and `jiff::tz::TimeZone` and drop `chrono`/`chrono-tz`. The bandwidth
+  schedule's zone is an `IanaZone` (same name in JSON and settings). Local times resolve as
+  before: instant to wall clock through the zone, a repeated hour takes its first pass, a skipped
+  one has no slot (stream schedules, automation intervals). Cron slots come from `croner`'s jiff
+  backend (feature `jiff` in `rd-automation`). Public signatures that took a chrono zone now take
+  `&jiff::tz::TimeZone` (`PowerService::apply` anything `Into<TimeZone>`); durations returned by
+  `source_backoff`, `SessionLimits::idle/max` and `rd_notify::backoff` are `SignedDuration`.
+
+- **The remaining crates and the plugins off chrono (RD-1440-05, stage 2).** Every crate outside
+  rd-db, the HTTP crates and rd-core's group now uses `rd_core::{Timestamp, Date, IanaZone,
+  SignedDuration}` or jiff. What is signed, stored or sent keeps its bytes: the update, tools and
+  plugin index manifests (serde, `…Z`), the backup manifest and archive names (`%Y%m%dT%H%M%SZ`),
+  the diagnostics bundle (`to_rfc3339_opts(Secs, true)`), the stored FTP, SFTP and object storage
+  validators and the `+00:00` texts of the plugin repository. Backup schedules take their zone as
+  an `IanaZone`; the subscription and backup cron search runs on `jiff::Zoned` through croner's
+  `jiff` feature; feed and `Retry-After` dates are read with jiff's RFC 2822 parser. chrono stays
+  only where a dependency hands one over: rd-ftp (`suppaftp`'s `MDTM`) and rd-object-storage
+  (`object_store`'s `last_modified`). The plugins (`plugin-common`) take the native clock from
+  std; their versions are raised after the components build.
+
+- **Plugin versions.** The versions this release raises: `hitfile` and `turbobit` 0.1.17; `dropbox`,
+  `google-drive`, `mediafire`, `offcloud` and `onedrive` 0.1.18; `krakenfiles`, `pixeldrain` and
+  `torbox` 0.1.19; `xfs-generic` 0.1.20; `realdebrid` 0.2.16; `alldebrid`, `debridlink`,
+  `keep2share`, `linksnappy`, `nitroflare` and `rapidgator` 0.7.20; `onefichier` 0.7.21;
+  `premiumize` 0.7.22; `filejoker` 0.7.23; `katfile` 0.9.23; `ddownload` 0.10.27.
+
 ## [1.43.0] - 2026-11-19
 
 ### Changed

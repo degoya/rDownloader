@@ -103,7 +103,7 @@ pub(crate) async fn collect(state: &AppState) -> Result<Vec<Family>, ApiError> {
         crate::download_handlers::moving_rates(state.scheduler.transfer_rates(), &downloads);
     let totals = state.database.list_transfer_totals().await?;
     let accounts = state.database.list_accounts().await?;
-    let now = chrono::Utc::now();
+    let now = rd_core::Timestamp::now();
 
     let mut families = vec![
         gauge(
@@ -159,7 +159,7 @@ pub(crate) async fn collect(state: &AppState) -> Result<Vec<Family>, ApiError> {
 fn queue_families(
     downloads: &[DownloadFile],
     rates: &std::collections::HashMap<rd_core::DownloadId, u64>,
-    now: chrono::DateTime<chrono::Utc>,
+    now: rd_core::Timestamp,
 ) -> Vec<Family> {
     let mut by_kind_state: BTreeMap<(String, String), f64> = BTreeMap::new();
     let mut runners: BTreeMap<String, f64> = BTreeMap::new();
@@ -178,7 +178,7 @@ fn queue_families(
             *rate_by_kind.entry(kind).or_default() += *rate as f64;
         }
         if download.state == DownloadState::Queued {
-            waits.push((now - download.created_at).num_seconds().max(0) as f64);
+            waits.push((now - download.created_at).as_secs().max(0) as f64);
         }
     }
     vec![

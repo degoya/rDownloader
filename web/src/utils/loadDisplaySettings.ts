@@ -2,6 +2,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 import { setShowItemImages } from '@/utils/itemImages'
 import { setShowNzbHandOver } from '@/utils/nzbHandOver'
+import { setShowPackageHandOver } from '@/utils/packageHandOver'
 import { setPackagesClosedByDefault } from '@/utils/packageGroups'
 import { setTitleStatus } from '@/utils/titleStatus'
 
@@ -21,6 +22,7 @@ export async function loadDisplaySettings(): Promise<void> {
   setByteUnit(response.data.byte_unit)
   setShowItemImages(response.data.subscription_item_images_enabled)
   setShowNzbHandOver(response.data)
+  setShowPackageHandOver(response.data)
   setTitleStatus(response.data.title_status_enabled)
   setPackagesClosedByDefault(response.data)
 }

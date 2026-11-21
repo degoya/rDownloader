@@ -13,10 +13,10 @@ path = "src/main.rs"
 anyhow.workspace = true
 arboard.workspace = true
 axum.workspace = true
-chrono.workspace = true
 clap.workspace = true
 directories.workspace = true
 global-hotkey.workspace = true
+jiff.workspace = true
 keyring.workspace = true
 notify-rust.workspace = true
 rd-cnl = { path = "../rd-cnl" }

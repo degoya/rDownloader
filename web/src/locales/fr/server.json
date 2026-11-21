@@ -1340,7 +1340,15 @@
     "captcha.endpoint_plain_http": "Le point de terminaison du service de résolution utilise http non chiffré, qui enverrait la clé d’API en clair : utilise https ou autorise http dans les réglages des captchas",
     "extract.tool_version_unknown": "La version de {tool} n’a pas pu être lue, et les paramètres refusent un tel outil pour l’extraction : impossible de vérifier qu’il est au moins en version {minimum}, en dessous de laquelle les liens d’une archive écrivent hors du dossier de destination. Pointez le chemin du programme directement vers {tool} ou mettez-le à jour.",
     "postprocess.rar_test_skipped_version_unknown": "Ignoré : la version de l'outil RAR n'a pas pu être lue",
-    "request.method_not_allowed": "Cette adresse n'accepte pas cette méthode HTTP"
+    "request.method_not_allowed": "Cette adresse n'accepte pas cette méthode HTTP",
+    "collector.remote_job_not_remote_account": "Aucun plugin installé n'exécute de travaux distants chez le fournisseur de ce compte",
+    "collector.remote_job_busy": "Le lien est en cours de mise en file",
+    "collector.remote_job_hidden": "Une règle LinkFilter masque ce lien",
+    "collector.remote_job_mirror_skipped": "C'est un autre miroir de ce fichier qui est confié",
+    "collector.remote_job_secret_fragment": "La clé de ce lien reste sur cette machine et ne part pas chez un fournisseur",
+    "collector.remote_job_source_unsupported": "Seuls un magnet, une adresse http(s) ou un fichier torrent importé peuvent partir chez un fournisseur",
+    "collector.remote_job_torrent_unreadable": "Le fichier torrent de ce lien n'est pas dans le stockage des torrents ou ne peut pas être lu",
+    "collector.remote_job_failed": "Le lien n'a pas pu être confié"
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

@@ -17,8 +17,8 @@
 use std::collections::{HashMap, HashSet};
 
 use axum::{Json, extract::State};
-use chrono::{DateTime, Utc};
 use rd_api_core::input_checks::BundleHeader;
+use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -173,7 +173,7 @@ pub struct BundleAreaAutomation {
 pub struct AreaBundle {
     pub format: String,
     pub version: u32,
-    pub exported_at: DateTime<Utc>,
+    pub exported_at: Timestamp,
     pub app_version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subscriptions: Option<Vec<BundleAreaSubscription>>,
@@ -193,7 +193,7 @@ impl AreaBundle {
         Self {
             format: BUNDLE_FORMAT.to_owned(),
             version: BUNDLE_VERSION,
-            exported_at: Utc::now(),
+            exported_at: Timestamp::now(),
             app_version: env!("CARGO_PKG_VERSION").to_owned(),
             subscriptions: None,
             stream_channels: None,

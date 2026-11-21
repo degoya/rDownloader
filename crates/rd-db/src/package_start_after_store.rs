@@ -4,8 +4,7 @@
 //! event that tells the interface to read the package again is written in the same transaction.
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use rd_core::{EventEnvelope, EventKind, PackageId};
+use rd_core::{EventEnvelope, EventKind, PackageId, Timestamp};
 use sqlx::{Connection, SqliteConnection};
 
 use crate::{Database, commands::PackagesCommand, writer};
@@ -16,7 +15,7 @@ impl Database {
     pub async fn set_package_start_after(
         &self,
         id: PackageId,
-        start_after: Option<DateTime<Utc>>,
+        start_after: Option<Timestamp>,
     ) -> Result<bool> {
         writer::request(&self.writer, |reply| {
             PackagesCommand::SetPackageStartAfter {
@@ -33,12 +32,12 @@ impl Database {
 pub(crate) async fn set_package_start_after(
     connection: &mut SqliteConnection,
     id: PackageId,
-    start_after: Option<DateTime<Utc>>,
+    start_after: Option<Timestamp>,
 ) -> Result<(bool, EventEnvelope)> {
     let mut transaction = connection.begin().await?;
     let changed = sqlx::query("UPDATE packages SET start_after = ?, updated_at = ? WHERE id = ?")
         .bind(start_after)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(id.to_string())
         .execute(&mut *transaction)
         .await?
@@ -55,8 +54,7 @@ pub(crate) async fn set_package_start_after(
 
 #[cfg(test)]
 mod tests {
-    use chrono::{Duration, SubsecRound, Utc};
-    use rd_core::{DownloadPriority, PackageId};
+    use rd_core::{DownloadPriority, PackageId, SignedDuration, Timestamp};
 
     use crate::{Database, NewPackage};
 
@@ -83,7 +81,7 @@ mod tests {
         let created = database.create_package(package).await.expect("package");
         assert_eq!(created.start_after, None);
 
-        let at = (Utc::now() + Duration::hours(3)).trunc_subsecs(0);
+        let at = (Timestamp::now() + SignedDuration::from_hours(3)).trunc_subsecs(0);
         assert!(
             database
                 .set_package_start_after(id, Some(at))

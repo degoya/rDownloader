@@ -1,7 +1,7 @@
 //! Writer housekeeping: crash recovery at start, WAL checkpoint, snapshots and settings.
 
 use anyhow::{Context, Result};
-use chrono::Utc;
+use rd_core::Timestamp;
 use sqlx::Connection;
 
 use super::remove_package_if_empty;
@@ -9,7 +9,7 @@ use crate::writer::Writer;
 
 impl Writer {
     pub(crate) async fn recover_interrupted(&mut self) -> Result<u64> {
-        let now = Utc::now();
+        let now = Timestamp::now();
         let mut transaction = self.connection.begin().await?;
         // A row held back for the PAR2 verdict (RD-108-24) is `verifying` and must stay
         // where it is: its file is whole on disk apart from the holes, and requeueing it
@@ -135,7 +135,7 @@ impl Writer {
         )
         .bind(key)
         .bind(serde_json::to_string(value)?)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .execute(&mut self.connection)
         .await?
         .rows_affected();
@@ -149,7 +149,7 @@ impl Writer {
         )
         .bind(key)
         .bind(serde_json::to_string(value)?)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .execute(&mut self.connection)
         .await?;
         Ok(())

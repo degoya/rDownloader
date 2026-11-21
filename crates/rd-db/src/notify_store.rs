@@ -1,8 +1,7 @@
 //! Persistence of notification targets, rules and the delivery history.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{EventEnvelope, EventKind, NotificationRuleId, NotificationTargetId};
+use rd_core::{EventEnvelope, EventKind, NotificationRuleId, NotificationTargetId, Timestamp};
 use rd_notify::{
     Delivery, NotificationEvent, NotificationRule, NotificationTarget, Severity, TargetKind,
 };
@@ -131,11 +130,11 @@ struct DeliveryRow {
     body: String,
     state: String,
     attempt: i64,
-    next_attempt_at: Option<DateTime<Utc>>,
+    next_attempt_at: Option<Timestamp>,
     response_status: Option<i64>,
     response_excerpt: Option<String>,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
     package_path: Option<String>,
 }
 
@@ -240,7 +239,7 @@ pub(crate) async fn count_pending_deliveries(pool: &SqlitePool) -> Result<u64> {
 }
 
 /// Deliveries the worker should attempt now.
-pub(crate) async fn due_deliveries(pool: &SqlitePool, now: DateTime<Utc>) -> Result<Vec<Delivery>> {
+pub(crate) async fn due_deliveries(pool: &SqlitePool, now: Timestamp) -> Result<Vec<Delivery>> {
     sqlx::query_as::<_, DeliveryRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {DELIVERY_COLUMNS} FROM notification_deliveries \
          WHERE state IN ('queued', 'retrying') AND (next_attempt_at IS NULL OR next_attempt_at <= ?) \
@@ -262,7 +261,7 @@ pub(crate) async fn upsert_target(
     id: Option<NotificationTargetId>,
     input: NewNotificationTarget,
 ) -> Result<(NotificationTarget, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     let id = match id {
         Some(id) => {
@@ -375,7 +374,7 @@ pub(crate) async fn upsert_rule(
         title_template: input.title_template,
         body_template: input.body_template,
     };
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = changed_event("rule", value.id.to_string());
     let mut tx = connection.begin().await?;
     let events_json = serde_json::to_string(&value.events)?;

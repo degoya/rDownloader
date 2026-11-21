@@ -4,8 +4,7 @@
 //! shows the links it hid again (`link_candidates.hidden_by_filter` is `ON DELETE SET NULL`).
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind, LinkFilterRule, LinkFilterRuleId};
+use rd_core::{EventEnvelope, EventKind, LinkFilterRule, LinkFilterRuleId, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::{enum_string, error::StoreError, parse_enum, parse_id, writer::insert_event};
@@ -65,7 +64,7 @@ pub(crate) async fn create_link_filter_rule(
     input: NewLinkFilterRule,
 ) -> Result<(LinkFilterRule, EventEnvelope)> {
     let id = LinkFilterRuleId::new();
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     let position: i64 =
         sqlx::query_scalar("SELECT COALESCE(MAX(position), 0) + 1 FROM link_filter_rules")
@@ -137,7 +136,7 @@ pub(crate) async fn update_link_filter_rule(
     .bind(&columns.action)
     .bind(&input.package_name)
     .bind(input.category_id.map(|value| value.to_string()))
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await?;

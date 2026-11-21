@@ -116,6 +116,36 @@
   "optionsInterceptHint": {
     "message": "Im Browser gestartete Downloads werden angehalten und an rDownloader übergeben. Erfordert ein Capture-Token."
   },
+  "optionsInterceptMode": {
+    "message": "Welche Downloads"
+  },
+  "optionsInterceptModeAll": {
+    "message": "Alle Downloads"
+  },
+  "optionsInterceptModeOnly": {
+    "message": "Nur diese Dateitypen"
+  },
+  "optionsInterceptModeExcept": {
+    "message": "Alle außer diesen Dateitypen"
+  },
+  "optionsInterceptTypes": {
+    "message": "Dateitypen"
+  },
+  "optionsInterceptTypesHint": {
+    "message": "Dateiendungen, getrennt durch Leerzeichen oder Komma, z. B. .dlc .nzb; dlc und *.dlc bedeuten dasselbe. Ein Download wird an seinem Dateinamen, seiner Adresse oder dem Namen erkannt, den die Seite ihm gibt."
+  },
+  "optionsInterceptTypesInvalid": {
+    "message": "Keine Dateiendung, wird ignoriert: $1."
+  },
+  "optionsInterceptTypesTooMany": {
+    "message": "Nur die ersten $1 Dateitypen werden verwendet."
+  },
+  "optionsInterceptTypesEmpty": {
+    "message": "Die Liste ist leer: kein Download wird übernommen."
+  },
+  "optionsInterceptTypesBrowserOnly": {
+    "message": "$1: diese Dateien lädt der Browser selbst. An rDownloader gehen sie nur von einer Seite, die du unten erlaubt hast; sonst bleiben sie im Browser."
+  },
   "menuSession": {
     "message": "Sitzung dieser Seite an rDownloader senden"
   },

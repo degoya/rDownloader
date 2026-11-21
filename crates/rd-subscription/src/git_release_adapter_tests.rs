@@ -8,8 +8,8 @@ use std::{
 };
 
 use async_trait::async_trait;
-use chrono::{DateTime, Duration, Utc};
 use rd_core::{FilterReason, GitReleaseOptions, Subscription};
+use rd_core::{SignedDuration, Timestamp};
 use url::Url;
 
 use super::{ApiFetcher, ApiResponse, GitReleaseAdapter, rate_limit_pause};
@@ -260,7 +260,7 @@ async fn an_unchanged_list_costs_one_conditional_request_and_nothing_else() {
 
 #[tokio::test]
 async fn a_rate_limit_pauses_until_the_named_time_instead_of_failing() {
-    let reset = Utc::now() + Duration::minutes(40);
+    let reset = Timestamp::now() + SignedDuration::from_mins(40);
     let forge = Arc::new(FakeForge::default());
     forge.answer(
         GITHUB_LIST,
@@ -268,7 +268,7 @@ async fn a_rate_limit_pauses_until_the_named_time_instead_of_failing() {
         Some("{\"message\":\"API rate limit exceeded\"}"),
         &[
             ("x-ratelimit-remaining", "0"),
-            ("x-ratelimit-reset", &reset.timestamp().to_string()),
+            ("x-ratelimit-reset", &reset.unix_seconds().to_string()),
         ],
     );
     let error = adapter(&forge)
@@ -276,7 +276,7 @@ async fn a_rate_limit_pauses_until_the_named_time_instead_of_failing() {
         .await
         .expect_err("refused");
     let limited = error.downcast_ref::<RateLimited>().expect("a rate limit");
-    assert_eq!(limited.until.timestamp(), reset.timestamp());
+    assert_eq!(limited.until.unix_seconds(), reset.unix_seconds());
 }
 
 #[tokio::test]
@@ -302,7 +302,7 @@ async fn a_forbidden_repository_is_a_failure_and_not_a_rate_limit() {
 
 #[test]
 fn the_pause_reads_retry_after_and_the_budget_reset_and_stays_bounded() {
-    let now = DateTime::from_timestamp(1_790_000_000, 0).expect("now");
+    let now = Timestamp::from_unix_seconds(1_790_000_000).expect("now");
     let headers = |pairs: &[(&str, &str)]| -> BTreeMap<String, String> {
         pairs
             .iter()
@@ -312,12 +312,12 @@ fn the_pause_reads_retry_after_and_the_budget_reset_and_stays_bounded() {
     // GitLab's refusal: 429 with Retry-After.
     assert_eq!(
         rate_limit_pause(429, &headers(&[("retry-after", "120")]), now),
-        Some(now + Duration::seconds(120))
+        Some(now + SignedDuration::from_secs(120))
     );
     // A refusal that names no time waits a minute rather than retrying at once.
     assert_eq!(
         rate_limit_pause(429, &headers(&[]), now),
-        Some(now + Duration::seconds(60))
+        Some(now + SignedDuration::from_secs(60))
     );
     // A success that spent the last request waits for the reset.
     assert_eq!(
@@ -329,7 +329,7 @@ fn the_pause_reads_retry_after_and_the_budget_reset_and_stays_bounded() {
             ]),
             now
         ),
-        Some(now + Duration::seconds(1_800))
+        Some(now + SignedDuration::from_secs(1_800))
     );
     // A stranger's number cannot park the subscription for good, nor overflow the clock.
     assert_eq!(
@@ -338,7 +338,7 @@ fn the_pause_reads_retry_after_and_the_budget_reset_and_stays_bounded() {
             &headers(&[("retry-after", "9223372036854775807")]),
             now
         ),
-        Some(now + Duration::hours(24))
+        Some(now + SignedDuration::from_hours(24))
     );
     assert_eq!(
         rate_limit_pause(200, &headers(&[("x-ratelimit-remaining", "12")]), now),

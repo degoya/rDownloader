@@ -3,8 +3,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use chrono::{DateTime, Duration, TimeZone, Utc};
-use rd_core::SubscriptionKind;
+use rd_core::{SignedDuration, SubscriptionKind, Timestamp};
 use rd_subscription::{DiscoveredItem, PollOutcome, RateLimited, SourceAdapter};
 
 use super::{adapters::rate_limited, tests::service_with};
@@ -36,10 +35,8 @@ impl SourceAdapter for DeepIndexer {
     }
 }
 
-fn start() -> DateTime<Utc> {
-    Utc.with_ymd_and_hms(2030, 1, 15, 12, 0, 0)
-        .single()
-        .expect("time")
+fn start() -> Timestamp {
+    rd_core::Timestamp::from_ymd_hms(2030, 1, 15, 12, 0, 0).expect("time")
 }
 
 fn indexer() -> rd_db::NewSubscription {
@@ -113,7 +110,7 @@ fn a_429_is_a_pause_until_its_retry_after() {
     assert_eq!(
         named.downcast_ref::<RateLimited>(),
         Some(&RateLimited {
-            until: now + Duration::minutes(10)
+            until: now + SignedDuration::from_mins(10)
         })
     );
     // No time named: a minute, like every other refusal that names none.
@@ -121,7 +118,7 @@ fn a_429_is_a_pause_until_its_retry_after() {
     assert_eq!(
         unnamed.downcast_ref::<RateLimited>(),
         Some(&RateLimited {
-            until: now + Duration::minutes(1)
+            until: now + SignedDuration::from_mins(1)
         })
     );
     // A day at most, whatever the server asks for.
@@ -129,7 +126,7 @@ fn a_429_is_a_pause_until_its_retry_after() {
     assert_eq!(
         endless.downcast_ref::<RateLimited>(),
         Some(&RateLimited {
-            until: now + Duration::days(1)
+            until: now + SignedDuration::from_hours(24)
         })
     );
 }

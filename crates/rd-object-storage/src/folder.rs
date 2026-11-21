@@ -15,10 +15,9 @@
 use std::path::Path as LocalPath;
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use futures_util::StreamExt;
 use object_store::{GetOptions, ObjectStoreExt, path::Path};
-use rd_core::{Failure, FailureKind, ObjectStorageProfile, ObjectStorageProfileId};
+use rd_core::{Failure, FailureKind, ObjectStorageProfile, ObjectStorageProfileId, Timestamp};
 use rd_limits::ScopedLimiter;
 use tokio::io::AsyncWriteExt;
 use tokio_util::sync::CancellationToken;
@@ -43,7 +42,7 @@ pub struct FolderObject {
     /// The name below the folder.
     pub name: String,
     pub size: u64,
-    pub modified: DateTime<Utc>,
+    pub modified: Timestamp,
 }
 
 /// A folder of a bucket, opened with its profile's credentials.
@@ -240,7 +239,7 @@ impl ObjectFolder {
                 Some(FolderObject {
                     name,
                     size: meta.size,
-                    modified: meta.last_modified,
+                    modified: crate::listing::instant(meta.last_modified),
                 })
             })
             .collect())

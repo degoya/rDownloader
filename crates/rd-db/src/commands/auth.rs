@@ -14,7 +14,7 @@ pub(crate) enum AuthCommand {
     /// Records the expiry and refresh reference a renewal produced (RD-103-00).
     SetAuthFlowRenewal {
         account_id: rd_core::AccountId,
-        token_expires_at: Option<chrono::DateTime<chrono::Utc>>,
+        token_expires_at: Option<rd_core::Timestamp>,
         refresh_ref: Option<String>,
         /// `None` leaves whatever is stored alone; the token only moves when a caller says so.
         access_ref: Option<String>,
@@ -39,7 +39,7 @@ pub(crate) enum AuthCommand {
     /// Holds a renewal back after a provider asked for more time (RD-103-00).
     DeferAuthFlowRenewal {
         account_id: rd_core::AccountId,
-        next_poll_at: chrono::DateTime<chrono::Utc>,
+        next_poll_at: rd_core::Timestamp,
         reply: Reply<()>,
     },
     /// Removes an authentication flow; answers the vault references it and its parts held.

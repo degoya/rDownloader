@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use chrono::Utc;
+use rd_core::Timestamp;
 use rd_update::{
     Fetcher, InstallKind, UpdateError,
     install::{self, Journal, Phase},
@@ -17,9 +17,9 @@ use crate::dto::UpdateInstallStatus;
 
 /// How long a handed-over update may wait for its updater to take the lock before the status
 /// calls it failed.
-const HANDOVER_GRACE: chrono::Duration = chrono::Duration::seconds(60);
+const HANDOVER_GRACE: rd_core::SignedDuration = rd_core::SignedDuration::from_secs(60);
 /// How long the outcome of a finished update is shown.
-const OUTCOME_SHOWN_FOR: chrono::Duration = chrono::Duration::days(7);
+const OUTCOME_SHOWN_FOR: rd_core::SignedDuration = rd_core::SignedDuration::from_hours(24 * 7);
 
 /// Whether an ended update still says something about the running version (RD-1150-01):
 /// "Updated to 1.11.0" under 1.12.0, installed some other way since, is history. A verified
@@ -125,7 +125,7 @@ impl UpdateService {
     /// Records what the service does for an update of `target` before the updater takes over:
     /// `downloading`, `preparing`, `handed` or `failed` (with `reason`).
     pub fn set_progress(&self, state: &'static str, target: &str, reason: Option<String>) {
-        let now = Utc::now();
+        let now = Timestamp::now();
         if let Ok(mut progress) = self.0.progress.lock() {
             let started_at = progress
                 .as_ref()
@@ -162,7 +162,7 @@ impl UpdateService {
         }
         let data = self.data_dir();
         let journal = Journal::read(&data).ok().flatten()?;
-        let now = Utc::now();
+        let now = Timestamp::now();
         if journal.phase.is_terminal()
             && (now - journal.updated_at > OUTCOME_SHOWN_FOR
                 || !outcome_fits(&journal, &self.0.current))

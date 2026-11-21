@@ -5,8 +5,7 @@
 //! the database and are re-verified at every start, the way the tool manifest's cache is.
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{EventEnvelope, EventKind};
+use rd_core::{EventEnvelope, EventKind, Timestamp};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -143,7 +142,7 @@ pub(crate) async fn insert_plugin_repository(
     connection: &mut SqliteConnection,
     input: NewPluginRepository,
 ) -> Result<(PluginRepository, EventEnvelope)> {
-    let created_at = Utc::now().to_rfc3339();
+    let created_at = Timestamp::now().to_rfc3339();
     let mut transaction = connection.begin().await?;
     sqlx::query(
         "INSERT INTO plugin_repositories \
@@ -225,7 +224,7 @@ pub(crate) async fn record_plugin_repository_check(
     id: &str,
     check: RepositoryCheck,
 ) -> Result<EventEnvelope> {
-    let now = Utc::now().to_rfc3339();
+    let now = Timestamp::now().to_rfc3339();
     let mut transaction = connection.begin().await?;
     match check {
         RepositoryCheck::Accepted {

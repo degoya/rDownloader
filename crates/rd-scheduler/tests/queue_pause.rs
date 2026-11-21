@@ -7,8 +7,7 @@
 
 use std::{path::Path, time::Duration};
 
-use chrono::Utc;
-use rd_core::{DownloadFile, DownloadId, DownloadState};
+use rd_core::{DownloadFile, DownloadId, DownloadState, SignedDuration, Timestamp};
 use rd_scheduler::{FileSpec, PackageSpec, PauseReason, SchedulerConfig, SchedulerHandle};
 
 async fn start(directory: &Path, database: &rd_db::Database) -> SchedulerHandle {
@@ -101,7 +100,7 @@ async fn the_end_resumes_what_the_pause_stopped_and_nothing_else() {
     let second = file(&scheduler, directory.path(), false).await;
     let paused_before = file(&scheduler, directory.path(), true).await;
 
-    let until = Utc::now() + chrono::Duration::hours(1);
+    let until = Timestamp::now() + SignedDuration::from_hours(1);
     let pause = scheduler.pause_queue_until(until).await.expect("pause");
 
     assert_eq!(pause.until, Some(until));
@@ -132,13 +131,13 @@ async fn pausing_again_moves_the_end_and_keeps_the_files() {
     let (scheduler, _database) = installation(directory.path()).await;
     let first = file(&scheduler, directory.path(), false).await;
     scheduler
-        .pause_queue_until(Utc::now() + chrono::Duration::minutes(30))
+        .pause_queue_until(Timestamp::now() + SignedDuration::from_mins(30))
         .await
         .expect("pause");
     // Added under the pause: it waits behind the hold, and the next pause takes it in.
     let added = file(&scheduler, directory.path(), false).await;
 
-    let later = Utc::now() + chrono::Duration::hours(3);
+    let later = Timestamp::now() + SignedDuration::from_hours(3);
     let pause = scheduler.pause_queue_until(later).await.expect("again");
 
     assert_eq!(pause.until, Some(later));
@@ -154,7 +153,7 @@ async fn every_pause_names_who_set_it() {
     let directory = tempfile::tempdir().expect("tempdir");
     let (scheduler, database) = installation(directory.path()).await;
     file(&scheduler, directory.path(), false).await;
-    let later = Utc::now() + chrono::Duration::hours(1);
+    let later = Timestamp::now() + SignedDuration::from_hours(1);
 
     let manual = scheduler.pause_queue_until(later).await.expect("by hand");
     assert_eq!(manual.reason, PauseReason::Manual);
@@ -190,7 +189,7 @@ async fn a_pause_survives_a_restart_until_its_end() {
     let directory = tempfile::tempdir().expect("tempdir");
     let (scheduler, database) = installation(directory.path()).await;
     let queued = file(&scheduler, directory.path(), false).await;
-    let until = Utc::now() + chrono::Duration::hours(1);
+    let until = Timestamp::now() + SignedDuration::from_hours(1);
     scheduler.pause_queue_until(until).await.expect("pause");
     scheduler.shutdown().await.expect("shutdown");
 
@@ -208,7 +207,7 @@ async fn an_end_that_passed_while_the_service_was_down_resumes_at_start() {
     let (scheduler, database) = installation(directory.path()).await;
     let queued = file(&scheduler, directory.path(), false).await;
     scheduler
-        .pause_queue_until(Utc::now() + chrono::Duration::hours(1))
+        .pause_queue_until(Timestamp::now() + SignedDuration::from_hours(1))
         .await
         .expect("pause");
     scheduler.shutdown().await.expect("shutdown");
@@ -221,7 +220,7 @@ async fn an_end_that_passed_while_the_service_was_down_resumes_at_start() {
         .expect("read the pause")
         .expect("the stored pause");
     stored["until"] =
-        serde_json::to_value(Utc::now() - chrono::Duration::seconds(1)).expect("an end");
+        serde_json::to_value(Timestamp::now() - SignedDuration::from_secs(1)).expect("an end");
     database
         .set_setting("queue.timed_pause".to_owned(), stored)
         .await
@@ -251,7 +250,7 @@ async fn a_crash_between_the_record_and_the_files_still_holds_them_until_the_end
     let queued = file(&scheduler, directory.path(), false).await;
 
     let guard = FailpointGuard::once("scheduler.after_queue_pause_recorded");
-    let until = Utc::now() + chrono::Duration::seconds(3);
+    let until = Timestamp::now() + SignedDuration::from_secs(3);
     assert!(
         scheduler.pause_queue_until(until).await.is_err(),
         "the crash point did not stop the pause"

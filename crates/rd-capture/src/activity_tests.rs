@@ -1,4 +1,5 @@
-use chrono::{DateTime, TimeZone, Utc};
+use jiff::tz::{Offset, TimeZone};
+use rd_core::{SignedDuration, Timestamp};
 
 use super::{
     Activity, QueueEntries, QueueMenu, Summary, TOOLTIP_LIMIT, describe, format_duration,
@@ -27,10 +28,8 @@ fn controlling(mut summary: Summary) -> Summary {
     summary
 }
 
-fn at(hour: u32, minute: u32) -> DateTime<Utc> {
-    Utc.with_ymd_and_hms(2026, 10, 4, hour, minute, 0)
-        .single()
-        .expect("a valid time")
+fn at(hour: u32, minute: u32) -> Timestamp {
+    Timestamp::from_ymd_hms(2026, 10, 4, hour, minute, 0).expect("a valid time")
 }
 
 fn moving(mut summary: Summary, bytes_per_second: u64) -> Summary {
@@ -139,13 +138,13 @@ fn a_timed_pause_leads_the_line_and_paused_files_are_counted() {
 /// The end reads as a clock today and carries the day otherwise, in the zone of `now`.
 #[test]
 fn a_pause_end_is_a_clock_today_and_a_date_beyond() {
-    let now = at(17, 0);
+    let now = at(17, 0).to_zoned(TimeZone::UTC);
     assert_eq!(pause_end(at(18, 30), &now), "18:30");
-    let tomorrow = at(18, 30) + chrono::Duration::days(1);
+    let tomorrow = at(18, 30) + SignedDuration::from_hours(24);
     assert_eq!(pause_end(tomorrow, &now), "Oct 5 18:30");
-    let berlin = chrono::FixedOffset::east_opt(2 * 3600).expect("an offset");
+    let berlin = TimeZone::fixed(Offset::constant(2));
     assert_eq!(
-        pause_end(at(18, 30), &now.with_timezone(&berlin)),
+        pause_end(at(18, 30), &now.with_time_zone(berlin)),
         "20:30",
         "the clock of the zone `now` is in"
     );
@@ -347,10 +346,10 @@ fn the_longest_line_the_agent_can_build_still_fits_the_windows_tooltip() {
         bytes_per_second: u64::MAX,
         eta_seconds: Some(u64::MAX),
         paused: u32::MAX,
-        paused_until: Some(at(23, 59) + chrono::Duration::days(20)),
+        paused_until: Some(at(23, 59) + SignedDuration::from_hours(24 * 20)),
         queue_control: true,
         traffic_held_accounts: u32::MAX,
-        traffic_next_check: Some(at(23, 59) + chrono::Duration::days(20)),
+        traffic_next_check: Some(at(23, 59) + SignedDuration::from_hours(24 * 20)),
     })
     .detail;
     let host = "a".repeat(253);
@@ -401,7 +400,7 @@ fn a_byte_count_that_is_not_a_number_is_reported_rather_than_zero() {
 /// name, which a capture token does not see.
 #[test]
 fn the_line_names_used_up_account_traffic_and_its_next_check() {
-    let now = at(12, 0);
+    let now = at(12, 0).to_zoned(TimeZone::UTC);
     let mut figures = summary(0, 3, 0, 0, 0);
     figures.traffic_held_accounts = 1;
     figures.traffic_next_check = Some(at(12, 15));

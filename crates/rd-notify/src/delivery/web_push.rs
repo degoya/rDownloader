@@ -9,9 +9,9 @@
 //! (RD-1330-01): a tunnel the proxy refuses is `proxy.tunnel_refused` with the status, a name
 //! only the proxy could resolve `proxy.name_unresolved`.
 
+use rd_core::Timestamp;
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -50,8 +50,8 @@ pub struct WebPushSubscription {
     pub device_name: String,
     /// The events this browser wants; empty means every event.
     pub events: Vec<NotificationEvent>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
     /// The browser's P-256 key, URL-safe base64. Never returned by the API.
     #[serde(skip)]
     pub p256dh: String,
@@ -180,7 +180,7 @@ async fn try_send(
         // Keys that do not encrypt never will; the browser has to subscribe again.
         Err(error) => return Ok(failed(None, error.to_string(), false)),
     };
-    let authorization = key.authorization(&url, Utc::now())?;
+    let authorization = key.authorization(&url, Timestamp::now())?;
     let urgency = if severity == Severity::Info {
         "normal"
     } else {

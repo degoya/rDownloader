@@ -267,7 +267,7 @@ async fn token(
     {
         return refuse("invalid_grant");
     }
-    let now = chrono::Utc::now().timestamp();
+    let now = rd_core::Timestamp::now().unix_seconds();
     let mut claims = json!({
         "iss": idp.issuer,
         "aud": CLIENT_ID,

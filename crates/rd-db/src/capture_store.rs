@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{CaptureToken, CaptureTokenId, EventEnvelope, EventKind};
+use rd_core::{CaptureToken, CaptureTokenId, EventEnvelope, EventKind, Timestamp};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use crate::{error::StoreError, parse_id, writer::insert_event};
@@ -18,14 +17,14 @@ pub(crate) async fn create_token(
     label: String,
     token_sha256: String,
     scopes: Vec<String>,
-    expires_at: Option<DateTime<Utc>>,
+    expires_at: Option<Timestamp>,
     calls_per_minute: Option<u32>,
 ) -> Result<(CaptureToken, EventEnvelope)> {
     let token = CaptureToken {
         id,
         label,
         scopes,
-        created_at: Utc::now(),
+        created_at: Timestamp::now(),
         last_used_at: None,
         revoked_at: None,
         expires_at,
@@ -139,7 +138,7 @@ pub(crate) async fn token_scopes(
          AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)",
     )
     .bind(token_sha256)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .fetch_optional(pool)
     .await?;
     let Some(scopes_json) = scopes_json else {
@@ -164,7 +163,7 @@ pub(crate) async fn token_identity(
          WHERE token_sha256 = ? AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > ?)",
     )
     .bind(token_sha256)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .fetch_optional(pool)
     .await?;
     let Some((id, label, scopes_json, calls_per_minute)) = row else {
@@ -234,7 +233,7 @@ pub(crate) async fn revoke_token(
     let mut transaction = connection.begin().await?;
     let result =
         sqlx::query("UPDATE capture_tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL")
-            .bind(Utc::now())
+            .bind(Timestamp::now())
             .bind(id.to_string())
             .execute(&mut *transaction)
             .await?;
@@ -278,10 +277,10 @@ struct CaptureTokenRow {
     id: String,
     label: String,
     scopes_json: String,
-    created_at: DateTime<Utc>,
-    last_used_at: Option<DateTime<Utc>>,
-    revoked_at: Option<DateTime<Utc>>,
-    expires_at: Option<DateTime<Utc>>,
+    created_at: Timestamp,
+    last_used_at: Option<Timestamp>,
+    revoked_at: Option<Timestamp>,
+    expires_at: Option<Timestamp>,
     calls_per_minute: Option<i64>,
 }
 

@@ -190,7 +190,7 @@ pub async fn install_examples_once(database: &Database) {
     let first = database
         .insert_setting_if_absent(
             EXAMPLES_KEY.to_owned(),
-            serde_json::Value::String(chrono::Utc::now().to_rfc3339()),
+            serde_json::Value::String(rd_core::Timestamp::now().to_rfc3339()),
         )
         .await;
     match first {

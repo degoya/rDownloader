@@ -22,7 +22,7 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};
 
 use crate::InstallKind;
@@ -145,7 +145,7 @@ pub struct RestartPlan {
     pub service_args: Vec<String>,
     pub service_cwd: PathBuf,
     pub health_timeout_secs: u64,
-    pub requested_at: DateTime<Utc>,
+    pub requested_at: Timestamp,
 }
 
 impl RestartPlan {

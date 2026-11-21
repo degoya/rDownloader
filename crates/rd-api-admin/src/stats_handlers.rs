@@ -6,7 +6,7 @@ use axum::{
     Json,
     extract::{Query, State},
 };
-use chrono::{DateTime, Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use rd_db::{StatsResolution, StatsRetention, TransferBucket};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -29,12 +29,12 @@ pub enum StatsRange {
 }
 
 impl StatsRange {
-    fn since(self, now: DateTime<Utc>) -> DateTime<Utc> {
+    fn since(self, now: Timestamp) -> Timestamp {
         match self {
-            Self::Day => now - Duration::hours(24),
-            Self::Week => now - Duration::days(7),
-            Self::Month => now - Duration::days(30),
-            Self::Year => now - Duration::days(365),
+            Self::Day => now - SignedDuration::from_hours(24),
+            Self::Week => now - SignedDuration::from_hours(24 * 7),
+            Self::Month => now - SignedDuration::from_hours(24 * 30),
+            Self::Year => now - SignedDuration::from_hours(24 * 365),
         }
     }
 
@@ -105,7 +105,7 @@ pub struct TransferStatsGroup {
 pub struct TransferStatsResponse {
     pub range: StatsRange,
     pub resolution: StatsBucketWidth,
-    pub since: DateTime<Utc>,
+    pub since: Timestamp,
     pub buckets: Vec<TransferStatsBucket>,
     pub by_kind: Vec<TransferStatsGroup>,
     pub by_provider: Vec<TransferStatsGroup>,
@@ -127,7 +127,7 @@ pub async fn transfer_stats(
     State(state): State<AppState>,
     Query(params): Query<TransferStatsParams>,
 ) -> Result<Json<TransferStatsResponse>, ApiError> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let since = params.range.since(now);
     // Both widths are read: an hour older than the hourly window has already been folded
     // into its day, and a day view must not lose the hours that have not been folded yet.
@@ -198,7 +198,7 @@ pub async fn usenet_server_traffic(
 ) -> Result<Json<UsenetTrafficResponse>, ApiError> {
     let servers = state
         .database
-        .list_usenet_server_traffic(Utc::now().date_naive())
+        .list_usenet_server_traffic(Timestamp::now().date())
         .await?
         .into_iter()
         .map(|row| UsenetServerTrafficEntry {
@@ -219,7 +219,7 @@ pub async fn usenet_server_traffic(
 /// Folds the rows into the response shape; pure, so it is tested without a database.
 pub(crate) fn summarise(
     range: StatsRange,
-    since: DateTime<Utc>,
+    since: Timestamp,
     rows: &[TransferBucket],
     all_time: TransferStatsFigures,
 ) -> TransferStatsResponse {

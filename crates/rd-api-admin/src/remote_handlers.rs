@@ -314,7 +314,7 @@ pub async fn trust_ssh_host_key(
             port: request.port,
             algorithm,
             fingerprint: fingerprint.to_owned(),
-            first_seen: chrono::Utc::now(),
+            first_seen: rd_core::Timestamp::now(),
         })
         .await?;
     Ok(Json(MessageResponse::new(

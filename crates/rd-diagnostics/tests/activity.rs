@@ -3,7 +3,7 @@
 
 use std::io::Read;
 
-use chrono::{Duration, TimeZone, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use rd_db::{
     DeliveryCount, DiagnosticDelivery, DiagnosticRule, DiagnosticTarget, DownloadCount,
     NotificationDiagnostics, PackageTransition, QueueDiagnostics, ValueCount,
@@ -15,10 +15,7 @@ use rd_diagnostics::{
 };
 
 fn input() -> BundleInput {
-    let start = Utc
-        .with_ymd_and_hms(2026, 10, 14, 12, 0, 0)
-        .single()
-        .expect("time");
+    let start = Timestamp::from_ymd_hms(2026, 10, 14, 12, 0, 0).expect("time");
     // Newest first, as `rd-db` reads them, and more than the bundle keeps.
     let recent_deliveries = (0..60)
         .map(|index| DiagnosticDelivery {
@@ -27,8 +24,8 @@ fn input() -> BundleInput {
             state: if index == 0 { "failed" } else { "delivered" }.to_owned(),
             attempts: 1,
             response_status: Some(if index == 0 { 500 } else { 200 }),
-            queued_at: start - Duration::minutes(index),
-            updated_at: start - Duration::minutes(index),
+            queued_at: start - SignedDuration::from_mins(index),
+            updated_at: start - SignedDuration::from_mins(index),
         })
         .collect();
     let recent_transitions = (0..60)
@@ -38,7 +35,7 @@ fn input() -> BundleInput {
             state: "completed".to_owned(),
             stage: None,
             category_id: None,
-            occurred_at: start - Duration::minutes(index),
+            occurred_at: start - SignedDuration::from_mins(index),
         })
         .collect();
     BundleInput {
@@ -104,7 +101,7 @@ fn both_entries_keep_the_newest_rows_within_their_limits_and_say_so() {
     let built = bundle::build(
         &input(),
         &["notifications".to_owned(), "queue".to_owned()],
-        Utc::now(),
+        Timestamp::now(),
     )
     .expect("bundle");
 
@@ -182,7 +179,7 @@ fn the_preview_and_the_manifest_name_both_entries_their_bounds_and_their_redacti
         .iter()
         .map(|entry| entry.id.clone())
         .collect();
-    let built = bundle::build(&input(), &ids, Utc::now()).expect("bundle");
+    let built = bundle::build(&input(), &ids, Timestamp::now()).expect("bundle");
     for path in ["notifications.json", "queue.json"] {
         assert!(
             built

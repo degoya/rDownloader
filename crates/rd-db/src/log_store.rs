@@ -9,8 +9,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::LogLevel;
+use rd_core::{LogLevel, Timestamp};
 use serde::{Deserialize, Serialize};
 use sqlx::{Connection, FromRow, QueryBuilder, Sqlite, SqliteConnection, SqlitePool};
 
@@ -19,7 +18,7 @@ use crate::{escape_like, timestamp};
 /// One record about to be stored.
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NewLogRecord {
-    pub recorded_at: DateTime<Utc>,
+    pub recorded_at: Timestamp,
     pub level: LogLevel,
     /// The `tracing` target, such as `rd_http::engine`.
     pub component: String,
@@ -35,7 +34,7 @@ pub struct NewLogRecord {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct LogRecord {
     pub id: i64,
-    pub recorded_at: DateTime<Utc>,
+    pub recorded_at: Timestamp,
     pub level: LogLevel,
     pub component: String,
     pub code: Option<String>,
@@ -55,8 +54,8 @@ pub struct LogQuery {
     pub correlation_id: Option<String>,
     /// A case-insensitive substring of the message.
     pub search: Option<String>,
-    pub since: Option<DateTime<Utc>>,
-    pub until: Option<DateTime<Utc>>,
+    pub since: Option<Timestamp>,
+    pub until: Option<Timestamp>,
     /// Records older than this id, for paging backwards.
     pub before_id: Option<i64>,
     pub limit: u32,
@@ -81,9 +80,8 @@ impl TryFrom<Row> for LogRecord {
     type Error = anyhow::Error;
 
     fn try_from(row: Row) -> Result<Self> {
-        let recorded_at = DateTime::parse_from_rfc3339(&row.recorded_at)
-            .with_context(|| format!("log record {} carries a bad timestamp", row.id))?
-            .with_timezone(&Utc);
+        let recorded_at = Timestamp::parse_rfc3339(&row.recorded_at)
+            .with_context(|| format!("log record {} carries a bad timestamp", row.id))?;
         let level = LogLevel::parse(&row.level)
             .with_context(|| format!("log record {} carries level {:?}", row.id, row.level))?;
         let fields = match row.fields_json {

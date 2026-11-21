@@ -1,8 +1,7 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, NaiveDate, Utc};
 use rd_core::{
-    EventEnvelope, EventKind, ProxyProfileId, UsenetQuota, UsenetQuotaAction, UsenetServer,
-    UsenetServerId,
+    Date, EventEnvelope, EventKind, ProxyProfileId, Timestamp, UsenetQuota, UsenetQuotaAction,
+    UsenetServer, UsenetServerId,
 };
 use sqlx::{Connection, FromRow, Row, SqliteConnection, SqlitePool};
 
@@ -52,7 +51,7 @@ pub(crate) async fn create(
         quota: None,
         busy_connections: 0,
     };
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = EventEnvelope::new(
         EventKind::UsenetChanged,
         serde_json::json!({ "resource": "usenet_server", "id": value.id }),
@@ -124,7 +123,7 @@ pub(crate) async fn update(
     .bind(value.priority)
     .bind(i64::from(value.max_connections))
     .bind(value.enabled)
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(value.id.to_string())
     .execute(&mut *tx)
     .await
@@ -140,7 +139,7 @@ pub(crate) async fn update(
     .bind(value.id.to_string())
     .fetch_one(&mut *tx)
     .await?
-    .quota(Utc::now().date_naive());
+    .quota(Timestamp::now().date());
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
     Ok((value, event))
@@ -152,7 +151,7 @@ pub(crate) async fn update(
 pub struct UsenetQuotaInput {
     pub limit_bytes: Option<u64>,
     pub action: UsenetQuotaAction,
-    pub reset_on: Option<NaiveDate>,
+    pub reset_on: Option<Date>,
     pub reset_usage: bool,
 }
 
@@ -167,7 +166,7 @@ pub(crate) async fn set_quota(
     id: UsenetServerId,
     input: UsenetQuotaInput,
 ) -> Result<(UsenetServer, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = EventEnvelope::new(
         EventKind::UsenetChanged,
         serde_json::json!({ "resource": "usenet_server", "id": id }),
@@ -212,7 +211,7 @@ pub(crate) async fn set_quota(
     .bind(id.to_string())
     .fetch_one(&mut *tx)
     .await?;
-    let server = row.into_server(now.date_naive())?;
+    let server = row.into_server(now.date())?;
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
     Ok((server, event))
@@ -243,7 +242,7 @@ pub(crate) async fn delete(
 }
 
 pub(crate) async fn list(pool: &SqlitePool) -> Result<Vec<UsenetServer>> {
-    let today = Utc::now().date_naive();
+    let today = Timestamp::now().date();
     sqlx::query_as::<_, ServerRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {SERVER_COLUMNS} FROM usenet_servers ORDER BY priority, name"
     )))
@@ -258,7 +257,7 @@ pub(crate) async fn connection_config(
     pool: &SqlitePool,
     id: UsenetServerId,
 ) -> Result<Option<UsenetConnectionConfig>> {
-    let today = Utc::now().date_naive();
+    let today = Timestamp::now().date();
     sqlx::query_as::<_, ConnectionRow>(sqlx::AssertSqlSafe(format!(
         "SELECT id, name, host, port, tls, username, password_ref, proxy_profile_id, \
          priority, max_connections, enabled, {QUOTA_COLUMNS} FROM usenet_servers WHERE id = ?"
@@ -286,7 +285,7 @@ pub(crate) struct QuotaColumns {
     quota_action: String,
     quota_reset_on: Option<String>,
     quota_used_bytes: i64,
-    quota_reached_at: Option<DateTime<Utc>>,
+    quota_reached_at: Option<Timestamp>,
 }
 
 impl QuotaColumns {
@@ -295,13 +294,13 @@ impl QuotaColumns {
     /// The stored figure is put back to zero by the next flush of the server's traffic. Until
     /// then every reader applies the reset itself, so a server paused by its quota comes back
     /// on its reset day even though, paused, it has no traffic that would flush.
-    pub(crate) fn quota(self, today: NaiveDate) -> Option<UsenetQuota> {
+    pub(crate) fn quota(self, today: jiff::civil::Date) -> Option<UsenetQuota> {
         let limit = self.quota_bytes?;
         let reset_on = self
             .quota_reset_on
             .as_deref()
-            .and_then(|day| NaiveDate::parse_from_str(day, "%Y-%m-%d").ok());
-        let due = reset_on.is_some_and(|day| day <= today);
+            .and_then(|day| day.parse::<Date>().ok());
+        let due = reset_on.is_some_and(|day| day.as_jiff() <= today);
         Some(UsenetQuota {
             limit_bytes: u64::try_from(limit).unwrap_or(0),
             action: UsenetQuotaAction::from_stored(&self.quota_action),
@@ -334,7 +333,7 @@ struct ConnectionRow {
 }
 
 impl ConnectionRow {
-    fn into_config(self, today: NaiveDate) -> Result<UsenetConnectionConfig> {
+    fn into_config(self, today: jiff::civil::Date) -> Result<UsenetConnectionConfig> {
         let server = UsenetServer {
             id: parse_id(&self.id)?,
             name: self.name,
@@ -375,7 +374,7 @@ struct ServerRow {
 }
 
 impl ServerRow {
-    fn into_server(self, today: NaiveDate) -> Result<UsenetServer> {
+    fn into_server(self, today: jiff::civil::Date) -> Result<UsenetServer> {
         Ok(UsenetServer {
             id: parse_id(&self.id)?,
             name: self.name,

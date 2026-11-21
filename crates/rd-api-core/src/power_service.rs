@@ -139,7 +139,7 @@ impl PowerSupervisor {
             .set_inhibited(unpacking || is_working(&downloads))
             .await;
 
-        let now = chrono::Utc::now();
+        let now = rd_core::Timestamp::now();
         let busy = unpacking || is_busy(&downloads);
         let (before_cycle, before_completed) = power.cycles().await;
         let due = power.observe(busy, now).await;
@@ -208,7 +208,7 @@ impl PowerSupervisor {
         let quiet = self
             .inner
             .power
-            .defers_postprocess(chrono::Utc::now())
+            .defers_postprocess(rd_core::Timestamp::now())
             .await;
         self.inner.quiet_hold.set(quiet);
     }

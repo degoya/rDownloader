@@ -1,8 +1,9 @@
 //! Reads and edits of NZB imports, and the row type they are read through.
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
-use rd_core::{ByteCount, EventEnvelope, EventKind, NzbImport, NzbImportId, NzbImportState};
+use rd_core::{
+    ByteCount, EventEnvelope, EventKind, NzbImport, NzbImportId, NzbImportState, Timestamp,
+};
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
 use super::NzbImportChange;
@@ -262,7 +263,7 @@ struct NzbImportRow {
     position: i64,
     remote_job_id: Option<String>,
     remote_account_id: Option<String>,
-    created_at: DateTime<Utc>,
+    created_at: Timestamp,
 }
 
 impl TryFrom<NzbImportRow> for NzbImport {

@@ -473,7 +473,7 @@ async fn matching_step(
         tracing::warn!("a stored second-factor secret is not readable");
         return Ok(None);
     };
-    let now = chrono::Utc::now().timestamp().max(0) as u64;
+    let now = rd_core::Timestamp::now().unix_seconds().max(0) as u64;
     Ok(rd_authn::totp::accepted_step(&secret, code, now))
 }
 

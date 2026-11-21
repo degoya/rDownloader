@@ -1,7 +1,7 @@
 //! Database facade methods for the structured log store (RD-110-02).
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use crate::{
     Database,
@@ -29,7 +29,7 @@ impl Database {
     pub async fn prune_log_records(
         &self,
         max_records: u64,
-        older_than: Option<DateTime<Utc>>,
+        older_than: Option<Timestamp>,
         batch: u64,
     ) -> Result<LogPruneReport> {
         writer::request(&self.writer, |reply| LogsCommand::PruneLogRecords {

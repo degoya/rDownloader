@@ -7,8 +7,10 @@
 
 use std::{collections::BTreeMap, path::Path};
 
-use chrono::{Duration, Utc};
-use rd_core::{AccountId, AccountTrafficAction, DownloadFile, DownloadState, Failure, FailureKind};
+use rd_core::{
+    AccountId, AccountTrafficAction, DownloadFile, DownloadState, Failure, FailureKind,
+    SignedDuration, Timestamp,
+};
 
 use super::{TRAFFIC_CHECK_INTERVAL_MINUTES, TrafficHolds};
 use crate::{FileSpec, PackageSpec, SchedulerConfig, SchedulerHandle};
@@ -107,10 +109,10 @@ fn configure(scheduler: &SchedulerHandle, action: AccountTrafficAction) {
 
 #[test]
 fn each_action_holds_what_it_says_and_an_override_beats_the_default() {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let (held, other) = (AccountId::new(), AccountId::new());
     let holds = TrafficHolds::default();
-    holds.hold(held, now + Duration::hours(1), now);
+    holds.hold(held, now + SignedDuration::from_hours(1), now);
 
     holds.configure(AccountTrafficAction::Nothing, BTreeMap::new());
     assert!(!holds.holds_back(held, now), "nothing holds no other file");
@@ -147,22 +149,22 @@ fn each_action_holds_what_it_says_and_an_override_beats_the_default() {
 
 #[test]
 fn a_hold_ends_with_the_hosters_wait_and_is_checked_every_interval_before() {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let account = AccountId::new();
     let holds = TrafficHolds::default();
     holds.configure(AccountTrafficAction::PauseQueue, BTreeMap::new());
-    holds.hold(account, now + Duration::hours(1), now);
+    holds.hold(account, now + SignedDuration::from_hours(1), now);
     assert_eq!(holds.settle(now), Some(true));
 
     assert!(
         holds.due_checks(now).is_empty(),
         "the first check is an interval away"
     );
-    let check = now + Duration::minutes(TRAFFIC_CHECK_INTERVAL_MINUTES);
+    let check = now + SignedDuration::from_mins(TRAFFIC_CHECK_INTERVAL_MINUTES);
     assert_eq!(holds.due_checks(check), vec![account]);
     assert!(holds.due_checks(check).is_empty(), "moved one interval on");
 
-    let after = now + Duration::hours(1);
+    let after = now + SignedDuration::from_hours(1);
     assert!(!holds.holds_back(account, after));
     assert_eq!(
         holds.settle(after),
@@ -195,9 +197,9 @@ async fn used_up_traffic_waits_instead_of_blocking_and_holds_the_accounts_other_
         "waits, is not blocked"
     );
     let due = waiting.next_retry_at.expect("a next attempt");
-    assert!((59..=60).contains(&(due - Utc::now()).num_minutes()));
+    assert!((59..=60).contains(&(due - Timestamp::now()).as_mins()));
     assert_eq!(waiting.retry_count, 0, "a limit spends no attempt");
-    let now = Utc::now();
+    let now = Timestamp::now();
     assert!(scheduler.held_for_account_traffic(&second, now));
     assert!(!scheduler.held_for_account_traffic(&elsewhere, now));
     let holds = scheduler.account_traffic();
@@ -205,7 +207,7 @@ async fn used_up_traffic_waits_instead_of_blocking_and_holds_the_accounts_other_
     assert_eq!(holds[0].account_id, limited);
     assert_eq!(holds[0].action, AccountTrafficAction::PauseAccount);
     assert!(
-        (holds[0].until - due).num_seconds().abs() <= 1,
+        (holds[0].until - due).as_secs().abs() <= 1,
         "the hold ends with the file's wait"
     );
     assert_eq!(
@@ -291,7 +293,7 @@ async fn pausing_the_queue_for_traffic_never_lifts_a_pause_somebody_set() {
     );
 
     scheduler
-        .pause_queue_until(Utc::now() + Duration::hours(2))
+        .pause_queue_until(Timestamp::now() + SignedDuration::from_hours(2))
         .await
         .expect("pause");
     scheduler

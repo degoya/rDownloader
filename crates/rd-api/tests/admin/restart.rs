@@ -13,13 +13,13 @@ use crate::plugin_versions::{PLUGIN, install_package};
 use std::sync::{Arc, Mutex};
 
 use axum::http::StatusCode;
-use chrono::{Duration, Timelike, Utc};
 use common::{
     API_BEARER, CAPTURE_BEARER, READ_BEARER, get_json, get_with_bearer, parked_harness, patch_json,
     post_json, post_with_bearer, put_json,
 };
 use rd_api::restart_auto::{AutoRestarter, Tick};
 use rd_api_core::restart_state::Relauncher;
+use rd_core::{SignedDuration, Timestamp};
 use rd_update::RestartPlan;
 use rd_update::auto_install::Wait;
 use rd_update::install::Journal;
@@ -381,7 +381,7 @@ async fn the_automatic_restart_waits_for_quiet_and_the_window() {
         rd_update::InstallKind::Deb,
         systemd(),
     );
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut restarter = AutoRestarter::default();
     assert_eq!(
         restarter.tick(&harness.state, now).await,
@@ -406,7 +406,7 @@ async fn the_automatic_restart_waits_for_quiet_and_the_window() {
     for minutes in [0, 10] {
         assert_eq!(
             restarter
-                .tick(&harness.state, now + Duration::minutes(minutes))
+                .tick(&harness.state, now + SignedDuration::from_mins(minutes))
                 .await,
             Tick::Waiting(Wait::Busy)
         );
@@ -418,7 +418,9 @@ async fn the_automatic_restart_waits_for_quiet_and_the_window() {
         .expect("paused");
 
     // Opens an hour from now, in UTC.
-    let minute = u16::try_from(now.hour() * 60 + now.minute()).expect("minute");
+    let clock = now.utc_datetime();
+    let minute =
+        u16::try_from(i32::from(clock.hour()) * 60 + i32::from(clock.minute())).expect("minute");
     set(
         &harness,
         json!({
@@ -432,20 +434,20 @@ async fn the_automatic_restart_waits_for_quiet_and_the_window() {
     .await;
     assert_eq!(
         restarter
-            .tick(&harness.state, now + Duration::minutes(11))
+            .tick(&harness.state, now + SignedDuration::from_mins(11))
             .await,
         Tick::Waiting(Wait::Settling)
     );
     assert_eq!(
         restarter
-            .tick(&harness.state, now + Duration::minutes(17))
+            .tick(&harness.state, now + SignedDuration::from_mins(17))
             .await,
         Tick::Waiting(Wait::OutsideWindow)
     );
     assert!(!harness.state.runtime.shutdown.is_cancelled());
     assert_eq!(
         restarter
-            .tick(&harness.state, now + Duration::minutes(61))
+            .tick(&harness.state, now + SignedDuration::from_mins(61))
             .await,
         Tick::Started("supervisor".to_owned())
     );
@@ -469,7 +471,7 @@ async fn the_automatic_restart_waits_for_quiet_and_the_window() {
     );
     assert_eq!(
         restarter
-            .tick(&harness.state, now + Duration::minutes(62))
+            .tick(&harness.state, now + SignedDuration::from_mins(62))
             .await,
         Tick::Waiting(Wait::Installing),
         "one restart at a time"

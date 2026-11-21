@@ -9,6 +9,8 @@ use std::sync::{
 };
 
 use async_trait::async_trait;
+use jiff::tz::TimeZone;
+use rd_core::Timestamp;
 use rd_power::{
     Inhibition, PowerAdapter, PowerCapabilities, PowerService, PowerSettings, PowerState,
 };
@@ -87,7 +89,7 @@ fn settings(prevent: bool, display: bool) -> PowerSettings {
 
 async fn service(adapter: Arc<FakeAdapter>, settings: PowerSettings) -> PowerService {
     let service = PowerService::new(adapter);
-    service.apply(settings, chrono_tz::Tz::UTC).await;
+    service.apply(settings, TimeZone::UTC).await;
     service
 }
 
@@ -115,7 +117,7 @@ async fn nothing_is_held_while_the_setting_is_off() {
     service.set_inhibited(true).await;
 
     assert_eq!(adapter.handed_out.load(Ordering::SeqCst), 0);
-    assert!(!service.status(chrono::Utc::now()).await.inhibiting);
+    assert!(!service.status(Timestamp::now()).await.inhibiting);
 }
 
 #[tokio::test]
@@ -125,9 +127,7 @@ async fn switching_the_setting_off_mid_download_lets_the_machine_sleep() {
     service.set_inhibited(true).await;
     assert_eq!(adapter.live.load(Ordering::SeqCst), 1);
 
-    service
-        .apply(settings(false, false), chrono_tz::Tz::UTC)
-        .await;
+    service.apply(settings(false, false), TimeZone::UTC).await;
     service.set_inhibited(true).await;
 
     assert_eq!(
@@ -146,9 +146,7 @@ async fn asking_for_the_display_too_takes_a_new_inhibition() {
 
     // The platform decides what an inhibition covers when it is taken, so the wish changing
     // has to replace it rather than amend it.
-    service
-        .apply(settings(true, true), chrono_tz::Tz::UTC)
-        .await;
+    service.apply(settings(true, true), TimeZone::UTC).await;
     service.set_inhibited(true).await;
 
     assert_eq!(adapter.handed_out.load(Ordering::SeqCst), 2);
@@ -177,7 +175,7 @@ async fn a_platform_that_refuses_is_not_asked_again_every_tick() {
         0,
         "the fake never succeeds"
     );
-    assert!(!service.status(chrono::Utc::now()).await.inhibiting);
+    assert!(!service.status(Timestamp::now()).await.inhibiting);
 }
 
 /// Taking an inhibition spawns a helper process on every real platform. The write guard used
@@ -201,7 +199,7 @@ async fn a_status_read_does_not_wait_for_the_platform_helper() {
     assert!(
         tokio::time::timeout(
             std::time::Duration::from_secs(5),
-            service.status(chrono::Utc::now()),
+            service.status(Timestamp::now()),
         )
         .await
         .is_ok(),
@@ -246,5 +244,5 @@ async fn an_inhibition_that_arrives_after_the_queue_went_idle_is_released() {
         0,
         "but it is released again, not stored over the newer decision"
     );
-    assert!(!service.status(chrono::Utc::now()).await.inhibiting);
+    assert!(!service.status(Timestamp::now()).await.inhibiting);
 }

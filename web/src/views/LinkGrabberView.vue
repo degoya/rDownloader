@@ -31,6 +31,7 @@ import { grabberKey, useGrabberSelection } from '@/composables/useGrabberSelecti
 import type { CollectorEntry } from '@/composables/useGrabberSelection'
 import { useGrabberIntake } from '@/composables/useGrabberIntake'
 import { useNzbHandOver } from '@/composables/useNzbHandOver'
+import { usePackageHandOver } from '@/composables/usePackageHandOver'
 import { usePackageExport } from '@/composables/usePackageExport'
 import { useGrabberEnqueue } from '@/composables/useGrabberEnqueue'
 import { useGrabberReorder } from '@/composables/useGrabberReorder'
@@ -152,6 +153,8 @@ const {
 /** NZB imports to a provider's account instead of the queue (RD-191-13); a failed one holds no files. */
 const nzbHandOver = useNzbHandOver('linkgrabber')
 const handOverIds = (): string[] => selection.nzbIds.value.filter(id => nzb.imports.find(item => item.id === id)?.state === 'imported')
+/** A package's links to a provider's account instead of the queue (RD-1440-07). */
+const packageHandOver = usePackageHandOver()
 
 /**
  * The online check takes what the list shows, like the enqueue does (RD-130-21): a filter or a
@@ -348,6 +351,8 @@ function openNzbHistory(): void {
                 :enqueuing-ids="collector.enqueuingIds"
                 :dragging="draggingEntry === grabberKey('collector', row.entry.id)"
                 :open="openPackages.isOpen(row.entry.id)"
+                :remote-targets="packageHandOver.targets(row.entry.candidates)"
+                :handing-over="packageHandOver.handingOverIds.value.has(row.entry.id)"
                 @select="(_ids: string[], value: boolean) => selection.pickPackage(row.entry.id, value)"
                 @toggle="openPackages.toggle"
                 @open-all="openPackages.openAll"
@@ -360,6 +365,7 @@ function openNzbHistory(): void {
                 @remove="removePackage"
                 @copy-links="copyPackageLinks"
                 @export="(id: string) => exportPackages({ collectorPackageIds: [id] })"
+                @hand-over="(_id: string, accountId: string) => packageHandOver.handOver(row.entry.package, accountId)"
                 @dragstart="(id: string) => draggingEntry = grabberKey('collector', id)"
                 @drop="dropOnPackage"
                 @move="(id: string, delta: -1 | 1) => moveEntry('collector', id, delta)"
@@ -374,6 +380,7 @@ function openNzbHistory(): void {
                 :mirror-group="row.group ?? null"
                 :mirror-open="row.group ? openMirrors.isOpen(row.group.key) : false"
                 :mirror-member="row.member === true"
+                :handed-over-to="packageHandOver.handedOverTo(row.candidate)"
                 @toggle-mirror="openMirrors.toggle"
                 @choose-mirror="(id: string, chosen: boolean) => void collector.chooseMirror(id, chosen)"
                 @dissolve-mirror="dissolveMirror"

@@ -140,7 +140,7 @@ export const BROWSER_ONLY_TYPES = [
 export const BROWSER_ONLY_EXTENSIONS = ['.nzb', '.torrent', '.zip', ...CONTAINER_EXTENSIONS]
 
 /** The bare content type, without parameters, lowercased. */
-function bareType(mime) {
+export function bareType(mime) {
   return String(mime ?? '').split(';')[0].trim().toLowerCase()
 }
 
@@ -185,6 +185,15 @@ function dispositionNames(disposition) {
 }
 
 /**
+ * Every name a download goes by: its file name, the paths of its address and of the address it
+ * ended at, and each name an observed Content-Disposition gives. The file type of a download is
+ * read from these, here and in the type filter (`file-types.js`, RD-1440-08).
+ */
+export function downloadNames(item, captured = null) {
+  return [baseName(item?.filename), pathOf(item?.url), pathOf(item?.finalUrl), ...dispositionNames(captured?.contentDisposition)]
+}
+
+/**
  * Why a download stays with the browser instead of going to rDownloader, or null when it may go.
  *
  * - `'file'`: an NZB, torrent, ZIP or link container (RD-1260-11), by `item.mime` or by the
@@ -200,8 +209,7 @@ function dispositionNames(disposition) {
  */
 export function staysInBrowser(item, captured = null) {
   if (BROWSER_ONLY_TYPES.includes(bareType(item?.mime))) return 'file'
-  const names = [baseName(item?.filename), pathOf(item?.url), pathOf(item?.finalUrl), ...dispositionNames(captured?.contentDisposition)]
-  if (names.some(hasBrowserOnlyExtension)) return 'file'
+  if (downloadNames(item, captured).some(hasBrowserOnlyExtension)) return 'file'
   if (String(captured?.method ?? 'GET').toUpperCase() === 'POST') return 'post'
   return null
 }

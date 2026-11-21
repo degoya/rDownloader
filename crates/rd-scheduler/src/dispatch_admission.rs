@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::Result;
-use rd_core::{DownloadState, PackageId};
+use rd_core::{DownloadState, PackageId, Timestamp};
 use tokio::sync::OwnedSemaphorePermit;
 use tokio_util::sync::CancellationToken;
 
@@ -41,7 +41,7 @@ impl SchedulerHandle {
     pub(super) async fn may_start(
         &self,
         file: &rd_core::DownloadFile,
-        now: chrono::DateTime<chrono::Utc>,
+        now: Timestamp,
         destinations: &HashMap<PackageId, PathBuf>,
         groups: &mut HashMap<PackageId, Vec<rd_core::DownloadFile>>,
         blocked_kinds: &mut Vec<rd_core::DownloadKind>,

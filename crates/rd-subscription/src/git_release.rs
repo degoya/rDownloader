@@ -11,8 +11,8 @@
 //! anywhere. Both carry source archives. One [`Release`] shape holds what both say, so the
 //! adapter decides once.
 
-use chrono::{DateTime, Utc};
 use rd_core::GitForge;
+use rd_core::Timestamp;
 use serde::Deserialize;
 use url::Url;
 
@@ -124,7 +124,7 @@ pub(crate) struct Release {
     pub tag: String,
     pub draft: bool,
     pub prerelease: bool,
-    pub published_at: Option<DateTime<Utc>>,
+    pub published_at: Option<Timestamp>,
     pub published_raw: Option<String>,
     pub assets: Vec<Asset>,
     /// The source archives the forge builds for every release.
@@ -336,10 +336,8 @@ fn gitlab_release(release: GitlabRelease) -> Release {
     }
 }
 
-fn parse_instant(raw: &str) -> Option<DateTime<Utc>> {
-    DateTime::parse_from_rfc3339(raw)
-        .ok()
-        .map(|instant| instant.with_timezone(&Utc))
+fn parse_instant(raw: &str) -> Option<Timestamp> {
+    Timestamp::parse_rfc3339(raw).ok()
 }
 
 /// GitHub's `sha256:<hex>`; any other algorithm is not one a download can be checked with here.

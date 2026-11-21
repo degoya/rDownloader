@@ -3,8 +3,9 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use chrono::Utc;
-use rd_core::{CategoryId, DownloadPackage, DownloadPriority, EventEnvelope, EventKind, PackageId};
+use rd_core::{
+    CategoryId, DownloadPackage, DownloadPriority, EventEnvelope, EventKind, PackageId, Timestamp,
+};
 use sqlx::{Connection, SqliteConnection, SqlitePool};
 
 use crate::{
@@ -51,7 +52,7 @@ pub(crate) async fn update_packages(
     ids: &[PackageId],
     change: &PackageChange,
 ) -> Result<(Vec<DownloadPackage>, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut transaction = connection.begin().await?;
     for id in ids {
         if let Some(assignment) = &change.category
@@ -154,7 +155,7 @@ pub(crate) async fn rename_package_directory(
     name: &str,
     destination: &str,
 ) -> Result<(Option<DownloadPackage>, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut transaction = connection.begin().await?;
     let package = id.to_string();
     let Some((previous, import_id)) = sqlx::query_as::<_, (String, Option<String>)>(
@@ -238,7 +239,7 @@ pub(crate) async fn rewrite_stored_paths(
     import_id: Option<&str>,
     previous: &str,
     destination: &str,
-    now: chrono::DateTime<Utc>,
+    now: rd_core::Timestamp,
 ) -> Result<()> {
     // ?1 = the old folder's length in characters, ?2 = the old folder, ?3 = the first character
     // after it, ?4 = the path separator, ?5 = the new folder.
@@ -304,7 +305,7 @@ pub(crate) async fn reorder_packages(
     connection: &mut SqliteConnection,
     ids: &[PackageId],
 ) -> Result<EventEnvelope> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut transaction = connection.begin().await?;
     let listed: Vec<String> = ids.iter().map(ToString::to_string).collect();
     let remaining: Vec<String> = sqlx::query_scalar::<_, String>(
@@ -342,7 +343,7 @@ pub(crate) async fn reorder_downloads(
     package_id: PackageId,
     ids: &[rd_core::DownloadId],
 ) -> Result<EventEnvelope> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut transaction = connection.begin().await?;
     let package = package_id.to_string();
     for (index, id) in ids.iter().enumerate() {

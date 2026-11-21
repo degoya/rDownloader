@@ -59,7 +59,7 @@ async fn seed_archives(
 /// package state cannot tell this run from the last one (see
 /// `a_renamed_package_folder_does_not_give_a_second_run_a_second_set_of_steps`).
 async fn unpack_again(database: &Database, temp: &Path, package_id: PackageId) {
-    let mark = chrono::Utc::now();
+    let mark = rd_core::Timestamp::now();
     let service = ExtractionService::start(
         database.clone(),
         ExtractionConfig {

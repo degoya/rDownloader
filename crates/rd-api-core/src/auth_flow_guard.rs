@@ -15,8 +15,7 @@
 //!   listens. `rd-plugin-ext` already refuses an undeclared host; this holds for whatever
 //!   reaches the flow store, however it got there.
 
-use chrono::{DateTime, Utc};
-use rd_core::{AuthFlow, AuthFlowState};
+use rd_core::{AuthFlow, AuthFlowState, Timestamp};
 
 /// The shortest `state` a flow may be started with. A PKCE verifier is 43 characters; 32
 /// base64 characters are 192 bits, far beyond guessing over a network.
@@ -38,10 +37,10 @@ pub(crate) fn checked_callback_state(state: &str) -> anyhow::Result<()> {
 }
 
 /// Whether a callback for `flow`, taken from the store just now, may still complete it.
-pub(crate) fn callback_usable(flow: &AuthFlow, now: DateTime<Utc>) -> bool {
+pub(crate) fn callback_usable(flow: &AuthFlow, now: Timestamp) -> bool {
     flow.state == AuthFlowState::WaitingForUser
         && !flow.is_expired(now)
-        && now - flow.started_at <= chrono::Duration::seconds(CALLBACK_WINDOW_SECONDS)
+        && now - flow.started_at <= rd_core::SignedDuration::from_secs(CALLBACK_WINDOW_SECONDS)
 }
 
 /// The address a sign-in sends the person to, or why it may not be shown as a link.
@@ -66,14 +65,13 @@ pub(crate) fn checked_sign_in_address(address: String) -> anyhow::Result<String>
 
 #[cfg(test)]
 mod tests {
-    use chrono::Utc;
-    use rd_core::{AuthFlow, AuthFlowState};
+    use rd_core::{AuthFlow, AuthFlowState, Timestamp};
 
     use super::{
         CALLBACK_WINDOW_SECONDS, callback_usable, checked_callback_state, checked_sign_in_address,
     };
 
-    fn flow(started_at: chrono::DateTime<Utc>) -> AuthFlow {
+    fn flow(started_at: rd_core::Timestamp) -> AuthFlow {
         AuthFlow {
             account_id: rd_core::AccountId::new(),
             plugin_id: "019d0000-0000-7000-8000-0000000001ff".to_owned(),
@@ -127,14 +125,14 @@ mod tests {
     /// A callback is accepted for a flow still waiting for it, within the window, and only then.
     #[test]
     fn a_callback_is_usable_only_while_its_flow_waits_for_it() {
-        let now = Utc::now();
+        let now = Timestamp::now();
         assert!(callback_usable(&flow(now), now));
 
-        let stale = flow(now - chrono::Duration::seconds(CALLBACK_WINDOW_SECONDS + 1));
+        let stale = flow(now - rd_core::SignedDuration::from_secs(CALLBACK_WINDOW_SECONDS + 1));
         assert!(!callback_usable(&stale, now), "past the host's own window");
 
         let mut expired = flow(now);
-        expired.expires_at = Some(now - chrono::Duration::seconds(1));
+        expired.expires_at = Some(now - rd_core::SignedDuration::from_secs(1));
         assert!(
             !callback_usable(&expired, now),
             "past the provider's window"

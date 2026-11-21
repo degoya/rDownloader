@@ -15,13 +15,12 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use chrono::Utc;
 use rd_backup::manifest::{PartKind, SETTINGS_PART, TORRENT_FILES_PREFIX};
 use rd_backup::restore::cutover::{self, Layout, PendingRestore, Phase};
 use rd_backup::restore::plan::{self, PathFindings, RequestedMapping};
 use rd_backup::restore::{RestoreError, inspect, paths};
 use rd_backup::{BackupKey, manifest::DATABASE_PART};
-use rd_core::AuditAction;
+use rd_core::{AuditAction, Timestamp};
 use rd_db::restore_copy::{self, CopyUpdate};
 
 use crate::audit::{AuditContext, AuditEvent};
@@ -311,7 +310,7 @@ pub(crate) async fn stage(
     let layout = layout(state);
     let pending = PendingRestore {
         phase: Phase::Staged,
-        staged_at: Utc::now(),
+        staged_at: Timestamp::now(),
         archive_name: checked.archive_name.clone(),
         backup_created_at: checked.manifest.created_at,
         app_version: checked.manifest.app_version.clone(),

@@ -17,8 +17,10 @@
 //! hold, and it lifts the hold itself as soon as it has the switch.
 
 use axum::{Json, extract::State};
-use chrono::{DateTime, Duration, SubsecRound, Utc};
-use rd_core::{CaptureAgentSettings, GameModeAction, GameModeInForce, GameModeProblem};
+use rd_core::{
+    CaptureAgentSettings, GameModeAction, GameModeInForce, GameModeProblem, SignedDuration,
+    Timestamp,
+};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -35,7 +37,7 @@ pub struct CaptureGameModeHoldRequest {
     /// The end the previous answer gave, when this renews the agent's own hold; absent for a
     /// new one.
     #[serde(default)]
-    pub renews: Option<DateTime<Utc>>,
+    pub renews: Option<Timestamp>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -44,7 +46,7 @@ pub struct CaptureGameModeHoldResponse {
     /// agent's own was ended or changed meanwhile, or when game mode is off.
     pub held: bool,
     /// When the hold ends unless it is renewed; the agent sends it back to renew or lift it.
-    pub until: Option<DateTime<Utc>>,
+    pub until: Option<Timestamp>,
     /// What the hold is: the queue paused or the profile switched on.
     pub action: GameModeAction,
 }
@@ -52,7 +54,7 @@ pub struct CaptureGameModeHoldResponse {
 #[derive(Deserialize, ToSchema)]
 pub struct CaptureGameModeReleaseRequest {
     /// The end of the agent's own hold, as the last hold answer gave it.
-    pub until: DateTime<Utc>,
+    pub until: Timestamp,
 }
 
 /// The tray's switch (RD-1240-23).
@@ -108,8 +110,9 @@ pub async fn hold_capture_game_mode(
         return Ok(Json(refused));
     }
     // Whole seconds, so the end the agent sends back compares equal whatever carried it.
-    let end = (Utc::now() + Duration::minutes(i64::from(rd_core::GAME_MODE_HOLD_MINUTES)))
-        .trunc_subsecs(0);
+    let end = (Timestamp::now()
+        + SignedDuration::from_mins(i64::from(rd_core::GAME_MODE_HOLD_MINUTES)))
+    .trunc_subsecs(0);
     let until = match mode.action {
         GameModeAction::Pause => {
             if !queue_in_force(&state).await.may_hold(request.renews) {

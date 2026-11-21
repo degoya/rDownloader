@@ -2,7 +2,7 @@
 //! (RD-1240-23).
 
 use anyhow::Result;
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use super::{CaptureClient, ensure_success};
 use crate::game_mode::Held;
@@ -10,7 +10,7 @@ use crate::game_mode::Held;
 #[derive(serde::Deserialize)]
 struct HoldAnswer {
     held: bool,
-    until: Option<DateTime<Utc>>,
+    until: Option<Timestamp>,
 }
 
 #[derive(serde::Deserialize)]
@@ -23,7 +23,7 @@ impl CaptureClient {
     /// -- the queue or a profile -- the service reads from the agent's settings.
     ///
     /// Refused with `auth.scope_insufficient` unless the agent was paired with queue control.
-    pub(crate) async fn hold_game_mode(&self, renews: Option<DateTime<Utc>>) -> Result<Held> {
+    pub(crate) async fn hold_game_mode(&self, renews: Option<Timestamp>) -> Result<Held> {
         let endpoint = self.service.join("api/v1/capture/game-mode/hold")?;
         let body = serde_json::json!({ "renews": renews });
         let response = self.send(self.http.post(endpoint).json(&body)).await?;
@@ -36,7 +36,7 @@ impl CaptureClient {
     }
 
     /// Lifts the agent's own hold ending at `until`; `false` when nothing of its own held.
-    pub(crate) async fn release_game_mode(&self, until: DateTime<Utc>) -> Result<bool> {
+    pub(crate) async fn release_game_mode(&self, until: Timestamp) -> Result<bool> {
         let endpoint = self.service.join("api/v1/capture/game-mode/release")?;
         let body = serde_json::json!({ "until": until });
         let response = self.send(self.http.post(endpoint).json(&body)).await?;

@@ -59,7 +59,7 @@ pub struct TorrentPortTest {
     /// (`torrent.port_in_use`, RD-1250-04): the session did not start, or a rebuild onto it was
     /// refused and the engine runs on its previous port.
     pub port_in_use: Option<u16>,
-    pub tested_at: chrono::DateTime<chrono::Utc>,
+    pub tested_at: rd_core::Timestamp,
 }
 
 /// The verdict from what the test found.
@@ -126,7 +126,7 @@ impl TorrentService {
             peer_proxy_configured: settings.torrent_proxy_profile_id.is_some(),
             error: None,
             port_in_use: None,
-            tested_at: chrono::Utc::now(),
+            tested_at: rd_core::Timestamp::now(),
         };
         if let Err(error) = self.session().await {
             report.error = Some(format!("{error:#}"));

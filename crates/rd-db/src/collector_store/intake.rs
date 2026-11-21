@@ -1,10 +1,9 @@
 //! Intake of one LinkGrabber submission (`add_batch`), in named steps.
 
 use anyhow::Result;
-use chrono::Utc;
 use rd_core::{
     BatchId, CandidateId, CollectorBatch, CollectorPackageId, EventEnvelope, EventKind,
-    LinkCandidate, LinkCandidateState,
+    LinkCandidate, LinkCandidateState, Timestamp,
 };
 use sqlx::{Connection, Sqlite, SqliteConnection, Transaction};
 use url::Url;
@@ -56,7 +55,7 @@ pub(crate) async fn add_batch(
         id: BatchId::new(),
         source: intake.source,
         source_label: intake.source_label.take(),
-        created_at: Utc::now(),
+        created_at: Timestamp::now(),
     };
     let (rules, default_category) = crate::config_store::routing_config(connection).await?;
     // Prepared once for the whole batch: every link is routed against the same rules.
@@ -375,6 +374,8 @@ impl BatchWrite<'_> {
             secret_fragment: false,
             sources: Vec::new(),
             hidden_by_filter: self.links.filtered[index].hidden_by,
+            // A link arrives handed to nobody (RD-1440-07).
+            handed_over: None,
         })
     }
 

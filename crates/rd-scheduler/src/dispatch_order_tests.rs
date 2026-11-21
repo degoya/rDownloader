@@ -7,8 +7,9 @@
 
 use std::{collections::HashSet, path::Path};
 
-use chrono::{DateTime, Duration, Utc};
-use rd_core::{DownloadFile, DownloadKind, DownloadPriority, Failure, FailureKind};
+use rd_core::{
+    DownloadFile, DownloadKind, DownloadPriority, Failure, FailureKind, SignedDuration, Timestamp,
+};
 
 use crate::{
     FileSpec, PackageSpec, RuntimeSettings, SchedulerHandle,
@@ -85,14 +86,14 @@ async fn package(
 }
 
 /// A hoster's limit of an hour on `file`.
-async fn limited(database: &rd_db::Database, file: &DownloadFile, now: DateTime<Utc>) {
+async fn limited(database: &rd_db::Database, file: &DownloadFile, now: Timestamp) {
     waits(
         database,
         file,
         FailureKind::RateLimited {
             retry_after_seconds: Some(3600),
         },
-        now + Duration::hours(1),
+        now + SignedDuration::from_hours(1),
     )
     .await;
 }
@@ -109,7 +110,7 @@ async fn a_file_waiting_an_hour_for_its_limit_holds_the_next_package() {
     let (scheduler, database) = one_by_one(directory.path(), 1, true).await;
     let first = package(&scheduler, directory.path(), "first", normal(), 1).await;
     let next = package(&scheduler, directory.path(), "next", normal(), 1).await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     limited(&database, &first[0], now).await;
 
     pass(&scheduler, now).await;
@@ -133,7 +134,7 @@ async fn a_running_file_holds_nothing_and_the_next_package_takes_the_second_plac
     let first = package(&scheduler, directory.path(), "first", normal(), 1).await;
     let next = package(&scheduler, directory.path(), "next", normal(), 2).await;
 
-    pass(&scheduler, Utc::now()).await;
+    pass(&scheduler, Timestamp::now()).await;
     assert_eq!(
         running(&scheduler).await,
         HashSet::from([first[0].id, next[0].id])
@@ -149,7 +150,7 @@ async fn a_waiting_file_lets_its_own_package_start_and_holds_the_next() {
     let (scheduler, database) = one_by_one(directory.path(), 2, true).await;
     let first = package(&scheduler, directory.path(), "first", normal(), 2).await;
     package(&scheduler, directory.path(), "next", normal(), 1).await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     limited(&database, &first[0], now).await;
 
     pass(&scheduler, now).await;
@@ -165,9 +166,12 @@ async fn a_package_not_due_holds_nothing() {
     let (scheduler, database) = one_by_one(directory.path(), 1, true).await;
     let later = package(&scheduler, directory.path(), "later", normal(), 1).await;
     let next = package(&scheduler, directory.path(), "next", normal(), 1).await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     database
-        .set_package_start_after(later[0].package_id, Some(now + Duration::hours(2)))
+        .set_package_start_after(
+            later[0].package_id,
+            Some(now + SignedDuration::from_hours(2)),
+        )
         .await
         .expect("not before");
 
@@ -194,7 +198,7 @@ async fn a_paused_or_failed_package_holds_nothing() {
         .await
         .expect("failure");
 
-    pass(&scheduler, Utc::now()).await;
+    pass(&scheduler, Timestamp::now()).await;
     assert_eq!(running(&scheduler).await, HashSet::from([next[0].id]));
     scheduler.shutdown().await.expect("shutdown");
 }
@@ -215,7 +219,7 @@ async fn a_package_of_higher_priority_goes_first() {
         1,
     )
     .await;
-    let now = Utc::now();
+    let now = Timestamp::now();
     limited(&database, &earlier[0], now).await;
 
     pass(&scheduler, now).await;

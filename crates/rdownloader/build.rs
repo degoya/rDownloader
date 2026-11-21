@@ -29,8 +29,11 @@ fn stamp_build() {
     println!("cargo:rerun-if-env-changed=RD_BUILD_COMMIT");
     println!("cargo:rerun-if-env-changed=RD_BUILD_TIME");
     let commit = exported("RD_BUILD_COMMIT").unwrap_or_else(git_commit);
-    let built = exported("RD_BUILD_TIME")
-        .unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string());
+    let built = exported("RD_BUILD_TIME").unwrap_or_else(|| {
+        jiff::Timestamp::now()
+            .strftime("%Y-%m-%dT%H:%M:%SZ")
+            .to_string()
+    });
     println!("cargo:rustc-env=RD_BUILD_COMMIT={commit}");
     println!("cargo:rustc-env=RD_BUILD_TIME={built}");
 }

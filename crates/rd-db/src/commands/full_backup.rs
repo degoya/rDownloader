@@ -1,6 +1,6 @@
 //! The commands of `writer/full_backup.rs`.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 
 use super::Reply;
 
@@ -15,7 +15,7 @@ pub(crate) enum FullBackupCommand {
         reply: Reply<Option<String>>,
     },
     ArmBackup {
-        next_run_at: Option<DateTime<Utc>>,
+        next_run_at: Option<Timestamp>,
         reply: Reply<()>,
     },
     BeginBackupRun {
@@ -75,7 +75,7 @@ pub(crate) enum BackupLedgerCommand {
         reply: Reply<()>,
     },
     ArmBackupVerify {
-        next_run_at: Option<DateTime<Utc>>,
+        next_run_at: Option<Timestamp>,
         reply: Reply<()>,
     },
 }

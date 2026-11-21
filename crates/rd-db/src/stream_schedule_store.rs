@@ -7,10 +7,9 @@
 //! the schema rather than by remembering to check.
 
 use anyhow::{Context, Result, bail};
-use chrono::{DateTime, Utc};
 use rd_core::{
     DownloadId, EventEnvelope, EventKind, ScheduleKind, ScheduledRunState, StreamChannelId,
-    StreamSchedule, StreamScheduleId, StreamScheduledRun, StreamScheduledRunId,
+    StreamSchedule, StreamScheduleId, StreamScheduledRun, StreamScheduledRunId, Timestamp,
 };
 use sqlx::{Connection, FromRow, SqliteConnection, SqlitePool};
 
@@ -33,8 +32,8 @@ pub struct NewStreamSchedule {
 /// One occurrence to plan.
 #[derive(Clone, Copy, Debug)]
 pub struct PlannedOccurrence {
-    pub starts_at: DateTime<Utc>,
-    pub ends_at: DateTime<Utc>,
+    pub starts_at: Timestamp,
+    pub ends_at: Timestamp,
 }
 
 const COLUMNS: &str = "id, channel_id, name, enabled, kind, start_at, days, start_minute, \
@@ -117,7 +116,7 @@ pub(crate) async fn create(
     connection: &mut SqliteConnection,
     input: NewStreamSchedule,
 ) -> Result<(StreamSchedule, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let value = StreamSchedule {
         id: StreamScheduleId::new(),
         channel_id: input.channel_id,
@@ -189,7 +188,7 @@ pub(crate) async fn update(
     .bind(i64::from(input.lead_minutes))
     .bind(i64::from(input.trail_minutes))
     .bind(i64::from(input.replay_from_start))
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(id.to_string())
     .execute(&mut *tx)
     .await?;
@@ -246,7 +245,7 @@ pub(crate) async fn plan_runs(
     channel_id: StreamChannelId,
     occurrences: Vec<PlannedOccurrence>,
 ) -> Result<(u32, EventEnvelope)> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let event = changed_event();
     let mut created = 0_u32;
     let mut tx = connection.begin().await?;
@@ -314,7 +313,7 @@ pub(crate) async fn set_run_state(
 /// still a missed recording, and leaving it "planned" forever would hide that.
 pub(crate) async fn expire_runs(
     connection: &mut SqliteConnection,
-    cutoff: DateTime<Utc>,
+    cutoff: Timestamp,
 ) -> Result<(u32, EventEnvelope)> {
     let event = changed_event();
     let mut tx = connection.begin().await?;
@@ -356,12 +355,7 @@ pub(crate) async fn set_recording_state(
 
 fn split_kind(
     kind: &ScheduleKind,
-) -> (
-    &'static str,
-    Option<DateTime<Utc>>,
-    Option<String>,
-    Option<i64>,
-) {
+) -> (&'static str, Option<Timestamp>, Option<String>, Option<i64>) {
     match kind {
         ScheduleKind::Once { start } => ("once", Some(*start), None, None),
         ScheduleKind::Weekly { days, start_minute } => (
@@ -396,7 +390,7 @@ struct ScheduleRow {
     name: String,
     enabled: i64,
     kind: String,
-    start_at: Option<DateTime<Utc>>,
+    start_at: Option<Timestamp>,
     days: Option<String>,
     start_minute: Option<i64>,
     timezone: String,
@@ -404,8 +398,8 @@ struct ScheduleRow {
     lead_minutes: i64,
     trail_minutes: i64,
     replay_from_start: i64,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
+    created_at: Timestamp,
+    updated_at: Timestamp,
 }
 
 impl TryFrom<ScheduleRow> for StreamSchedule {
@@ -452,13 +446,13 @@ struct RunRow {
     id: String,
     schedule_id: String,
     channel_id: String,
-    starts_at: DateTime<Utc>,
-    ends_at: DateTime<Utc>,
+    starts_at: Timestamp,
+    ends_at: Timestamp,
     state: String,
     download_id: Option<String>,
     replay_used: i64,
     error: Option<String>,
-    created_at: DateTime<Utc>,
+    created_at: Timestamp,
 }
 
 impl TryFrom<RunRow> for StreamScheduledRun {

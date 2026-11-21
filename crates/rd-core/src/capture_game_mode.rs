@@ -7,7 +7,7 @@
 //! ([`HOLD_MINUTES`]) the agent renews while the trigger lasts, so an agent that crashes, loses
 //! its network or is put to sleep leaves nothing behind for longer than that.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -178,7 +178,7 @@ pub fn process_key(name: &str) -> String {
 pub enum InForce {
     Nothing,
     /// One that ends at this time; the agent's own when the time is the one it was given.
-    Until(DateTime<Utc>),
+    Until(Timestamp),
     /// One without an end, which is never the agent's.
     Open,
 }
@@ -188,7 +188,7 @@ impl InForce {
     /// was given last). A hold somebody ended or replaced while the agent held it is theirs from
     /// then on, so a renewal over nothing is refused too.
     #[must_use]
-    pub fn may_hold(self, renews: Option<DateTime<Utc>>) -> bool {
+    pub fn may_hold(self, renews: Option<Timestamp>) -> bool {
         match (self, renews) {
             (Self::Nothing, None) => true,
             (Self::Until(until), Some(renews)) => until == renews,
@@ -198,7 +198,7 @@ impl InForce {
 
     /// Whether this is the agent's hold ending at `until`, so that it may lift it.
     #[must_use]
-    pub fn is_own(self, until: DateTime<Utc>) -> bool {
+    pub fn is_own(self, until: Timestamp) -> bool {
         self == Self::Until(until)
     }
 }

@@ -13,7 +13,9 @@
 //!   idempotency key is built from it, so a slot seen again — after a restart inside the
 //!   window, or in the hour a change from summer time repeats — never runs twice.
 
-use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
+use jiff::civil::{DateTime, Time};
+use jiff::tz::{AmbiguousOffset, TimeZone};
+use rd_core::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -39,15 +41,15 @@ pub enum Schedule {
 /// One due slot: the instant, and the wall-clock time that names it.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Slot {
-    pub at: DateTime<Utc>,
-    pub local: NaiveDateTime,
+    pub at: Timestamp,
+    pub local: DateTime,
 }
 
 impl Slot {
     /// The slot's name in the run history and its idempotency key.
     #[must_use]
     pub fn label(&self) -> String {
-        self.local.format("%Y-%m-%dT%H:%M").to_string()
+        self.local.strftime("%Y-%m-%dT%H:%M").to_string()
     }
 }
 
@@ -62,11 +64,7 @@ impl Schedule {
     ///
     /// An interval outside 1 to [`MAX_INTERVAL_MINUTES`], a cron expression that does not
     /// parse, or one that names no future time (`0 0 30 2 *`).
-    pub fn validate<Tz: TimeZone>(
-        &self,
-        now: DateTime<Utc>,
-        zone: &Tz,
-    ) -> Result<(), ScheduleError> {
+    pub fn validate(&self, now: Timestamp, zone: &TimeZone) -> Result<(), ScheduleError> {
         match self {
             Self::Interval { minutes } => {
                 if (1..=MAX_INTERVAL_MINUTES).contains(minutes) {
@@ -79,7 +77,7 @@ impl Schedule {
             }
             Self::Cron { expression } => {
                 let cron = parse_cron(expression)?;
-                cron.find_next_occurrence(&now.with_timezone(zone), false)
+                cron.find_next_occurrence(&now.to_zoned(zone.clone()), false)
                     .map(|_| ())
                     .map_err(|error| {
                         ScheduleError(format!("schedule names no future time: {error}"))
@@ -90,13 +88,13 @@ impl Schedule {
 
     /// The newest slot in the window `(now - GRACE_SECONDS, now]`, if there is one.
     #[must_use]
-    pub fn due_slot<Tz: TimeZone>(&self, now: DateTime<Utc>, zone: &Tz) -> Option<Slot> {
-        let window_start = now - Duration::seconds(GRACE_SECONDS);
+    pub fn due_slot(&self, now: Timestamp, zone: &TimeZone) -> Option<Slot> {
+        let window_start = now - SignedDuration::from_secs(GRACE_SECONDS);
         let slot = match self {
             Self::Interval { minutes } => interval_slot_at_or_before(*minutes, now, zone)?,
             Self::Cron { expression } => {
                 let cron = parse_cron(expression).ok()?;
-                let mut cursor = window_start.with_timezone(zone);
+                let mut cursor = window_start.to_zoned(zone.clone());
                 let mut newest = None;
                 // A five-field expression names at most one time per minute, so the window
                 // holds at most three; the bound only guards against a parser surprise.
@@ -104,7 +102,7 @@ impl Schedule {
                     let Ok(next) = cron.find_next_occurrence(&cursor, false) else {
                         break;
                     };
-                    if next.with_timezone(&Utc) > now {
+                    if Timestamp::from(&next) > now {
                         break;
                     }
                     newest = Some(next.clone());
@@ -112,8 +110,8 @@ impl Schedule {
                 }
                 let next = newest?;
                 Slot {
-                    at: next.with_timezone(&Utc),
-                    local: next.naive_local(),
+                    at: Timestamp::from(&next),
+                    local: next.datetime(),
                 }
             }
         };
@@ -122,59 +120,66 @@ impl Schedule {
 
     /// The first slot after `after`, for the editor's dry run.
     #[must_use]
-    pub fn next_after<Tz: TimeZone>(
-        &self,
-        after: DateTime<Utc>,
-        zone: &Tz,
-    ) -> Option<DateTime<Utc>> {
+    pub fn next_after(&self, after: Timestamp, zone: &TimeZone) -> Option<Timestamp> {
         match self {
             Self::Interval { minutes } => {
-                let step = Duration::minutes(i64::from((*minutes).max(1)));
-                let mut local = after.with_timezone(zone).naive_local();
+                let step = SignedDuration::from_mins(i64::from((*minutes).max(1)));
+                let mut local = zone.to_datetime(after.as_jiff());
                 local = floor_minutes(local, *minutes)?;
                 // A slot inside a summer-time gap has no instant; the next one does.
                 for _ in 0..4 {
-                    local += step;
-                    if let Some(at) = zone.from_local_datetime(&local).earliest() {
-                        let at = at.with_timezone(&Utc);
-                        if at > after {
-                            return Some(at);
-                        }
+                    local = local.checked_add(step).ok()?;
+                    if let Some(at) = earliest(zone, local)
+                        && at > after
+                    {
+                        return Some(at);
                     }
                 }
                 None
             }
             Self::Cron { expression } => parse_cron(expression)
                 .ok()?
-                .find_next_occurrence(&after.with_timezone(zone), false)
+                .find_next_occurrence(&after.to_zoned(zone.clone()), false)
                 .ok()
-                .map(|next| next.with_timezone(&Utc)),
+                .map(Timestamp::from),
         }
     }
 }
 
 /// The interval slot at or before `now`: wall-clock minutes floored to the interval.
-fn interval_slot_at_or_before<Tz: TimeZone>(
-    minutes: u32,
-    now: DateTime<Utc>,
-    zone: &Tz,
-) -> Option<Slot> {
-    let local = floor_minutes(now.with_timezone(zone).naive_local(), minutes)?;
+fn interval_slot_at_or_before(minutes: u32, now: Timestamp, zone: &TimeZone) -> Option<Slot> {
+    let local = floor_minutes(zone.to_datetime(now.as_jiff()), minutes)?;
     // A slot in the hour summer time skips does not exist and is not run; in the hour that
     // repeats, the first instant names it and the label keeps the second from running again.
-    let at = zone
-        .from_local_datetime(&local)
-        .earliest()?
-        .with_timezone(&Utc);
+    let at = earliest(zone, local)?;
     Some(Slot { at, local })
 }
 
+/// The first instant a wall-clock time names in `zone`: the earlier pass of a repeated hour,
+/// none for a time a summer-time gap skips.
+fn earliest(zone: &TimeZone, local: DateTime) -> Option<Timestamp> {
+    let resolved = zone.to_ambiguous_timestamp(local);
+    match resolved.offset() {
+        AmbiguousOffset::Gap { .. } => None,
+        AmbiguousOffset::Unambiguous { .. } | AmbiguousOffset::Fold { .. } => {
+            resolved.earlier().ok().map(Timestamp::from_jiff)
+        }
+    }
+}
+
 /// Floors a wall-clock time to a multiple of `minutes` counted from midnight.
-fn floor_minutes(local: NaiveDateTime, minutes: u32) -> Option<NaiveDateTime> {
+fn floor_minutes(local: DateTime, minutes: u32) -> Option<DateTime> {
     let minutes = i64::from(minutes.clamp(1, MAX_INTERVAL_MINUTES));
-    let midnight = local.date().and_hms_opt(0, 0, 0)?;
-    let since_midnight = (local - midnight).num_minutes();
-    Some(midnight + Duration::minutes(since_midnight - since_midnight.rem_euclid(minutes)))
+    let since_midnight = i64::from(local.hour()) * 60 + i64::from(local.minute());
+    let floored = since_midnight - since_midnight.rem_euclid(minutes);
+    let time = Time::new(
+        i8::try_from(floored / 60).ok()?,
+        i8::try_from(floored % 60).ok()?,
+        0,
+        0,
+    )
+    .ok()?;
+    Some(local.date().to_datetime(time))
 }
 
 /// Reads a cron expression the way the subscription schedule does (RD-130-19): five fields

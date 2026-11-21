@@ -147,7 +147,10 @@ impl PluginHost for NativeHost {
     }
 
     async fn now_unix_seconds(&self) -> u64 {
-        u64::try_from(chrono::Utc::now().timestamp()).unwrap_or_default()
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|since| since.as_secs())
+            .unwrap_or_default()
     }
 
     async fn random_bytes(&self, count: u32) -> Vec<u8> {

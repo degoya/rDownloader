@@ -39,7 +39,7 @@ const MAX_UPLOAD_TIME: Duration = Duration::from_secs(30 * 60);
 /// Longest token lifetime the host records from an `expires-in` (RA-HOST-02).
 ///
 /// The value is the plugin's — or the provider's through it — and `now + u64::MAX` seconds is
-/// a panic in `chrono`, not a date. A year is longer than any provider's access token lives,
+/// a panic in the time arithmetic, not a date. A year is longer than any provider's access token lives,
 /// and a renewal a year early costs one request.
 const MAX_TOKEN_LIFETIME_SECONDS: u64 = 365 * 24 * 60 * 60;
 
@@ -146,9 +146,9 @@ fn upload_allowance(body_bytes: usize) -> Duration {
 
 /// When a token that lives `seconds` from `now` expires, its lifetime held to
 /// [`MAX_TOKEN_LIFETIME_SECONDS`] so the sum cannot overflow (RA-HOST-02).
-fn token_expiry(now: chrono::DateTime<chrono::Utc>, seconds: u64) -> chrono::DateTime<chrono::Utc> {
+fn token_expiry(now: rd_core::Timestamp, seconds: u64) -> rd_core::Timestamp {
     let seconds = i64::try_from(seconds.min(MAX_TOKEN_LIFETIME_SECONDS)).unwrap_or(i64::MAX);
-    now.checked_add_signed(chrono::Duration::seconds(seconds))
+    now.checked_add(rd_core::SignedDuration::from_secs(seconds))
         .unwrap_or(now)
 }
 

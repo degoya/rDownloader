@@ -1,10 +1,9 @@
 //! Media-specific LinkGrabber operations: playlist fan-out and variant selection.
 
 use anyhow::{Context, Result, bail};
-use chrono::Utc;
 use rd_core::{
     CandidateId, CollectorPackageId, EventEnvelope, EventKind, LinkCandidate, MediaCandidate,
-    MediaCandidateState, MediaInfo, MediaSelectionUpdate,
+    MediaCandidateState, MediaInfo, MediaSelectionUpdate, Timestamp,
 };
 use sqlx::{Connection, SqliteConnection};
 
@@ -65,10 +64,10 @@ pub(crate) async fn add_media_candidates(
         .bind(&category_id)
         .bind(package_id.to_string())
         .bind(position)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .bind(serde_json::to_string(&info)?)
         .bind(serde_json::to_string(&state)?)
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .execute(&mut *tx)
         .await?;
         ids.push(id);

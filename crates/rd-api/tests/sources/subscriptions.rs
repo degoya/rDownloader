@@ -501,13 +501,13 @@ async fn item_pages_bulk_review_and_history_cleanup_cover_the_whole_archive() {
             .database
             .finish_subscription_run(
                 id,
-                chrono::Utc::now(),
+                rd_core::Timestamp::now(),
                 rd_db::PollResult {
                     found: 1,
                     accepted: 1,
                     skipped: 0,
                     error: None,
-                    next_run_at: chrono::Utc::now() + chrono::Duration::hours(1),
+                    next_run_at: rd_core::Timestamp::now() + rd_core::SignedDuration::from_hours(1),
                     consecutive_failures: 0,
                     etag: None,
                     last_modified: None,
@@ -767,7 +767,7 @@ async fn an_auto_queued_hit_keeps_its_enrichment_on_the_package_and_the_download
                 name: "imdb.score".to_owned(),
                 value: "9.3".to_owned(),
                 plugin_id: "imdb-enricher".to_owned(),
-                fetched_at: chrono::Utc::now(),
+                fetched_at: rd_core::Timestamp::now(),
             }],
         )
         .await
@@ -845,7 +845,7 @@ async fn an_enrichment_that_arrives_after_the_promotion_still_reaches_package_an
                 name: "imdb.score".to_owned(),
                 value: "9.3".to_owned(),
                 plugin_id: "imdb-enricher".to_owned(),
-                fetched_at: chrono::Utc::now(),
+                fetched_at: rd_core::Timestamp::now(),
             }],
         )
         .await

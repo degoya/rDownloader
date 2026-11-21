@@ -44,7 +44,7 @@ pub(crate) async fn probe(connection: &mut Connection, target: &RemoteTarget) ->
             .modified_at(&path)
             .await
             .ok()
-            .map(|naive| naive.and_utc());
+            .and_then(crate::client::naive_utc);
         return Ok(Probed::Resolved(Box::new(RemoteListing {
             root: parent(&path),
             single_file: true,

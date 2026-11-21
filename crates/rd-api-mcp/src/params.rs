@@ -3,7 +3,7 @@
 //! Lists are always projected and paginated so tool results stay readable for
 //! an LLM client; raw domain rows are never dumped wholesale.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rmcp::schemars;
 use serde::{Deserialize, Serialize};
 
@@ -289,7 +289,7 @@ pub(crate) struct DownloadItem {
     pub committed_bytes: u64,
     pub retry_count: u32,
     pub error: Option<String>,
-    pub updated_at: DateTime<Utc>,
+    pub updated_at: Timestamp,
     /// A queued file held back because this host has no free connection (RD-1130-02).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub waiting_for_host: Option<String>,

@@ -299,7 +299,7 @@ pub async fn report_capture_shortcuts(
     // As long as the command list at most, whatever arrived.
     report.refused.sort_unstable();
     report.refused.dedup();
-    report.reported_at = Some(chrono::Utc::now());
+    report.reported_at = Some(rd_core::Timestamp::now());
     state
         .database
         .set_setting(

@@ -9,7 +9,7 @@
 //! check that finds the same notice queues nothing.
 
 use anyhow::Result;
-use chrono::{Duration, Utc};
+use rd_core::{SignedDuration, Timestamp};
 use sqlx::{Connection, SqliteConnection};
 
 use crate::notify_store::{NewDelivery, queue_delivery};
@@ -24,10 +24,10 @@ pub(crate) async fn queue_notice(
     connection: &mut SqliteConnection,
     deliveries: Vec<NewDelivery>,
 ) -> Result<u64> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut tx = connection.begin().await?;
     sqlx::query("DELETE FROM notification_notices WHERE created_at < ?")
-        .bind(now - Duration::days(KEEP_DAYS))
+        .bind(now - SignedDuration::from_hours(24 * KEEP_DAYS))
         .execute(&mut *tx)
         .await?;
     let mut queued = 0;

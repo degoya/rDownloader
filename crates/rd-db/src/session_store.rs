@@ -9,8 +9,7 @@
 //! [`TOUCH_INTERVAL_SECONDS`].
 
 use anyhow::{Context, Result};
-use chrono::{DateTime, Duration, Utc};
-use rd_core::{Session, SessionId, SessionLimits};
+use rd_core::{Session, SessionId, SessionLimits, SignedDuration, Timestamp};
 use sqlx::{FromRow, SqliteConnection, SqlitePool};
 
 use crate::parse_id;
@@ -31,12 +30,12 @@ pub(crate) async fn create_session(
     client_ip: Option<String>,
     lifetime_hours: i64,
 ) -> Result<Session> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let session = Session {
         id,
         created_at: now,
         last_used_at: now,
-        expires_at: now + Duration::hours(lifetime_hours),
+        expires_at: now + SignedDuration::from_hours(lifetime_hours),
         user_agent,
         client_ip,
         current: true,
@@ -66,8 +65,8 @@ pub(crate) async fn create_session(
 const LIVE: &str = "revoked_at IS NULL AND expires_at > ? AND created_at > ? AND last_used_at > ?";
 
 /// The parameters of [`LIVE`]: now, the oldest sign-in and the oldest use still allowed.
-fn live_bounds(limits: SessionLimits) -> [DateTime<Utc>; 3] {
-    let now = Utc::now();
+fn live_bounds(limits: SessionLimits) -> [Timestamp; 3] {
+    let now = Timestamp::now();
     [now, now - limits.max(), now - limits.idle()]
 }
 
@@ -105,7 +104,7 @@ pub(crate) async fn touch_session(
     let result = sqlx::query(
         "UPDATE sessions SET last_used_at = ? WHERE token_sha256 = ? AND revoked_at IS NULL",
     )
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(token_sha256)
     .execute(connection)
     .await
@@ -150,7 +149,7 @@ pub(crate) async fn revoke_session(
 ) -> Result<bool> {
     let result =
         sqlx::query("UPDATE sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL")
-            .bind(Utc::now())
+            .bind(Timestamp::now())
             .bind(id.to_string())
             .execute(connection)
             .await
@@ -170,7 +169,7 @@ pub(crate) async fn revoke_other_sessions(
     let result = sqlx::query(
         "UPDATE sessions SET revoked_at = ? WHERE revoked_at IS NULL AND token_sha256 <> ?",
     )
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(keep_digest)
     .execute(connection)
     .await
@@ -185,7 +184,7 @@ pub(crate) async fn revoke_other_sessions(
 /// should not have to work out that `<> ''` matches everything to see it.
 pub(crate) async fn revoke_all(connection: &mut SqliteConnection) -> Result<u64> {
     let result = sqlx::query("UPDATE sessions SET revoked_at = ? WHERE revoked_at IS NULL")
-        .bind(Utc::now())
+        .bind(Timestamp::now())
         .execute(connection)
         .await
         .context("revoke all sessions")?;
@@ -200,7 +199,7 @@ pub(crate) async fn purge_expired(
     connection: &mut SqliteConnection,
     limits: SessionLimits,
 ) -> Result<u64> {
-    let cutoff = Utc::now() - Duration::days(30);
+    let cutoff = Timestamp::now() - SignedDuration::from_hours(24 * 30);
     let result = sqlx::query(
         "DELETE FROM sessions WHERE expires_at < ? OR created_at < ? OR last_used_at < ?",
     )
@@ -222,9 +221,9 @@ pub(crate) async fn touch_capture_token(
         "UPDATE capture_tokens SET last_used_at = ? WHERE token_sha256 = ? \
          AND revoked_at IS NULL AND (last_used_at IS NULL OR last_used_at < ?)",
     )
-    .bind(Utc::now())
+    .bind(Timestamp::now())
     .bind(token_sha256)
-    .bind(Utc::now() - Duration::seconds(TOUCH_INTERVAL_SECONDS))
+    .bind(Timestamp::now() - SignedDuration::from_secs(TOUCH_INTERVAL_SECONDS))
     .execute(connection)
     .await
     .context("touch capture token")?;
@@ -234,9 +233,9 @@ pub(crate) async fn touch_capture_token(
 #[derive(FromRow)]
 struct SessionRow {
     id: String,
-    created_at: DateTime<Utc>,
-    last_used_at: DateTime<Utc>,
-    expires_at: DateTime<Utc>,
+    created_at: Timestamp,
+    last_used_at: Timestamp,
+    expires_at: Timestamp,
     user_agent: Option<String>,
     client_ip: Option<String>,
 }

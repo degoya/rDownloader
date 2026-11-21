@@ -9,7 +9,7 @@
 //! file adds is the part of it that can be decided without a network: given a row, what is the
 //! next thing that may happen to it, and when.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -259,9 +259,9 @@ pub struct RemoteJob {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub next_poll_at: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub next_poll_at: Option<Timestamp>,
+    pub created_at: Timestamp,
+    pub updated_at: Timestamp,
     /// The plugin's own bookkeeping for the next call.
     ///
     /// Never serialised, for the same reason `AuthFlow::flow_state` is not: it is the plugin's
@@ -323,10 +323,10 @@ mod tests {
         MAX_POLL_SECONDS, MAX_SUBMIT_ATTEMPTS, MIN_POLL_SECONDS, RemoteJob, RemoteJobFile,
         RemoteJobSourceKind, RemoteJobState, SubmitStep,
     };
-    use crate::{AccountId, RemoteJobId};
+    use crate::{AccountId, RemoteJobId, Timestamp};
 
     fn job() -> RemoteJob {
-        let now = chrono::Utc::now();
+        let now = Timestamp::now();
         RemoteJob {
             id: RemoteJobId::new(),
             account_id: AccountId::new(),

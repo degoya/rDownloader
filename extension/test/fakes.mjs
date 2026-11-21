@@ -152,7 +152,8 @@ export function setupInterceptor({
   observing = false,
   hostAccess = false,
   time = clock(),
-  session = {}
+  session = {},
+  files = null
 } = {}) {
   const bodies = []
   const pings = { count: 0 }
@@ -177,7 +178,8 @@ export function setupInterceptor({
     userAgent: 'Mozilla/5.0 (X11) Chrome/130',
     ownExtensionId: 'self',
     now: time.now,
-    observing
+    observing,
+    files
   })
   return { interceptor, bodies, api, time, pings, session }
 }

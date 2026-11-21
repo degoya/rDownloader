@@ -11,7 +11,7 @@
 //! * **Nothing claims to have captured what the provider did not offer.** A sidecar that was
 //!   asked for and is unavailable is recorded as unavailable, not silently skipped.
 
-use chrono::{DateTime, Utc};
+use crate::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -169,8 +169,8 @@ pub struct RecordingSegment {
     pub index: u32,
     pub file_name: String,
     pub bytes: u64,
-    pub started_at: DateTime<Utc>,
-    pub ended_at: Option<DateTime<Utc>>,
+    pub started_at: Timestamp,
+    pub ended_at: Option<Timestamp>,
     pub reason: SegmentEnd,
 }
 
@@ -223,7 +223,7 @@ impl RecordingState {
             .iter()
             .filter_map(|segment| {
                 let end = segment.ended_at?;
-                u64::try_from((end - segment.started_at).num_seconds()).ok()
+                u64::try_from((end - segment.started_at).as_secs()).ok()
             })
             .sum()
     }
@@ -246,7 +246,7 @@ mod tests {
         RecordingPolicy, RecordingSegment, RecordingState, RemuxTarget, SegmentEnd, SplitPolicy,
         segment_name,
     };
-    use chrono::{Duration, Utc};
+    use crate::{SignedDuration, Timestamp};
 
     #[test]
     fn segment_names_sort_in_recording_order() {
@@ -291,13 +291,13 @@ mod tests {
     }
 
     fn segment(index: u32, seconds: i64, bytes: u64, reason: SegmentEnd) -> RecordingSegment {
-        let started = Utc::now();
+        let started = Timestamp::now();
         RecordingSegment {
             index,
             file_name: segment_name("show", index, "ts"),
             bytes,
             started_at: started,
-            ended_at: Some(started + Duration::seconds(seconds)),
+            ended_at: Some(started + SignedDuration::from_secs(seconds)),
             reason,
         }
     }
@@ -342,7 +342,7 @@ mod tests {
     fn a_still_open_segment_contributes_bytes_but_no_duration() {
         // It has no end yet, so its length is unknown; counting it as zero is honest, and
         // counting "now" would make the number move every time it is read.
-        let started = Utc::now();
+        let started = Timestamp::now();
         let state = RecordingState {
             segments: vec![RecordingSegment {
                 index: 1,

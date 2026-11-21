@@ -36,7 +36,7 @@ async fn an_archive_that_never_reached_its_destination_leaves_nothing_there_and_
     let run = |id: &str| NewBackupRun {
         id: id.to_owned(),
         origin: BackupOrigin::Scheduled,
-        started_at: chrono::Utc::now(),
+        started_at: rd_core::Timestamp::now(),
         destination_id: None,
         destination: Some(nas.display().to_string()),
     };
@@ -56,7 +56,7 @@ async fn an_archive_that_never_reached_its_destination_leaves_nothing_there_and_
             &destination,
             &staging,
             "crashed",
-            chrono::Utc::now(),
+            rd_core::Timestamp::now(),
         )
         .await;
         assert!(crashed.is_err());
@@ -91,7 +91,7 @@ async fn an_archive_that_never_reached_its_destination_leaves_nothing_there_and_
         &destination,
         &staging,
         "next",
-        chrono::Utc::now(),
+        rd_core::Timestamp::now(),
     )
     .await
     .expect("next run");
@@ -119,7 +119,7 @@ async fn a_database_copy_staged_before_the_archive_was_sealed_is_swept_by_the_ne
             .begin_backup_run(NewBackupRun {
                 id: "crashed".to_owned(),
                 origin: BackupOrigin::Scheduled,
-                started_at: chrono::Utc::now(),
+                started_at: rd_core::Timestamp::now(),
                 destination_id: None,
                 destination: Some(nas.display().to_string()),
             })
@@ -135,7 +135,7 @@ async fn a_database_copy_staged_before_the_archive_was_sealed_is_swept_by_the_ne
             &destination,
             &staging,
             "crashed",
-            chrono::Utc::now(),
+            rd_core::Timestamp::now(),
         )
         .await;
         assert!(crashed.is_err());

@@ -56,7 +56,7 @@ fn base32_decode(value: &str) -> Vec<u8> {
 }
 
 pub(crate) fn current_code(secret_base32: &str) -> String {
-    let now = chrono::Utc::now().timestamp().max(0) as u64;
+    let now = rd_core::Timestamp::now().unix_seconds().max(0) as u64;
     rd_authn::totp::code_at(&base32_decode(secret_base32), now)
 }
 

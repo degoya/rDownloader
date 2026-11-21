@@ -162,6 +162,8 @@
 ^crates/rd-api(-[a-z]+)?/src/(torrent_[a-z_]+|routes/torrent)(\.rs$|/)                        torrent compat_qbittorrent compat_arr compat_arr_live container_json service_switches capture_file torrent_resolve
 ^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)(\.rs$|/)                         nzb_paused nzb_remote_job container_json indexers compat_sabnzbd unique_names unreadable_secrets usenet_connections
 ^crates/rd-api(-[a-z]+)?/src/nzb_remote_job_handlers(\.rs$|/)                                nzb_remote_job
+^crates/rd-api(-[a-z]+)?/src/collector_handlers/remote_job(\.rs$|/)                          collector_remote_job mcp
+^crates/rd-db/src/collector_hand_over(\.rs$|/)                                               + collector_remote_job
 
 # The modules no row named until RD-1120-08 (35 sources fell back to every suite), from the routes
 # they serve and the services that call them. `app_state`, `input_checks` and `list_bounds` stay
@@ -175,7 +177,7 @@
 ^crates/rd-api(-[a-z]+)?/src/link_check_[a-z_]+(\.rs$|/)                                      capture_intake capture_boundary containers container_json dlc mirrors media_manifest source_sets subscriptions torrent hotfolder_poll nzb_remote_job address_rule check_auth_profile
 ^crates/rd-api(-[a-z]+)?/src/notify_notice(\.rs$|/)                                           notifications updates plugin_repositories full_backup update_auto_install notification_templates
 ^crates/rd-api(-[a-z]+)?/src/postprocess_handlers(\.rs$|/)                                    api_tokens
-^crates/rd-api(-[a-z]+)?/src/(remote_job_service|remote_job_handlers)(\.rs$|/)                 nzb_remote_job container_json mcp remote_jobs_clear
+^crates/rd-api(-[a-z]+)?/src/(remote_job_service|remote_job_handlers)(\.rs$|/)                 nzb_remote_job container_json mcp remote_jobs_clear collector_remote_job
 ^crates/rd-api(-[a-z]+)?/src/regex_tester(\.rs$|/)                                            scope_matrix mcp
 ^crates/rd-api(-[a-z]+)?/src/remote_listing_handlers(\.rs$|/)                                 capture_intake
 ^crates/rd-api/src/security_headers(\.rs$|/)                                                  cross_site

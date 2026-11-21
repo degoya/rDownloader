@@ -16,7 +16,7 @@
 //! from beta back to stable must not refuse the stable manifest for a sequence the beta one set.
 //! The caller persists [`CheckReport::floors`] before it acts on what verified.
 
-use chrono::{DateTime, Utc};
+use rd_core::Timestamp;
 use rd_sign::TrustStore;
 use serde::{Deserialize, Serialize};
 
@@ -121,7 +121,7 @@ pub async fn check(
     trust: &TrustStore,
     channel: Channel,
     floors: Floors,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> CheckReport {
     let mut report = CheckReport {
         manifests: Vec::new(),
@@ -167,7 +167,7 @@ fn record(
     fetched: Result<Vec<u8>, UpdateError>,
     (trust, sources): (&TrustStore, &Sources),
     channel: Channel,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) {
     let verified = fetched
         .and_then(|bytes| {

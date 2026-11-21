@@ -73,7 +73,7 @@ pub async fn begin_browser_session(
             provider: account.provider,
             scope,
         },
-        chrono::Utc::now(),
+        rd_core::Timestamp::now(),
     );
     Ok((StatusCode::CREATED, Json(response)))
 }
@@ -87,7 +87,7 @@ pub async fn get_browser_session(
     state
         .access
         .browser_sessions
-        .status(id, chrono::Utc::now())
+        .status(id, rd_core::Timestamp::now())
         .map(Json)
         .ok_or_else(no_request)
 }
@@ -112,7 +112,12 @@ pub async fn cancel_browser_session(
 pub async fn list_capture_browser_sessions(
     State(state): State<AppState>,
 ) -> Json<Vec<CaptureBrowserSession>> {
-    Json(state.access.browser_sessions.waiting(chrono::Utc::now()))
+    Json(
+        state
+            .access
+            .browser_sessions
+            .waiting(rd_core::Timestamp::now()),
+    )
 }
 
 /// The extension's answer: the scope's cookies, stored on the account exactly as cookies
@@ -132,7 +137,7 @@ pub async fn deliver_capture_browser_session(
     let handover = state
         .access
         .browser_sessions
-        .claim(id, chrono::Utc::now())
+        .claim(id, rd_core::Timestamp::now())
         .map_err(refused)?;
     let stored = store(&state, &handover, request.cookies).await;
     state.access.browser_sessions.finish(id, stored.is_ok());
@@ -159,7 +164,7 @@ pub async fn decline_capture_browser_session(
     state
         .access
         .browser_sessions
-        .decline(id, chrono::Utc::now())
+        .decline(id, rd_core::Timestamp::now())
         .map_err(refused)?;
     Ok(Json(MessageResponse::new(
         "browser_session.declined",

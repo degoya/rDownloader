@@ -42,7 +42,7 @@ impl Database {
     /// Runs waiting to start, and retries that have come due.
     pub async fn due_automation_runs(
         &self,
-        now: chrono::DateTime<chrono::Utc>,
+        now: rd_core::Timestamp,
     ) -> Result<Vec<rd_automation::Run>> {
         automation_store::due_runs(&self.readers, now).await
     }
@@ -109,7 +109,7 @@ impl Database {
         state: rd_automation::RunState,
         action_index: u32,
         attempt: u32,
-        next_attempt_at: Option<chrono::DateTime<chrono::Utc>>,
+        next_attempt_at: Option<rd_core::Timestamp>,
         message: Option<String>,
     ) -> Result<()> {
         writer::request(&self.writer, |reply| {

@@ -4,7 +4,6 @@
 //! destination a stored row names. The delivery itself, the ledger and retention are
 //! `rd_backup::ledger`, where their crash points are (RD-170-07).
 
-use chrono::Utc;
 pub use rd_backup::ledger::{Delivered, Target, label};
 use rd_backup::{
     BackupDestination, DestinationConfig, DestinationContext, DestinationError, RetryPolicy,
@@ -60,7 +59,7 @@ pub async fn deliver(
     run_id: &str,
     instance_id: &str,
     sealed: &SealedBackup,
-    created_at: chrono::DateTime<Utc>,
+    created_at: rd_core::Timestamp,
     targets: Vec<Target>,
     policy: RetryPolicy,
 ) -> Vec<Delivered> {

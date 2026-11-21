@@ -37,6 +37,8 @@ test('an unconfigured extension reads the defaults it was built with', async () 
     server: 'http://127.0.0.1:8710',
     token: '',
     interceptDownloads: true,
+    interceptMode: 'all',
+    interceptTypes: [],
     clickAndLoad: true
   })
 })
@@ -47,6 +49,8 @@ test('saving and reading a configuration round-trips, and interception defaults 
     server: 'http://nas.local:8710',
     token: 'abc',
     interceptDownloads: true,
+    interceptMode: 'all',
+    interceptTypes: [],
     clickAndLoad: true
   })
   // Only an explicit false switches it off — an absent value is not a refusal.
@@ -59,6 +63,18 @@ test('saving and reading a configuration round-trips, and interception defaults 
   assert.equal((await loadConfig()).clickAndLoad, false)
   await saveConfig({ server: 'http://nas.local:8710', token: 'abc' })
   assert.equal((await loadConfig()).clickAndLoad, true)
+})
+
+test('the list of file types is stored normalised, and a broken mode reads as "all" (RD-1440-08)', async () => {
+  await saveConfig({ server: 'http://nas.local:8710', token: 'abc', interceptMode: 'only', interceptTypes: ['*.DLC', 'dlc', '', 'a/b'] })
+  const config = await loadConfig()
+  assert.equal(config.interceptMode, 'only')
+  assert.deepEqual(config.interceptTypes, ['.dlc'])
+  assert.deepEqual(stored.interceptTypes, ['.dlc'], 'what reaches storage is the normalised list')
+  stored.interceptMode = 'sometimes'
+  stored.interceptTypes = 'not a list'
+  assert.deepEqual(await loadConfig().then(({ interceptMode, interceptTypes }) => ({ interceptMode, interceptTypes })), { interceptMode: 'all', interceptTypes: [] })
+  await saveConfig({ server: 'http://nas.local:8710', token: 'abc' })
 })
 
 test('a missing translation shows its key rather than an empty label', () => {

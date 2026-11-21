@@ -12,8 +12,8 @@
 //! to the subscription core, which applies them the same way to every source kind.
 
 use anyhow::{Result, bail};
-use chrono::{DateTime, Utc};
 use quick_xml::{Reader, events::Event};
+use rd_core::Timestamp;
 use url::Url;
 
 /// Largest feed document accepted.
@@ -37,7 +37,7 @@ pub struct FeedItem {
     /// `application/x-bittorrent` from Torznab — and that is better evidence than anything
     /// derived from the address, which for these is an API call with no telling extension.
     pub enclosure_type: Option<String>,
-    pub published_at: Option<DateTime<Utc>>,
+    pub published_at: Option<Timestamp>,
     /// The publication date exactly as written, so an unparseable one still contributes to
     /// identity instead of collapsing every undated item into one.
     pub published_raw: Option<String>,
@@ -316,19 +316,19 @@ fn apply_item_attributes(
 /// both are tried and a failure is `None` rather than an error — a bad date is not a reason
 /// to discard an entry, only a reason not to place it in time.
 #[must_use]
-pub fn parse_date(value: &str) -> Option<DateTime<Utc>> {
+pub fn parse_date(value: &str) -> Option<Timestamp> {
     let trimmed = value.trim();
-    if let Ok(parsed) = DateTime::parse_from_rfc2822(trimmed) {
-        return Some(parsed.with_timezone(&Utc));
+    if let Ok(parsed) = jiff::fmt::rfc2822::DateTimeParser::new().parse_timestamp(trimmed) {
+        return Some(Timestamp::from_jiff(parsed));
     }
-    if let Ok(parsed) = DateTime::parse_from_rfc3339(trimmed) {
-        return Some(parsed.with_timezone(&Utc));
+    if let Ok(parsed) = Timestamp::parse_rfc3339(trimmed) {
+        return Some(parsed);
     }
     // Some feeds write a naive local timestamp; treated as UTC, which is at worst a few
     // hours out and never silently reorders a feed.
-    chrono::NaiveDateTime::parse_from_str(trimmed, "%Y-%m-%d %H:%M:%S")
+    jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M:%S", trimmed)
         .ok()
-        .map(|naive| naive.and_utc())
+        .map(Timestamp::from_utc_datetime)
 }
 
 /// Parses `<itunes:duration>`, which is seconds, `MM:SS`, or `HH:MM:SS`.

@@ -203,11 +203,14 @@ fn a_checked_set_stays_on_public_addresses_until_the_intake_says_otherwise() {
 
 #[test]
 fn backoff_doubles_up_to_its_ceiling_and_honours_retry_after() {
-    assert_eq!(source_backoff(1, None), Duration::seconds(30));
-    assert_eq!(source_backoff(2, None), Duration::seconds(60));
-    assert_eq!(source_backoff(40, None), Duration::seconds(1800));
-    assert_eq!(source_backoff(1, Some(300)), Duration::seconds(300));
-    assert_eq!(source_backoff(1, Some(u64::MAX)), Duration::seconds(1800));
+    assert_eq!(source_backoff(1, None), SignedDuration::from_secs(30));
+    assert_eq!(source_backoff(2, None), SignedDuration::from_secs(60));
+    assert_eq!(source_backoff(40, None), SignedDuration::from_secs(1800));
+    assert_eq!(source_backoff(1, Some(300)), SignedDuration::from_secs(300));
+    assert_eq!(
+        source_backoff(1, Some(u64::MAX)),
+        SignedDuration::from_secs(1800)
+    );
 }
 
 #[test]
@@ -231,7 +234,7 @@ fn a_proposed_link_becomes_one_source_with_its_reach_and_no_password() {
 
 #[test]
 fn state_follows_isolation_protocol_and_backoff() {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let mut source = DownloadSource {
         position: 0,
         url: Url::parse("https://m.example/f").expect("url"),
@@ -246,7 +249,7 @@ fn state_follows_isolation_protocol_and_backoff() {
         local_network: false,
     };
     assert_eq!(source.state_at(now), SourceState::Ready);
-    source.backoff_until = Some(now + Duration::seconds(10));
+    source.backoff_until = Some(now + SignedDuration::from_secs(10));
     assert_eq!(source.state_at(now), SourceState::BackingOff);
     // An FTP mirror is fetched through its runner and waits out a backoff like any other.
     source.protocol = SourceProtocol::Ftp;
