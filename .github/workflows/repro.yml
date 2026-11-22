@@ -95,7 +95,7 @@ jobs:
       # No pnpm cache: the store would be one more thing the two builds share.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 24
+          node-version: 26
       # The tag lies in a directory of its own, where no local action resolves, and its own
       # actions may be older than this workflow: this commit's composite actions and toolchain
       # file beside it, for setup-rust (RD-1280-15). The build reads nothing from ci-actions/.

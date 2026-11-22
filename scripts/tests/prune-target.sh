@@ -96,6 +96,44 @@ expect_true "the build's .rlib stays beside a newer check's .rmeta" '[[ -f "$rli
 expect_true "the older test binary goes" '[[ ! -e "$binary_old" && ! -e "$binary_old.d" ]]'
 expect_output "and only it" "removed 2 files"
 
+# Cargo's build-dir layout (RD-1460-01): one directory per unit, `build/<package>/<hash>/`, grouped
+# by the units its fingerprint names and the kind of its outputs; the old layout's
+# `build/<package>-<hash>/` stays untouched.
+build="$CARGO_TARGET_DIR/debug/build/rd-core"
+unit() { # <hash> <fingerprint unit> <age> <out file suffix>...
+    local hash="$1" fingerprint="$2" age="$3"
+    shift 3
+    mkdir -p "$build/$hash/out" "$build/$hash/fingerprint"
+    echo x > "$build/$hash/fingerprint/$fingerprint"
+    echo x > "$build/$hash/fingerprint/dep-$fingerprint"
+    echo x > "$build/$hash/fingerprint/invoked.timestamp"
+    local suffix
+    for suffix in "$@"; do echo x > "$build/$hash/out/$suffix"; done
+    touch -d "$age" "$build/$hash" "$build/$hash/fingerprint/"* "$build/$hash/out/"*
+}
+unit 1111111111111111 lib-rd_core '3 hours ago' librd_core-1111111111111111.rlib librd_core-1111111111111111.rmeta
+unit 2222222222222222 lib-rd_core '1 hour ago' librd_core-2222222222222222.rlib librd_core-2222222222222222.rmeta
+unit 3333333333333333 lib-rd_core '10 minutes ago' librd_core-3333333333333333.rmeta rd_core-3333333333333333.d
+unit 4444444444444444 test-lib-rd_core '3 hours ago' rd_core-4444444444444444 rd_core-4444444444444444.d
+unit 5555555555555555 test-lib-rd_core '2 hours ago' rd_core-5555555555555555 rd_core-5555555555555555.d
+legacy="$CARGO_TARGET_DIR/debug/build/rd-core-6666666666666666"
+mkdir -p "$legacy" && echo x > "$legacy/output" && touch -d '5 hours ago' "$legacy" "$legacy/output"
+
+run_status "$TREE/scripts/prune-target.sh" --dry-run
+expect_status "the build-dir layout, dry run" 0
+expect_output "names what would go" "debug/build: would remove 2 unit directories"
+expect_true "and removes nothing" '[[ -d "$build/1111111111111111" && -d "$build/4444444444444444" ]]'
+
+run_status "$TREE/scripts/prune-target.sh"
+expect_status "the build-dir layout: pruned" 0
+expect_true "the older build of the library goes" '[[ ! -e "$build/1111111111111111" ]]'
+expect_true "the newest build stays beside a newer check" \
+    '[[ -d "$build/2222222222222222" && -d "$build/3333333333333333" ]]'
+expect_true "the older test unit goes, the newest stays" \
+    '[[ ! -e "$build/4444444444444444" && -d "$build/5555555555555555" ]]'
+expect_true "the old layout's build script directory stays" '[[ -f "$legacy/output" ]]'
+expect_output "and it said what went" "debug/build: removed 2 unit directories"
+
 # --if-free never fails without a reason (RD-1270-13). integrate.sh recorded `prune=1` with an
 # empty log: the target list ended in a linked worktree with a `target/` that is not its own,
 # rd_all_target_dirs returned that test's 1, and errexit ended the run without a word.

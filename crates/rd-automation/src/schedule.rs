@@ -77,7 +77,7 @@ impl Schedule {
             }
             Self::Cron { expression } => {
                 let cron = parse_cron(expression)?;
-                cron.find_next_occurrence(&now.to_zoned(zone.clone()), false)
+                cron.find_next_occurrence(&now.to_zoned_datetime(zone.clone()), false)
                     .map(|_| ())
                     .map_err(|error| {
                         ScheduleError(format!("schedule names no future time: {error}"))
@@ -94,7 +94,7 @@ impl Schedule {
             Self::Interval { minutes } => interval_slot_at_or_before(*minutes, now, zone)?,
             Self::Cron { expression } => {
                 let cron = parse_cron(expression).ok()?;
-                let mut cursor = window_start.to_zoned(zone.clone());
+                let mut cursor = window_start.to_zoned_datetime(zone.clone());
                 let mut newest = None;
                 // A five-field expression names at most one time per minute, so the window
                 // holds at most three; the bound only guards against a parser surprise.
@@ -139,7 +139,7 @@ impl Schedule {
             }
             Self::Cron { expression } => parse_cron(expression)
                 .ok()?
-                .find_next_occurrence(&after.to_zoned(zone.clone()), false)
+                .find_next_occurrence(&after.to_zoned_datetime(zone.clone()), false)
                 .ok()
                 .map(Timestamp::from),
         }

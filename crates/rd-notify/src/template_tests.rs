@@ -29,7 +29,7 @@ fn rule(title: Option<&str>, body: Option<&str>) -> NotificationRule {
 fn values(event: NotificationEvent) -> Values {
     let at = jiff::civil::date(2026, 10, 13)
         .at(14, 32, 0, 0)
-        .to_zoned(TimeZone::fixed(Offset::constant(2)))
+        .to_zoned_datetime(TimeZone::fixed(Offset::constant(2)))
         .expect("moment");
     Values::stamped(event, &at)
 }
@@ -348,7 +348,7 @@ fn the_webhook_body_keeps_its_structure() {
 fn time_and_date_are_read_in_the_zone_they_are_given() {
     let late = Timestamp::from_ymd_hms(2026, 10, 13, 23, 30, 0)
         .expect("moment")
-        .to_zoned(TimeZone::fixed(Offset::constant(2)));
+        .to_zoned_datetime(TimeZone::fixed(Offset::constant(2)));
     let stamped = Values::stamped(NotificationEvent::BackupFailed, &late);
     assert_eq!(stamped.get(Placeholder::Time), "01:30");
     assert_eq!(stamped.get(Placeholder::Date), "2026-10-14");

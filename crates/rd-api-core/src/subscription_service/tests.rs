@@ -52,7 +52,7 @@ fn local(day: i8, hour: i8, minute: i8, second: i8) -> Timestamp {
     // January, far from any change to or from summer time in any zone that has one.
     jiff::civil::date(2030, 1, day)
         .at(hour, minute, second, 0)
-        .to_zoned(jiff::tz::TimeZone::system())
+        .to_zoned_datetime(jiff::tz::TimeZone::system())
         .map(Timestamp::from)
         .expect("local time")
 }

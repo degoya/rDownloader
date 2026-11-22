@@ -205,8 +205,8 @@ impl Timestamp {
 
     /// The instant in `zone` (chrono's `with_timezone(&tz)`).
     #[must_use]
-    pub fn to_zoned(self, zone: TimeZone) -> jiff::Zoned {
-        self.0.to_zoned(zone)
+    pub fn to_zoned_datetime(self, zone: TimeZone) -> jiff::ZonedDateTime {
+        self.0.to_zoned_datetime(zone)
     }
 
     /// `self - earlier` (chrono's `signed_duration_since`).
@@ -278,14 +278,14 @@ impl From<Timestamp> for jiff::Timestamp {
     }
 }
 
-impl From<&jiff::Zoned> for Timestamp {
-    fn from(zoned: &jiff::Zoned) -> Self {
+impl From<&jiff::ZonedDateTime> for Timestamp {
+    fn from(zoned: &jiff::ZonedDateTime) -> Self {
         Self(zoned.timestamp())
     }
 }
 
-impl From<jiff::Zoned> for Timestamp {
-    fn from(zoned: jiff::Zoned) -> Self {
+impl From<jiff::ZonedDateTime> for Timestamp {
+    fn from(zoned: jiff::ZonedDateTime) -> Self {
         Self(zoned.timestamp())
     }
 }

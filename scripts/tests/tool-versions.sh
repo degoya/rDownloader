@@ -60,13 +60,13 @@ expect_status "a moved source in scripts/lib/tool-versions.sh fails" 1
 expect_output "naming the workflow that still has the old one" ".github/workflows/ci.yml"
 
 fresh
-sed -i 's/"node": ">=[0-9.]*"/"node": ">=26.1.0"/' "$SCRATCH/tree/web/package.json"
+sed -i 's/"node": ">=[0-9.]*"/"node": ">=28.1.0"/' "$SCRATCH/tree/web/package.json"
 check
 expect_status "a Node floor moved without its copies fails" 1
 expect_output "naming the documentation's list" "docs/development.md"
 expect_output "the composite action" ".github/actions/setup-web/action.yml"
 expect_output "and the Dockerfile" "docker/Dockerfile"
-expect_output "with the floor's major" "node-major 24, the source says 26"
+expect_output "with the floor's major" "node-major 26, the source says 28"
 
 fresh
 sed -i 's/^| actionlint | [0-9.]*/| actionlint | 0.1.0/' "$SCRATCH/tree/docs/development.md"

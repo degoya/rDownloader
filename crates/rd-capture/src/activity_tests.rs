@@ -138,7 +138,7 @@ fn a_timed_pause_leads_the_line_and_paused_files_are_counted() {
 /// The end reads as a clock today and carries the day otherwise, in the zone of `now`.
 #[test]
 fn a_pause_end_is_a_clock_today_and_a_date_beyond() {
-    let now = at(17, 0).to_zoned(TimeZone::UTC);
+    let now = at(17, 0).to_zoned_datetime(TimeZone::UTC);
     assert_eq!(pause_end(at(18, 30), &now), "18:30");
     let tomorrow = at(18, 30) + SignedDuration::from_hours(24);
     assert_eq!(pause_end(tomorrow, &now), "Oct 5 18:30");
@@ -400,7 +400,7 @@ fn a_byte_count_that_is_not_a_number_is_reported_rather_than_zero() {
 /// name, which a capture token does not see.
 #[test]
 fn the_line_names_used_up_account_traffic_and_its_next_check() {
-    let now = at(12, 0).to_zoned(TimeZone::UTC);
+    let now = at(12, 0).to_zoned_datetime(TimeZone::UTC);
     let mut figures = summary(0, 3, 0, 0, 0);
     figures.traffic_held_accounts = 1;
     figures.traffic_next_check = Some(at(12, 15));

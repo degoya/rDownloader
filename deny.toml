@@ -150,11 +150,6 @@ skip = [
   { crate = "thiserror:1", reason = "tokio-socks 0.5 (librqbit), webauthn-rs-core, asn1-rs, x509-parser, jni 0.21 (tao), glib 0.18, redox_users 0.4 (wasmtime cache)" },
   { crate = "thiserror-impl:1", reason = "thiserror 1, as above" },
 
-  # suppaftp 13 (rd-ftp, RD-1450-02) answers MDTM in jiff 1; the workspace stays on jiff 0.2
-  # behind rd_core::Timestamp (RD-1440-05), so rd-ftp copies the fields across.
-  { crate = "jiff:1", reason = "suppaftp 13 (rd-ftp); the workspace is on jiff 0.2" },
-  { crate = "jiff-core:1", reason = "jiff 1 via suppaftp 13, as above" },
-
   # leaky-bucket 1.1.3 (librqbit-dht) moved to parking_lot 0.13; the rest of the tree is on 0.12.
   { crate = "parking_lot:0.12", reason = "arboard, futures-intrusive, governor, librqbit; leaky-bucket 1.1.3 is on 0.13" },
   { crate = "parking_lot_core:0.9", reason = "parking_lot 0.12 and dashmap 6, as above" },
@@ -183,13 +178,6 @@ skip = [
   { crate = "wasm-metadata:0.261", reason = "wit-component 0.261 (wasmtime 50); wit-bindgen 0.63 uses 0.262" },
   { crate = "wit-component:0.261", reason = "wasmtime-internal-wit-bindgen 50; wit-bindgen 0.63 uses 0.262" },
   { crate = "wit-parser:0.261", reason = "wasmtime-internal-wit-bindgen and -component-macro 50; wit-bindgen 0.63 uses 0.262" },
-
-  # croner 4 (rd-subscription).
-  { crate = "darling:0.20", reason = "derive_builder_core 0.20 (croner 4)" },
-  { crate = "darling_core:0.20", reason = "derive_builder_core 0.20 (croner 4)" },
-  { crate = "darling_macro:0.20", reason = "derive_builder_core 0.20 (croner 4)" },
-  { crate = "strum:0.27", reason = "croner 4" },
-  { crate = "strum_macros:0.27", reason = "croner 4 via strum 0.27" },
 
   # tao 0.37 / tray-icon 0.25 / muda (rd-capture). The GTK3 stack is a Linux dependency of
   # crates rd-capture only builds on Windows and macOS (see the advisories above): graph artefacts,

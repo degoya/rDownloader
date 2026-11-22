@@ -12,7 +12,7 @@
 #   echo "$RD_NEXTEST_VERSION"
 #   rd_rust_version "$ROOT"          # 1.100.0
 #   rd_wasm_tools_pin "$ROOT"        # 1.261.0
-#   rd_node_floor "$ROOT"            # 24.15.0
+#   rd_node_floor "$ROOT"            # 26.0.0
 
 # shellcheck disable=SC2034  # read by the scripts that source this file
 RD_NEXTEST_VERSION="0.9.146"
@@ -41,7 +41,7 @@ rd_wasm_tools_pin() {
 }
 
 # The lowest Node checkout $1 supports: `engines.node` (`>=X.Y.Z`) in web/package.json. It is
-# jsdom's, the web tests' environment, which declares `^24.15.0` for Node 24 (RD-1300-05).
+# jsdom's, the web tests' environment, which accepts Node 26 from `26.0.0` (RD-1300-05, RD-1470-02).
 rd_node_floor() {
     sed -n 's/^ *"node": ">=\([0-9.]*\)",\{0,1\}$/\1/p' "$1/web/package.json" | head -n 1
 }

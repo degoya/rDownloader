@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 
-use jiff::Zoned;
+use jiff::ZonedDateTime;
 
 use crate::{
     model::{NotificationEvent, NotificationRule, Severity},
@@ -169,9 +169,9 @@ pub struct Values(BTreeMap<Placeholder, String>);
 
 impl Values {
     /// The event, its severity and the moment, as `HH:MM` and `YYYY-MM-DD` in `at`'s zone: the
-    /// service passes its own (`Zoned::now()`, the system zone).
+    /// service passes its own (`ZonedDateTime::now()`, the system zone).
     #[must_use]
-    pub fn stamped(event: NotificationEvent, at: &Zoned) -> Self {
+    pub fn stamped(event: NotificationEvent, at: &ZonedDateTime) -> Self {
         let severity = match event.severity() {
             Severity::Info => "info",
             Severity::Warning => "warning",

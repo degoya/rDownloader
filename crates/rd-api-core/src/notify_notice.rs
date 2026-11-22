@@ -341,7 +341,7 @@ async fn queue(database: &rd_db::Database, notice: &Notice) -> anyhow::Result<u6
         .iter()
         .any(rd_notify::NotificationRule::has_template)
         .then(|| {
-            let mut values = Values::stamped(notice.event, &jiff::Zoned::now());
+            let mut values = Values::stamped(notice.event, &jiff::ZonedDateTime::now());
             values.extend(&notice.values);
             values
         });

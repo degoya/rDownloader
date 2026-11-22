@@ -56,7 +56,7 @@ impl IanaZone {
         self.0.iana_name().unwrap_or("UTC")
     }
 
-    /// The jiff zone, for `Timestamp::to_zoned` and civil arithmetic.
+    /// The jiff zone, for `Timestamp::to_zoned_datetime` and civil arithmetic.
     #[must_use]
     pub fn as_jiff(&self) -> &TimeZone {
         &self.0

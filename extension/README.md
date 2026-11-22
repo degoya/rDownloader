@@ -114,11 +114,14 @@ rDownloader then takes the file in one of two ways, and never fetches it a secon
   exactly the allowed hosts, renewed whenever the list or a grant changes):
   `src/page-files-main.js` in the page's own world remembers each blob the page turns into an
   address and holds back the download of an NZB, torrent, ZIP or link container (by name or blob
-  type, at most 16 MiB); `src/page-files-relay.js` carries its bytes to the background, which
+  type, at most 16 MiB) and posts its bytes as base64 text — Firefox shows a content script no
+  `ArrayBuffer` of the page (RD-1470-03); `src/page-files-relay.js` carries that text to the background, which
   applies the same rules as above — token, **Take over browser downloads**, the type list, the
   site's consent read from the browser's own address of the frame — and posts them to
   `POST /api/v1/capture/file`. Taken, the page's download never starts; refused, not ours or
   unanswered within 30 seconds, the browser gets the file from a fresh address after all.
+  Why a file stayed in the browser is written to the extension's console
+  (`rDownloader: a page's file stays in the browser (…)`).
 
 rDownloader takes an NZB, a `.torrent`, or a ZIP of NZBs (NNTmux's `/getnzb?id=…&zip=1`, one
 import per NZB inside; a ZIP with one broken NZB is refused whole). An NZB lands as an import in

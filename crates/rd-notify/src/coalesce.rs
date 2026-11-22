@@ -174,10 +174,11 @@ impl Burst {
     /// need the database and are the service's.
     #[must_use]
     pub fn values(&self, zone: &TimeZone) -> Values {
-        let mut values = Values::stamped(self.event, &self.first_at.to_zoned(zone.clone()))
-            .with(Placeholder::Count, self.occurrences.to_string())
-            .with(Placeholder::Items, self.items.to_string())
-            .with(Placeholder::Names, self.names_text());
+        let mut values =
+            Values::stamped(self.event, &self.first_at.to_zoned_datetime(zone.clone()))
+                .with(Placeholder::Count, self.occurrences.to_string())
+                .with(Placeholder::Items, self.items.to_string())
+                .with(Placeholder::Names, self.names_text());
         if self.single() && self.event == NotificationEvent::DownloadStarted {
             values.set(
                 Placeholder::File,

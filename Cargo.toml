@@ -165,7 +165,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.46.0"
+version = "1.47.0"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.100"
@@ -198,7 +198,7 @@ clipboard-win = { version = "5.4", features = ["std"] }
 crc32fast = "1"
 # Cron expressions for scheduled subscriptions (RD-130-19): POSIX weekdays and five-field
 # patterns, which is what people copy out of a crontab.
-croner = { version = "4", default-features = false, features = ["jiff"] }
+croner = { version = "5", default-features = false, features = ["jiff"] }
 ctr = "0.10"
 dunce = "1"
 directories = "6"
@@ -231,7 +231,7 @@ lettre = { version = "0.11", default-features = false, features = ["aws-lc-rs", 
 # zone database as the fallback where the system has none (a slim container, Windows); a system
 # `zoneinfo` still wins on Linux and macOS. Never in a plugin: a component has no clock and no
 # zone database, the host's `now_unix_seconds` is its time.
-jiff = { version = "0.2.46", features = ["tzdb-bundle-always"] }
+jiff = { version = "1.0.2", features = ["tzdb-bundle-always"] }
 keyring = "4.1.6"
 # `rust-tls` rather than `default-tls`: it puts librqbit on the same rustls/aws-lc-rs stack
 # the rest of the workspace uses, and picks the `sha1-ring` info-hash backend instead of
@@ -335,7 +335,8 @@ unicode-normalization = "0.1"
 url = { version = "2", features = ["serde"] }
 # `chrono` and `jiff_0_2` only teach the derive type names (no dependency): a field typed
 # `Timestamp` renders as `{type: string, format: date-time}` exactly as `DateTime<Utc>` did, and
-# `Date` as `format: date` (RD-1440-05).
+# `Date` as `format: date` (RD-1440-05). Matched by name, so they hold for jiff 1 as well
+# (RD-1470-01); jiff 1's `ZonedDateTime` is not among them, and no DTO carries one.
 utoipa = { version = "6", features = ["axum_extras", "jiff_0_2", "uuid"] }
 uuid = { version = "1", features = ["serde", "v7"] }
 # The version wasmtime brings (wasmtime 50: 0.261), so the pre-validation adds no second copy;

@@ -5,6 +5,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.47.0] - 2026-11-22
+
+### Changed
+
+- **Node 26 is the floor, `@types/node` 26 (RD-1470-02).** `web/package.json` asks for Node
+  `>=26.0.0` (jsdom accepts it from there), `@types/node` follows to `^26.6.6`; CI's `setup-web`
+  and the reproducibility run install Node 26, the Dockerfile builds the frontend in
+  `node:26-bookworm-slim` (pinned by digest). `AGENTS.md`, `design.md`, `docs/development.md` and
+  `docs/reproducible-builds.md` name Node 26.
+
+- `@iconify-json/lucide` 1.2.158 (semver-compatible web update before 1.47.0).
+
+- **`jiff` 1 and `croner` 5 (RD-1470-01).** The workspace moves to `jiff` 1.0.2 and `croner` 5.0.0,
+  whose `jiff` feature needs it; jiff's `Zoned` is `ZonedDateTime` now, and
+  `rd_core::Timestamp::to_zoned` follows as `to_zoned_datetime`. `utoipa`'s `jiff_0_2` feature
+  only matches the type names `Timestamp` and `Date` and needs no jiff of its own, so the OpenAPI
+  document does not change. No jiff 0.2 is built any more (the lockfile keeps it only as an
+  optional dependency of `serde_with` that nothing switches on). `deny.toml` loses the skips for
+  `jiff` 1 and for croner 4's `darling` 0.20 and `strum` 0.27; `ryu-js` 1.0.4.
+
+### Fixed
+
+- **Firefox: link containers a page builds itself reach rDownloader (RD-1470-03).** Firefox shows
+  a content script no `ArrayBuffer` of the page, so the relay of 1.46.0 forwarded nothing and every
+  such file (the DLC of hide.cx) went back to the browser's download window. The page script now
+  posts the bytes as base64 text, the relay forwards only text, an empty file is refused, and the
+  extension's console says why a file stays in the browser. Confirmed by the owner in Firefox 160
+  on hide.cx.
+
+- `scripts/prune-target.sh` prunes Cargo's build-dir layout of Rust 1.100: under
+  `<profile>/build/<package>/<hash>/` it keeps the newest unit directory per package, fingerprinted
+  unit and output kind and removes the rest; the old layout's `build/<package>-<hash>/` stays
+  untouched. Before, the script knew only `deps/`, and `target/debug/build` grew to 136 GB, 107 GiB
+  of it old variants (RD-1460-01).
+
 ## [1.46.0] - 2026-11-22
 
 ### Added

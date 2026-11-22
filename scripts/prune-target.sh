@@ -27,8 +27,17 @@
 # of them for one plugin on 2026-09-26. Such a file goes when it is more than an hour older than
 # the newest `lib<stem>.*` or `<stem>.*` artifact beside it; with no artifact beside it, it stays.
 #
+# Cargo's build-dir layout (Rust 1.100, RD-1460-01) has no `deps` at all: every unit gets a
+# directory of its own, `<profile>/build/<package>/<16 hex>/` with `out/` and `fingerprint/`, and
+# the old ones stay there just the same (98 of `rdownloader`, 136 GB in target/debug/build on
+# 2026-11-22). The same rule holds there, a whole directory per variant: grouped by package, and
+# within a package by the units its fingerprint names (`lib-rd_core`, `test-lib-rd_core`, a build
+# script's run) and the kind of its outputs in `out/` as above; the newest per group stays. The old
+# layout's `build/<package>-<16 hex>/` (build scripts) is left alone, as before.
+#
 # Never touched: target/wasm32-unknown-unknown/, where the plugin components live and their
-# content stamps say whether they are current, and everything outside `deps` and `incremental`.
+# content stamps say whether they are current, and everything outside `deps`, `build` and
+# `incremental`.
 #
 # Lanes (RD-140-06) are target directories of their own and are pruned as such, each under its
 # own lock: the checkout's target and the lanes under it (target/lanes/<name>, the release chain's
@@ -77,7 +86,7 @@ while [[ $# -gt 0 ]]; do
         --keep)
             [[ "${2:-}" =~ ^[1-9][0-9]*$ ]] || { echo "--keep wants a positive whole number" >&2; exit 2; }
             keep="$2"; shift 2 ;;
-        -h|--help) sed -n '2,53p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,63p' "$0"; exit 0 ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
@@ -237,6 +246,77 @@ for deps in candidates("deps"):
     total_files += files_here
     total_bytes += bytes_here
 
+HEX = re.compile(r"^[0-9a-f]{16}$")
+
+
+def unit_kind(variant):
+    """The build-dir layout's group within a package: the units the fingerprint names and the
+    kind of the outputs in `out/` that carry the variant's hash."""
+    units = set()
+    newest = os.lstat(variant).st_mtime
+    for sub in ("fingerprint", "out"):
+        path = os.path.join(variant, sub)
+        if not os.path.isdir(path):
+            continue
+        with os.scandir(path) as entries:
+            for entry in entries:
+                try:
+                    newest = max(newest, entry.stat(follow_symlinks=False).st_mtime)
+                except FileNotFoundError:
+                    continue
+                if sub == "fingerprint" and entry.name != "invoked.timestamp":
+                    name = entry.name.removesuffix(".json")
+                    for prefix in ("dep-", "output-"):
+                        name = name.removeprefix(prefix)
+                    units.add(name)
+    rests = set()
+    out = os.path.join(variant, "out")
+    if os.path.isdir(out):
+        for name in os.listdir(out):
+            match = VARIANT.match(name)
+            if match and match["hash"] == os.path.basename(variant):
+                rests.add(match["rest"])
+    return (tuple(sorted(units)), kind(rests) if rests else ()), newest
+
+
+def tree_size(path):
+    size = 0
+    for base, _, names in os.walk(path):
+        for name in names:
+            try:
+                size += os.lstat(os.path.join(base, name)).st_size
+            except FileNotFoundError:
+                pass
+    return size
+
+
+for build in candidates("build"):
+    dirs_here = bytes_here = 0
+    for package in sorted(os.listdir(build)):
+        root = os.path.join(build, package)
+        if os.path.islink(root) or not os.path.isdir(root):
+            continue
+        variants = [os.path.join(root, name) for name in os.listdir(root) if HEX.match(name)]
+        # The old layout's `<package>-<hash>/` has no hash directories under it.
+        if not variants:
+            continue
+        kinds = {}
+        for variant in variants:
+            if os.path.islink(variant) or not os.path.isdir(variant):
+                continue
+            group, newest = unit_kind(variant)
+            kinds.setdefault(group, []).append((newest, variant))
+        for same_kind in kinds.values():
+            for _, variant in sorted(same_kind, reverse=True)[keep:]:
+                dirs_here += 1
+                bytes_here += tree_size(variant)
+                if not dry_run:
+                    shutil.rmtree(variant, ignore_errors=True)
+    verb = "would remove" if dry_run else "removed"
+    print(f"{build}: {verb} {dirs_here} unit directories, {human(bytes_here)}")
+    total_files += dirs_here
+    total_bytes += bytes_here
+
 for incremental in candidates("incremental"):
     size = 0
     for base, _, names in os.walk(incremental):
@@ -251,5 +331,6 @@ for incremental in candidates("incremental"):
     total_bytes += size
 
 print(f"==> {'would free' if dry_run else 'freed'} {human(total_bytes)} "
-      f"({total_files} files: variants past the newest {keep} per stem and kind, and stale split debug info)")
+      f"({total_files} files and unit directories: variants past the newest {keep} per stem and kind, "
+      f"and stale split debug info)")
 PY

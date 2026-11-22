@@ -49,6 +49,7 @@ function setup(calls, { config = {}, result = { ok: true, status: 201 }, ...opti
     loadConfig: async () => ({ ...CONFIG, interceptDownloads: true, ...config }),
     message: (key, substitutions) => (substitutions ? `${key}:${substitutions.join(',')}` : key),
     notify: async (body) => calls.push(['notify', body]),
+    log: () => {},
     submitBytes: async (_config, body) => {
       calls.push(['submit', body.fileName, await body.bytes.text()])
       return result
@@ -73,6 +74,7 @@ test('the browser keeps the file whenever a rule of the hand-over says so', asyn
     ['a consent whose grant is gone', { granted: [] }, DLC, SENDER],
     ['not a browser-only file', {}, { ...DLC, name: 'cover.jpg' }, SENDER],
     ['not base64', {}, { ...DLC, data: '%%%' }, SENDER],
+    ['no bytes at all', {}, { ...DLC, data: '' }, SENDER],
     ['another extension', {}, DLC, { ...SENDER, id: 'other' }],
     ['no tab', {}, DLC, { id: 'self', url: PAGE }]
   ]
@@ -140,6 +142,7 @@ test('pageScripts point at files that exist', () => {
 test('decodeBytes reads base64 and refuses what is too large', () => {
   assert.equal(new TextDecoder().decode(decodeBytes(btoa('abc'))), 'abc')
   assert.equal(decodeBytes(null), null)
+  assert.equal(decodeBytes(''), null, 'nothing is not a file')
   assert.equal(decodeBytes('A'.repeat(Math.ceil(PAGE_FILE_MAX_BYTES / 3) * 4 + 8)), null)
 })
 
@@ -210,6 +213,7 @@ function page() {
     location: { origin: `https://${HOST}` },
     document: { createElement: () => new HTMLAnchorElement() },
     crypto: { randomUUID: () => `id-${++next}` },
+    btoa,
     setTimeout: () => 0,
     clearTimeout: () => {}
   })
@@ -242,7 +246,10 @@ test('a container download of a revoked blob is held and its bytes posted', asyn
   const [message] = fake.posted
   assert.equal(message.phase, 'file')
   assert.equal(message.name, 'Release.dlc')
-  assert.equal(new TextDecoder().decode(message.bytes), 'dlc-bytes')
+  // Text, not an ArrayBuffer: Firefox hides a page's ArrayBuffer from the relay (RD-1470-03).
+  assert.equal(typeof message.data, 'string')
+  assert.equal(atob(message.data), 'dlc-bytes')
+  assert.equal(message.bytes, undefined)
   fake.answer(message.id, true)
   assert.deepEqual(fake.downloads, [], 'taken: nothing more')
 })
@@ -267,4 +274,40 @@ test('other blob downloads are left alone, a browser-only type is held by its ty
   await settle()
   assert.deepEqual(fake.downloads.map(({ name }) => name), ['export.csv'])
   assert.equal(fake.posted.length, 1)
+})
+
+// --- the relay, in the same kind of fake --------------------------------------------------
+
+/** Objects of the fake's own realm, compared by their content. */
+const plain = (value) => JSON.parse(JSON.stringify(value))
+
+const RELAY = readFileSync(new URL('../src/page-files-relay.js', import.meta.url), 'utf8')
+
+/** The relay on a page; `sent` is what reaches the background, `posted` what goes back. */
+function relayPage(answer) {
+  const listeners = []
+  const sent = []
+  const posted = []
+  const window = { addEventListener: (_type, listener) => listeners.push(listener), postMessage: (data) => posted.push(data) }
+  const chrome = { runtime: { sendMessage: async (message) => (sent.push(message), answer) } }
+  vm.runInContext(RELAY, vm.createContext({ window, chrome, location: { origin: `https://${HOST}` }, console }))
+  const post = async (data) => {
+    for (const listener of listeners) await listener({ source: window, data: { type: PAGE_FILE_MESSAGE, phase: 'file', id: 'id-1', ...data } })
+  }
+  return { sent, posted, post }
+}
+
+test('the relay forwards the base64 text and posts the answer back', async () => {
+  const relay = relayPage({ taken: true })
+  await relay.post({ name: 'Release.dlc', mime: 'application/octet-stream', data: btoa('dlc-bytes') })
+  assert.deepEqual(plain(relay.sent), [{ type: PAGE_FILE_MESSAGE, name: 'Release.dlc', mime: 'application/octet-stream', data: btoa('dlc-bytes') }])
+  assert.deepEqual(plain(relay.posted), [{ type: PAGE_FILE_MESSAGE, phase: 'answer', id: 'id-1', taken: true }])
+})
+
+test('without text the relay asks nothing and the browser keeps the file', async () => {
+  // What Firefox showed the relay of 1.46.0: the page's ArrayBuffer filtered out (RD-1470-03).
+  const relay = relayPage({ taken: true })
+  await relay.post({ name: 'Release.dlc', mime: '', bytes: undefined })
+  assert.deepEqual(relay.sent, [])
+  assert.deepEqual(plain(relay.posted), [{ type: PAGE_FILE_MESSAGE, phase: 'answer', id: 'id-1', taken: false }])
 })

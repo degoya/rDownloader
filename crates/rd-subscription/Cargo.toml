@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
-# `croner`'s `jiff` feature (workspace) gives the cron search on `jiff::Zoned` (RD-1440-05).
+# `croner`'s `jiff` feature (workspace) gives the cron search on `jiff::ZonedDateTime` (RD-1440-05, RD-1470-01).
 croner.workspace = true
 hex.workspace = true
 jiff.workspace = true

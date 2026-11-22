@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-# The cron search on jiff's `Zoned` (RD-1440-05), as rd-subscription's; the workspace line
+# The cron search on jiff's `ZonedDateTime` (RD-1440-05, RD-1470-01), as rd-subscription's; the workspace line
 # carries the same feature, this one keeps the crate's need written down.
 croner = { workspace = true, features = ["jiff"] }
 jiff.workspace = true

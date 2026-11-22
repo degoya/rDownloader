@@ -154,7 +154,10 @@ fn zones_give_chrono_tz_offsets() {
                 .with_ymd_and_hms(year, month, day, hour, minute, second)
                 .single()
                 .expect("an instant");
-            let offset = value.to_zoned(zone.as_jiff().clone()).offset().seconds();
+            let offset = value
+                .to_zoned_datetime(zone.as_jiff().clone())
+                .offset()
+                .seconds();
             let expected = chrono_value
                 .with_timezone(&reference)
                 .offset()

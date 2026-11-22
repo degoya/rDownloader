@@ -292,9 +292,9 @@ pub(crate) fn advertises_rest(features: &Features) -> bool {
 }
 
 /// A UTC civil date and time, `(year, month, day)` and `(hour, minute, second, nanosecond)`, as
-/// an instant. suppaftp 13 answers `MDTM` in jiff 1's civil time while `Timestamp` stands on the
-/// workspace's jiff 0.2, so the fields cross and the type does not (RD-1450-02); chrono, which
-/// suppaftp 12 answered in, is gone from this crate.
+/// an instant. suppaftp 13 answers `MDTM` in jiff's civil time; the fields cross rather than the
+/// type, which dates from when the workspace was still on jiff 0.2 (RD-1450-02; jiff 1 since
+/// RD-1470-01); chrono, which suppaftp 12 answered in, is gone from this crate.
 fn utc_instant(date: (i16, i8, i8), time: (i8, i8, i8, i32)) -> Option<rd_core::Timestamp> {
     let (year, month, day) = date;
     let (hour, minute, second, nanosecond) = time;

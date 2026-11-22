@@ -45,7 +45,7 @@ pub struct NotificationEventPlaceholders {
 
 #[utoipa::path(get, path = "/api/v1/notifications/placeholders", tag = "notifications", responses((status = 200, body = NotificationPlaceholders)))]
 pub async fn list_notification_placeholders() -> Json<NotificationPlaceholders> {
-    let now = jiff::Zoned::now();
+    let now = jiff::ZonedDateTime::now();
     let example = |placeholder: Placeholder| match placeholder {
         Placeholder::Time => now.strftime("%H:%M").to_string(),
         Placeholder::Date => now.strftime("%Y-%m-%d").to_string(),

@@ -177,12 +177,12 @@ pub(crate) fn describe(summary: Summary) -> Activity {
     if let Some(until) = summary.paused_until {
         parts.push(format!(
             "paused until {}",
-            pause_end(until, &jiff::Zoned::now())
+            pause_end(until, &jiff::ZonedDateTime::now())
         ));
     }
     // Next to it, for the same reason: what holds downloads back that nobody paused.
     if summary.traffic_held_accounts > 0 {
-        parts.push(traffic_hold(summary, &jiff::Zoned::now()));
+        parts.push(traffic_hold(summary, &jiff::ZonedDateTime::now()));
     }
     if summary.active > 0 {
         parts.push(format!("{} active", summary.active));
@@ -235,8 +235,8 @@ fn queue_menu(summary: &Summary) -> QueueMenu {
 
 /// The end of a pause as the clock on the wall says it: `18:30` today, `Oct 5 18:30` on another
 /// day. `now` carries the zone, so a test can name one.
-fn pause_end(until: Timestamp, now: &jiff::Zoned) -> String {
-    let local = until.to_zoned(now.time_zone().clone());
+fn pause_end(until: Timestamp, now: &jiff::ZonedDateTime) -> String {
+    let local = until.to_zoned_datetime(now.time_zone().clone());
     if local.date() == now.date() {
         local.strftime("%H:%M").to_string()
     } else {
@@ -245,7 +245,7 @@ fn pause_end(until: Timestamp, now: &jiff::Zoned) -> String {
 }
 
 /// "account traffic used up, next check 18:30" — "2 accounts'" when more than one is held.
-fn traffic_hold(summary: Summary, now: &jiff::Zoned) -> String {
+fn traffic_hold(summary: Summary, now: &jiff::ZonedDateTime) -> String {
     let whose = if summary.traffic_held_accounts == 1 {
         "account".to_owned()
     } else {

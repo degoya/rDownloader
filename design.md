@@ -19,7 +19,7 @@ hotfolders provide additional intake channels.
 | Repository | `https://github.com/degoya/rDownloader` |
 | License | GNU GPL v3.0 or later |
 | Backend | Rust 2024, minimum version 1.100 |
-| Frontend toolchain | Node 24 and npm 11 |
+| Frontend toolchain | Node 26 and pnpm 12 |
 | Target platforms | Windows, Linux, macOS, and Docker |
 
 The architecture follows six guiding principles:

@@ -119,7 +119,7 @@ pub fn next_scheduled(
     zone: &jiff::tz::TimeZone,
 ) -> anyhow::Result<Timestamp> {
     let cron = parse_schedule(expression)?;
-    cron.find_next_occurrence(&after.to_zoned(zone.clone()), false)
+    cron.find_next_occurrence(&after.to_zoned_datetime(zone.clone()), false)
         .map(Timestamp::from)
         .map_err(|error| anyhow::anyhow!("schedule names no future time: {error}"))
 }
@@ -222,7 +222,7 @@ mod tests {
 
     fn at(zone: &TimeZone, text: &str) -> Timestamp {
         let civil = jiff::civil::DateTime::strptime("%Y-%m-%d %H:%M", text).expect("civil time");
-        Timestamp::from(civil.to_zoned(zone.clone()).expect("local time"))
+        Timestamp::from(civil.to_zoned_datetime(zone.clone()).expect("local time"))
     }
 
     #[test]

@@ -46,12 +46,12 @@ export function pageScripts(hosts) {
   ]
 }
 
-/** Bytes from base64, or null for anything that is not base64 or is too large. */
+/** Bytes from base64, or null for anything that is not base64, empty or too large. */
 export function decodeBytes(text) {
   if (typeof text !== 'string' || (text.length / 4) * 3 > PAGE_FILE_MAX_BYTES + 3) return null
   try {
     const binary = atob(text)
-    if (binary.length > PAGE_FILE_MAX_BYTES) return null
+    if (binary.length === 0 || binary.length > PAGE_FILE_MAX_BYTES) return null
     const bytes = new Uint8Array(binary.length)
     for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
     return bytes
@@ -61,7 +61,15 @@ export function decodeBytes(text) {
 }
 
 /** Builds the page-file hand-over; everything browser-specific is injected for the tests. */
-export function createPageFiles({ api, loadConfig, message, notify, submitBytes = submitFileBytes }) {
+export function createPageFiles({
+  api,
+  loadConfig,
+  message,
+  notify,
+  submitBytes = submitFileBytes,
+  // Why a file stayed in the browser, in the extension's console: nothing else says it (RD-1470-03).
+  log = (reason) => console.info(`rDownloader: a page's file stays in the browser (${reason})`)
+}) {
   let pending = Promise.resolve()
 
   /** Registers the scripts for exactly the allowed sites whose grant still stands. */
@@ -88,20 +96,27 @@ export function createPageFiles({ api, loadConfig, message, notify, submitBytes 
     return pending
   }
 
+  /** The browser keeps the file; the reason goes to the console. */
+  function kept(reason) {
+    log(reason)
+    return { taken: false }
+  }
+
   async function onMessage(request, sender) {
     // Only this extension's content script in a tab, and its frame's address as the browser
     // reports it: the page decides neither.
-    if (!sender || sender.id !== api.runtime.id || !sender.tab || typeof sender.url !== 'string') return { taken: false }
+    if (!sender || sender.id !== api.runtime.id || !sender.tab || typeof sender.url !== 'string') return kept('sender')
     const name = baseName(request?.name)
     const mime = String(request?.mime ?? '')
     const item = { mime, filename: name }
-    if (staysInBrowser(item) !== 'file') return { taken: false }
+    if (staysInBrowser(item) !== 'file') return kept('not a browser-only file')
     const config = await loadConfig()
-    if (!config?.token || config.interceptDownloads === false) return { taken: false }
-    if (!passesTypeFilter(item, null, captureFilter(config))) return { taken: false }
-    if (!(await siteConsented(api, sender.url))) return { taken: false }
+    if (!config?.token) return kept('no capture token')
+    if (config.interceptDownloads === false) return kept('taking over browser downloads is off')
+    if (!passesTypeFilter(item, null, captureFilter(config))) return kept('file type filter')
+    if (!(await siteConsented(api, sender.url))) return kept('site not allowed')
     const bytes = decodeBytes(request?.data)
-    if (!bytes) return { taken: false }
+    if (!bytes) return kept('no bytes')
     const result = await submitBytes(config, { bytes: new Blob([bytes]), fileName: handOverName(name, mime) })
     if (result.ok) {
       await notify?.(message('fileHandedOver'))
@@ -109,7 +124,7 @@ export function createPageFiles({ api, loadConfig, message, notify, submitBytes 
     }
     const notice = keptNotice(result, message)
     if (notice) await notify?.(notice)
-    return { taken: false }
+    return kept(`refused: ${result.code ?? result.status}`)
   }
 
   return { sync, onMessage }

@@ -12,9 +12,14 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.47.0
+## 1.48.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.47.0
+
+- In Firefox, DLC and other link containers a site builds in the page now reach rDownloader from a site you allowed.
+- Updated components: the time library and the cron scheduler move to new major versions, and the web interface is built with Node 26; nothing changes in how they behave.
 
 ## 1.46.0
 

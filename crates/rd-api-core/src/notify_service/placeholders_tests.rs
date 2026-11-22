@@ -8,7 +8,7 @@ use super::set_budget;
 fn values() -> Values {
     Values::stamped(
         NotificationEvent::PackageCompleted,
-        &rd_core::Timestamp::now().to_zoned(jiff::tz::TimeZone::UTC),
+        &rd_core::Timestamp::now().to_zoned_datetime(jiff::tz::TimeZone::UTC),
     )
 }
 

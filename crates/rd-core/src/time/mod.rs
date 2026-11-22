@@ -9,7 +9,7 @@
 //! - [`Timestamp`] replaces `DateTime<Utc>`; [`Date`] replaces a stored or sent `NaiveDate`;
 //!   [`IanaZone`] replaces a stored or sent `chrono_tz::Tz`.
 //! - Everything only computed with stays plain jiff: `jiff::SignedDuration` for
-//!   `chrono::Duration`, `jiff::civil::*`, `jiff::tz::TimeZone`, `jiff::Zoned`.
+//!   `chrono::Duration`, `jiff::civil::*`, `jiff::tz::TimeZone`, `jiff::ZonedDateTime`.
 
 mod date;
 mod error;

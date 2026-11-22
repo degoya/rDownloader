@@ -321,7 +321,7 @@ async fn a_burst_queued_again_after_a_restart_reaches_the_rule_once_in_the_same_
     assert_eq!(title, "12 via clipboard, API");
     let at = imports[0]
         .occurred_at
-        .to_zoned(jiff::tz::TimeZone::system());
+        .to_zoned_datetime(jiff::tz::TimeZone::system());
     assert_eq!(
         body,
         format!(

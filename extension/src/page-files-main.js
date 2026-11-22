@@ -6,7 +6,9 @@
 //
 // It remembers each blob the page turns into an address, so the file is still at hand when the
 // page revokes that address right after its click. A download of such an address under a
-// browser-only name or type is held back and its bytes posted to the relay; on the answer
+// browser-only name or type is held back and its bytes posted to the relay as base64 text —
+// Firefox shows a content script the page's objects only through a filter that leaves an
+// `ArrayBuffer` out, so bytes posted as such arrived there as nothing (RD-1470-03); on the answer
 // "taken" nothing more happens, on any other answer — or none within `ANSWER_WAIT_MS` — the
 // browser gets the file from a fresh address after all.
 ;(() => {
@@ -76,12 +78,21 @@
     setTimeout(() => revoke.call(URL, url), ANSWER_WAIT_MS)
   }
 
+  function base64(buffer) {
+    const bytes = new Uint8Array(buffer)
+    let binary = ''
+    for (let index = 0; index < bytes.length; index += 0x8000) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(index, index + 0x8000))
+    }
+    return btoa(binary)
+  }
+
   function hold(found) {
     const id = crypto.randomUUID()
     found.timer = setTimeout(() => release(id, false), ANSWER_WAIT_MS)
     waiting.set(id, found)
     found.blob.arrayBuffer().then(
-      (bytes) => window.postMessage({ type: TYPE, phase: 'file', id, name: found.name, mime: found.blob.type, bytes }, location.origin, [bytes]),
+      (bytes) => window.postMessage({ type: TYPE, phase: 'file', id, name: found.name, mime: found.blob.type, data: base64(bytes) }, location.origin),
       () => release(id, false)
     )
   }

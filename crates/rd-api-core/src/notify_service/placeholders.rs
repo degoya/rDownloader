@@ -26,7 +26,9 @@ impl NotificationService {
             return Ok(None);
         }
         // Time and date in the service's own zone, the one its schedules are read in.
-        let at = event.occurred_at.to_zoned(jiff::tz::TimeZone::system());
+        let at = event
+            .occurred_at
+            .to_zoned_datetime(jiff::tz::TimeZone::system());
         let mut values = Values::stamped(kind, &at);
         set_budget(&mut values, self.budget_reading().await?);
         self.fill_values(kind, &event.payload, &mut values).await?;
