@@ -167,6 +167,16 @@ export async function readAddressCookies(api, url) {
   }
 }
 
+/**
+ * What a refused upload tells the person, or null for a refusal that only means the file was not
+ * one for rDownloader — the browser keeps it without a word. Shared with `page-files.js`.
+ */
+export function keptNotice(result, message) {
+  if (!result || SILENT_CODES.includes(result.code)) return null
+  const reason = result.status === 401 ? message('errorUnauthorized') : (result.message ?? result.code ?? '')
+  return message('fileKept', [reason])
+}
+
 /** The answer of an upload, with the kind of intake the service made of it. */
 function fileResult(result) {
   if (!result.ok) return { ok: false, status: result.status, code: result.code, message: result.message, kind: null }
@@ -366,9 +376,8 @@ export function createFileHandover({
   }
 
   async function reportKept(result) {
-    if (!result || SILENT_CODES.includes(result.code)) return
-    const reason = result.status === 401 ? message('errorUnauthorized') : (result.message ?? result.code ?? '')
-    await notify?.(message('fileKept', [reason]))
+    const notice = keptNotice(result, message)
+    if (notice) await notify?.(notice)
   }
 
   /**

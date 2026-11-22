@@ -81,6 +81,8 @@ beforeEach(() => {
       }))
       return { data: { pending_total: counted.reduce((sum, entry) => sum + entry.pending, 0), subscriptions: counted } }
     }
+    // The accounts and providers the NZB hand-over reads on mount (RD-1460-03): none here.
+    if (path !== '/api/v1/subscriptions/{id}/items/page') return { data: [] }
     const id = options?.params.path.id ?? ''
     const until = options?.params.query.until
     const open = pending(id).filter(item => !until || item.discovered_at <= until)

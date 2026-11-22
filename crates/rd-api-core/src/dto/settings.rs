@@ -496,6 +496,12 @@ pub struct SettingsResponse {
     /// different habit from handing over before the queue.
     #[serde(default = "default_true")]
     pub nzb_hand_over_downloads_enabled: bool,
+    /// The same offer on a hit of an indexer subscription in the LinkGrabber's review box
+    /// (RD-1460-03): the hit's NZB is fetched and handed over, and the hit is decided as after
+    /// "queue". On by default, and offered only where an account takes NZB files. A display
+    /// choice: the REST route and the MCP tool keep working.
+    #[serde(default = "default_true")]
+    pub nzb_hand_over_indexers_enabled: bool,
     /// Whether the menu of a LinkGrabber package offers handing its links to a remote-job
     /// provider (RD-1440-07). On by default, and offered only where an account's provider takes
     /// one of the package's kinds of source. A display choice: the REST route and the MCP tool

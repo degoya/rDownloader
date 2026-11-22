@@ -144,7 +144,7 @@
     "message": "La liste est vide : aucun téléchargement n'est repris."
   },
   "optionsInterceptTypesBrowserOnly": {
-    "message": "$1 : le navigateur télécharge ces fichiers lui-même. Ils ne vont à rDownloader que depuis un site que vous avez autorisé ci-dessous ; sinon, ils restent dans le navigateur."
+    "message": "$1 : le navigateur télécharge ces fichiers lui-même. Ils ne vont à rDownloader que depuis un site que vous avez autorisé dans la fenêtre contextuelle (liste ci-dessous) ; sinon, ils restent dans le navigateur."
   },
   "menuSession": {
     "message": "Envoyer la session de ce site à rDownloader"
@@ -360,7 +360,7 @@
     }
   },
   "filesAllow": {
-    "message": "Transmettre les fichiers NZB, torrent et ZIP de $HOST$ à rDownloader",
+    "message": "Transmettre les fichiers NZB, torrent, ZIP et conteneurs (DLC) de $HOST$ à rDownloader",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -384,7 +384,7 @@
     }
   },
   "filesAllowed": {
-    "message": "Les fichiers NZB, torrent et ZIP de $HOST$ vont désormais à rDownloader.",
+    "message": "Les fichiers NZB, torrent, ZIP et conteneurs de $HOST$ vont désormais à rDownloader.",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -425,7 +425,7 @@
     "message": "Sites qui transmettent des fichiers"
   },
   "optionsFilesHint": {
-    "message": "Les téléchargements NZB, torrent et ZIP de ces sites vont à rDownloader au lieu de rester dans le navigateur. Autorisez un site depuis la fenêtre contextuelle lorsque vous y êtes."
+    "message": "Les téléchargements NZB, torrent, ZIP et de conteneurs (DLC et autres) de ces sites vont à rDownloader au lieu de rester dans le navigateur. Autorisez un site depuis la fenêtre contextuelle lorsque vous y êtes."
   },
   "optionsFilesNone": {
     "message": "Aucun site pour l'instant."

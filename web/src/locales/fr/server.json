@@ -1348,7 +1348,8 @@
     "collector.remote_job_secret_fragment": "La clé de ce lien reste sur cette machine et ne part pas chez un fournisseur",
     "collector.remote_job_source_unsupported": "Seuls un magnet, une adresse http(s) ou un fichier torrent importé peuvent partir chez un fournisseur",
     "collector.remote_job_torrent_unreadable": "Le fichier torrent de ce lien n'est pas dans le stockage des torrents ou ne peut pas être lu",
-    "collector.remote_job_failed": "Le lien n'a pas pu être confié"
+    "collector.remote_job_failed": "Le lien n'a pas pu être confié",
+    "subscription.remote_job_item_decided": "Seul un résultat encore en attente de décision peut être confié à un fournisseur."
   },
   "capabilities": {
     "media_download": "les téléchargements de médias",

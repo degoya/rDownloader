@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { SubscriptionItemState } from '@/api/types'
+import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
 
 /**
  * The decision about one hit: queue it or dismiss it while it waits (RD-120-37), queue it again
@@ -14,6 +16,10 @@ import type { SubscriptionItemState } from '@/api/types'
  *
  * A decided hit — dismissed, skipped, or queued with its download gone — offers *Queue again*,
  * off with the reason on its title when the hit has nothing to fetch (`noSource`).
+ *
+ * A hit waiting for review whose NZB can go to a remote-job provider also offers *Hand to
+ * provider*, one menu entry per account (`handOverTargets`, RD-1460-03); the parent passes none
+ * where the offer does not apply, and the menu is then absent.
  */
 const { t } = useI18n()
 
@@ -23,12 +29,20 @@ const props = defineProps<{
   /** Waiting for review when left out, which is all the card and the review list show. */
   state?: SubscriptionItemState
   noSource?: boolean
+  handOverTargets?: NzbHandOverTarget[]
 }>()
 const emit = defineEmits<{
   queue: []
   dismiss: []
   requeue: []
+  handOver: [accountId: string]
 }>()
+
+const handOverItems = computed(() => (props.handOverTargets ?? []).map(target => ({
+  label: target.label,
+  icon: 'i-lucide-cloud-upload',
+  onSelect: () => emit('handOver', target.accountId)
+})))
 </script>
 
 <template>
@@ -42,6 +56,19 @@ const emit = defineEmits<{
       :loading="props.busy"
       @click="emit('queue')"
     />
+    <UDropdownMenu v-if="handOverItems.length" :items="handOverItems">
+      <UButton
+        size="xs"
+        color="neutral"
+        variant="soft"
+        icon="i-lucide-cloud-upload"
+        :label="props.compact ? undefined : t('linkgrabber.nzb.hand_over.action')"
+        :aria-label="t('linkgrabber.nzb.hand_over.action')"
+        :title="t('linkgrabber.nzb.hand_over.hint')"
+        :disabled="props.busy"
+        data-testid="subscription-item-hand-over"
+      />
+    </UDropdownMenu>
     <UButton
       size="xs"
       color="neutral"

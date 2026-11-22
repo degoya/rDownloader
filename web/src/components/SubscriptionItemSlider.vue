@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { SubscriptionItem } from '@/api/types'
 import SubscriptionItemCard from '@/components/SubscriptionItemCard.vue'
 import SubscriptionItemDetails from '@/components/SubscriptionItemDetails.vue'
+import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
 import { CARD_AUTOPLAY_MS as AUTOPLAY_MS, type CardRatio, DEFAULT_CARD_RATIO } from '@/utils/subscriptionHit'
 
 /**
@@ -52,10 +53,13 @@ const props = withDefaults(defineProps<{
   ratio?: CardRatio
   /** How many hits the subscription holds, read or not; `items.length` when left out. */
   total?: number
-}>(), { showImages: true, ratio: DEFAULT_CARD_RATIO })
+  /** The accounts an NZB hit can go to (RD-1460-03); each card offers them on an NZB only. */
+  handOverTargets?: NzbHandOverTarget[]
+}>(), { showImages: true, ratio: DEFAULT_CARD_RATIO, handOverTargets: () => [] })
 const emit = defineEmits<{
   queue: [itemId: string]
   dismiss: [itemId: string]
+  handOver: [itemId: string, accountId: string]
   /** The slider is close to the end of `items` and `total` says there are more. */
   more: []
 }>()
@@ -265,8 +269,10 @@ const autoplayLabel = computed(() =>
           :ratio="props.ratio"
           :selected="selectedId === item.id"
           :busy="busy(item.id)"
+          :hand-over-targets="props.handOverTargets"
           @queue="emit('queue', item.id)"
           @dismiss="emit('dismiss', item.id)"
+          @hand-over="(accountId) => emit('handOver', item.id, accountId)"
           @details="toggleDetails(item.id)"
         />
         <div

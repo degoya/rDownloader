@@ -31,38 +31,59 @@ pub struct NzbRelease {
 ///
 /// # Errors
 ///
+/// Those of [`fetch_nzb`]; `collector.nzb_internal_address` names the candidate.
+pub async fn fetch_nzb_candidate(
+    state: &AppState,
+    candidate: &LinkCandidate,
+    reach: Option<bool>,
+) -> Result<FetchedNzb, ApiError> {
+    fetch_nzb(state, &candidate.url, candidate.auth_profile, reach)
+        .await
+        .map_err(|error| {
+            if error.code() == crate::error_codes::NZB_INTERNAL_ADDRESS {
+                error.with_param("candidate_id", candidate.id)
+            } else {
+                error
+            }
+        })
+}
+
+/// Fetches the NZB at `url`, refuses an indexer's refusal and parses the answer: the one fetch
+/// of an NZB link, whether a LinkGrabber link or a subscription's hit handed straight to a
+/// remote-job provider (RD-1460-03).
+///
+/// `reach` is the address rule of a proposed link (RD-150-03); `None` is an address the person
+/// gave, fetched with the direct client.
+///
+/// # Errors
+///
 /// `collector.nzb_internal_address` (`422`) for a proposed address into this machine or a
 /// network it may not reach, `collector.nzb_client_unavailable`, `collector.nzb_fetch_failed`
 /// and `collector.nzb_rejected` (`502`), `collector.nzb_invalid` and `collector.nzb_empty`
 /// (`422`). No message carries the address with its key.
-pub async fn fetch_nzb_candidate(
+pub async fn fetch_nzb(
     state: &AppState,
-    candidate: &LinkCandidate,
+    url: &url::Url,
+    auth_profile: rd_core::AuthProfileSelection,
     reach: Option<bool>,
 ) -> Result<FetchedNzb, ApiError> {
     let network = match reach {
         Some(local_network) => {
             let policy = state.scheduler.remote_address_policy(local_network);
             if let Err(rd_http::TargetRefusal::Refused(_)) =
-                rd_http::check_target(&policy, &rd_http::SystemLookup, &candidate.url).await
+                rd_http::check_target(&policy, &rd_http::SystemLookup, url).await
             {
                 return Err(ApiError::unprocessable(
                     crate::error_codes::NZB_INTERNAL_ADDRESS,
                     "This NZB link points at this machine or into your own network, so it was not fetched",
-                )
-                .with_param("candidate_id", candidate.id));
+                ));
             }
             state
                 .scheduler
-                .guarded_client(&candidate.url, candidate.auth_profile, policy)
+                .guarded_client(url, auth_profile, policy)
                 .await
         }
-        None => {
-            state
-                .scheduler
-                .direct_client(&candidate.url, candidate.auth_profile)
-                .await
-        }
+        None => state.scheduler.direct_client(url, auth_profile).await,
     }
     .map_err(|error| {
         ApiError::bad_gateway("collector.nzb_client_unavailable", error.to_string())
@@ -70,14 +91,14 @@ pub async fn fetch_nzb_candidate(
     })?;
     let fetched = rd_http::fetch_document(
         &network.client,
-        candidate.url.clone(),
+        url.clone(),
         &network.headers,
         rd_collector::MAX_NZB_BYTES,
     )
     .await
     .map_err(|error| {
         // The address can carry an indexer API key, so it never reaches the message.
-        let reason = format!("{error} ({})", rd_core::redact_url(&candidate.url));
+        let reason = format!("{error} ({})", rd_core::redact_url(url));
         ApiError::bad_gateway("collector.nzb_fetch_failed", reason.clone())
             .with_param("reason", reason)
     })?;

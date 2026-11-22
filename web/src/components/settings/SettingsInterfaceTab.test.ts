@@ -82,6 +82,7 @@ describe('SettingsInterfaceTab browser and display', () => {
     }
     expect(display.textContent).toContain(settings.collector.nzb_hand_over.linkgrabber.label)
     expect(display.textContent).toContain(settings.collector.nzb_hand_over.downloads.label)
+    expect(display.textContent).toContain(settings.collector.nzb_hand_over.indexers.label)
     expect(display.textContent).toContain(settings.package_groups.downloads.label)
     expect(display.textContent).toContain(settings.package_groups.linkgrabber.label)
   })

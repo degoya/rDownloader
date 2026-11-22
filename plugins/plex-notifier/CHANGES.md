@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.6
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.2.5
 
 Maintenance release: internal changes only, no change in behaviour.

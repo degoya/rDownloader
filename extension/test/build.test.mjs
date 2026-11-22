@@ -122,13 +122,14 @@ test('the base manifest requests the download interception permissions', () => {
   // `git show 678fd64f -- extension/manifest.base.json` shows the array unchanged as context in
   // the very commit that added the interception, so they predate that path and are not its.
   // A per-origin `permissions.request({ origins })` for an origin no manifest pattern covers is
-  // refused by Chrome and by Firefox, so deleting these disables three live features at once.
-  for (const [wildcard, needed] of [
-    ['https://*/*', 'captcha.js requests one hoster origin per widget, session.js one site origin'],
-    ['http://*/*', 'options.js requests the origin of an rDownloader server that is not loopback']
-  ]) {
-    assert.ok(base.optional_host_permissions.includes(wildcard), `${wildcard} is what makes it legal: ${needed}`)
-  }
+  // refused by Chrome and by Firefox, so deleting it disables four live features at once. It is
+  // one `*://` pattern, not `http://*/*` beside `https://*/*`: Chrome wants a single manifest
+  // pattern that covers the whole request, so `*://<host>/*` — the site consent of `files.js`
+  // and the session share's `originPattern` — was refused without a prompt (RD-1460-02).
+  assert.ok(base.optional_host_permissions.includes('*://*/*'), [
+    'captcha.js requests one hoster origin per widget, session.js and files.js one site for both schemes,',
+    'options.js the origin of an rDownloader server that is not loopback'
+  ].join(' '))
   // Cookies are requested per origin at share time, so installing the extension must not
   // warn about cookie access to every site.
   assert.ok(!base.permissions.includes('cookies'), 'cookies must never be a mandatory permission')
@@ -155,7 +156,7 @@ test('the manifest declares the fields without which the extension does not load
   assert.deepEqual(Object.keys(base.icons).sort((a, b) => Number(a) - Number(b)), ['16', '32', '48', '128'])
   // Every optional host permission, not just the one that used to be spot-checked: an entry
   // nobody looked at is an entry that can be added or dropped without anybody noticing.
-  assert.deepEqual(base.optional_host_permissions.slice().sort(), ['http://*/*', 'https://*/*'])
+  assert.deepEqual(base.optional_host_permissions, ['*://*/*'])
 })
 
 test('a real build writes two manifests, both pages and all four icons', () => {

@@ -8,8 +8,11 @@ import { useAccountProviders } from '@/composables/useAccountProviders'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useErrorToast } from '@/composables/useErrorToast'
 import { useAccountsStore } from '@/stores/accounts'
-import { useNzbImportsStore, type NzbHandOverResult } from '@/stores/nzbImports'
+import { useNzbImportsStore } from '@/stores/nzbImports'
 import { showNzbHandOver, type NzbHandOverPlace } from '@/utils/nzbHandOver'
+
+/** What one hand-over came to, whatever was handed over: an import, a package, a hit. */
+export type HandOverOutcome = { ok: true, alreadyRunning: boolean } | { ok: false, message: string }
 
 /** One account an NZB import can be handed to. */
 export interface NzbHandOverTarget {
@@ -42,8 +45,10 @@ async function refresh(): Promise<void> {
 const events = debouncedEventRefresh(['plugin_catalog.changed', 'account.changed'], refresh)
 
 /**
- * Handing NZBs to a remote-job provider (RD-191-13): imports from the LinkGrabber, and the NZB
- * behind a package from the Downloads view (`place`), each behind a settings switch of its own.
+ * Handing NZBs to a remote-job provider (RD-191-13): imports from the LinkGrabber, the NZB
+ * behind a package from the Downloads view, and a hit of an indexer subscription from the review
+ * box (RD-1460-03, `submitEach` with the subscriptions store's hand-over), each place behind a
+ * settings switch of its own.
  *
  * Offered only for accounts whose provider's plugin declares it takes NZB files — the server
  * answers that from the installed manifests (`GET /api/v1/remote-jobs/providers?container=nzb`),
@@ -106,14 +111,15 @@ export function useNzbHandOver(place: NzbHandOverPlace) {
     await submitEach([{ id: item.id, name: item.name }], accountId, nzb.handOverPackage)
   }
 
+  /** Hands `entries` to one account through `submit`, one after another, and reports the outcome. */
   async function submitEach(
     entries: { id: string, name: string }[],
     accountId: string,
-    submit: (id: string, accountId: string) => Promise<NzbHandOverResult>
+    submit: (id: string, accountId: string) => Promise<HandOverOutcome>
   ): Promise<void> {
     const provider = targets.value.find(target => target.accountId === accountId)?.provider
       ?? t('linkgrabber.nzb.hand_over.provider_fallback')
-    const results: NzbHandOverResult[] = []
+    const results: HandOverOutcome[] = []
     // Sequential: the jobs are charged to one account, and the provider sees them in order.
     for (const entry of entries) results.push(await submit(entry.id, accountId))
     if (results.length === 1) {
@@ -146,5 +152,5 @@ export function useNzbHandOver(place: NzbHandOverPlace) {
     }))
   }
 
-  return { targets, handedOverTo, packageHandedOverTo, handOver, handOverPackage, menuItems }
+  return { targets, handedOverTo, packageHandedOverTo, handOver, handOverPackage, submitEach, menuItems }
 }

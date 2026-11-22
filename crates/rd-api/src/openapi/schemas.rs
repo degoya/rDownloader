@@ -213,6 +213,8 @@ use crate::{
     indexer_search::IndexerGrabFailure,
     subscription_handlers::SubscriptionRequest,
     subscription_handlers::SubscriptionItemStateRequest,
+    subscription_handlers::SubscriptionItemRemoteJobRequest,
+    subscription_handlers::SubscriptionItemRemoteJobResponse,
     subscription_handlers::SubscriptionPendingStateRequest,
     subscription_handlers::SubscriptionRequeueRequest,
     subscription_handlers::SubscriptionRequeueRefusal,

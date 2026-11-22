@@ -9,7 +9,8 @@
 //! installation's own list, and it says so in its own answer. `submit_nzb_import_remote_job`
 //! hands an NZB import from the LinkGrabber to a provider the same way, and
 //! `submit_package_remote_job` the NZB behind a queued package (RD-191-13), and
-//! `hand_over_collector_package` every link of a LinkGrabber package (RD-1440-07).
+//! `hand_over_collector_package` every link of a LinkGrabber package (RD-1440-07), and
+//! `hand_over_subscription_item` the NZB of a subscription's hit waiting for review (RD-1460-03).
 //!
 //! `clear_remote_jobs` clears the list, or the part a provider and state filter selects
 //! (RD-1200-01), here only, behind the question every clearing tool asks first since RD-1190-21.
@@ -28,8 +29,9 @@ use super::{
     error::{McpToolResult, parse_id, respond},
     params_config::IdParams,
     params_insight::{
-        ClearRemoteJobsParams, HandOverCollectorPackageParams, RemoteJobChoiceParams,
-        SubmitNzbImportRemoteJobParams, SubmitPackageRemoteJobParams, SubmitRemoteJobParams,
+        ClearRemoteJobsParams, HandOverCollectorPackageParams, HandOverSubscriptionItemParams,
+        RemoteJobChoiceParams, SubmitNzbImportRemoteJobParams, SubmitPackageRemoteJobParams,
+        SubmitRemoteJobParams,
     },
 };
 use crate::remote_job_handlers::{
@@ -137,6 +139,34 @@ impl RdMcpServer {
                     AxumPath(id),
                     Json(
                         crate::collector_handlers::CollectorPackageRemoteJobRequest { account_id },
+                    ),
+                )
+                .await?
+                .0,
+            )
+        }
+        .await;
+        respond(result)
+    }
+
+    #[tool(
+        description = "Hand a subscription's hit that is waiting for review (item id from list_subscription_items) to one account's provider instead of the LinkGrabber: its NZB is fetched from the indexer here and handed over as a .nzb file, never the indexer's address with its key, through the same checks and duplicate guard as submit_nzb_import_remote_job. Afterwards the hit is decided as after review_subscription_item with state=queued. Refused with subscription.item_not_found, subscription.remote_job_item_decided (the hit is no longer waiting), remote_job.no_account, nzb.remote_job_not_remote_account or nzb.remote_job_no_nzb (only accounts whose provider takes NZB files: list_remote_job_providers with container nzb), the indexer's refusal or a document that is no NZB (collector.nzb_*), and the provider's own refusal; the hit then stays waiting. `already_running` true means this account already had a job for this NZB and nothing was sent."
+    )]
+    pub async fn hand_over_subscription_item(
+        &self,
+        Parameters(params): Parameters<HandOverSubscriptionItemParams>,
+    ) -> McpToolResult {
+        let result = async {
+            let id = parse_id(&params.id)?;
+            let account_id = parse_id(&params.account_id)?;
+            Ok(
+                crate::subscription_handlers::submit_subscription_item_remote_job(
+                    State(self.state.clone()),
+                    AxumPath(id),
+                    Json(
+                        crate::subscription_handlers::SubscriptionItemRemoteJobRequest {
+                            account_id,
+                        },
                     ),
                 )
                 .await?

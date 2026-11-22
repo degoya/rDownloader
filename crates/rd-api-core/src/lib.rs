@@ -51,6 +51,7 @@ pub mod malware_scanner_handlers;
 pub mod notify_notice;
 pub mod notify_service;
 pub mod nzb_candidate;
+pub mod nzb_hand_over;
 pub mod object_upload_target;
 pub mod oidc_client;
 pub mod password_reset;

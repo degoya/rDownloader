@@ -483,7 +483,8 @@
       "details_title": "Detalles"
     },
     "held_title": "{count} resultado más | {count} resultados más",
-    "held_chip": "+{count} nuevos"
+    "held_chip": "+{count} nuevos",
+    "check_all_none_enabled": "Todas las suscripciones de indexador están desactivadas: activa una para comprobarla aquí."
   },
   "notices": {
     "reorder_filter_active": "El orden solo se puede cambiar sin ningún filtro activo; de lo contrario, los enlaces ocultos quedarían mal ordenados."

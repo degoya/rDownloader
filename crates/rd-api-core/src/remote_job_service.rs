@@ -105,6 +105,34 @@ impl RemoteJobRefused {
             message: message.into(),
         }
     }
+
+    /// The answer a route gives for this refusal: the service's own codes with their status, a
+    /// plugin's code as a `502`, since the provider is what refused. Shared by the queue's and
+    /// the intake's hand-overs (RD-1460-03), so a refusal reads the same from every place.
+    #[must_use]
+    pub fn into_api_error(self) -> crate::ApiError {
+        use crate::ApiError;
+        match self.code.as_str() {
+            "remote_job.not_found" => ApiError::not_found("remote_job.not_found", self.message),
+            "remote_job.no_account" => ApiError::not_found("remote_job.no_account", self.message),
+            "remote_job.not_awaiting_choice" => {
+                ApiError::bad_request("remote_job.not_awaiting_choice", self.message)
+            }
+            "remote_job.empty_choice" => {
+                ApiError::bad_request("remote_job.empty_choice", self.message)
+            }
+            "remote_job.not_confirmed" => {
+                ApiError::bad_request("remote_job.not_confirmed", self.message)
+            }
+            "remote_job.already_discarded" => {
+                ApiError::bad_request("remote_job.already_discarded", self.message)
+            }
+            "remote_job.missing_remote_id" => {
+                ApiError::bad_request("remote_job.missing_remote_id", self.message)
+            }
+            _ => ApiError::bad_gateway_owned(self.code, self.message),
+        }
+    }
 }
 
 impl From<JobRefusal> for RemoteJobRefused {

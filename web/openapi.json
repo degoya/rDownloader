@@ -7,7 +7,7 @@
       "name": "GPL-3.0-or-later",
       "identifier": "GPL-3.0-or-later"
     },
-    "version": "1.45.0"
+    "version": "1.46.0"
   },
   "paths": {
     "/api/v1/accounts": {
@@ -17784,6 +17784,108 @@
           },
           "502": {
             "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/subscriptions/items/{id}/remote-job": {
+      "post": {
+        "tags": [
+          "subscriptions"
+        ],
+        "summary": "Hands a hit still waiting for review to one account's provider as a remote job.",
+        "description": "Refused before anything is fetched when the hit does not exist or is decided already, and\nwhen the account does not exist, runs no remote jobs or takes no NZB files. Then the hit's NZB\nis fetched from the indexer; its refusal, or a document that is no NZB, is refused with the\nLinkGrabber's codes (`collector.nzb_*`), and a provider's refusal with the provider's code.",
+        "operationId": "submit_subscription_item_remote_job",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SubscriptionItemId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionItemRemoteJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionItemRemoteJobResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The account's provider runs no remote jobs or takes no NZB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The hit, its subscription or the account does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The hit is decided already",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The NZB exceeds 16 MiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The indexer answered with no NZB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The indexer or the provider refused",
             "content": {
               "application/json": {
                 "schema": {
@@ -41564,6 +41666,11 @@
             "description": "The same offer in the Downloads view, in the menu of a package that came from an NZB\n(RD-191-13). A switch of its own (owner, 2026-10-04): handing over a failed package is a\ndifferent habit from handing over before the queue.",
             "default": true
           },
+          "nzb_hand_over_indexers_enabled": {
+            "type": "boolean",
+            "description": "The same offer on a hit of an indexer subscription in the LinkGrabber's review box\n(RD-1460-03): the hit's NZB is fetched and handed over, and the hit is decided as after\n\"queue\". On by default, and offered only where an account takes NZB files. A display\nchoice: the REST route and the MCP tool keep working.",
+            "default": true
+          },
           "nzb_hand_over_linkgrabber_enabled": {
             "type": "boolean",
             "description": "Whether the LinkGrabber offers to hand an NZB import to a remote-job provider: the menu\nin each NZB row and the entry in the selection bar (RD-191-13).\n\nOn by default, because it is offered only where an account takes NZB files. It is a\ndisplay choice and nothing more: the badge of an import already handed over stays, and\nthe REST route and the MCP tool keep working, so switching it off cannot strand a job.",
@@ -44210,6 +44317,45 @@
             "format": "int64",
             "description": "Number of rows matching the selected state filter.",
             "minimum": 0
+          }
+        }
+      },
+      "SubscriptionItemRemoteJobRequest": {
+        "type": "object",
+        "description": "Which account's provider a subscription's hit goes to.",
+        "required": [
+          "account_id"
+        ],
+        "properties": {
+          "account_id": {
+            "$ref": "#/components/schemas/AccountId",
+            "description": "A remote-job account whose provider takes NZB files\n(`GET /api/v1/remote-jobs/providers?container=nzb`)."
+          }
+        }
+      },
+      "SubscriptionItemRemoteJobResponse": {
+        "type": "object",
+        "description": "What handing a hit over produced.",
+        "required": [
+          "item_id",
+          "state",
+          "job",
+          "already_running"
+        ],
+        "properties": {
+          "already_running": {
+            "type": "boolean",
+            "description": "True when the account already had a job for this NZB. Nothing was sent, and the hit is\ndecided all the same: the content is at the provider."
+          },
+          "item_id": {
+            "$ref": "#/components/schemas/SubscriptionItemId"
+          },
+          "job": {
+            "$ref": "#/components/schemas/RemoteJob"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SubscriptionItemState",
+            "description": "The hit's state now: `queued`, decided as after \"queue\"."
           }
         }
       },

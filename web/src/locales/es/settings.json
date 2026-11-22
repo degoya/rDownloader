@@ -582,6 +582,10 @@
       "downloads": {
         "label": "Mostrar la entrega en las descargas",
         "description": "Activado por defecto. La entrada del menú de un paquete que procede de un NZB aparece en cualquier estado del paquete, también fallido, pero solo si tienes una cuenta en un proveedor que acepte archivos NZB (TorBox, Premiumize). Un paquete ya entregado conserva su distintivo."
+      },
+      "indexers": {
+        "label": "Mostrar la entrega en los resultados de indexadores",
+        "description": "Activado por defecto. En el cuadro de suscripciones de indexadores del LinkGrabber, cada resultado NZB que espera tu decisión recibe un botón que entrega su NZB directamente a un proveedor, pero solo si tienes una cuenta en un proveedor que acepte archivos NZB (TorBox, Premiumize). Después, el resultado cuenta como añadido a la cola."
       }
     },
     "package_hand_over": {

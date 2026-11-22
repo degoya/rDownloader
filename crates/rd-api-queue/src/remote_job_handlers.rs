@@ -269,26 +269,7 @@ pub async fn forget_remote_job(
 /// provider through a plugin, under a code this crate cannot enumerate and must not rewrite,
 /// so it keeps the code and travels as a bad gateway.
 pub(crate) fn refused(refusal: RemoteJobRefused) -> ApiError {
-    match refusal.code.as_str() {
-        "remote_job.not_found" => ApiError::not_found("remote_job.not_found", refusal.message),
-        "remote_job.no_account" => ApiError::not_found("remote_job.no_account", refusal.message),
-        "remote_job.not_awaiting_choice" => {
-            ApiError::bad_request("remote_job.not_awaiting_choice", refusal.message)
-        }
-        "remote_job.empty_choice" => {
-            ApiError::bad_request("remote_job.empty_choice", refusal.message)
-        }
-        "remote_job.not_confirmed" => {
-            ApiError::bad_request("remote_job.not_confirmed", refusal.message)
-        }
-        "remote_job.already_discarded" => {
-            ApiError::bad_request("remote_job.already_discarded", refusal.message)
-        }
-        "remote_job.missing_remote_id" => {
-            ApiError::bad_request("remote_job.missing_remote_id", refusal.message)
-        }
-        _ => ApiError::bad_gateway_owned(refusal.code, refusal.message),
-    }
+    refusal.into_api_error()
 }
 
 #[cfg(test)]

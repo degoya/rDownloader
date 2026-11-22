@@ -1348,7 +1348,8 @@
     "collector.remote_job_secret_fragment": "Der Schlüssel dieses Links bleibt auf diesem Rechner und geht nicht an einen Anbieter",
     "collector.remote_job_source_unsupported": "Nur ein Magnet-Link, eine http(s)-Adresse oder eine importierte Torrent-Datei kann an einen Anbieter gehen",
     "collector.remote_job_torrent_unreadable": "Die Torrent-Datei hinter diesem Link liegt nicht im Torrent-Speicher oder lässt sich nicht lesen",
-    "collector.remote_job_failed": "Der Link konnte nicht übergeben werden"
+    "collector.remote_job_failed": "Der Link konnte nicht übergeben werden",
+    "subscription.remote_job_item_decided": "Nur ein Treffer, der noch auf deine Entscheidung wartet, kann an einen Anbieter übergeben werden."
   },
   "capabilities": {
     "media_download": "Mediendownloads",

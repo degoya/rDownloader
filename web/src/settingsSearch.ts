@@ -106,7 +106,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('interface.web_push', 'interface', 'settings.web_push.label', { tab: 'browser', descriptionKey: 'settings.web_push.description', terms: ['Web Push', 'PWA'] }),
   card('interface.display', 'interface', 'settings.display.title', { tab: 'display', descriptionKey: 'settings.display.description' }),
   field('interface.indexer_images', 'interface', 'settings.collector.indexer_images.title', { tab: 'display', descriptionKey: 'settings.collector.indexer_images.description' }),
-  card('interface.nzb_hand_over', 'interface', 'settings.collector.nzb_hand_over.title', { tab: 'display', descriptionKey: 'settings.collector.nzb_hand_over.description', terms: ['NZB', 'TorBox', 'Premiumize'] }),
+  card('interface.nzb_hand_over', 'interface', 'settings.collector.nzb_hand_over.title', { tab: 'display', descriptionKey: 'settings.collector.nzb_hand_over.description', terms: ['NZB', 'TorBox', 'Premiumize', 'Indexer'] }),
   card('interface.package_groups', 'interface', 'settings.package_groups.title', { tab: 'display', descriptionKey: 'settings.package_groups.description' }),
   // Download routing
   card('routing.roots', 'routing', 'routing.root.title', { tab: 'roots', descriptionKey: 'routing.root.description', keywordsKey: `${K}.routing` }),

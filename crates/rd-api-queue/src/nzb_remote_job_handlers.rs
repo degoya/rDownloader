@@ -21,21 +21,13 @@ use axum::{
     Json,
     extract::{Path, State},
 };
+use rd_api_core::nzb_hand_over::{self, NzbHandedOver};
 use rd_core::{AccountId, NzbImportId, NzbImportState, PackageId, RemoteJob};
 use rd_db::StoreErrorKind;
-use rd_plugin_host::extension::RemoteJobSource;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{
-    AppState,
-    error::ApiError,
-    remote_job_handlers::refused,
-    remote_job_service::{MAX_REMOTE_JOB_CONTAINER_BYTES, SubmitOutcome},
-};
-
-/// The container format an NZB import is handed over as, in `[extension] containers`.
-const NZB: &str = "nzb";
+use crate::{AppState, error::ApiError};
 
 /// Which account's provider an NZB import goes to.
 #[derive(Debug, Deserialize, ToSchema)]
@@ -127,75 +119,19 @@ async fn hand_over(
     moved_on: fn() -> ApiError,
 ) -> Result<NzbImportRemoteJobResponse, ApiError> {
     let id = import.id;
-    let account = state
-        .database
-        .get_account(account_id)
-        .await?
-        .ok_or_else(|| {
-            ApiError::not_found(
-                "remote_job.no_account",
-                "the account this job would run on does not exist",
-            )
-        })?;
-    let provider = account.provider.to_ascii_lowercase();
-    if !state
-        .queue
-        .remote_jobs
-        .providers()
-        .await?
-        .contains(&provider)
-    {
-        return Err(ApiError::bad_request(
-            "nzb.remote_job_not_remote_account",
-            "No installed plugin runs remote jobs on this account's provider",
-        ));
-    }
-    if !state
-        .queue
-        .remote_jobs
-        .providers_accepting(NZB)
-        .await?
-        .contains(&provider)
-    {
-        return Err(ApiError::bad_request(
-            "nzb.remote_job_no_nzb",
-            "This account's provider does not take NZB files",
-        ));
-    }
+    // The account checks and the submission are `rd_api_core::nzb_hand_over`'s, shared with
+    // the hand-over of an indexer subscription's hit (RD-1460-03).
+    nzb_hand_over::ensure_takes_nzb(state, account_id).await?;
     let files = state.database.list_nzb_files(id).await?;
     let content = rd_collector::render_nzb(
         &document(import.password.clone(), files),
         Some(&rd_collector::container_name(&import.name)),
         import.created_at.unix_seconds(),
     );
-    if content.len() > MAX_REMOTE_JOB_CONTAINER_BYTES {
-        let max_mib = MAX_REMOTE_JOB_CONTAINER_BYTES / (1024 * 1024);
-        return Err(ApiError::payload_too_large(
-            "nzb.remote_job_too_large",
-            format!("The NZB exceeds the {max_mib} MiB a remote job may carry"),
-        )
-        .with_param("max_mib", max_mib));
-    }
-    let outcome = state
-        .queue
-        .remote_jobs
-        .submit_named(
-            account_id,
-            RemoteJobSource::Container(content),
-            Some(import.name.clone()),
-        )
-        .await?;
-    let (job, already_running) = match outcome {
-        SubmitOutcome::Started(job) => (job, false),
-        SubmitOutcome::AlreadyOurs(job) => (job, true),
-        SubmitOutcome::NotClaimed => {
-            return Err(ApiError::bad_request(
-                "remote_job.not_claimed",
-                "no installed plugin runs a job like this on this account's provider",
-            ));
-        }
-        SubmitOutcome::Refused(refusal) => return Err(refused(refusal)),
-    };
+    let NzbHandedOver {
+        job,
+        already_running,
+    } = nzb_hand_over::submit_nzb(state, account_id, content, Some(import.name.clone())).await?;
     // After the row, never before it: a crash in between leaves a job without its mark, and
     // the next press meets the duplicate guard above and writes the mark then.
     let import = state

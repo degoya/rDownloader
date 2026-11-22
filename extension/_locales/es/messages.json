@@ -144,7 +144,7 @@
     "message": "La lista está vacía: no se toma ninguna descarga."
   },
   "optionsInterceptTypesBrowserOnly": {
-    "message": "$1: estos archivos los descarga el propio navegador. Solo llegan a rDownloader desde un sitio que hayas permitido abajo; si no, se quedan en el navegador."
+    "message": "$1: estos archivos los descarga el propio navegador. Solo llegan a rDownloader desde un sitio que hayas permitido en la ventana emergente (lista de abajo); si no, se quedan en el navegador."
   },
   "menuSession": {
     "message": "Enviar la sesión de este sitio a rDownloader"
@@ -360,7 +360,7 @@
     }
   },
   "filesAllow": {
-    "message": "Entregar archivos NZB, torrent y ZIP de $HOST$ a rDownloader",
+    "message": "Entregar archivos NZB, torrent, ZIP y contenedores (DLC) de $HOST$ a rDownloader",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -384,7 +384,7 @@
     }
   },
   "filesAllowed": {
-    "message": "Los archivos NZB, torrent y ZIP de $HOST$ ahora van a rDownloader.",
+    "message": "Los archivos NZB, torrent, ZIP y contenedores de $HOST$ ahora van a rDownloader.",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -425,7 +425,7 @@
     "message": "Sitios que entregan archivos"
   },
   "optionsFilesHint": {
-    "message": "Las descargas NZB, torrent y ZIP de estos sitios van a rDownloader en lugar de quedarse en el navegador. Permite un sitio desde la ventana emergente mientras estás en él."
+    "message": "Las descargas NZB, torrent, ZIP y de contenedores (DLC y otros) de estos sitios van a rDownloader en lugar de quedarse en el navegador. Permite un sitio desde la ventana emergente mientras estás en él."
   },
   "optionsFilesNone": {
     "message": "Todavía ningún sitio."

@@ -7,6 +7,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import type { IndexerHandOverSettings } from '@/api/subscriptionHandOver'
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { paletteSwatch, useColorPalette } from '@/composables/useColorPalette'
@@ -52,6 +53,15 @@ const paletteItems = computed(() => palettes.map(value => ({
 })))
 const notifications = useNotifications()
 const notificationsDenied = ref(false)
+
+/**
+ * The hand-over on a hit of the indexer review box (RD-1460-03), on by default. Read through a
+ * cast until the schema is regenerated; a document without it reads as the default.
+ */
+const indexerHandOver = computed({
+  get: () => (settings.value as IndexerHandOverSettings).nzb_hand_over_indexers_enabled !== false,
+  set: (value: boolean) => { (settings.value as IndexerHandOverSettings).nzb_hand_over_indexers_enabled = value }
+})
 
 const localeItems = computed(() => languageItems(t))
 const themeItems = computed(() => (['system', 'light', 'dark'] as ThemeMode[]).map(value => ({
@@ -174,6 +184,9 @@ async function toggleNotifications(value: boolean): Promise<void> {
             </UFormField>
             <UFormField :label="t('settings.collector.nzb_hand_over.downloads.label')" :description="t('settings.collector.nzb_hand_over.downloads.description')" orientation="horizontal">
               <USwitch v-model="settings.nzb_hand_over_downloads_enabled" />
+            </UFormField>
+            <UFormField :label="t('settings.collector.nzb_hand_over.indexers.label')" :description="t('settings.collector.nzb_hand_over.indexers.description')" orientation="horizontal">
+              <USwitch v-model="indexerHandOver" data-testid="settings-indexer-hand-over" />
             </UFormField>
           </div>
           <USeparator class="mt-4" />

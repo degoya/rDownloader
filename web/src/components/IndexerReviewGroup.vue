@@ -8,8 +8,9 @@ import IndexerReviewBulkActions from '@/components/IndexerReviewBulkActions.vue'
 import SubscriptionItemActions from '@/components/SubscriptionItemActions.vue'
 import SubscriptionItemRow from '@/components/SubscriptionItemRow.vue'
 import SubscriptionItemSlider from '@/components/SubscriptionItemSlider.vue'
+import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
 import { showItemImages } from '@/utils/itemImages'
-import { cardRatio } from '@/utils/subscriptionHit'
+import { cardRatio, hitIsNzb } from '@/utils/subscriptionHit'
 
 /**
  * One indexer subscription's hits still waiting for a decision (RD-098-02).
@@ -57,6 +58,11 @@ const props = defineProps<{
    * 2026-10-21: a small "new" in the header, not a banner that grows the drawer.
    */
   held?: number
+  /**
+   * The accounts a hit's NZB can go to (RD-1460-03), offered on every NZB hit in both views;
+   * empty with the settings switch off or without such an account.
+   */
+  handOverTargets?: NzbHandOverTarget[]
 }>()
 const emit = defineEmits<{
   /** `opening`: the group was unfolded, so it is drawn as it is now; otherwise a page or retry. */
@@ -70,6 +76,7 @@ const emit = defineEmits<{
   dismiss: [itemId: string]
   queueAll: []
   dismissAll: []
+  handOver: [itemId: string, accountId: string]
 }>()
 
 const open = ref(false)
@@ -146,9 +153,11 @@ function busy(itemId: string): boolean {
           :autoplay="props.subscription.autoplay ?? false"
           :ratio="cardRatio(props.subscription.card_ratio)"
           :total="props.listTotal"
+          :hand-over-targets="props.handOverTargets ?? []"
           @more="emit('more')"
           @queue="(itemId) => emit('queue', itemId)"
           @dismiss="(itemId) => emit('dismiss', itemId)"
+          @hand-over="(itemId, accountId) => emit('handOver', itemId, accountId)"
         />
         <ul v-else class="space-y-1" data-testid="subscription-list">
           <SubscriptionItemRow
@@ -160,8 +169,10 @@ function busy(itemId: string): boolean {
             <template #actions>
               <SubscriptionItemActions
                 :busy="busy(item.id)"
+                :hand-over-targets="hitIsNzb(item) ? props.handOverTargets ?? [] : []"
                 @queue="emit('queue', item.id)"
                 @dismiss="emit('dismiss', item.id)"
+                @hand-over="(accountId) => emit('handOver', item.id, accountId)"
               />
             </template>
           </SubscriptionItemRow>

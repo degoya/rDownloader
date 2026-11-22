@@ -1348,7 +1348,8 @@
     "collector.remote_job_secret_fragment": "La clave de este enlace se guarda en este equipo y no viaja a un proveedor",
     "collector.remote_job_source_unsupported": "Solo un magnet, una dirección http(s) o un archivo torrent importado pueden ir a un proveedor",
     "collector.remote_job_torrent_unreadable": "El archivo torrent de este enlace no está en el almacén de torrents o no se puede leer",
-    "collector.remote_job_failed": "No se pudo entregar el enlace"
+    "collector.remote_job_failed": "No se pudo entregar el enlace",
+    "subscription.remote_job_item_decided": "Solo se puede entregar a un proveedor un resultado que aún espera revisión."
   },
   "capabilities": {
     "media_download": "las descargas de medios",

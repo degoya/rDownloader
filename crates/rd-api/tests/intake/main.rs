@@ -35,5 +35,6 @@ mod package_names;
 mod replay_consent;
 mod replay_restart;
 mod source_sets;
+mod subscription_remote_job;
 mod torrent;
 mod torrent_resolve;

@@ -78,9 +78,12 @@ in the LinkGrabber — or allow the site, below.
 
 ### Files from a site you allowed
 
-For a site you allow, its NZB, torrent and ZIP downloads go to rDownloader after all
-(RD-130-16). Open the popup **on that site** and press **Hand NZB, torrent and ZIP files from
-… to rDownloader**; the browser asks for access to that one host and for `cookies`. The same
+For a site you allow, its NZB, torrent, ZIP and link-container downloads go to rDownloader after
+all (RD-130-16). Open the popup **on that site** and press **Hand NZB, torrent, ZIP and container
+files (DLC) from … to rDownloader**; the browser asks for access to that one host, both schemes
+(`*://<host>/*`), and for `cookies`. The manifest's optional host permission is the one pattern
+`*://*/*`: Chrome grants an optional request only when a single manifest pattern covers it, and
+refused `*://<host>/*` without a prompt beside `http://*/*` and `https://*/*` (RD-1460-02). The same
 button takes the consent back, and the options page lists every allowed site with a **Revoke**
 button. Without a consent nothing changes: the file stays in the browser, as above. **Take over
 browser downloads** has to be on.
@@ -103,6 +106,19 @@ rDownloader then takes the file in one of two ways, and never fetches it a secon
   port — a redirect elsewhere goes without them — and keeps them nowhere: no cookie store, no
   row, no log line. The browser has usually fetched the file already, so an indexer counts this
   as a second download (not three or four, as a LinkGrabber hand-over would).
+
+- **A file the page builds itself** (both browsers, RD-1460-02). Some sites never serve a
+  container from an address: the page assembles it in script and downloads it from a `blob:`
+  address it revokes right after the click, which no download hand-over can read. On an allowed
+  site the extension registers two content scripts (`scripting.registerContentScripts`, for
+  exactly the allowed hosts, renewed whenever the list or a grant changes):
+  `src/page-files-main.js` in the page's own world remembers each blob the page turns into an
+  address and holds back the download of an NZB, torrent, ZIP or link container (by name or blob
+  type, at most 16 MiB); `src/page-files-relay.js` carries its bytes to the background, which
+  applies the same rules as above — token, **Take over browser downloads**, the type list, the
+  site's consent read from the browser's own address of the frame — and posts them to
+  `POST /api/v1/capture/file`. Taken, the page's download never starts; refused, not ours or
+  unanswered within 30 seconds, the browser gets the file from a fresh address after all.
 
 rDownloader takes an NZB, a `.torrent`, or a ZIP of NZBs (NNTmux's `/getnzb?id=…&zip=1`, one
 import per NZB inside; a ZIP with one broken NZB is refused whole). An NZB lands as an import in
@@ -323,7 +339,7 @@ Requested only when you use the feature, and revocable at any time in the browse
 | Optional permission | Why |
 | --- | --- |
 | `cookies` | sharing a site's session for **one** origin you pick, or handing a hoster session over to the account that asked for it — the site named by the provider's plugin; never for all sites, and given back after the read. Kept while a site is allowed to hand files over, which reads the cookies for one download address at a time |
-| host permissions | reaching an rDownloader server that is not covered by the built-in `http://127.0.0.1:8710/*` and `http://localhost:8710/*`; per captcha, for the one origin of the hoster's page, released again once answered or declined — opening that page to answer a widget captcha; and `*://<host>/*` for each site you allow to hand files over, until you revoke it |
+| host permissions | reaching an rDownloader server that is not covered by the built-in `http://127.0.0.1:8710/*` and `http://localhost:8710/*`; per captcha, for the one origin of the hoster's page, released again once answered or declined — opening that page to answer a widget captcha; and `*://<host>/*` for each site you allow to hand files over, until you revoke it — which also lets the extension put its two page scripts for files a page builds itself on that site |
 
 The Firefox build additionally carries `webRequestBlocking` and `webRequestFilterResponse`,
 which copying a response and answering Click'n'Load take; neither reaches a site without the host

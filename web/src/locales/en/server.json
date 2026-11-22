@@ -1348,7 +1348,8 @@
     "collector.remote_job_secret_fragment": "The key of this link is kept on this machine and does not travel to a provider",
     "collector.remote_job_source_unsupported": "Only a magnet, an http(s) address or an imported torrent file can go to a provider",
     "collector.remote_job_torrent_unreadable": "The torrent file behind this link is not in the torrent store or cannot be read",
-    "collector.remote_job_failed": "The link could not be handed over"
+    "collector.remote_job_failed": "The link could not be handed over",
+    "subscription.remote_job_item_decided": "Only a hit still waiting for review can be handed to a provider."
   },
   "capabilities": {
     "media_download": "media downloads",

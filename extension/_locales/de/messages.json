@@ -144,7 +144,7 @@
     "message": "Die Liste ist leer: kein Download wird übernommen."
   },
   "optionsInterceptTypesBrowserOnly": {
-    "message": "$1: diese Dateien lädt der Browser selbst. An rDownloader gehen sie nur von einer Seite, die du unten erlaubt hast; sonst bleiben sie im Browser."
+    "message": "$1: diese Dateien lädt der Browser selbst. An rDownloader gehen sie nur von einer Seite, die du im Popup erlaubt hast (Liste unten); sonst bleiben sie im Browser."
   },
   "menuSession": {
     "message": "Sitzung dieser Seite an rDownloader senden"
@@ -360,7 +360,7 @@
     }
   },
   "filesAllow": {
-    "message": "NZB-, Torrent- und ZIP-Dateien von $HOST$ an rDownloader übergeben",
+    "message": "NZB-, Torrent-, ZIP- und Container-Dateien (DLC) von $HOST$ an rDownloader übergeben",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -384,7 +384,7 @@
     }
   },
   "filesAllowed": {
-    "message": "NZB-, Torrent- und ZIP-Dateien von $HOST$ gehen jetzt an rDownloader.",
+    "message": "NZB-, Torrent-, ZIP- und Container-Dateien von $HOST$ gehen jetzt an rDownloader.",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -425,7 +425,7 @@
     "message": "Seiten, die Dateien übergeben"
   },
   "optionsFilesHint": {
-    "message": "NZB-, Torrent- und ZIP-Downloads dieser Seiten gehen an rDownloader, statt im Browser zu bleiben. Eine Seite erlaubst du im Popup, während du auf ihr bist."
+    "message": "NZB-, Torrent-, ZIP- und Container-Downloads (DLC und andere) dieser Seiten gehen an rDownloader, statt im Browser zu bleiben. Eine Seite erlaubst du im Popup, während du auf ihr bist."
   },
   "optionsFilesNone": {
     "message": "Noch keine Seite."

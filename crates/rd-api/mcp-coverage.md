@@ -14,7 +14,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 
 <!-- BEGIN generated: scripts/mcp-coverage.sh -->
 
-**118 capabilities, 90 covered by a tool, 28 deliberately out (16 of them on the owner's line of 2026-09-23).** 490 REST operations, 267 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
+**118 capabilities, 90 covered by a tool, 28 deliberately out (16 of them on the owner's line of 2026-09-23).** 491 REST operations, 268 MCP tools. Regenerate with `scripts/mcp-coverage.sh`; `mcp::coverage` fails the build if an operation belongs to no capability.
 
 ### Covered
 
@@ -42,7 +42,7 @@ and `mcp_coverage::doc_tests` fails when this page has drifted from the source.
 | Automations | Automation | 5 | `create_automation`, `delete_automation`, `list_automations`, `toggle_automation`, `update_automation` |
 | Installed plugins: switch and uninstall | Settings > Plugins | 5 | `list_configuration`, `remove_superseded_plugin_versions`, `set_plugin_enabled`, `uninstall_plugin_version` |
 | Choosing the bundled services | Setup wizard, Settings > Plugins > Catalogue | 3 | `install_bundled_services`, `list_bundled_services`, `remove_bundled_services` |
-| Remote jobs | Remote jobs | 8 | `choose_remote_job_entries`, `clear_remote_jobs`, `forget_remote_job`, `hand_over_collector_package`, `list_remote_jobs`, `submit_nzb_import_remote_job`, `submit_package_remote_job`, `submit_remote_job` |
+| Remote jobs | Remote jobs | 9 | `choose_remote_job_entries`, `clear_remote_jobs`, `forget_remote_job`, `hand_over_collector_package`, `hand_over_subscription_item`, `list_remote_jobs`, `submit_nzb_import_remote_job`, `submit_package_remote_job`, `submit_remote_job` |
 | Transfer statistics | Statistics | 1 | `get_transfer_stats` |
 | Traffic per Usenet server and its quota | Statistics, Settings > Usenet | 2 | `get_usenet_server_traffic`, `set_usenet_server_quota` |
 | The log store | Logs | 1 | `list_log_records` |

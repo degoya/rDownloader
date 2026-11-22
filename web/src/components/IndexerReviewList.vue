@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import type { SubscriptionItemState } from '@/api/types'
 import IndexerReviewGroup from '@/components/IndexerReviewGroup.vue'
 import { useConfirm } from '@/composables/useConfirm'
+import { useNzbHandOver } from '@/composables/useNzbHandOver'
 import { useSubscriptionsStore } from '@/stores/subscriptions'
 
 /**
@@ -26,6 +27,8 @@ const { t } = useI18n()
 const subscriptions = useSubscriptionsStore()
 const confirm = useConfirm()
 const toast = useToast()
+/** The NZB hand-over of the LinkGrabber, offered on a hit here behind its own switch (RD-1460-03). */
+const nzbHandOver = useNzbHandOver('indexers')
 
 const open = ref(false)
 const loading = ref(false)
@@ -74,6 +77,12 @@ const noticeTone = computed(() =>
 )
 
 const indexers = computed(() => subscriptions.subscriptions.filter(entry => entry.kind === 'indexer'))
+/**
+ * The indexer subscriptions "check all" asks (RD-1460-03). Owner, 2026-11-22: a subscription
+ * switched off stays out of it — it polled every one, the switched-off ones included. Its own
+ * "check now" on the subscriptions page still checks it on purpose.
+ */
+const enabledIndexers = computed(() => indexers.value.filter(entry => entry.enabled))
 
 function pendingOf(id: string): number {
   return subscriptions.reviewSummary.subscriptions
@@ -239,8 +248,9 @@ async function loadGroup(subscriptionId: string, page: number, options: { keepWa
 }
 
 /**
- * Asks every indexer subscription to check now, from the place where the hits are worked
- * through (RD-106-17).
+ * Asks every indexer subscription that is switched on to check now, from the place where the
+ * hits are worked through (RD-106-17); a switched-off one stays out, and so does its count in the
+ * notice (RD-1460-03).
  *
  * One request per subscription, because that is the endpoint there is; they go out together,
  * since each one only starts a poll on the server and answers at once. The box opens and loads
@@ -251,20 +261,16 @@ async function loadGroup(subscriptionId: string, page: number, options: { keepWa
  * what each one found.
  */
 async function checkAll(): Promise<void> {
-  if (checking.value) return
+  // With every indexer subscription switched off the button is off (RD-1460-03). Kept as a guard,
+  // without a notice: "check of 0 subscriptions started" would be the alternative.
+  const due = enabledIndexers.value
+  if (checking.value || !due.length) return
   checking.value = true
   notice.value = null
   // Opened here and nowhere else automatically: somebody who asks for a check is asking what it
   // found, and the answer is in the drawer. A page that merely loaded is not asking anything.
   if (!open.value) await openDrawer()
-  // Since RD-107-12 the whole box only exists with at least one indexer subscription, so this
-  // button cannot be reached with none. Kept as a guard, without a notice: there is no reader to
-  // tell, and "check of 0 subscriptions started" would be the alternative.
-  if (!indexers.value.length) {
-    checking.value = false
-    return
-  }
-  const results = await Promise.all(indexers.value.map(entry => subscriptions.pollNow(entry.id)))
+  const results = await Promise.all(due.map(entry => subscriptions.pollNow(entry.id)))
   checking.value = false
   const failed = results.filter(result => !result.ok).length
   const started = results.length - failed
@@ -295,6 +301,23 @@ async function decide(itemId: string, subscriptionId: string, state: Subscriptio
   queuing.value = [...queuing.value, itemId]
   await subscriptions.setItemState(itemId, subscriptionId, state)
   queuing.value = queuing.value.filter(id => id !== itemId)
+}
+
+/**
+ * Hands one hit's NZB straight to a remote-job provider (RD-1460-03), through the hand-over the
+ * LinkGrabber's NZB imports take: the same toasts, the same accounts. The server decides the hit
+ * as after "queue", so it leaves the list like a queued one; one that could not go stays, and
+ * the toast names it with the reason.
+ */
+async function handOver(itemId: string, subscriptionId: string, accountId: string): Promise<void> {
+  const name = subscriptions.items[subscriptionId]?.find(item => item.id === itemId)?.title ?? ''
+  queuing.value = [...queuing.value, itemId]
+  try {
+    await nzbHandOver.submitEach([{ id: itemId, name }], accountId, (id, account) =>
+      subscriptions.handOverItem(id, subscriptionId, account))
+  } finally {
+    queuing.value = queuing.value.filter(id => id !== itemId)
+  }
 }
 
 /**
@@ -384,8 +407,10 @@ async function decideAll(subscriptionId: string, state: 'queued' | 'dismissed'):
         variant="ghost"
         icon="i-lucide-refresh-cw"
         :label="t('linkgrabber.indexers.check_all')"
-        :title="t('linkgrabber.indexers.check_all')"
+        :title="enabledIndexers.length ? t('linkgrabber.indexers.check_all') : t('linkgrabber.indexers.check_all_none_enabled')"
         :loading="checking"
+        :disabled="!enabledIndexers.length"
+        data-testid="indexer-check-all"
         @click="checkAll"
       />
     </div>
@@ -416,6 +441,7 @@ async function decideAll(subscriptionId: string, state: 'queued' | 'dismissed'):
               :held="group.held"
               :busy-ids="queuing"
               :bulk-busy="bulkFor === group.subscription.id"
+              :hand-over-targets="nzbHandOver.targets.value"
               @load="(page, opening) => openGroup(group.subscription.id, page, opening)"
               @close="closeGroup(group.subscription.id)"
               @show-held="showHeld(group.subscription.id)"
@@ -424,6 +450,7 @@ async function decideAll(subscriptionId: string, state: 'queued' | 'dismissed'):
               @dismiss="(itemId) => decide(itemId, group.subscription.id, 'dismissed')"
               @queue-all="decideAll(group.subscription.id, 'queued')"
               @dismiss-all="decideAll(group.subscription.id, 'dismissed')"
+              @hand-over="(itemId, accountId) => handOver(itemId, group.subscription.id, accountId)"
             />
           </div>
         </div>

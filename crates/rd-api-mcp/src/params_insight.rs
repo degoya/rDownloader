@@ -154,6 +154,16 @@ pub(crate) struct HandOverCollectorPackageParams {
     pub account_id: String,
 }
 
+/// A subscription's hit handed straight to a provider (RD-1460-03).
+#[derive(Deserialize, schemars::JsonSchema)]
+pub(crate) struct HandOverSubscriptionItemParams {
+    /// The hit still waiting for review (item id from list_subscription_items).
+    pub id: String,
+    /// The account whose provider is to fetch it. list_remote_job_providers with `container`
+    /// "nzb" names the providers that take NZB files.
+    pub account_id: String,
+}
+
 /// The optional narrowing of the remote-job provider list.
 #[derive(Debug, Default, Deserialize, schemars::JsonSchema)]
 pub(crate) struct RemoteJobProvidersParams {

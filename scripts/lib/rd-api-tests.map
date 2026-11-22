@@ -163,6 +163,8 @@
 ^crates/rd-api(-[a-z]+)?/src/(usenet_handlers|routes/usenet)(\.rs$|/)                         nzb_paused nzb_remote_job container_json indexers compat_sabnzbd unique_names unreadable_secrets usenet_connections
 ^crates/rd-api(-[a-z]+)?/src/nzb_remote_job_handlers(\.rs$|/)                                nzb_remote_job
 ^crates/rd-api(-[a-z]+)?/src/collector_handlers/remote_job(\.rs$|/)                          collector_remote_job mcp
+^crates/rd-api(-[a-z]+)?/src/subscription_handlers/remote_job(\.rs$|/)                       subscription_remote_job mcp
+^crates/rd-api-core/src/(nzb_hand_over|nzb_candidate)(\.rs$|/)                                + nzb_remote_job subscription_remote_job
 ^crates/rd-db/src/collector_hand_over(\.rs$|/)                                               + collector_remote_job
 
 # The modules no row named until RD-1120-08 (35 sources fell back to every suite), from the routes

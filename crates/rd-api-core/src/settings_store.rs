@@ -442,6 +442,21 @@ mod tests {
         assert!(!settings.linkgrabber_hand_over_remove_links);
     }
 
+    /// RD-1460-03: a hit of an indexer subscription offers the hand-over unless switched off; a
+    /// document written before the switch existed reads as on, and a stored off stays off.
+    #[test]
+    fn the_indexer_hit_hand_over_is_offered_by_default() {
+        assert!(SettingsResponse::default().nzb_hand_over_indexers_enabled);
+        assert!(!RUNTIME_FIELDS.contains(&"nzb_hand_over_indexers_enabled"));
+        let (settings, _) = startup_settings_of(Some(&serde_json::json!({}))).expect("defaults");
+        assert!(settings.nzb_hand_over_indexers_enabled);
+
+        let blob = serde_json::json!({ "nzb_hand_over_indexers_enabled": false });
+        let (settings, _) = startup_settings_of(Some(&blob)).expect("stored");
+        assert!(!settings.nzb_hand_over_indexers_enabled);
+        assert!(settings.nzb_hand_over_linkgrabber_enabled);
+    }
+
     #[test]
     fn a_first_start_without_a_document_runs_on_the_defaults() {
         let (settings, _) = startup_settings_of(None).expect("defaults");

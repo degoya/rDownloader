@@ -582,6 +582,10 @@
       "downloads": {
         "label": "Show the hand-over in the Downloads",
         "description": "On by default. The entry in the menu of a package that came from an NZB appears in any state of the package, failed included, but only while you have an account with a provider that takes NZB files (TorBox, Premiumize). A package already handed over keeps its badge."
+      },
+      "indexers": {
+        "label": "Show the hand-over on indexer hits",
+        "description": "On by default. In the LinkGrabber's indexer subscriptions box, every NZB hit waiting for your decision gets a button that hands its NZB straight to a provider – but only while you have an account with a provider that takes NZB files (TorBox, Premiumize). The hit then counts as queued."
       }
     },
     "package_hand_over": {

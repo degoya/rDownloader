@@ -4,8 +4,9 @@ import { MESSAGE_TYPES as CAPTCHA_MESSAGES, POLL_ALARM, createCaptchaAnswerer } 
 import { CNL_URL_PATTERNS } from './cnl.js'
 import { createClickAndLoad } from './cnl-handover.js'
 import { createInterceptor } from './downloads.js'
-import { FILTERED_TYPES, createFileHandover } from './files.js'
+import { FILTERED_TYPES, SITES_KEY, createFileHandover } from './files.js'
 import { MESSAGE_TYPES as HANDOVER_MESSAGES, createHandover } from './handover.js'
+import { PAGE_FILE_MESSAGE, createPageFiles } from './page-files.js'
 import { fromOwnPage } from './sender.js'
 import { createSessionSharer } from './session.js'
 
@@ -143,6 +144,14 @@ const files = createFileHandover({
   userAgent: globalThis.navigator?.userAgent ?? ''
 })
 
+// Files an allowed site builds in the page and downloads from a `blob:` address (RD-1460-02).
+const pageFiles = createPageFiles({
+  api,
+  loadConfig,
+  message,
+  notify: (body) => notify(message('extName'), body)
+})
+
 const interceptor = createInterceptor({
   api,
   loadConfig,
@@ -201,8 +210,13 @@ api.alarms?.onAlarm?.addListener((alarm) => dispatch('clickAndLoad.onAlarm', () 
 api.tabs?.onUpdated?.addListener((tabId, changeInfo) => dispatch('captchas.onTabUpdated', () => captchas.onTabUpdated(tabId, changeInfo)))
 api.tabs?.onRemoved?.addListener((tabId) => dispatch('captchas.onTabRemoved', () => captchas.onTabRemoved(tabId)))
 // Pairing or unpairing in the options page starts or stops the polling.
+api.runtime.onInstalled.addListener(() => dispatch('pageFiles.sync', () => pageFiles.sync()))
+api.runtime.onStartup?.addListener(() => dispatch('pageFiles.sync', () => pageFiles.sync()))
+// A grant taken back in the browser's own settings ends the page scripts there as well.
+api.permissions?.onRemoved?.addListener(() => dispatch('pageFiles.sync', () => pageFiles.sync()))
 api.storage?.onChanged?.addListener((changes, area) => {
   if (area === 'local' && changes.token) dispatch('captchas.schedule', () => captchas.schedule())
+  if (area === 'local' && changes[SITES_KEY]) dispatch('pageFiles.sync', () => pageFiles.sync())
   dispatch('clickAndLoad.onStorageChanged', () => clickAndLoad.onStorageChanged(changes, area))
 })
 
@@ -292,6 +306,14 @@ api.runtime.onMessage.addListener((request, sender, sendResponse) => {
     captchas.onMessage(request, sender)
       .then((result) => sendResponse(result))
       .catch((error) => sendResponse({ ok: false, message: String(error) }))
+    return true
+  }
+  // A file an allowed page built itself, from the relay in that page (RD-1460-02). The handler
+  // checks the sender and the site itself.
+  if (request?.type === PAGE_FILE_MESSAGE) {
+    pageFiles.onMessage(request, sender)
+      .then((result) => sendResponse(result))
+      .catch(() => sendResponse({ taken: false }))
     return true
   }
   // The popup's consent, delivery, decline and listing of session handovers (RD-120-45). The

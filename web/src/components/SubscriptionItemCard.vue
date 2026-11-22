@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { SubscriptionItem } from '@/api/types'
 import SubscriptionItemActions from '@/components/SubscriptionItemActions.vue'
+import type { NzbHandOverTarget } from '@/composables/useNzbHandOver'
 import {
   cardAspect,
   type CardRatio,
@@ -14,6 +15,7 @@ import {
   hitGroup,
   hitInitials,
   hitIsMusic,
+  hitIsNzb,
   hitLocked,
   hitName,
   hitSize,
@@ -49,11 +51,14 @@ const props = withDefaults(defineProps<{
   busy: boolean
   /** The shape of the picture area, as the subscription chose it. */
   ratio?: CardRatio
-}>(), { showImages: true, ratio: DEFAULT_CARD_RATIO })
+  /** The accounts an NZB hit can go to (RD-1460-03); offered only on a hit that is an NZB. */
+  handOverTargets?: NzbHandOverTarget[]
+}>(), { showImages: true, ratio: DEFAULT_CARD_RATIO, handOverTargets: () => [] })
 const emit = defineEmits<{
   queue: []
   dismiss: []
   details: []
+  handOver: [accountId: string]
 }>()
 
 const attributes = computed<Record<string, string>>(() => props.item.attributes ?? {})
@@ -170,8 +175,10 @@ const detailsLabel = computed(() =>
         <SubscriptionItemActions
           compact
           :busy="props.busy"
+          :hand-over-targets="hitIsNzb(props.item) ? props.handOverTargets : []"
           @queue="emit('queue')"
           @dismiss="emit('dismiss')"
+          @hand-over="(accountId) => emit('handOver', accountId)"
         />
         <UButton
           size="xs"

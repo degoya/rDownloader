@@ -5,6 +5,66 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.46.0] - 2026-11-22
+
+### Added
+
+- **Link containers a page builds itself reach rDownloader (RD-1460-02).** A link-protection site
+  assembles its DLC in script and downloads it from a `blob:` address, which the download
+  hand-over never took. On an allowed site two registered content scripts hold such a download of
+  an NZB, torrent, ZIP or link container and hand its bytes to `POST /api/v1/capture/file` under
+  the same rules as every other browser-only file (token, "take over browser downloads", the type
+  list, the site's consent); refused or not taken, the browser gets the file after all
+  (`extension/src/page-files.js`, `page-files-main.js`, `page-files-relay.js`;
+  `extension/test/page-files.test.mjs`, and a Chromium probe of both outcomes). The popup button,
+  its confirmation and the options page name link containers, and the file-type hint says a site
+  is allowed in the popup, not "below".
+
+- **An indexer subscription's hit goes straight to a remote-job provider (RD-1460-03).** In the
+  LinkGrabber's indexer review box every NZB hit waiting for a decision offers *Hand to provider*
+  with each account whose provider takes NZB files, in the list and in the cards. The service
+  fetches the hit's NZB the way the LinkGrabber fetches an NZB link (`nzb_candidate::fetch_nzb`,
+  the indexer's refusal included), adds the announced archive password when the document has
+  none, and submits it through the NZB hand-over the LinkGrabber's imports take, now shared as
+  `rd_api_core::nzb_hand_over` (account checks, 16 MiB ceiling, duplicate guard); the provider is
+  given the document, never the indexer's address with its key. The hit is then `queued`, as
+  after review; a refusal leaves it waiting and the toast names it with the reason. REST
+  `POST /api/v1/subscriptions/items/{id}/remote-job` (scope `api:secrets`, new code
+  `subscription.remote_job_item_decided`), MCP `hand_over_subscription_item`, switch
+  `nzb_hand_over_indexers_enabled` (on) under *Settings › Interface › Display*.
+
+### Changed
+
+- **Dependencies current before 1.46.0:** `hashbrown` 0.17.2 and `psl` 2.1.261 (the public suffix
+  list), `cargo deny` clean. Still behind on a major: `@types/node` 26 and TypeScript 7
+  (RD-1440-01, blocked by `vue-tsc`), `jiff` 1 (waits for `croner` and `utoipa`). `hashbrown`
+  reaches the plugin components, so the 38 plugins whose component changed get a maintenance
+  release (`scripts/plugin-bump.sh --cascade`).
+
+- **Plugin versions.** The versions this release raises: `directory-index-crawler`,
+  `onedrive-oauth`, `pixeldrain-crawler` and `premiumize-crawler` 0.1.17; `box-crawler`,
+  `dropbox-crawler`, `dropbox-oauth`, `onedrive-crawler` and `putio-oauth` 0.1.18; `box`, `hitfile`
+  and `turbobit` 0.1.19; `dropbox`, `google-drive`, `mega-crawler`, `offcloud`, `onedrive`, `putio`,
+  `putio-transfers` and `seedr` 0.1.20; `pixeldrain` 0.1.21; `xfs-generic` 0.1.22;
+  `jellyfin-notifier` and `plex-notifier` 0.2.6; `realdebrid-auth` 0.2.15; `realdebrid-torrents`
+  0.2.16; `premiumize-transfers` and `torbox-jobs` 0.2.17; `alldebrid` and `nitroflare` 0.7.22;
+  `onefichier` 0.7.23; `premiumize` 0.7.24; `sha256-postprocess` and `webdav-storage` 0.9.18;
+  `rename-postprocess` 0.9.20; `katfile` 0.9.25; `metalink-intake` 0.10.14; `ddownload` 0.10.29.
+
+### Fixed
+
+- **Allowing a site in the browser extension works in Chrome and Edge (RD-1460-02).** The popup
+  asks for `*://<host>/*`, and the manifest's optional host permissions were `http://*/*` and
+  `https://*/*`; Chrome grants an optional request only when one manifest pattern covers it, so it
+  refused every site without a prompt ("Only permissions specified in the manifest may be
+  requested"), shown as "No permission for <host>". The session share's `*://*.<host>/*` failed
+  the same way. The manifest now declares `*://*/*` (`extension/manifest.base.json`, held by
+  `extension/test/build.test.mjs`); reproduced and verified in Chromium with the built extension.
+
+- **"Check all" in the indexer review box skips switched-off subscriptions (RD-1460-03).** It
+  polled every indexer subscription; now only the switched-on ones, the notice counts only those,
+  and with none switched on the button is off.
+
 ## [1.45.0] - 2026-11-22
 
 ### Changed

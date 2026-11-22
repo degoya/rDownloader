@@ -226,6 +226,7 @@ impl Default for SettingsResponse {
             subscription_item_images_enabled: true,
             nzb_hand_over_linkgrabber_enabled: true,
             nzb_hand_over_downloads_enabled: true,
+            nzb_hand_over_indexers_enabled: true,
             linkgrabber_hand_over_enabled: true,
             linkgrabber_hand_over_remove_links: true,
             downloads_packages_closed_by_default: true,

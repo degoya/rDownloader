@@ -190,3 +190,12 @@ export function hitHasSource(url: string | null | undefined): boolean {
     return false
   }
 }
+
+/**
+ * Whether a hit is an NZB, which is what a remote-job provider is handed from the review box
+ * (RD-1460-03): the type the indexer declared for its download. What an indexer hands over is
+ * not visible in the address, so a hit without a declared type is not offered.
+ */
+export function hitIsNzb(item: { media_type?: string | null }): boolean {
+  return (item.media_type ?? '').toLowerCase().includes('nzb')
+}

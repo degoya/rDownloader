@@ -6504,6 +6504,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/subscriptions/items/{id}/remote-job": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hands a hit still waiting for review to one account's provider as a remote job.
+         * @description Refused before anything is fetched when the hit does not exist or is decided already, and
+         *     when the account does not exist, runs no remote jobs or takes no NZB files. Then the hit's NZB
+         *     is fetched from the indexer; its refusal, or a document that is no NZB, is refused with the
+         *     LinkGrabber's codes (`collector.nzb_*`), and a provider's refusal with the provider's code.
+         */
+        post: operations["submit_subscription_item_remote_job"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/subscriptions/review-summary": {
         parameters: {
             query?: never;
@@ -16180,6 +16203,14 @@ export interface components {
              */
             nzb_hand_over_downloads_enabled: boolean;
             /**
+             * @description The same offer on a hit of an indexer subscription in the LinkGrabber's review box
+             *     (RD-1460-03): the hit's NZB is fetched and handed over, and the hit is decided as after
+             *     "queue". On by default, and offered only where an account takes NZB files. A display
+             *     choice: the REST route and the MCP tool keep working.
+             * @default true
+             */
+            nzb_hand_over_indexers_enabled: boolean;
+            /**
              * @description Whether the LinkGrabber offers to hand an NZB import to a remote-job provider: the menu
              *     in each NZB row and the entry in the selection bar (RD-191-13).
              *
@@ -17608,6 +17639,26 @@ export interface components {
              * @description Number of rows matching the selected state filter.
              */
             total: number;
+        };
+        /** @description Which account's provider a subscription's hit goes to. */
+        SubscriptionItemRemoteJobRequest: {
+            /**
+             * @description A remote-job account whose provider takes NZB files
+             *     (`GET /api/v1/remote-jobs/providers?container=nzb`).
+             */
+            account_id: components["schemas"]["AccountId"];
+        };
+        /** @description What handing a hit over produced. */
+        SubscriptionItemRemoteJobResponse: {
+            /**
+             * @description True when the account already had a job for this NZB. Nothing was sent, and the hit is
+             *     decided all the same: the content is at the provider.
+             */
+            already_running: boolean;
+            item_id: components["schemas"]["SubscriptionItemId"];
+            job: components["schemas"]["RemoteJob"];
+            /** @description The hit's state now: `queued`, decided as after "queue". */
+            state: components["schemas"]["SubscriptionItemState"];
         };
         /**
          * @description What happened to one discovered item.
@@ -33629,6 +33680,86 @@ export interface operations {
                 };
             };
             /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    submit_subscription_item_remote_job: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["schemas"]["SubscriptionItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubscriptionItemRemoteJobRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubscriptionItemRemoteJobResponse"];
+                };
+            };
+            /** @description The account's provider runs no remote jobs or takes no NZB */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The hit, its subscription or the account does not exist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The hit is decided already */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The NZB exceeds 16 MiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The indexer answered with no NZB */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The indexer or the provider refused */
             502: {
                 headers: {
                     [name: string]: unknown;

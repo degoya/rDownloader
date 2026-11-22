@@ -144,7 +144,7 @@
     "message": "The list is empty: no download is taken over."
   },
   "optionsInterceptTypesBrowserOnly": {
-    "message": "$1: the browser downloads these itself. They go to rDownloader only from a site you allowed below; otherwise they stay in the browser."
+    "message": "$1: the browser downloads these itself. They go to rDownloader only from a site you allowed in the popup (list below); otherwise they stay in the browser."
   },
   "menuSession": {
     "message": "Share session for this site with rDownloader"
@@ -360,7 +360,7 @@
     }
   },
   "filesAllow": {
-    "message": "Hand NZB, torrent and ZIP files from $HOST$ to rDownloader",
+    "message": "Hand NZB, torrent, ZIP and container files (DLC) from $HOST$ to rDownloader",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -384,7 +384,7 @@
     }
   },
   "filesAllowed": {
-    "message": "NZB, torrent and ZIP files from $HOST$ now go to rDownloader.",
+    "message": "NZB, torrent, ZIP and container files from $HOST$ now go to rDownloader.",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -425,7 +425,7 @@
     "message": "Sites that hand files over"
   },
   "optionsFilesHint": {
-    "message": "NZB, torrent and ZIP downloads from these sites go to rDownloader instead of staying in the browser. Allow a site from the popup while you are on it."
+    "message": "NZB, torrent, ZIP and container downloads (DLC and others) from these sites go to rDownloader instead of staying in the browser. Allow a site from the popup while you are on it."
   },
   "optionsFilesNone": {
     "message": "No site yet."

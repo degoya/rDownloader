@@ -582,6 +582,10 @@
       "downloads": {
         "label": "Afficher la remise dans les téléchargements",
         "description": "Activé par défaut. L'entrée du menu d'un paquet issu d'un NZB apparaît quel que soit l'état du paquet, échec compris, mais seulement si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Un paquet déjà confié garde son badge."
+      },
+      "indexers": {
+        "label": "Afficher la remise sur les résultats d'indexeur",
+        "description": "Activé par défaut. Dans le cadre des abonnements d'indexeur du LinkGrabber, chaque résultat NZB en attente de votre décision reçoit un bouton qui confie son NZB directement à un fournisseur – mais seulement si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Le résultat compte ensuite comme mis en file."
       }
     },
     "package_hand_over": {

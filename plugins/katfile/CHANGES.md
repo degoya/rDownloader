@@ -1,5 +1,9 @@
 # Changes
 
+## 0.9.25
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.9.24
 
 Maintenance release: internal changes only, no change in behaviour.

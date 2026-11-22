@@ -144,6 +144,7 @@ pub const TOOL_POLICY: &[ToolPolicy] = &[
     tool("get_usenet_server_traffic", "/api/v1/stats/usenet-servers", Method::GET),
     tool("grab_indexer_results", "/api/v1/indexers/grab", Method::POST),
     tool("hand_over_collector_package", "/api/v1/collector/packages/{id}/remote-job", Method::POST),
+    tool("hand_over_subscription_item", "/api/v1/subscriptions/items/{id}/remote-job", Method::POST),
     tool("import_container", "/api/v1/containers/import", Method::POST),
     tool("import_nzb", "/api/v1/nzb/imports", Method::POST),
     tool("import_torrent", "/api/v1/torrents/import", Method::POST),

@@ -12,9 +12,17 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.46.0
+## 1.47.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.46.0
+
+- Allowing a site in the browser extension works in Chrome and Edge; before, the browser refused it without asking.
+- DLC and other link containers a site builds in the page now reach rDownloader from a site you allowed, instead of opening the browser's download window.
+- An NZB hit of an indexer subscription can be handed straight to a provider such as TorBox; a setting hides the button.
+- Check all in the indexer subscriptions box leaves switched-off subscriptions out.
+- Updated components, and maintenance releases of the plugins built with them; nothing changes in how they behave.
 
 ## 1.45.0
 

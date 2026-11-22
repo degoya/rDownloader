@@ -111,6 +111,10 @@ pub(crate) fn routes() -> Router<AppState> {
             put(subscription_handlers::set_subscription_item_state),
         )
         .route(
+            "/api/v1/subscriptions/items/{id}/remote-job",
+            post(subscription_handlers::submit_subscription_item_remote_job),
+        )
+        .route(
             "/api/v1/streams/schedules",
             get(stream_schedule_handlers::list_stream_schedules)
                 .post(stream_schedule_handlers::create_stream_schedule),
@@ -163,6 +167,7 @@ pub(crate) fn routes() -> Router<AppState> {
     subscription_handlers::list_subscription_item_page,
     subscription_handlers::list_subscription_runs,
     subscription_handlers::set_subscription_item_state,
+    subscription_handlers::submit_subscription_item_remote_job,
     subscription_handlers::set_pending_subscription_items_state,
     subscription_handlers::requeue_subscription_items,
     subscription_handlers::clear_subscription_history,

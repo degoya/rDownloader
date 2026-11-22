@@ -582,6 +582,10 @@
       "downloads": {
         "label": "Übergabe an Anbieter in den Downloads anzeigen",
         "description": "Standardmäßig an. Der Eintrag im Menü eines Pakets, das aus einer NZB stammt, erscheint in jedem Zustand des Pakets – auch fehlgeschlagen –, aber nur, wenn du ein Konto bei einem Anbieter hast, der NZB-Dateien annimmt (TorBox, Premiumize). Ein bereits übergebenes Paket behält seine Markierung."
+      },
+      "indexers": {
+        "label": "Übergabe an Anbieter bei Indexer-Treffern anzeigen",
+        "description": "Standardmäßig an. Im Kasten der Indexer-Abos im LinkGrabber bekommt jeder NZB-Treffer, der auf deine Entscheidung wartet, einen Knopf, der seine NZB direkt an einen Anbieter übergibt – aber nur, wenn du ein Konto bei einem Anbieter hast, der NZB-Dateien annimmt (TorBox, Premiumize). Danach gilt der Treffer als übernommen."
       }
     },
     "package_hand_over": {

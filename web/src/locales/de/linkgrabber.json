@@ -483,7 +483,8 @@
       "details_title": "Details"
     },
     "held_title": "{count} weiterer Treffer | {count} weitere Treffer",
-    "held_chip": "+{count} neu"
+    "held_chip": "+{count} neu",
+    "check_all_none_enabled": "Alle Indexer-Abos sind ausgeschaltet – schalte eins ein, um es hier zu prüfen."
   },
   "notices": {
     "reorder_filter_active": "Die Reihenfolge lässt sich nur ohne aktiven Filter ändern – die verborgenen Links würden sonst falsch einsortiert."

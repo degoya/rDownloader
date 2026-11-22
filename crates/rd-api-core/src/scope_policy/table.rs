@@ -844,6 +844,12 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/subscriptions/export", Method::GET, ADMIN),
     entry("/api/v1/subscriptions/import", Method::POST, ADMIN),
     entry("/api/v1/subscriptions/items/{id}", Method::PUT, CONFIG),
+    // Hands the hit's NZB to an account's provider, like every remote-job submit (RD-1460-03).
+    entry(
+        "/api/v1/subscriptions/items/{id}/remote-job",
+        Method::POST,
+        SECRETS,
+    ),
     entry("/api/v1/subscriptions/review-summary", Method::GET, CONFIG),
     entry("/api/v1/subscriptions/{id}", Method::DELETE, CONFIG),
     entry("/api/v1/subscriptions/{id}", Method::PUT, CONFIG),

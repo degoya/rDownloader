@@ -483,7 +483,8 @@
       "details_title": "Détails"
     },
     "held_title": "{count} résultat de plus | {count} résultats de plus",
-    "held_chip": "+{count} nouveaux"
+    "held_chip": "+{count} nouveaux",
+    "check_all_none_enabled": "Tous les abonnements d'indexeur sont désactivés – activez-en un pour le vérifier ici."
   },
   "notices": {
     "reorder_filter_active": "L’ordre ne peut être modifié que sans filtre actif : les liens masqués seraient sinon mal classés."

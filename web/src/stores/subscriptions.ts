@@ -2,9 +2,11 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { handOverSubscriptionItem } from '@/api/subscriptionHandOver'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useLatestFetch } from '@/composables/useLatestFetch'
+import { translateServerMessage } from '@/i18n/server'
 import type {
   IndexerCaps,
   Subscription,
@@ -252,6 +254,25 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
   }
 
   /**
+   * Hands one hit straight to a remote-job provider (RD-1460-03). The server decides it as after
+   * "queue", so it leaves the list the same way: counted out, the list read again. A refusal
+   * leaves the hit waiting and comes back as the message the caller's toast names it with, never
+   * as the store's `error` line above every subscription.
+   */
+  async function handOverItem(
+    id: string,
+    subscriptionId: string,
+    accountId: string
+  ): Promise<{ ok: true, alreadyRunning: boolean } | { ok: false, message: string }> {
+    const answer = await handOverSubscriptionItem(id, accountId)
+    if (!answer.ok) return { ok: false, message: translateServerMessage(answer.message) }
+    noteDecided(subscriptionId, [id])
+    await loadReviewSummary()
+    await rereadItems(subscriptionId)
+    return { ok: true, alreadyRunning: answer.data.already_running }
+  }
+
+  /**
    * The same decision for the pending items of one subscription (RD-098-02): every one of them,
    * or those found up to `until` — the drawer's watermark, so "all" is every page of the list as
    * it was drawn and no hit that arrived after it (RD-1250-13). The server performs queue
@@ -353,6 +374,7 @@ export const useSubscriptionsStore = defineStore('subscriptions', () => {
     probeCaps,
     pollNow,
     setItemState,
+    handOverItem,
     setPendingItemStates,
     requeueItems,
     clearHistory
