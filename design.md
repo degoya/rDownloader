@@ -18,7 +18,7 @@ hotfolders provide additional intake channels.
 | Author | Alexander Herling / DEGOYA.digital |
 | Repository | `https://github.com/degoya/rDownloader` |
 | License | GNU GPL v3.0 or later |
-| Backend | Rust 2024, minimum version 1.99 |
+| Backend | Rust 2024, minimum version 1.100 |
 | Frontend toolchain | Node 24 and npm 11 |
 | Target platforms | Windows, Linux, macOS, and Docker |
 

@@ -17,18 +17,28 @@ trap 'rm -rf "$SCRATCH"' EXIT
 # shellcheck source=lib/expect.sh
 source "$ROOT/scripts/tests/lib/expect.sh"
 
-# cargo: logs its arguments one call per line, links one test executable and one library per
-# call, writes a JUnit report, and fails for the selection named in $FAKE/fail.
+# cargo: logs its arguments one call per line, links one test executable, one library and one
+# build script per call in Cargo 1.100's build directory (a unit's out/ beside its fingerprint),
+# writes a JUnit report, and fails for the selection named in $FAKE/fail.
 export FAKE="$SCRATCH/fake"
 mkdir -p "$FAKE" "$SCRATCH/bin"
 cat > "$SCRATCH/bin/cargo" <<'EOF'
 #!/usr/bin/env bash
 echo "$*" >> "$FAKE/cargo.calls"
 calls="$(wc -l < "$FAKE/cargo.calls")"
-mkdir -p target/debug/deps target/nextest/ci
+unit() {
+    mkdir -p "target/debug/build/$1/out" "target/debug/build/$1/fingerprint"
+    touch "target/debug/build/$1/fingerprint/$2"
+}
+unit "test_$calls/0123" "test-integration-test-test_$calls"
+unit "dep_$calls/4567" "lib-dep_$calls"
+unit "script_$calls/89ab" "build-script-build-script-build"
+mkdir -p target/nextest/ci
 sleep 0.01
-touch "target/debug/deps/test_$calls-0123" "target/debug/deps/test_$calls-0123.pdb" \
-    "target/debug/deps/libdep_$calls.rlib"
+touch "target/debug/build/test_$calls/0123/out/test_$calls-0123" \
+    "target/debug/build/test_$calls/0123/out/test_$calls-0123.pdb" \
+    "target/debug/build/dep_$calls/4567/out/libdep_$calls.rlib" \
+    "target/debug/build/script_$calls/89ab/out/build_script_build-89ab"
 echo "<testsuites/>" > target/nextest/ci/junit.xml
 [[ -f "$FAKE/fail" && "$*" == *"$(cat "$FAKE/fail")"* ]] && exit 101
 exit 0
@@ -56,8 +66,9 @@ expect "five groups, the rd-api suites by their directories" \
     "nextest run -P ci --no-fail-fast --workspace --exclude rd-api --exclude rd-plugin-ext --exclude rdownloader|nextest run -P ci --no-fail-fast -p rd-plugin-ext|nextest run -P ci --no-fail-fast -p rdownloader|nextest run -P ci --no-fail-fast -p rd-api --lib|nextest run -P ci --no-fail-fast -p rd-api --test access --test queue" \
     "$(paste -sd'|' "$FAKE/cargo.calls")"
 expect "every group's executables and what is named after them deleted" "" \
-    "$(cd "$WORK/target/debug/deps" && ls test_* 2> /dev/null || true)"
-expect "the libraries kept" "5" "$(find "$WORK/target/debug/deps" -name 'libdep_*' | wc -l)"
+    "$(find "$WORK/target/debug/build" -name 'test_*-0123*')"
+expect "the libraries kept" "5" "$(find "$WORK/target/debug/build" -name 'libdep_*' | wc -l)"
+expect "the build scripts kept" "5" "$(find "$WORK/target/debug/build" -name 'build_script_build-*' | wc -l)"
 expect "a JUnit report per group" "5" "$(find "$RUNNER_TEMP/junit" -name 'group-*.xml' | wc -l)"
 
 echo "-p rdownloader" > "$FAKE/fail"

@@ -12,9 +12,13 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.45.0
+## 1.46.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.45.0
+
+- Updated components, among them the watched-folder monitor and the FTP and FTPS client; nothing changes in how they behave.
 
 ## 1.44.0
 

@@ -59,7 +59,7 @@ use sqlx::{Connection, SqliteConnection, migrate::Migrator};
 /// until the next migration lands. Each row has its own test, a line of
 /// `every_release_baseline!` in `baselines.rs`; tests there hold the two equal and the newest row
 /// to the release this tree is.
-const BASELINES: &[(&str, i64)] = &[("1.43.0", 149), ("1.44.0", 150)];
+const BASELINES: &[(&str, i64)] = &[("1.44.0", 150), ("1.45.0", 150)];
 
 /// Migration numbers that were claimed and never shipped, and never will be.
 ///

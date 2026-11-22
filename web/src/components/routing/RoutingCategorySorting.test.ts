@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { reactive } from 'vue'
 import { apiClientMock } from '@/test/mocks'
 
 import routing from '@/locales/en/routing.json'
@@ -23,7 +24,8 @@ const FIELDS = { series: ['show', 'season', 'episode', 'title'], dated: ['show',
 function mount(series = SERIES) {
   return mountComponent(RoutingCategorySorting, {
     messages: { routing, server },
-    props: { modelValue: { series, dated: '', movie: '' } }
+    // Reactive, as the form a parent hands in is: @vue/test-utils 2.6 keeps mount props shallow (RD-1450-04).
+    props: { modelValue: reactive({ series, dated: '', movie: '' }) }
   })
 }
 

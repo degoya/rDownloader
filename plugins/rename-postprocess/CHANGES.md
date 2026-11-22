@@ -1,5 +1,9 @@
 # Changes
 
+## 0.9.19
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.9.18
 
 Maintenance release: internal changes only, no change in behaviour.

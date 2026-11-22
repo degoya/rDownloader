@@ -1,5 +1,9 @@
 # Changes
 
+## 0.1.21
+
+Maintenance release: internal changes only, no change in behaviour.
+
 ## 0.1.20
 
 The dead hosts luluvdoo.com and luluvid.com are no longer offered.

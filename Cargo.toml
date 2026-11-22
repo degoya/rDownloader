@@ -165,10 +165,10 @@ members = [
 ]
 
 [workspace.package]
-version = "1.44.0"
+version = "1.45.0"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
-rust-version = "1.99"
+rust-version = "1.100"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/degoya/rDownloader"
 
@@ -249,7 +249,7 @@ md-5 = "0.11"
 mime_guess = "2"
 # Interface enumeration for torrent binding; librqbit links the same crate for UPnP.
 network-interface = "2"
-notify = "8"
+notify = "9"
 # Arbitrary-precision integers for the guest-side RSA of `plugins/mega-auth` (`src/rsa.rs`),
 # and for `plugins/mega-login-probe`, which measures what that private operation costs.
 num-bigint = "0.5"
@@ -314,9 +314,9 @@ serde_path_to_error = "0.1.20"
 sha1 = "0.11"
 sha2 = "0.11"
 sqlx = { version = "0.9", default-features = false, features = ["macros", "migrate", "runtime-tokio", "sqlite", "uuid"] }
-# `deprecated` is what gates `connect_secure_implicit`, i.e. implicit FTPS on port 990.
+# `deprecated` still gates `connect_secure_implicit` in 13 (RD-1450-02), i.e. implicit FTPS on port 990.
 # It is deprecated as a protocol, not as an API, and RD-060-01 requires it.
-suppaftp = { version = "12", default-features = false, features = ["tokio", "tokio-rustls-aws-lc-rs", "deprecated"] }
+suppaftp = { version = "13", default-features = false, features = ["tokio", "tokio-rustls-aws-lc-rs", "deprecated"] }
 tao = "0.37.0"
 tar = { version = "0.4", default-features = false }
 tempfile = "3"

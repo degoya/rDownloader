@@ -40,11 +40,7 @@ pub(crate) async fn probe(connection: &mut Connection, target: &RemoteTarget) ->
                 "The remote file name cannot be stored safely",
             )));
         }
-        let modified = connection
-            .modified_at(&path)
-            .await
-            .ok()
-            .and_then(crate::client::naive_utc);
+        let modified = connection.modified_at(&path).await.ok().flatten();
         return Ok(Probed::Resolved(Box::new(RemoteListing {
             root: parent(&path),
             single_file: true,

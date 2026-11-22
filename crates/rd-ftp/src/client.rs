@@ -172,9 +172,22 @@ impl Connection {
         dispatch!(self, stream => stream.size(path).await)
     }
 
-    /// `MDTM`; `suppaftp` answers in chrono, [`naive_utc`] makes it a `Timestamp`.
-    pub(crate) async fn modified_at(&mut self, path: &str) -> FtpResult<chrono::NaiveDateTime> {
-        dispatch!(self, stream => stream.mdtm(path).await)
+    /// `MDTM`, which RFC 3659 gives in UTC, as an instant; `None` only for a civil time jiff
+    /// refuses, which suppaftp has already turned into an error.
+    pub(crate) async fn modified_at(
+        &mut self,
+        path: &str,
+    ) -> FtpResult<Option<rd_core::Timestamp>> {
+        let civil = dispatch!(self, stream => stream.mdtm(path).await)?;
+        Ok(utc_instant(
+            (civil.year(), civil.month(), civil.day()),
+            (
+                civil.hour(),
+                civil.minute(),
+                civil.second(),
+                civil.subsec_nanosecond(),
+            ),
+        ))
     }
 
     pub(crate) async fn cwd(&mut self, path: &str) -> FtpResult<()> {
@@ -278,25 +291,36 @@ pub(crate) fn advertises_rest(features: &Features) -> bool {
     })
 }
 
-/// An `MDTM` answer, which RFC 3659 gives in UTC, as an instant — the chrono boundary of this
-/// crate (RD-1440-05).
-pub(crate) fn naive_utc(naive: chrono::NaiveDateTime) -> Option<rd_core::Timestamp> {
-    let utc = naive.and_utc();
-    rd_core::Timestamp::from_unix(utc.timestamp(), utc.timestamp_subsec_nanos())
+/// A UTC civil date and time, `(year, month, day)` and `(hour, minute, second, nanosecond)`, as
+/// an instant. suppaftp 13 answers `MDTM` in jiff 1's civil time while `Timestamp` stands on the
+/// workspace's jiff 0.2, so the fields cross and the type does not (RD-1450-02); chrono, which
+/// suppaftp 12 answered in, is gone from this crate.
+fn utc_instant(date: (i16, i8, i8), time: (i8, i8, i8, i32)) -> Option<rd_core::Timestamp> {
+    let (year, month, day) = date;
+    let (hour, minute, second, nanosecond) = time;
+    jiff::civil::DateTime::new(year, month, day, hour, minute, second, nanosecond)
+        .ok()
+        .map(rd_core::Timestamp::from_utc_datetime)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ANONYMOUS_PASSWORD, naive_utc};
+    use super::{ANONYMOUS_PASSWORD, utc_instant};
 
+    /// The stored text is the resume validator (TR-03): it reads as it did with chrono, with
+    /// and without a fraction, or a resume after the upgrade would see a changed file.
     #[test]
     fn an_mdtm_answer_keeps_its_stored_text() {
-        let naive = chrono::NaiveDate::from_ymd_opt(2024, 2, 29)
-            .and_then(|date| date.and_hms_milli_opt(13, 5, 9, 250))
-            .expect("time");
-        let stored = naive_utc(naive).expect("in range").to_rfc3339();
-        assert_eq!(stored, naive.and_utc().to_rfc3339());
-        assert_eq!(stored, "2024-02-29T13:05:09.250+00:00");
+        let whole = utc_instant((2026, 1, 1), (12, 0, 0, 0)).expect("in range");
+        assert_eq!(whole.to_rfc3339(), "2026-01-01T12:00:00+00:00");
+        let fraction = utc_instant((2024, 2, 29), (13, 5, 9, 250_000_000)).expect("in range");
+        assert_eq!(fraction.to_rfc3339(), "2024-02-29T13:05:09.250+00:00");
+    }
+
+    #[test]
+    fn a_civil_time_that_does_not_exist_is_no_instant() {
+        assert!(utc_instant((2023, 2, 29), (12, 0, 0, 0)).is_none());
+        assert!(utc_instant((2024, 1, 1), (24, 0, 0, 0)).is_none());
     }
 
     #[test]

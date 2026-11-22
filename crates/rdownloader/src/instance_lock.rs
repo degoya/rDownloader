@@ -76,19 +76,14 @@ fn try_acquire(data_directory: &Path) -> Result<Option<InstanceLock>> {
 
 /// Whether a lock error says the file system does not lock, rather than that something failed.
 fn locking_unsupported(error: &std::io::Error) -> bool {
-    if error.kind() == std::io::ErrorKind::Unsupported {
-        return true;
-    }
+    let unsupported = error.kind() == std::io::ErrorKind::Unsupported;
     #[cfg(unix)]
-    {
+    let unsupported = unsupported || {
         use rustix::io::Errno;
         Errno::from_io_error(error)
             .is_some_and(|errno| [Errno::NOLCK, Errno::OPNOTSUPP, Errno::NOTSUP].contains(&errno))
-    }
-    #[cfg(not(unix))]
-    {
-        false
-    }
+    };
+    unsupported
 }
 
 /// What `doctor` found on a data directory. No `Debug`: the control file holds the token.

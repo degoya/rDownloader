@@ -66,11 +66,13 @@ rd_build_dir() {
 
 # Whether target directory $1 has never built a host or cross crate, so no foreign rlib can be
 # in it and stamping the sources would only cost mtimes. The plugin components under
-# wasm32-unknown-unknown do not count: an own target links them from the main checkout.
+# wasm32-unknown-unknown do not count: an own target links them from the main checkout. Every
+# cargo run makes a profile's build/; `.fingerprint` beside it went with Cargo 1.100's build
+# directory (RD-1450-03), after which a used target passed for a fresh one.
 rd_target_is_fresh() {
     local profile
     for profile in "$1"/debug "$1"/release "$1"/x86_64-*/*; do
-        [[ -d "$profile/.fingerprint" ]] && return 1
+        [[ -d "$profile/build" ]] && return 1
     done
     return 0
 }

@@ -6,6 +6,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
+import { reactive } from 'vue'
 
 import type { RestartSettings } from '@/api/restart'
 import type { Settings } from '@/api/types'
@@ -24,7 +25,8 @@ function status(patch: Partial<UpdateStatus>): UpdateStatus {
 function mount(model: Settings | RestartSettings, shown: UpdateStatus | null = status({})) {
   return mountComponent(SettingsUpdateAutoInstall, {
     messages: { system },
-    props: { modelValue: model, status: shown }
+    // Reactive, as the form a parent hands in is: @vue/test-utils 2.6 keeps mount props shallow (RD-1450-04).
+    props: { modelValue: reactive(model), status: shown }
   })
 }
 

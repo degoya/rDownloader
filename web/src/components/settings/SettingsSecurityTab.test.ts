@@ -5,6 +5,7 @@
  */
 import { fireEvent, screen, within } from '@testing-library/vue'
 import { describe, expect, it, vi } from 'vitest'
+import { reactive } from 'vue'
 import { apiClientMock, toastMock } from '@/test/mocks'
 
 import type { Settings } from '@/api/types'
@@ -23,7 +24,7 @@ function mount(values: Partial<Settings>) {
   return mountComponent(SettingsSecurityTab, {
     messages: { settings, system },
     props: {
-      modelValue: { admin_login_disabled: false, trusted_proxies: [], external_url: null, ...values } as unknown as Settings
+      modelValue: reactive({ admin_login_disabled: false, trusted_proxies: [], external_url: null, ...values }) as unknown as Settings
     },
     stubs: {
       SettingsMfaCard: true,
@@ -65,8 +66,9 @@ describe('SettingsSecurityTab after the move by topic', () => {
   function mountWithCards(values: Partial<Settings>) {
     return mountComponent(SettingsSecurityTab, {
       messages: { settings, system },
+      // Reactive, as the form a parent hands in is: @vue/test-utils 2.6 keeps mount props shallow (RD-1450-04).
       props: {
-        modelValue: { admin_login_disabled: false, trusted_proxies: [], allowed_hosts: [], accept_local_network_names: true, external_url: null, cookie_security: 'auto', ui_port: null, ...values } as unknown as Settings
+        modelValue: reactive({ admin_login_disabled: false, trusted_proxies: [], allowed_hosts: [], accept_local_network_names: true, external_url: null, cookie_security: 'auto', ui_port: null, ...values }) as unknown as Settings
       },
       stubs: {
         SettingsMfaCard: true,

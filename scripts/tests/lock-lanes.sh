@@ -162,7 +162,7 @@ else
     fail "a fresh target is claimed without stamping" "mtime $(stat -c %Y "$source_file"), marker $(cat "$SCRATCH/t-fresh/.rd-checkout" 2>&1)"
 fi
 
-mkdir -p "$SCRATCH/t-used/debug/.fingerprint"
+mkdir -p "$SCRATCH/t-used/debug/build"
 echo /somewhere/else > "$SCRATCH/t-used/.rd-checkout"
 fresh
 RD_LANES=1 job t-used a quick > /dev/null 2>&1

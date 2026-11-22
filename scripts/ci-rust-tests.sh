@@ -45,9 +45,24 @@ mkdir -p "${reports}"
 group=0
 failed=0
 
-# One nextest selection, then the executables it linked go: nothing later needs them. No
-# extension (or `.exe`) in target/debug/deps is a test or binary executable; libraries, proc
-# macros and metadata all carry one and stay.
+# The test and binary executables linked since the stamp. Cargo 1.100's build directory
+# (RD-1450-03) keeps each unit in target/debug/build/<package>/<hash>/: its output in out/, its
+# fingerprint beside it, named `test-…` for a test and `bin-…` for a binary. In such an out/ no
+# extension (or `.exe`) is the executable; libraries, proc macros and metadata all carry one, and
+# build scripts (`build-script-…`) and their runs (`run-…`) stay. Until 1.100 all of them lay in
+# target/debug/deps, which 1.100 no longer makes: a `find` there failed the script after the
+# first group.
+new_executables() {
+    local unit
+    for unit in target/debug/build/*/*/; do
+        compgen -G "${unit}fingerprint/test-*" > /dev/null \
+            || compgen -G "${unit}fingerprint/bin-*" > /dev/null || continue
+        find "${unit}out" -maxdepth 1 -type f -newer "${stamp}" \
+            \( ! -name '*.*' -o -name '*.exe' \) -print 2> /dev/null || true
+    done
+}
+
+# One nextest selection, then the executables it linked go: nothing later needs them.
 run_group() {
     echo "::group::nextest ${no_run[*]+${no_run[*]} }$*"
     touch "${stamp}"
@@ -56,14 +71,12 @@ run_group() {
     if [[ -f target/nextest/ci/junit.xml ]]; then
         mv target/nextest/ci/junit.xml "${reports}/group-${group}.xml"
     fi
-    find target/debug/deps -maxdepth 1 -type f -newer "${stamp}" \
-        \( ! -name '*.*' -o -name '*.exe' \) -print \
-        | while IFS= read -r executable; do
-            # With it everything named after it: `.pdb` on Windows, the `.o` that macOS keeps
-            # for its debug info, `.dwo`, `.d`.
-            stem="${executable%.exe}"
-            rm -f "${executable}" "${stem}".*
-        done
+    new_executables | while IFS= read -r executable; do
+        # With it everything named after it: `.pdb` on Windows, the `.o` that macOS keeps for its
+        # debug info, `.dwo`, `.d`.
+        stem="${executable%.exe}"
+        rm -f "${executable}" "${stem}".*
+    done
     df -h . | tail -n 1
     echo "::endgroup::"
 }

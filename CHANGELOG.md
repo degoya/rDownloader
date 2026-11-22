@@ -5,6 +5,69 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.45.0] - 2026-11-22
+
+### Changed
+
+- **`taiki-e/install-action` 2.90.6** in CI, the components and coverage workflows, the plugin
+  release and the SDK's plugin workflow (Dependabot #45). Dependabot #46 (`jiff` 1, `suppaftp` 13)
+  is closed: `suppaftp` 13 is in through RD-1450-02, and `jiff` 1 waits for `croner` and `utoipa`,
+  both still on jiff 0.2.
+
+- **`notify` 9 for the watched folders (RD-1450-01).** `rd-hotfolder` needs no code change: it uses
+  `recommended_watcher`, `Watcher::watch` with a `RecursiveMode` and `Event::paths`, which 9 keeps;
+  the root it registers is already canonical, so 9's "event paths keep the registered path" changes
+  nothing for the `processed`/`failed` filter. The lock gains `xxhash-rust` (the poll watcher's
+  content hash).
+
+- **`suppaftp` 13 for FTP/FTPS (RD-1450-02).** 13 answers `MDTM` in jiff 1's civil time instead of
+  chrono, so `rd-ftp` drops `chrono`: `Connection::modified_at` copies the fields into the
+  workspace's jiff 0.2 and returns a `rd_core::Timestamp` (`client::utc_instant`, its stored text
+  unchanged). The features keep their names; `deprecated` still gates `connect_secure_implicit`
+  (implicit FTPS on port 990) and stays. `deny.toml` skips `jiff` 1 and `jiff-core` 1, which
+  suppaftp 13 brings beside the workspace's jiff 0.2.
+
+- **Dependencies current before 1.45.** `cargo update`: `zip` 9.8.1 (now on `nix` 0.32) and
+  `leaky-bucket` 1.1.3 (librqbit-dht, now on `parking_lot` 0.13); `deny.toml` skips the older
+  `nix` 0.31, `parking_lot` 0.12, `parking_lot_core` 0.9 and `lock_api` 0.4 the rest of the tree
+  still uses. The web half has no update inside its ranges. Majors left for the owner: `jiff` 1,
+  `wasmtime` 51, `x11rb` 0.14 (blocked upstream, RD-1440-04), `notify-rust` 4.19 (held),
+  TypeScript 7, `@types/node` 26.
+
+- **Web tests on `@vue/test-utils` 2.6 (RD-1450-04).** The 2.5.1 override in
+  `web/pnpm-workspace.yaml` is gone; 2.6.0 keeps mount props shallow (`shallowReactive` instead of
+  `reactive`), so a plain model object a component writes into no longer re-renders. The four
+  component tests that relied on it (`SettingsPostprocessCard`, `SettingsSecurityTab`,
+  `SettingsUpdateAutoInstall`, `RoutingCategorySorting`) now hand in a `reactive()` model, as a
+  parent form does; no product code changed.
+
+- **Rust 1.100.0 as the toolchain (RD-1450-03).** `rust-toolchain.toml`, every copy
+  `scripts/tool-versions.sh --check` holds (the components cache keys, `docs/`), the Docker base
+  `rust:1.100.0-bookworm` with its digest and the workspace `rust-version` 1.100. Cargo 1.100's
+  build directory no longer writes `target/<profile>/deps` and `.fingerprint`: CI's test step
+  (`scripts/ci-rust-tests.sh`) finds the executables to delete in the units under `build/` instead
+  of failing after its first group, and a used target no longer passes for a fresh one
+  (`rd_target_is_fresh`, which decides whether sources are stamped). Clippy 1.100's
+  `needless_bool` caught `instance_lock::locking_unsupported` on Windows, where only the
+  `Unsupported` check remained after an early return; it is one expression now.
+
+- **Plugin versions.** The versions this release raises: `directory-index-crawler`,
+  `google-drive-crawler`, `metadata-enricher`, `onedrive-oauth`, `pixeldrain-crawler` and
+  `premiumize-crawler` 0.1.16; `box-crawler`, `box-oauth`, `dropbox-crawler`, `dropbox-oauth`,
+  `google-drive-oauth`, `offcloud-cloud`, `onedrive-crawler`, `pcloud-crawler`, `pcloud-oauth`,
+  `putio-oauth` and `torbox-auth` 0.1.17; `box`, `hitfile`, `mediafire-crawler`,
+  `nextcloud-crawler`, `pcloud`, `peeplink-crawler`, `seedr-jobs` and `turbobit` 0.1.18; `dropbox`,
+  `google-drive`, `mediafire`, `mega`, `mega-auth`, `mega-crawler`, `offcloud`, `onedrive`, `putio`,
+  `putio-transfers` and `seedr` 0.1.19; `krakenfiles`, `pixeldrain` and `torbox` 0.1.20;
+  `xfs-generic` 0.1.21; `emby-notifier`, `jellyfin-notifier` and `plex-notifier` 0.2.5;
+  `realdebrid-auth` 0.2.14; `realdebrid-torrents` 0.2.15; `premiumize-transfers` and `torbox-jobs`
+  0.2.16; `realdebrid` 0.2.17; `alldebrid`, `debridlink`, `keep2share`, `linksnappy`, `nitroflare`
+  and `rapidgator` 0.7.21; `onefichier` 0.7.22; `premiumize` 0.7.23; `filejoker` 0.7.24;
+  `alldebrid-auth`, `crawljob-intake`, `discord-notifier` and `sponsorblock-enricher` 0.9.16;
+  `debridlink-auth`, `premiumize-auth`, `sha256-postprocess`, `telegram-notifier` and
+  `webdav-storage` 0.9.17; `md5-postprocess` 0.9.18; `rename-postprocess` 0.9.19; `katfile` 0.9.24;
+  `ntfy-notifier` 0.10.10; `metalink-intake` 0.10.13; `ddownload` 0.10.28.
+
 ## [1.44.0] - 2026-11-21
 
 ### Added

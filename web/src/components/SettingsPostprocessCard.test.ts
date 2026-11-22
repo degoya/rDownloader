@@ -4,6 +4,7 @@
  */
 import { fireEvent, screen } from '@testing-library/vue'
 import { describe, expect, it } from 'vitest'
+import { reactive } from 'vue'
 
 import type { Settings } from '@/api/types'
 import settings from '@/locales/en/settings.json'
@@ -15,7 +16,8 @@ import SettingsPostprocessCard from './SettingsPostprocessCard.vue'
 const SETTINGS = { default_level: 'unpack', rar_tool: 'unrar' } as unknown as Settings
 
 function mount(model: Settings = { ...SETTINGS }) {
-  return mountComponent(SettingsPostprocessCard, { messages: { settings }, props: { modelValue: model } })
+  // Reactive, as the form a parent hands in is: @vue/test-utils 2.6 keeps mount props shallow (RD-1450-04).
+  return mountComponent(SettingsPostprocessCard, { messages: { settings }, props: { modelValue: reactive(model) } })
 }
 
 /**
