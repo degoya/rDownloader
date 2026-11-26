@@ -11,7 +11,7 @@
   "empty": "Todavía no hay automatizaciones.",
   "no_runs": "Aún no se ha ejecutado.",
   "version": "Versión {version}",
-  "action_count": "{count} acción(es)",
+  "action_count": "{count} acción | {count} acciones",
   "remove": {
     "title": "Eliminar automatización",
     "description": "«{name}» y su historial se eliminan. Las ejecuciones en curso terminan.",
@@ -29,7 +29,8 @@
     "predicate": "Comparación",
     "all": "Todas",
     "any": "Alguna",
-    "not": "No"
+    "not": "No",
+    "comparison": "{field} {operator} «{value}»"
   },
   "action": {
     "heading": "Acciones",
@@ -40,7 +41,7 @@
     "no_scripts": "Aún no hay ningún script en la carpeta de scripts. Coloca uno ahí y vuelve a abrir esto.",
     "category": "Categoría",
     "target": "Destino de notificación",
-    "no_targets": "Todavía no existe ningún destino de notificación. Crea uno en Ajustes, Notificaciones.",
+    "no_targets": "Todavía no existe ningún destino de notificación. Crea uno en Ajustes → Notificaciones.",
     "at_least_once": "Las acciones se ejecutan al menos una vez: una automatización arranca una vez por evento, pero una acción interrumpida después de surtir efecto se reintenta.",
     "webhook": "Llamar al webhook",
     "script": "Ejecutar script",
@@ -65,7 +66,7 @@
       "link_grabber": "LinkGrabber",
       "downloads": "Descargas"
     },
-    "link_count": "{count} enlaces",
+    "link_count": "{count} enlace | {count} enlaces",
     "pause_queue": "Pausar cola"
   },
   "dry_run": {
@@ -160,7 +161,7 @@
     "help": "Se lee en la zona horaria del servicio. Una hora que el servicio perdió por más de dos minutos, por ejemplo porque estaba apagado, no se recupera.",
     "interval_help": "Contado desde medianoche: 60 se ejecuta en punto, como máximo 1440 (un día).",
     "cron_help": "Minuto hora día mes día de la semana, por ejemplo «0 6 * * 1-5» para los días laborables a las seis.",
-    "every_minutes": "cada {minutes} minutos",
+    "every_minutes": "cada {minutes} min",
     "no_package": "Una programación no indica ningún paquete: las acciones de paquete no están disponibles aquí."
   },
   "storage_threshold_help": "Se ejecuta cuando una ubicación de almacenamiento baja de su reserva de espacio libre. Para ejecutarla cuando vuelva a haber espacio, añade la condición «Cambio de almacenamiento» igual a «released». Para una sola ubicación, elígela en «Destino de almacenamiento».",

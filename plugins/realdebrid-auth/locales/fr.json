@@ -2,13 +2,13 @@
   "name": "Connexion Real-Debrid",
   "description": "Connecte un compte Real-Debrid avec un code et maintient la connexion renouvelée.",
   "codes": {
-    "realdebrid_auth.consent_denied": "La connexion n'a pas été accordée chez Real-Debrid.",
-    "realdebrid_auth.code_expired": "La connexion a expiré avant d'être terminée. Appuie de nouveau sur « Connecter ».",
-    "realdebrid_auth.sign_in_refused": "Real-Debrid n'accepte plus cette connexion. Reconnecte le compte.",
+    "realdebrid_auth.consent_denied": "La connexion n’a pas été accordée chez Real-Debrid.",
+    "realdebrid_auth.code_expired": "La connexion a expiré avant d’être terminée. Appuie de nouveau sur « Connecter ».",
+    "realdebrid_auth.sign_in_refused": "Real-Debrid n’accepte plus cette connexion. Reconnecte le compte.",
     "realdebrid_auth.two_factor": "Real-Debrid a demandé une authentification à deux facteurs. Confirmez-la là-bas puis relancez la connexion.",
-    "realdebrid_auth.client_rejected": "Real-Debrid n'accepte plus le client attribué à cette connexion. Reconnecte le compte.",
-    "realdebrid_auth.bad_reply": "Real-Debrid a envoyé une réponse que ce plugin n'a pas pu lire.",
-    "realdebrid_auth.redirect_unsupported": "Real-Debrid se connecte avec un code d'appareil et n'a pas de redirection.",
+    "realdebrid_auth.client_rejected": "Real-Debrid n’accepte plus le client attribué à cette connexion. Reconnecte le compte.",
+    "realdebrid_auth.bad_reply": "Real-Debrid a envoyé une réponse que ce plugin n’a pas pu lire.",
+    "realdebrid_auth.redirect_unsupported": "Real-Debrid se connecte avec un code d’appareil et n’a pas de redirection.",
     "realdebrid_auth.rate_limited": "Real-Debrid reçoit trop de requêtes en ce moment. Réessayez de vous connecter dans une minute."
   }
 }

@@ -154,7 +154,7 @@ async function saveShortcuts(): Promise<void> {
     />
     <DataState v-if="!current" :loading="loading" :error="loadError" :rows="4" />
     <template v-else>
-      <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
+      <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
       <div class="flex flex-wrap items-start justify-between gap-3">
         <USwitch
           class="max-w-prose"

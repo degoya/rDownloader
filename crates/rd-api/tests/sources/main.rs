@@ -17,6 +17,7 @@ mod feeds;
 mod git_releases;
 mod indexer_search;
 mod indexers;
+mod stream_channels;
 mod stream_schedules;
 mod subscriptions;
 mod torznab_search;

@@ -2,6 +2,7 @@ import { computed, ref, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { InstalledPlugin } from '@/api/types'
+import { compareText } from '@/utils/collation'
 
 /**
  * Twenty-four plugins of eight kinds in one flat grid made finding a particular one a scan.
@@ -52,7 +53,7 @@ export function usePluginGroups(plugins: Ref<InstalledPlugin[]>) {
   })
   const installedTypes = computed(() =>
     [...new Set(pluginGroups.value.map(group => group.plugin.plugin_type))].sort((a, b) =>
-      t(`plugins.type.${a}`).localeCompare(t(`plugins.type.${b}`))))
+      compareText(t(`plugins.type.${a}`), t(`plugins.type.${b}`))))
   const typeGroups = computed(() => [
     { value: ALL_TYPES, label: t('plugins.type.all'), count: pluginGroups.value.length },
     ...installedTypes.value.map(type => ({

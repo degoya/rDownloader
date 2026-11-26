@@ -206,7 +206,7 @@ async function copy(value: string): Promise<void> {
   <UCard as="section" data-settings-anchor="security.oidc">
     <SectionHeader :eyebrow="t('system.oidc.eyebrow')" :title="t('system.oidc.title')" :description="t('system.oidc.description')" />
 
-    <UAlert v-if="error" class="mt-3" color="error" :description="error" />
+    <UAlert v-if="error" class="mt-3" color="error" role="alert" :description="error" />
 
     <template v-if="!loading && settings">
       <!-- What to register at the provider. Derived from the external URL, never from a request. -->

@@ -18,13 +18,10 @@
 //! Every area a request names, with everything it implies, has to be one the caller's own
 //! credential holds. A session holds every area, so the administrator is not limited by this.
 
-use axum::{
-    Extension, Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::{Extension, extract::State, http::StatusCode};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::Rng;
+use rd_api_core::extract::{Json, Path};
 use rd_api_core::input_checks::{TextLimit, required_text};
 
 use crate::{

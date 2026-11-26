@@ -66,7 +66,7 @@ const entryRange = useRangeSelection(
         @click="store.create()"
       />
     </div>
-    <UAlert v-if="store.bundleError" class="mt-4" color="error" :description="store.bundleError" />
+    <UAlert v-if="store.bundleError" class="mt-4" color="error" role="alert" :description="store.bundleError" />
 
     <div v-if="store.preview" class="mt-4 space-y-4" data-testid="bundle-preview">
       <p class="text-xs text-muted">{{ t('logs.bundle.directory', { directory: store.preview.directory }) }}</p>
@@ -84,7 +84,7 @@ const entryRange = useRangeSelection(
               {{ noteText(entry.description) }} · {{ t('logs.bundle.items', { count: entry.items }) }}
             </p>
             <p v-if="entry.redactions.length" class="mt-1 text-xs text-muted">
-              <span class="font-medium">{{ t('logs.bundle.redactions') }}:</span> {{ entry.redactions.map(noteText).join('; ') }}
+              <span class="font-medium">{{ t('common.text.label', { label: t('logs.bundle.redactions') }) }}</span> {{ entry.redactions.map(noteText).join('; ') }}
             </p>
           </li>
         </ul>

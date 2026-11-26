@@ -13,9 +13,9 @@
 use std::collections::HashMap;
 
 use jiff::tz::TimeZone;
-use rd_core::{CategoryId, PackageId, SignedDuration, Timestamp};
+use rd_core::{CategoryId, DownloadId, PackageId, SignedDuration, Timestamp};
 
-use crate::{NotificationEvent, Placeholder, Values};
+use crate::{NotificationEvent, NotificationLanguage, Placeholder, Subject, Text, Values, Words};
 
 /// Seconds without a further occurrence after which a burst is reported.
 pub const QUIET_SECONDS: i64 = 10;
@@ -35,12 +35,15 @@ pub struct Occurrence {
     pub event_id: String,
     /// What it carried: links for `links_added`, downloads for `download_started`.
     pub items: u64,
-    /// What to call it in the text: a file name, an intake source.
+    /// What to call it in the text: a file name, or an intake source's wire name
+    /// (`rd_core::IngressSource`), which the text says in its language.
     pub name: Option<String>,
     /// When the bus event happened.
     pub occurred_at: Timestamp,
     /// The started download's package; none for an intake.
     pub package_id: Option<PackageId>,
+    /// The started download; none for an intake.
+    pub download_id: Option<DownloadId>,
 }
 
 /// Every occurrence of one event in one category between its opening and its report.
@@ -61,6 +64,8 @@ pub struct Burst {
     pub first_at: Timestamp,
     /// The package of the occurrence that opened the burst, for a burst of one start.
     pub package_id: Option<PackageId>,
+    /// The download of that occurrence.
+    pub download_id: Option<DownloadId>,
     opened_at: Timestamp,
     last_at: Timestamp,
 }
@@ -107,6 +112,7 @@ impl Coalescer {
                 names: Vec::new(),
                 first_at: occurrence.occurred_at,
                 package_id: occurrence.package_id,
+                download_id: occurrence.download_id,
                 opened_at: now,
                 last_at: now,
             });
@@ -156,29 +162,44 @@ impl Burst {
     /// them counted, `a.mkv, b.mkv, c.mkv and 47 more`. An intake's names are its sources, which
     /// are not counted.
     #[must_use]
-    pub fn names_text(&self) -> String {
-        let named = self.names.join(", ");
+    pub fn names(&self) -> Words {
         if self.event != NotificationEvent::DownloadStarted {
-            return named;
+            return Words::List(self.names.iter().map(|name| source(name)).collect());
         }
+        let named = self.names.join(", ");
         let listed = u64::try_from(self.names.len()).unwrap_or(u64::MAX);
         match self.items.saturating_sub(listed) {
-            0 => named,
-            rest => format!("{named} and {rest} more"),
+            0 => named.into(),
+            rest => Text::new("download_started.names_more")
+                .with("names", named)
+                .with("count", rest)
+                .into(),
+        }
+    }
+
+    /// What the burst is about: the moment it opened, and for a burst of one start its package
+    /// and download (RD-1480-11).
+    #[must_use]
+    pub fn subject(&self) -> Subject {
+        let single = self.single();
+        Subject {
+            occurred_at: Some(self.first_at),
+            package_id: self.package_id.filter(|_| single),
+            download_id: self.download_id.filter(|_| single),
         }
     }
 
     /// What a rule's own wording is filled with (RD-1291-01), the time and date those of the
     /// first occurrence in `zone`: the common placeholders but the budget's, `{count}`, `{items}`
-    /// and `{names}`, and for a burst of one start its `{file}`. Its `{package}` and `{category}`
-    /// need the database and are the service's.
+    /// and `{names}` (in `language`, like the built-in wording), and for a burst of one start its
+    /// `{file}`. Its `{package}` and `{category}` need the database and are the service's.
     #[must_use]
-    pub fn values(&self, zone: &TimeZone) -> Values {
+    pub fn values(&self, zone: &TimeZone, language: NotificationLanguage) -> Values {
         let mut values =
             Values::stamped(self.event, &self.first_at.to_zoned_datetime(zone.clone()))
                 .with(Placeholder::Count, self.occurrences.to_string())
                 .with(Placeholder::Items, self.items.to_string())
-                .with(Placeholder::Names, self.names_text());
+                .with(Placeholder::Names, self.names().say(language));
         if self.single() && self.event == NotificationEvent::DownloadStarted {
             values.set(
                 Placeholder::File,
@@ -195,13 +216,30 @@ impl Burst {
     }
 }
 
+/// Where an intake came from, as the text says it; a source added later shows as it is called.
+fn source(name: &str) -> Words {
+    let key = match name {
+        "manual" => "source.manual",
+        "clipboard" => "source.clipboard",
+        "click_and_load" => "source.click_and_load",
+        "api" => "source.api",
+        "nzb" => "source.nzb",
+        "hot_folder" => "source.hot_folder",
+        "browser_extension" => "source.browser_extension",
+        "browser_download" => "source.browser_download",
+        "subscription" => "source.subscription",
+        other => return other.into(),
+    };
+    Text::new(key).into()
+}
+
 #[cfg(test)]
 mod tests {
     use jiff::tz::TimeZone;
     use rd_core::{CategoryId, SignedDuration, Timestamp};
 
     use super::{Coalescer, NAMED, Occurrence};
-    use crate::{NotificationEvent, Placeholder as P};
+    use crate::{NotificationEvent, NotificationLanguage as L, Placeholder as P, Text};
 
     fn links(id: &str, items: u64, name: &str) -> Occurrence {
         Occurrence {
@@ -212,6 +250,7 @@ mod tests {
             name: Some(name.to_owned()),
             occurred_at: Timestamp::now(),
             package_id: None,
+            download_id: None,
         }
     }
 
@@ -237,6 +276,40 @@ mod tests {
         assert_eq!(due[0].first_event_id, "evt-0");
         assert_eq!(due[0].names, vec!["clipboard".to_owned()]);
         assert!(coalescer.is_empty());
+    }
+
+    /// RD-1480-11: an intake's source reads as words, and one added later as it is called.
+    #[test]
+    fn an_intake_source_reads_as_words() {
+        let words = |name| super::source(name).say(L::En);
+        assert_eq!(words("browser_extension"), "browser extension");
+        assert_eq!(words("hot_folder"), "hot folder");
+        assert_eq!(words("something_new"), "something_new");
+    }
+
+    /// RD-1480-11: a webhook is told when the burst opened, and the download of a burst of one.
+    #[test]
+    fn a_burst_of_one_start_is_about_its_download() {
+        let mut coalescer = Coalescer::default();
+        let now = Timestamp::now();
+        let start = |id: &str| Occurrence {
+            event: NotificationEvent::DownloadStarted,
+            package_id: Some(rd_core::PackageId::new()),
+            download_id: Some(rd_core::DownloadId::new()),
+            ..links(id, 1, "a.mkv")
+        };
+        let one = start("one");
+        coalescer.push(one.clone(), now);
+        let subject = coalescer.drain().remove(0).subject();
+        assert_eq!(subject.occurred_at, Some(one.occurred_at));
+        assert_eq!(subject.package_id, one.package_id);
+        assert_eq!(subject.download_id, one.download_id);
+
+        coalescer.push(start("two"), now);
+        coalescer.push(start("three"), now);
+        let subject = coalescer.drain().remove(0).subject();
+        assert!(subject.occurred_at.is_some());
+        assert_eq!((subject.package_id, subject.download_id), (None, None));
     }
 
     #[test]
@@ -295,6 +368,7 @@ mod tests {
             name: Some(format!("{id}.mkv")),
             occurred_at: start,
             package_id: None,
+            download_id: None,
         };
         coalescer.push(started("one", Some(films)), start);
         coalescer.push(started("two", None), start);
@@ -335,12 +409,13 @@ mod tests {
             name: Some(name.to_owned()),
             occurred_at: at,
             package_id: None,
+            download_id: None,
         };
         let mut coalescer = Coalescer::default();
         coalescer.push(started("one", "a.mkv"), Timestamp::now());
         let one = coalescer.drain().remove(0);
         assert!(one.single());
-        let values = one.values(&TimeZone::UTC);
+        let values = one.values(&TimeZone::UTC, L::En);
         assert_eq!(values.get(P::Event), "download_started");
         assert_eq!(values.get(P::Time), "12:05");
         assert_eq!(values.get(P::Date), "2026-10-14");
@@ -356,7 +431,7 @@ mod tests {
             );
         }
         let many = coalescer.drain().remove(0);
-        let values = many.values(&TimeZone::UTC);
+        let values = many.values(&TimeZone::UTC, L::En);
         assert_eq!(values.get(P::Count), "5");
         assert_eq!(values.get(P::Items), "5");
         assert_eq!(
@@ -366,16 +441,22 @@ mod tests {
         assert_eq!(values.get(P::File), "", "several starts name no one file");
         assert_eq!(
             values,
-            many.values(&TimeZone::UTC),
+            many.values(&TimeZone::UTC, L::En),
             "the same burst says the same"
         );
 
         // An intake's names are its sources, and its links are no file.
         for index in 0..4 {
-            let source = if index % 2 == 0 { "clipboard" } else { "API" };
+            let source = if index % 2 == 0 { "clipboard" } else { "api" };
             coalescer.push(links(&format!("l{index}"), 3, source), Timestamp::now());
         }
-        let imports = coalescer.drain().remove(0).values(&TimeZone::UTC);
+        let imports = coalescer.drain().remove(0);
+        // Its sources are words, said in the language of the notification (RD-1480-11).
+        assert_eq!(
+            imports.values(&TimeZone::UTC, L::De).get(P::Names),
+            format!("{}, API", Text::new("source.clipboard").say(L::De))
+        );
+        let imports = imports.values(&TimeZone::UTC, L::En);
         assert_eq!(imports.get(P::Count), "4");
         assert_eq!(imports.get(P::Items), "12");
         assert_eq!(imports.get(P::Names), "clipboard, API");

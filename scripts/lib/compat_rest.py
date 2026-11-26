@@ -271,6 +271,11 @@ class Rest:
             if status not in new_responses:
                 self.add("response-removed", f"{where} {status}", "success status removed")
                 continue
+            new_headers = {name.lower() for name in new_responses[status].get("headers") or {}}
+            for name in sorted(response.get("headers") or {}):
+                if name.lower() not in new_headers:
+                    self.add("response-header-removed", f"{where} {status} {name.lower()}",
+                             "a response header was removed")
             new_media = new_responses[status].get("content") or {}
             for media, body in sorted((response.get("content") or {}).items()):
                 if media not in new_media:

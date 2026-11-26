@@ -1,7 +1,8 @@
 //! Quiet-hours and completion-action status, plus the cancel action for a running power
 //! countdown (RD-050-13).
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 
 use crate::{AppState, error::ApiError};
 

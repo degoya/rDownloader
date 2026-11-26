@@ -237,7 +237,7 @@ export const SETTINGS_SUB_TABS = {
   ],
   // RD-1160-01: three pages split by their subjects rather than by a sixth card.
   notifications: [
-    { value: 'targets', labelKey: 'settings.subtabs.notifications.targets', icon: 'i-lucide-send' },
+    { value: 'targets', labelKey: 'settings.subtabs.notifications.targets', icon: 'i-lucide-send', documentCard: true },
     { value: 'history', labelKey: 'settings.subtabs.notifications.history', icon: 'i-lucide-history' }
   ],
   backup: [

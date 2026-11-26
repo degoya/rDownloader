@@ -65,29 +65,33 @@ mod tests {
         let rule = example();
         assert!(host_allowed(
             &rule,
-            "scnlog.me",
-            &url("https://scnlog.me/a")
+            "releases.example",
+            &url("https://releases.example/a")
         ));
         assert!(host_allowed(
             &rule,
-            "scnlog.me",
-            &url("https://cdn.scnlog.me/a")
+            "releases.example",
+            &url("https://cdn.releases.example/a")
         ));
         // The address the run was given, even after a revive onto the canonical host.
         assert!(host_allowed(
             &rule,
-            "scnlog.eu",
-            &url("https://scnlog.eu/a")
+            "releases-old.example",
+            &url("https://releases-old.example/a")
         ));
         assert!(!host_allowed(
             &rule,
-            "scnlog.me",
+            "releases.example",
             &url("https://evil.test/a")
         ));
-        assert!(!host_allowed(&rule, "scnlog.me", &url("ftp://scnlog.me/a")));
         assert!(!host_allowed(
             &rule,
-            "scnlog.me",
+            "releases.example",
+            &url("ftp://releases.example/a")
+        ));
+        assert!(!host_allowed(
+            &rule,
+            "releases.example",
             &url("file:///etc/passwd")
         ));
     }
@@ -171,6 +175,6 @@ mod tests {
             literal_address(&url("http://[::1]/x")),
             Some(IpAddr::V6(Ipv6Addr::LOCALHOST))
         );
-        assert_eq!(literal_address(&url("https://scnlog.me/x")), None);
+        assert_eq!(literal_address(&url("https://releases.example/x")), None);
     }
 }

@@ -1,127 +1,82 @@
 //! The service settings document: read, validated, saved, reset and applied live.
 
-use axum::{Json, extract::State};
+use axum::{
+    extract::State,
+    http::{HeaderMap, HeaderName, header},
+};
+use rd_api_core::extract::Json;
+use rd_api_core::settings_change::{announce, settings_etag};
 
 use crate::{
     ApiError, AppState,
     dto::SettingsResponse,
+    error::ErrorBody,
     settings_store::{read_settings, runtime_settings},
 };
 
+mod edit;
 mod privileged;
 mod validation;
 
+pub use edit::SettingsEdit;
 use privileged::privileged_change;
 pub(crate) use validation::validate_settings;
 
-#[utoipa::path(get, path = "/api/v1/settings", tag = "system", responses((status = 200, body = SettingsResponse)))]
-pub async fn get_settings(
-    State(state): State<AppState>,
-) -> Result<Json<SettingsResponse>, ApiError> {
-    Ok(Json(read_settings(&state).await?))
+/// The settings document with its entity tag (RD-1480-07).
+type TaggedSettings = ([(HeaderName, String); 1], Json<SettingsResponse>);
+
+fn tagged(settings: SettingsResponse) -> Result<TaggedSettings, ApiError> {
+    let etag = settings_etag(&settings)?;
+    Ok(([(header::ETAG, etag)], Json(settings)))
 }
 
-#[utoipa::path(put, path = "/api/v1/settings", tag = "system", request_body = SettingsResponse, responses((status = 200, body = SettingsResponse), (status = 409, description = "Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`; `torrent.port_in_use` when another program holds the fixed listen port)")))]
+#[utoipa::path(get, path = "/api/v1/settings", tag = "system", responses((status = 200, body = SettingsResponse, headers(("etag" = String, description = "The tag of this document; `If-Match` on a write names it")))))]
+pub async fn get_settings(State(state): State<AppState>) -> Result<TaggedSettings, ApiError> {
+    tagged(read_settings(&state).await?)
+}
+
+/// Replaces the settings document.
+///
+/// A field left out of the body falls back to its default; `PATCH` changes single fields.
+#[utoipa::path(put, path = "/api/v1/settings", tag = "system", params(("If-Match" = Option<String>, Header, description = "The `ETag` the document was read with; another one is answered `412`")), request_body = SettingsResponse, responses((status = 200, body = SettingsResponse, headers(("etag" = String, description = "The tag of the document as saved"))), (status = 409, description = "Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`; `torrent.port_in_use` when another program holds the fixed listen port)"), (status = 412, body = ErrorBody, description = "`settings.document_changed`: the stored document is not the one `If-Match` names; nothing was saved")))]
 pub async fn put_settings(
     State(state): State<AppState>,
     audit: crate::audit::AuditContext,
     granted: Option<axum::Extension<crate::auth::Granted>>,
+    headers: HeaderMap,
     Json(settings): Json<SettingsResponse>,
-) -> Result<Json<SettingsResponse>, ApiError> {
-    let holds_admin =
-        granted.is_some_and(|axum::Extension(granted)| granted.holds(rd_core::Scope::Admin));
-    save_settings(&state, &audit, holds_admin, settings)
-        .await
-        .map(Json)
-}
-
-/// Saves a settings document on a caller's behalf: the privileged-field gate, the apply and
-/// the audit record, in the one function both the REST route and the MCP tool call.
-///
-/// The gate used to live in [`put_settings`] alone, and the MCP tool `update_settings` went
-/// straight to [`apply_settings`]. Both cost `api:config`, so a configuration token could
-/// switch the administrator login off — and with it gain every scope — over MCP while the
-/// same change over REST was refused (RD-130-09). One function is what keeps the two from
-/// drifting apart again. `holds_admin` is the caller's own grant, never the service's.
-pub async fn save_settings(
-    state: &AppState,
-    audit: &crate::audit::AuditContext,
-    holds_admin: bool,
-    settings: SettingsResponse,
-) -> Result<SettingsResponse, ApiError> {
-    let current = read_settings(state).await?;
-    if !holds_admin && let Some(field) = privileged_change(&current, &settings) {
-        // Audited as a failure: a refused attempt to widen what a credential may reach is
-        // exactly the thing somebody reads an audit log to find.
-        crate::audit::record(
-            state,
-            crate::audit::AuditEvent::failure(rd_core::AuditAction::SettingsChanged)
-                .by(audit)
-                .target("settings", "service.settings")
-                .detail("refused_field", field)
-                .detail("reason", "scope_insufficient"),
-        )
-        .await;
-        return Err(ApiError::forbidden(
-            "auth.scope_insufficient",
-            "This setting requires the administration scope",
-        )
-        .with_param("scope", rd_core::Scope::Admin.as_str())
-        .with_param("setting", field));
-    }
-    // Only a changed target: a stored one whose profile went since must not hold up every
-    // other setting on the page (RD-1190-20).
-    if settings.upload_remote != current.upload_remote {
-        rd_api_core::object_upload_target::check_object_upload_target(
-            &state.database,
-            settings.upload_remote.as_deref(),
-        )
-        .await?;
-    }
-    let (applied, torrent_refused) = apply_settings_reporting(state, settings).await?;
-    // The *names* of the fields that changed, never their values: the settings document holds
-    // secret references, executable paths and proxy addresses, and an audit log that quoted
-    // them would be a copy of the configuration with a timestamp on it.
-    crate::audit::record(
-        state,
-        crate::audit::AuditEvent::success(rd_core::AuditAction::SettingsChanged)
-            .by(audit)
-            .target("settings", "service.settings")
-            .detail("fields", changed_field_names(&current, &applied).join(" ")),
+) -> Result<TaggedSettings, ApiError> {
+    let edit = SettingsEdit::begin(&state).await?;
+    edit.require_match(&headers)?;
+    tagged(
+        edit.save_settings(&audit, holds_admin(granted), settings)
+            .await?,
     )
-    .await;
-    // Saved and audited, but the torrent engine kept its previous settings: said, not a
-    // silent `200` beside a status that shows the new values (RD-1240-28).
-    if let Some(refused) = torrent_refused {
-        return Err(refused);
-    }
-    Ok(applied)
 }
 
-/// The names of the settings fields whose stored value differs between two documents.
+/// Changes the fields the body names and leaves every other one as stored.
 ///
-/// Compared as JSON rather than field by field so a field added later is covered without
-/// anybody remembering to add it here, and so nothing in this function ever has to hold a
-/// value long enough to log it by accident.
-fn changed_field_names(current: &SettingsResponse, next: &SettingsResponse) -> Vec<String> {
-    let (Ok(serde_json::Value::Object(before)), Ok(serde_json::Value::Object(after))) =
-        (serde_json::to_value(current), serde_json::to_value(next))
-    else {
-        return Vec::new();
-    };
-    let mut names: Vec<String> = after
-        .iter()
-        .filter(|(key, value)| before.get(*key) != Some(*value))
-        .map(|(key, _)| key.clone())
-        .collect();
-    names.extend(
-        before
-            .keys()
-            .filter(|key| !after.contains_key(*key))
-            .cloned(),
-    );
-    names.sort();
-    names
+/// A field named is replaced whole, an object or a list in it included; `null` empties a field
+/// that can be empty and is refused for any other.
+#[utoipa::path(patch, path = "/api/v1/settings", tag = "system", params(("If-Match" = Option<String>, Header, description = "The `ETag` the document was read with; another one is answered `412`")), request_body = SettingsResponse, responses((status = 200, body = SettingsResponse, headers(("etag" = String, description = "The tag of the document as saved"))), (status = 400, body = ErrorBody, description = "`settings.patch_empty`, `settings.unknown_key` or `settings.invalid`, the last two with the field in `key`, or the code of a value that is out of its range"), (status = 403, body = ErrorBody, description = "`auth.scope_insufficient`: the field in `setting` takes `api:admin`"), (status = 409, body = ErrorBody, description = "Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`, `torrent.port_in_use`)"), (status = 412, body = ErrorBody, description = "`settings.document_changed`: the stored document is not the one `If-Match` names; nothing was saved")))]
+pub async fn patch_settings(
+    State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
+    granted: Option<axum::Extension<crate::auth::Granted>>,
+    headers: HeaderMap,
+    Json(patch): Json<serde_json::Map<String, serde_json::Value>>,
+) -> Result<TaggedSettings, ApiError> {
+    let edit = SettingsEdit::begin(&state).await?;
+    edit.require_match(&headers)?;
+    let settings = edit.patched(patch)?;
+    tagged(
+        edit.save_settings(&audit, holds_admin(granted), settings)
+            .await?,
+    )
+}
+
+fn holds_admin(granted: Option<axum::Extension<crate::auth::Granted>>) -> bool {
+    granted.is_some_and(|axum::Extension(granted)| granted.holds(rd_core::Scope::Admin))
 }
 
 /// Restores the built-in runtime defaults without touching accounts, routing or download data.
@@ -129,7 +84,7 @@ fn changed_field_names(current: &SettingsResponse, next: &SettingsResponse) -> V
 pub async fn reset_settings(
     State(state): State<AppState>,
     audit: crate::audit::AuditContext,
-) -> Result<Json<SettingsResponse>, ApiError> {
+) -> Result<TaggedSettings, ApiError> {
     let applied = apply_settings(&state, SettingsResponse::default()).await?;
     crate::audit::record(
         &state,
@@ -138,24 +93,31 @@ pub async fn reset_settings(
             .target("settings", "service.settings"),
     )
     .await;
-    Ok(Json(applied))
+    tagged(applied)
 }
 
-/// Validates, persists and live-applies the full settings blob — the only legal mutation path.
+/// Validates, persists and live-applies the full settings blob, in its own turn.
 ///
 /// A torrent session that could not be rebuilt for the new settings is logged and keeps its
-/// previous ones; [`apply_settings_reporting`] hands that refusal to the caller instead.
+/// previous ones; [`SettingsEdit::save_settings`] hands that refusal to the caller instead.
 pub(crate) async fn apply_settings(
     state: &AppState,
     settings: SettingsResponse,
 ) -> Result<SettingsResponse, ApiError> {
-    Ok(apply_settings_reporting(state, settings).await?.0)
+    let _turn = state.admin.settings_turn.take().await;
+    // A stored document that does not parse is what a reset or an import repairs.
+    let before = read_settings(state).await.ok();
+    Ok(apply_holding_turn(state, before.as_ref(), settings)
+        .await?
+        .0)
 }
 
-/// [`apply_settings`], answering beside the stored document the torrent engine's refusal of
-/// it, if it refused: the document is saved and every other part applied either way.
-pub(crate) async fn apply_settings_reporting(
+/// [`apply_settings`] for a caller that holds the turn and knows the document before, answering
+/// beside the stored document the torrent engine's refusal of it, if it refused: the document is
+/// saved and every other part applied either way.
+async fn apply_holding_turn(
     state: &AppState,
+    before: Option<&SettingsResponse>,
     mut settings: SettingsResponse,
 ) -> Result<(SettingsResponse, Option<ApiError>), ApiError> {
     let runtime = validate_settings(&mut settings)?;
@@ -166,6 +128,7 @@ pub(crate) async fn apply_settings_reporting(
             serde_json::to_value(&settings).map_err(anyhow::Error::new)?,
         )
         .await?;
+    announce(&state.database, before, &settings);
     state.scheduler.update_runtime_settings(runtime).await?;
     // The level holds from the next line (RD-1260-12); a debug window still open stays open.
     crate::log_level_handlers::apply_level(settings.log_level);

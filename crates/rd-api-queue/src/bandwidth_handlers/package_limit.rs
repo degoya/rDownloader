@@ -6,10 +6,8 @@
 //! holding a torrent refuses a limit with `torrent.capability_unsupported` rather than taking
 //! one that would do nothing.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rd_core::{ByteCount, DownloadKind, PackageId};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

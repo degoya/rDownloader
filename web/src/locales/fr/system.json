@@ -4,7 +4,7 @@
       "title": "HTTP & hébergeurs",
       "eyebrow": "Chaîne de résolveurs",
       "status": "Noyau actif",
-      "description": "HTTP direct, cookies DDownload et clé API Premiumize partagent la même identité client isolée ; les composants signés restent installables."
+      "description": "HTTP direct, cookies DDownload et clé API Premiumize partagent la même identité client isolée ; les composants signés restent installables."
     },
     "capture": {
       "title": "Agent de capture",
@@ -18,7 +18,7 @@
       "eyebrow": "Pipeline NNTP",
       "none": "Aucun serveur NNTP",
       "summary": "{servers} · {connections}",
-      "description": "Les priorités des serveurs et les identifiants chiffrés sont configurables ; yEnc et des briques de post-traitement sûres sont intégrés."
+      "description": "Les priorités des serveurs et les identifiants chiffrés sont configurables ; yEnc et des briques de post-traitement sûres sont intégrés."
     }
   },
   "facts": {
@@ -40,21 +40,21 @@
     "submit": "Appairer",
     "copy_hint": "Copiez-le maintenant – il ne pourra plus être récupéré",
     "copy_command": "Copier la commande",
-    "afterwards": "Ensuite, en option :",
+    "afterwards": "Ensuite, en option :",
     "copied_title": "Commande de configuration copiée",
     "copied_description": "La commande complète se trouve dans le presse-papiers.",
-    "extension_hint": "Extension de navigateur : utilisez le jeton brut ci-dessous dans les options de l'extension.",
+    "extension_hint": "Extension de navigateur : utilisez le jeton brut ci-dessous dans les options de l’extension.",
     "copy_token": "Copier le jeton",
-    "extension_steps": "Dans les options de l'extension, indiquez {origin} comme URL du serveur, collez ce jeton puis cliquez sur « Tester la connexion ». Installation : voir extension/README.md.",
+    "extension_steps": "Dans les options de l’extension, indiquez {origin} comme URL du serveur, collez ce jeton puis cliquez sur « Tester la connexion ». Installation : voir extension/README.md.",
     "token_copied_description": "Le jeton de capture est dans le presse-papiers.",
     "label": "Nom de la connexion",
     "queue_control": "Peut piloter la file",
-    "queue_control_help": "Autorise « Start all », « Pause all » et « Add all from LinkGrabber » dans le menu de la zone de notification de l'agent, rien de plus. Sans ce choix, l'agent ne transmet que des liens.",
+    "queue_control_help": "Autorise « Start all », « Pause all » et « Add all from LinkGrabber » dans le menu de la zone de notification de l’agent, rien de plus. Sans ce choix, l’agent ne transmet que des liens.",
     "server_update": "Peut installer les mises à jour du serveur",
-    "server_update_help": "Autorise « Install server update » dans le menu de la zone de notification de l'agent : il installe la mise à jour proposée de rDownloader, puis le service redémarre. Sans ce choix, l'entrée ouvre la page des mises à jour dans le navigateur. Le même choix autorise « Restart server » dans le menu de la zone de notification, qui redémarre rDownloader.",
-    "copy_service": "Copier l'adresse du serveur",
-    "tray_hint": "Ou choisissez « Link capture agent » dans le menu de la zone de notification de l'agent et collez-y l'adresse et le jeton.",
-    "loopback_hint": "Cette adresse ne fonctionne que sur cet ordinateur. Sur un autre ordinateur, utilisez plutôt l'adresse réseau de cet ordinateur, par ex. http://192.168.x.y:{port}."
+    "server_update_help": "Autorise « Install server update » dans le menu de la zone de notification de l’agent : il installe la mise à jour proposée de rDownloader, puis le service redémarre. Sans ce choix, l’entrée ouvre la page des mises à jour dans le navigateur. Le même choix autorise « Restart server » dans le menu de la zone de notification, qui redémarre rDownloader.",
+    "copy_service": "Copier l’adresse du serveur",
+    "tray_hint": "Ou choisissez « Link capture agent » dans le menu de la zone de notification de l’agent et collez-y l’adresse et le jeton.",
+    "loopback_hint": "Cette adresse ne fonctionne que sur cet ordinateur. Sur un autre ordinateur, utilisez plutôt l’adresse réseau de cet ordinateur, par ex. http://192.168.x.y:{port}."
   },
   "agents": {
     "eyebrow": "Connexions appairées",
@@ -63,7 +63,7 @@
   },
   "revoke": {
     "title": "Supprimer la connexion de capture",
-    "description": "L’agent « {label} » perd immédiatement l’accès au LinkGrabber et à l’import NZB.",
+    "description": "L’agent « {label} » perd immédiatement l’accès au LinkGrabber et à l’import NZB.",
     "confirm": "Supprimer la connexion",
     "done": "Connexion de capture supprimée"
   },
@@ -92,12 +92,12 @@
       "without_secrets": "Cette sauvegarde ne contient aucun identifiant",
       "passphrase": "Phrase secrète de la sauvegarde",
       "passphrase_required": "Saisissez la phrase secrète utilisée pour créer cette sauvegarde.",
-      "confirm_title": "Remplacer tous les paramètres du serveur ?",
+      "confirm_title": "Remplacer tous les paramètres du serveur ?",
       "confirm_description": "Tous les paramètres, catégories, comptes, proxys, serveurs Usenet, dossiers surveillés et chaînes seront remplacés. Mettez d’abord les téléchargements actifs en pause. Les dossiers d’un agent de capture importés sur une autre installation doivent être réassociés.",
       "confirm": "Remplacer la configuration",
       "button": "Importer et remplacer",
       "success": "Paramètres restaurés",
-      "success_description": "{count} entrées de configuration importées.",
+      "success_description": "{count} entrée de configuration importée. | {count} entrées de configuration importées.",
       "password": "Mot de passe administrateur",
       "password_hint": "Remplacer la configuration demande à nouveau le mot de passe."
     },
@@ -109,7 +109,7 @@
         "title": "Phrase secrète",
         "missing": "Aucune phrase secrète configurée. Sans elle, aucune sauvegarde complète n’est écrite.",
         "configured": "Clé {fingerprint}, configurée {date}",
-        "hint": "La phrase secrète n’est stockée nulle part, seule la clé qui en est dérivée l’est, dans le coffre. Une restauration la redemande. Une nouvelle phrase vaut pour les sauvegardes futures ; les anciennes s’ouvrent avec l’ancienne.",
+        "hint": "La phrase secrète n’est stockée nulle part, seule la clé qui en est dérivée l’est, dans le coffre. Une restauration la redemande. Une nouvelle phrase vaut pour les sauvegardes futures ; les anciennes s’ouvrent avec l’ancienne.",
         "passphrase": "Phrase secrète",
         "confirm": "Confirmer la phrase secrète",
         "setup": "Configurer la phrase secrète",
@@ -125,15 +125,15 @@
         "enabled": "Planification active",
         "enabled_description": "S’exécute en arrière-plan. Un échec n’arrête aucun téléchargement et figure dans l’historique.",
         "cron": "Planification (cron)",
-        "cron_description": "Cinq champs : minute heure jour mois jour de la semaine, p. ex. 0 3 * * * pour chaque jour à 3 h.",
+        "cron_description": "Cinq champs : minute heure jour mois jour de la semaine, p. ex. 0 3 * * * pour chaque jour à 3 h.",
         "timezone": "Fuseau horaire",
         "verify": "Planification de la vérification (cron)",
-        "verify_description": "Vérifie l’archive la plus récente à chaque destination : récupérée, comparée et ouverte. Vide, c’est désactivé.",
-        "verify_next": "Prochaine vérification : {date}",
+        "verify_description": "Vérifie l’archive la plus récente à chaque destination : récupérée, comparée et ouverte. Vide, c’est désactivé.",
+        "verify_next": "Prochaine vérification : {date}",
         "no_destination": "Aucune destination active pour l’instant – ajoutez-en une ci-dessous avant d’activer la planification.",
         "save": "Enregistrer la planification",
         "saved": "Planification enregistrée",
-        "next": "Prochaine exécution : {date}",
+        "next": "Prochaine exécution : {date}",
         "off": "Planification désactivée"
       },
       "destinations": {
@@ -152,30 +152,30 @@
           "rclone": "Remote rclone"
         },
         "name": "Nom",
-        "name_description": "Facultatif ; sans nom, la liste affiche l’adresse.",
+        "name_description": "Facultatif ; sans nom, la liste affiche l’adresse.",
         "enabled": "Active",
         "path": "Dossier",
-        "path_description": "Chemin absolu sur la machine qui exécute rDownloader ; un partage NAS monté convient aussi.",
+        "path_description": "Chemin absolu sur la machine qui exécute rDownloader ; un partage NAS monté convient aussi.",
         "profile": "Profil de stockage objet",
         "profile_placeholder": "Choisissez un profil",
-        "profile_none": "Aucun profil pour l’instant – créez-en d’abord un dans les réglages du stockage objet.",
+        "profile_none": "Aucun profil pour l’instant – créez-en d’abord un dans Paramètres → FTP, SFTP, WebDAV et S3 → S3.",
         "prefix": "Bucket et dossier",
-        "prefix_description": "<bucket>/<dossier> ; sans bucket, celui du profil est utilisé.",
+        "prefix_description": "<bucket>/<dossier> ; sans bucket, celui du profil est utilisé.",
         "remote": "Remote rclone",
         "remote_description": "nom:chemin d’un remote configuré dans rclone – WebDAV, SFTP, stockages cloud et plus.",
         "keep_last": "Garder les plus récentes",
-        "keep_last_description": "Nombre d’archives ; vide garde tout.",
+        "keep_last_description": "Nombre d’archives ; vide garde tout.",
         "keep_days": "Garder des jours",
-        "keep_days_description": "Les archives plus récentes restent ; vide garde tout.",
+        "keep_days_description": "Les archives plus récentes restent ; vide garde tout.",
         "retention": {
           "none": "Garde toutes les archives",
-          "last": "Les {count} plus récentes",
-          "days": "{count} jours",
+          "last": "La plus récente ({count}) | Les {count} plus récentes",
+          "days": "{count} jour | {count} jours",
           "hint": "L’archive la plus récente reste toujours. Seules les archives écrites là par cette installation sont supprimées – jamais les fichiers d’autrui.",
           "preview": "Aperçu",
           "result": "Garde {keep}, supprime {remove} – rien n’est encore effacé."
         },
-        "archives": "Archives : {count}",
+        "archives": "Archives : {count}",
         "verify": "Vérifier la plus récente",
         "verify_started": "Vérification lancée",
         "verify_none": "Il n’y a pas encore d’archive là-bas.",
@@ -191,8 +191,8 @@
         "passphrase_check": {
           "action": "Vérifier avec la phrase secrète",
           "title": "Vérifier avec la phrase secrète",
-          "description": "« Vérifier la plus récente » utilise la clé conservée pour la planification. Une restauration ne demande que la phrase secrète, et une phrase perdue ne peut pas être récupérée. Ici, l’archive la plus récente est ouverte avec la phrase secrète.",
-          "hint": "L’archive est lue en entier ; rien n’est écrit.",
+          "description": "« Vérifier la plus récente » utilise la clé conservée pour la planification. Une restauration ne demande que la phrase secrète, et une phrase perdue ne peut pas être récupérée. Ici, l’archive la plus récente est ouverte avec la phrase secrète.",
+          "hint": "L’archive est lue en entier ; rien n’est écrit.",
           "submit": "Ouvrir l’archive",
           "ok": "La phrase secrète ouvre {name} (créée {date})."
         }
@@ -205,7 +205,7 @@
       "history": {
         "title": "Historique",
         "empty": "Aucune sauvegarde complète n’a encore été exécutée.",
-        "parts": "{count} parties",
+        "parts": "{count} partie | {count} parties",
         "origin": {
           "scheduled": "Planifiée",
           "manual": "Manuelle"
@@ -216,50 +216,50 @@
           "failed": "Échouée",
           "interrupted": "Interrompue"
         },
-        "pruned": "{count} anciennes archives supprimées par la rétention"
+        "pruned": "{count} ancienne archive supprimée par la rétention | {count} anciennes archives supprimées par la rétention"
       }
     },
     "full_restore": {
       "eyebrow": "Restauration",
       "title": "Restaurer une sauvegarde complète",
-      "description": "Ouvre une archive avec sa phrase secrète, montre ce qu'elle contient, la vérifie dans une copie jetable et bascule dessus au prochain démarrage. L'installation actuelle reste démarrable jusqu'à ce que la restaurée ait démarré une fois.",
+      "description": "Ouvre une archive avec sa phrase secrète, montre ce qu’elle contient, la vérifie dans une copie jetable et bascule dessus au prochain démarrage. L’installation actuelle reste démarrable jusqu’à ce que la restaurée ait démarré une fois.",
       "open": "Restaurer depuis une sauvegarde …",
       "status": {
-        "staged": "La restauration de {archive} ({date}) est en attente. Redémarrez rDownloader pour basculer ; l'état actuel est conservé jusqu'à ce que l'état restauré ait démarré une fois.",
+        "staged": "La restauration de {archive} ({date}) est en attente. Redémarrez rDownloader pour basculer ; l’état actuel est conservé jusqu’à ce que l’état restauré ait démarré une fois.",
         "switching": "Un démarrage est en train de basculer vers {archive}.",
-        "failed": "La restauration de {archive} n'a pas démarré le {date} ; l'installation précédente a été conservée. Raison : {reason}",
+        "failed": "La restauration de {archive} n’a pas démarré le {date} ; l’installation précédente a été conservée. Raison : {reason}",
         "discard": "Abandonner la restauration",
         "dismiss": "Masquer",
         "discarded": "Restauration abandonnée"
       },
       "dialog": {
         "title": "Restaurer une sauvegarde complète",
-        "description": "Choisissez l'archive, saisissez sa phrase secrète, vérifiez son contenu, associez les racines de stockage, testez – et seulement ensuite confirmez."
+        "description": "Choisissez l’archive, saisissez sa phrase secrète, vérifiez son contenu, associez les racines de stockage, testez – et seulement ensuite confirmez."
       },
       "source": {
         "title": "Archive",
-        "history": "Depuis l'historique",
+        "history": "Depuis l’historique",
         "upload": "Téléverser un fichier",
         "path": "Chemin sur cette machine",
-        "no_runs": "Aucune sauvegarde réussie dans l'historique.",
+        "no_runs": "Aucune sauvegarde réussie dans l’historique.",
         "run_placeholder": "Choisissez une sauvegarde",
         "path_placeholder": "/mnt/nas/rdownloader/rdownloader-backup-….rdbackup",
         "file_pick": "Choisir un fichier",
-        "uploading": "Téléversement : {percent} %",
+        "uploading": "Téléversement : {percent} %",
         "uploaded": "{name} téléversé"
       },
       "passphrase": {
         "label": "Phrase secrète de cette sauvegarde",
-        "hint": "Demandée à chaque fois : la clé conservée pour la planification n'est jamais utilisée pour une restauration."
+        "hint": "Demandée à chaque fois : la clé conservée pour la planification n’est jamais utilisée pour une restauration."
       },
       "preview": {
         "action": "Afficher le contenu",
         "title": "Contenu",
         "created": "Créée le {date} par rDownloader {version}, {size}",
-        "newer": "Une version plus récente a créé cette sauvegarde. Mettez d'abord à jour vers au moins cette version (ici tourne {version}).",
+        "newer": "Une version plus récente a créé cette sauvegarde. Mettez d’abord à jour vers au moins cette version (ici tourne {version}).",
         "part": "{count} × {size}",
-        "counts": "{categories} catégories, {accounts} comptes, {proxies} proxys, {servers} serveurs Usenet, {subscriptions} abonnements, {hotfolders} dossiers surveillés",
-        "state": "{partial} transferts inachevés, {trust} entrées de confiance des plugins.",
+        "counts": "Catégories : {categories}, comptes : {accounts}, proxys : {proxies}, serveurs Usenet : {servers}, abonnements : {subscriptions}, dossiers surveillés : {hotfolders}",
+        "state": "Transferts inachevés : {partial}, entrées de confiance des plugins : {trust}.",
         "credentials_included": "Les identifiants sont inclus, chiffrés.",
         "credentials_missing": "Les identifiants ne sont pas inclus.",
         "kind": {
@@ -277,16 +277,16 @@
       },
       "mapping": {
         "title": "Racines de stockage",
-        "hint": "Où se trouve chaque racine de stockage sur cette machine. Laissez un champ vide pour garder le chemin. Les chemins d'un autre système (lettres de lecteur, partages) ont besoin d'un dossier ici ; tous les chemins en dessous le suivent et ne peuvent jamais en sortir.",
+        "hint": "Où se trouve chaque racine de stockage sur cette machine. Laissez un champ vide pour garder le chemin. Les chemins d’un autre système (lettres de lecteur, partages) ont besoin d’un dossier ici ; tous les chemins en dessous le suivent et ne peuvent jamais en sortir.",
         "foreign": "autre système",
         "target": "Nouveau dossier pour {name}",
         "placeholder": "Garder le chemin"
       },
       "test": {
-        "action": "Restauration d'essai",
-        "ok": "La restauration d'essai n'a rien trouvé qui empêche la restauration.",
-        "failed": "La restauration d'essai a trouvé des erreurs qui empêchent la restauration.",
-        "summary": "{packages} paquets, {moved} chemins déplacés, {credentials} identifiants restaurés, {migrated} migrations appliquées.",
+        "action": "Restauration d’essai",
+        "ok": "La restauration d’essai n’a rien trouvé qui empêche la restauration.",
+        "failed": "La restauration d’essai a trouvé des erreurs qui empêchent la restauration.",
+        "summary": "Paquets : {packages}, chemins déplacés : {moved}, identifiants restaurés : {credentials}, migrations appliquées : {migrated}.",
         "none": "Aucune constatation.",
         "severity": {
           "error": "Erreur",
@@ -294,47 +294,47 @@
         }
       },
       "confirm": {
-        "label": "J'ai compris : au prochain démarrage, cette sauvegarde remplace toute l'installation. L'état actuel est conservé jusqu'à ce que l'état restauré ait démarré une fois.",
+        "label": "J’ai compris : au prochain démarrage, cette sauvegarde remplace toute l’installation. L’état actuel est conservé jusqu’à ce que l’état restauré ait démarré une fois.",
         "action": "Restaurer au prochain démarrage",
         "staged": "Restauration préparée. Redémarrez rDownloader pour basculer."
       },
       "password": {
         "label": "Mot de passe administrateur",
-        "hint": "La restauration remplace le mot de passe, les clés d’accès et les jetons au prochain démarrage ; elle demande donc à nouveau le mot de passe."
+        "hint": "La restauration remplace le mot de passe, les clés d’accès et les jetons au prochain démarrage ; elle demande donc à nouveau le mot de passe."
       }
     }
   },
   "mcp": {
     "eyebrow": "Accès externe",
     "title": "Accès API et MCP",
-    "description": "Les jetons d'API authentifient REST, la CLI, les clients compatibles SABnzbd et qBittorrent, ainsi que le serveur MCP à l'adresse {endpoint}. Les zones sélectionnables remplacent l'accès global {scope} ; seule l'empreinte SHA-256 est conservée.",
+    "description": "Les jetons d’API authentifient REST, la CLI, les clients compatibles SABnzbd et qBittorrent, ainsi que le serveur MCP à l’adresse {endpoint}. Les zones sélectionnables remplacent l’accès global {scope} ; seule l’empreinte SHA-256 est conservée.",
     "label_placeholder": "p. ex. Sonarr, tableau de bord ou Claude",
-    "submit": "Créer un jeton d'API",
-    "copy_hint": "Ce jeton d'API n'est affiché qu'une fois — enregistrez-le maintenant de manière sûre dans le client prévu.",
-    "mcp_hint": "Connecter MCP avec Claude Code :",
+    "submit": "Créer un jeton d’API",
+    "copy_hint": "Ce jeton d’API n’est affiché qu’une fois — enregistrez-le maintenant de manière sûre dans le client prévu.",
+    "mcp_hint": "Connecter MCP avec Claude Code :",
     "copy_command": "Copier la commande",
-    "token_hint": "Jeton brut pour les clients qui attendent uniquement la clé d'API.",
+    "token_hint": "Jeton brut pour les clients qui attendent uniquement la clé API.",
     "copy_token": "Copier le jeton",
     "copied_title": "Copié",
     "command_copied": "La commande claude mcp add est dans le presse-papiers.",
-    "token_copied": "Le jeton d'API est dans le presse-papiers.",
-    "header_hint": "Clients qui lisent l'en-tête depuis une variable d'environnement (ChatGPT bureau) : saisissez cette valeur complète.",
-    "copy_header": "Copier l'en-tête",
-    "header_copied": "L'en-tête Authorization est dans le presse-papiers.",
-    "single_source_hint": "Ne configurez qu'une seule source pour l'en-tête Authorization. Si deux sont envoyés, seul le premier compte — un jeton correct en deuxième position n'est jamais lu.",
-    "tokens_eyebrow": "Jetons d'API actifs",
-    "empty": "Aucun jeton d'API créé pour l'instant.",
-    "revoke_label": "Révoquer le jeton d'API",
+    "token_copied": "Le jeton d’API est dans le presse-papiers.",
+    "header_hint": "Clients qui lisent l’en-tête depuis une variable d’environnement (ChatGPT bureau) : saisissez cette valeur complète.",
+    "copy_header": "Copier l’en-tête",
+    "header_copied": "L’en-tête Authorization est dans le presse-papiers.",
+    "single_source_hint": "Ne configurez qu’une seule source pour l’en-tête Authorization. Si deux sont envoyés, seul le premier compte — un jeton correct en deuxième position n’est jamais lu.",
+    "tokens_eyebrow": "Jetons d’API actifs",
+    "empty": "Aucun jeton d’API créé pour l’instant.",
+    "revoke_label": "Révoquer le jeton d’API",
     "scope_full": "Accès complet",
     "revoke": {
-      "title": "Révoquer le jeton d'API",
-      "description": "Le client « {label} » perd immédiatement son accès à l'API et à MCP.",
+      "title": "Révoquer le jeton d’API",
+      "description": "Le client « {label} » perd immédiatement son accès à l’API et à MCP.",
       "confirm": "Révoquer le jeton",
-      "done": "Jeton d'API révoqué"
+      "done": "Jeton d’API révoqué"
     },
     "edit": {
       "label": "Modifier les autorisations",
-      "hint": "La valeur du jeton reste la même : le client continue de fonctionner et atteint les nouvelles zones dès sa prochaine requête. Tout retirer n'est pas possible ici — révoquez le jeton pour cela.",
+      "hint": "La valeur du jeton reste la même : le client continue de fonctionner et atteint les nouvelles zones dès sa prochaine requête. Tout retirer n’est pas possible ici — révoquez le jeton pour cela.",
       "save": "Enregistrer les autorisations",
       "done": "Autorisations modifiées",
       "empty": "Choisissez au moins une zone, ou révoquez le jeton."
@@ -342,7 +342,7 @@
     "areas": {
       "read": {
         "name": "Lecture",
-        "description": "File d'attente, progression, paquets et état du système. N'autorise aucune modification."
+        "description": "File d’attente, progression, paquets et état du système. N’autorise aucune modification."
       },
       "intake": {
         "name": "Ajouter des liens",
@@ -358,11 +358,11 @@
       },
       "secrets": {
         "name": "Identifiants enregistrés",
-        "description": "Comptes d'hébergeurs, profils de proxy, serveurs Usenet et l'export des réglages. Aucune autre zone ne l'accorde."
+        "description": "Comptes d’hébergeurs, profils de proxy, serveurs Usenet et l’export des réglages. Aucune autre zone ne l’accorde."
       },
       "admin": {
         "name": "Administration",
-        "description": "Plugins, interrupteurs du service, mises à jour et sauvegardes. N'inclut pas les identifiants enregistrés."
+        "description": "Plugins, interrupteurs du service, mises à jour et sauvegardes. N’inclut pas les identifiants enregistrés."
       },
       "metrics": {
         "name": "Métriques",
@@ -370,19 +370,20 @@
       }
     },
     "scopes_label": "Ce que ce jeton peut faire",
-    "scopes_hint": "N'accordez que ce dont le client a réellement besoin. Tout ce qui agit peut aussi lire : la lecture n'a donc pas à être ajoutée séparément.",
+    "scopes_hint": "N’accordez que ce dont le client a réellement besoin. Tout ce qui agit peut aussi lire : la lecture n’a donc pas à être ajoutée séparément.",
     "scopes_empty": "Choisissez au moins une zone.",
-    "scope_operations": "{count} opérations",
-    "scope_none": "Aucun accès à l'API",
+    "scope_operations": "{count} opération | {count} opérations",
+    "scope_none": "Aucun accès à l’API",
     "sensitive": "Sensible",
-    "sensitive_warning": "Ce jeton pourra lire les identifiants enregistrés ou administrer le service. Aucune autre zone ne l'accorde : ne le confiez qu'à un client qui en a réellement besoin.",
-    "also_includes": "Inclut également : {areas}",
-    "minted_areas": "Ce jeton comprend : {areas}",
-    "label_label": "Nom du client"
+    "sensitive_warning": "Ce jeton pourra lire les identifiants enregistrés ou administrer le service. Aucune autre zone ne l’accorde : ne le confiez qu’à un client qui en a réellement besoin.",
+    "also_includes": "Inclut également : {areas}",
+    "minted_areas": "Ce jeton comprend : {areas}",
+    "label_label": "Nom du client",
+    "data_flow_hint": "Un assistant IA que vous connectez via MCP reçoit des liens, des noms de fichiers et des lignes du journal dans les réponses des outils ; c’est le fournisseur de cet assistant qui les traite."
   },
   "readiness": {
     "eyebrow": "Configuration",
-    "title": "La configuration est-elle terminée ?",
+    "title": "La configuration est-elle terminée ?",
     "complete": "Tout ce que la configuration demande est en place.",
     "outstanding": "Une étape reste ouverte. | {count} étapes restent ouvertes.",
     "go": "Ouvrir",
@@ -390,13 +391,13 @@
       "login": {
         "label": "Connexion administrateur",
         "done": "Définie, ou désactivée volontairement pour un réseau de confiance.",
-        "missing": "Aucun mot de passe n'est défini et la connexion n'est pas désactivée."
+        "missing": "Aucun mot de passe n’est défini et la connexion n’est pas désactivée."
       },
       "storage": {
         "label": "Destination de stockage",
         "done": "Au moins une destination est configurée.",
-        "missing": "Les téléchargements n'ont pas de destination tant qu'il n'y en a pas.",
-        "ephemeral": "Une destination est configurée, mais au moins une n'est pas sur un stockage persistant."
+        "missing": "Les téléchargements n’ont pas de destination tant qu’il n’y en a pas.",
+        "ephemeral": "Une destination est configurée, mais au moins une n’est pas sur un stockage persistant."
       },
       "category": {
         "label": "Catégorie",
@@ -406,14 +407,14 @@
       "wizard": {
         "label": "Configuration terminée",
         "done": "La configuration a été menée à son terme.",
-        "missing": "La configuration n'a jamais été terminée ; relancez-la depuis la barre latérale."
+        "missing": "La configuration n’a jamais été terminée ; relancez-la depuis la barre latérale."
       }
     }
   },
   "sessions": {
     "eyebrow": "Sécurité",
     "title": "Appareils connectés",
-    "description": "Chaque connexion ouverte sur cette installation. Si quelque chose ici n'est pas à vous, terminez-la et changez le mot de passe.",
+    "description": "Chaque connexion ouverte sur cette installation. Si quelque chose ici n’est pas à vous, terminez-la et changez le mot de passe.",
     "loading": "Chargement…",
     "current": "Cet appareil",
     "unknown_device": "Appareil inconnu",
@@ -422,7 +423,7 @@
     "sign_out": "Déconnecter",
     "sign_out_here": "Se déconnecter ici",
     "revoke": {
-      "title": "Terminer cette session ?",
+      "title": "Terminer cette session ?",
       "description": "{device} sera déconnecté immédiatement.",
       "description_current": "Vous serez déconnecté sur cet appareil et devrez vous reconnecter.",
       "confirm": "Terminer",
@@ -430,8 +431,8 @@
     },
     "revoke_others": {
       "action": "Déconnecter partout ailleurs ({count})",
-      "title": "Déconnecter partout ailleurs ?",
-      "description": "{count} autres sessions seront terminées. Celle-ci reste connectée.",
+      "title": "Déconnecter partout ailleurs ?",
+      "description": "{count} autre session sera terminée. Celle-ci reste connectée. | {count} autres sessions seront terminées. Celle-ci reste connectée.",
       "confirm": "Terminer",
       "done": "Autres sessions terminées"
     }
@@ -441,54 +442,54 @@
     "title": "Proxy inverse",
     "description": "Si un proxy est placé devant, rDownloader doit le savoir. Sinon chaque requête compte comme venant du proxy, et le cookie de session peut ne pas correspondre au schéma utilisé par le navigateur.",
     "external_url": "Adresse externe",
-    "external_url_hint": "Schéma, hôte et sous-chemin en un seul réglage, pour qu'ils ne puissent pas diverger. Laissez vide s'il n'y a pas de proxy.",
+    "external_url_hint": "Schéma, hôte et sous-chemin en un seul réglage, pour qu’ils ne puissent pas diverger. Laissez vide s’il n’y a pas de proxy.",
     "trusted": "Proxys de confiance",
-    "trusted_hint": "Une adresse ou une plage CIDR par ligne. Une adresse client transmise n'est crue que depuis celles-ci ; tout le reste compte comme l'appelant lui-même.",
+    "trusted_hint": "Une adresse ou une plage CIDR par ligne. Une adresse client transmise n’est crue que depuis celles-ci ; tout le reste compte comme l’appelant lui-même.",
     "cookie_label": "Cookie de session",
-    "cookie_hint": "« Automatique » suit le schéma de l'adresse externe et convient presque toujours.",
+    "cookie_hint": "« Automatique » suit le schéma de l’adresse externe et convient presque toujours.",
     "cookie": {
       "auto": "Automatique",
       "always": "Toujours Secure",
       "never": "Jamais Secure"
     },
-    "warning_no_proxies": "Une adresse externe est définie mais aucun proxy de confiance. Chaque requête semblera alors venir du proxy : les limites et la liste des sessions afficheront une seule adresse pour tout le monde.",
+    "warning_no_proxies": "Une adresse externe est définie mais aucun proxy de confiance. Chaque requête semblera alors venir du proxy : les limites et la liste des sessions afficheront une seule adresse pour tout le monde.",
     "warning_no_url": "Des proxys de confiance sont définis mais aucune adresse externe. Le cookie ne peut alors pas être marqué Secure automatiquement.",
-    "allowed_hosts": "Noms d'hôte autorisés",
-    "allowed_hosts_hint": "Un nom par ligne sous lequel vous ouvrez le service dans le navigateur, par exemple nas.lan. Les adresses IP, localhost et l'hôte de l'URL externe fonctionnent toujours ; tout autre nom est refusé, afin qu'aucune page étrangère n'entre par DNS rebinding.",
+    "allowed_hosts": "Noms d’hôte autorisés",
+    "allowed_hosts_hint": "Un nom par ligne sous lequel vous ouvrez le service dans le navigateur, par exemple nas.lan. Les adresses IP, localhost et l’hôte de l’URL externe fonctionnent toujours ; tout autre nom est refusé, afin qu’aucune page étrangère n’entre par DNS rebinding.",
     "login_off_title": "La connexion est désactivée alors qu’un proxy ou une adresse externe est configuré",
     "login_off_description": "Sans connexion, chaque requête de cette machine sans en-tête de transfert compte comme l’administrateur. Un tunnel ou proxy local qui ne définit pas X-Forwarded-For fait de chacun derrière lui l’administrateur. Réactivez la connexion sous Général, ou assurez-vous que votre proxy définit l’en-tête.",
     "login_off_wiki": "Proxy inverse dans le manuel",
     "local_names": "Accepter les noms du réseau local",
-    "local_names_hint": "Les noms qui n'existent que sur le réseau local – un nom simple comme nas, .local, .home.arpa, .internal – fonctionnent sans entrée dans la liste. Désactivez cette option si vous ne faites pas confiance aux autres appareils de votre réseau : seuls les adresses IP, localhost, l'hôte de l'URL externe et les noms d'hôte autorisés fonctionnent alors."
+    "local_names_hint": "Les noms qui n’existent que sur le réseau local – un nom simple comme nas, .local, .home.arpa, .internal – fonctionnent sans entrée dans la liste. Désactivez cette option si vous ne faites pas confiance aux autres appareils de votre réseau : seuls les adresses IP, localhost, l’hôte de l’URL externe et les noms d’hôte autorisés fonctionnent alors."
   },
   "mfa": {
     "eyebrow": "Deuxième facteur",
     "title": "Connexion à deux facteurs",
-    "description": "Facultatif. Après le mot de passe, un code d'une application d'authentification est également demandé. Les codes de récupération sont le seul autre moyen de revenir — il n'y a personne ici à qui prouver votre identité.",
+    "description": "Facultatif. Après le mot de passe, un code d’une application d’authentification est également demandé. Les codes de récupération sont le seul autre moyen de revenir — il n’y a personne ici à qui prouver votre identité.",
     "enrol": {
       "start": "Configurer",
       "once": "Visible uniquement maintenant. Rien de tout cela ne pourra être récupéré après avoir quitté la page.",
-      "scan": "Scannez ce code avec votre application d'authentification :",
+      "scan": "Scannez ce code avec votre application d’authentification :",
       "copy_secret": "Copier la clé",
-      "recovery": "Codes de récupération — conservez-les en lieu sûr :",
+      "recovery": "Codes de récupération — conservez-les en lieu sûr :",
       "copy_codes": "Copier les codes",
-      "confirm_label": "Code de l'application",
-      "qr_alt": "Code QR pour configurer l'application d'authentification",
-      "manual": "Ou saisissez la clé à la main :"
+      "confirm_label": "Code de l’application",
+      "qr_alt": "Code QR pour configurer l’application d’authentification",
+      "manual": "Ou saisissez la clé à la main :"
     },
     "unconfirmed": "Non confirmé",
-    "last_used": "Dernière utilisation : {moment}",
+    "last_used": "Dernière utilisation : {moment}",
     "never_used": "jamais",
-    "remaining": "{count} codes de récupération restants",
+    "remaining": "{count} code de récupération restant | {count} codes de récupération restants",
     "remove": {
       "action": "Supprimer",
-      "title": "Supprimer ce deuxième facteur ?",
-      "description": "« {label} » ne pourra plus répondre à une demande.",
+      "title": "Supprimer ce deuxième facteur ?",
+      "description": "« {label} » ne pourra plus répondre à une demande.",
       "confirm": "Supprimer"
     },
     "regenerate": {
       "action": "Nouveaux codes de récupération",
-      "title": "Générer de nouveaux codes ?",
+      "title": "Générer de nouveaux codes ?",
       "description": "Les codes de récupération actuels cesseront de fonctionner.",
       "confirm": "Générer"
     },
@@ -505,29 +506,29 @@
     }
   },
   "passkeys": {
-    "eyebrow": "Clés d'accès",
-    "title": "Clés d'accès",
-    "description": "Connectez-vous avec votre appareil plutôt qu'avec votre mot de passe. Votre authentificateur vérifie un code PIN ou une empreinte avant de signer : une seule étape couvre donc les deux facteurs. Le mot de passe continue de fonctionner — une clé d'accès est une entrée supplémentaire, pas un remplacement.",
-    "unsupported": "Ce navigateur ne peut pas utiliser de clés d'accès ici. Elles exigent une connexion sécurisée : https, ou l'accès au service via localhost.",
-    "add": "Ajouter une clé d'accès",
-    "failed": "La clé d'accès n'a pas pu être configurée.",
-    "added_toast": "Clé d'accès ajoutée",
+    "eyebrow": "Clés d’accès",
+    "title": "Clés d’accès",
+    "description": "Connectez-vous avec votre appareil plutôt qu’avec votre mot de passe. Votre authentificateur vérifie un code PIN ou une empreinte avant de signer : une seule étape couvre donc les deux facteurs. Le mot de passe continue de fonctionner — une clé d’accès est une entrée supplémentaire, pas un remplacement.",
+    "unsupported": "Ce navigateur ne peut pas utiliser de clés d’accès ici. Elles exigent une connexion sécurisée : https, ou l’accès au service via localhost.",
+    "add": "Ajouter une clé d’accès",
+    "failed": "La clé d’accès n’a pas pu être configurée.",
+    "added_toast": "Clé d’accès ajoutée",
     "name_label": "Nom",
-    "name_hint": "Pour savoir de quel appareil il s'agit au moment de la retirer.",
-    "default_label": "Clé d'accès {platform}",
-    "fallback_label": "Clé d'accès",
+    "name_hint": "Pour savoir de quel appareil il s’agit au moment de la retirer.",
+    "default_label": "Clé d’accès {platform}",
+    "fallback_label": "Clé d’accès",
     "last_used": "Dernière utilisation {moment}",
     "never_used": "jamais",
     "remove": {
-      "title": "Retirer cette clé d'accès ?",
-      "description": "« {label} » ne pourra plus se connecter. Votre mot de passe fonctionne toujours."
+      "title": "Retirer cette clé d’accès ?",
+      "description": "« {label} » ne pourra plus se connecter. Votre mot de passe fonctionne toujours."
     },
-    "step_up_hint": "Ajouter ou retirer une passkey demande à nouveau le mot de passe."
+    "step_up_hint": "Ajouter ou retirer une clé d’accès demande à nouveau le mot de passe."
   },
   "password": {
     "eyebrow": "Mot de passe",
     "title": "Mot de passe administrateur",
-    "description": "Remplace le mot de passe avec lequel vous vous connectez. Le mot de passe actuel est nécessaire. Il n'existe aucune récupération sans celui-ci.",
+    "description": "Remplace le mot de passe avec lequel vous vous connectez. Le mot de passe actuel est nécessaire. Il n’existe aucune récupération sans celui-ci.",
     "current_label": "Mot de passe actuel",
     "new_label": "Nouveau mot de passe",
     "confirm_label": "Répétez le nouveau mot de passe",
@@ -536,66 +537,66 @@
     "mismatch": "Les deux nouveaux mots de passe ne correspondent pas.",
     "changed_toast": "Mot de passe modifié",
     "sessions_hint": "Le changement met fin à toutes les sessions. Cette fenêtre reste connectée, tout autre appareil doit se reconnecter.",
-    "tokens_hint": "Les jetons d'API restent valables, car ils ne dépendent pas du mot de passe. Mais quiconque connaissait l'ancien a pu s'en délivrer : vérifiez la liste des jetons."
+    "tokens_hint": "Les jetons d’API restent valables, car ils ne dépendent pas du mot de passe. Mais quiconque connaissait l’ancien a pu s’en délivrer : vérifiez la liste des jetons."
   },
   "data_reset": {
     "button": "Vider",
-    "stored": "{count} enregistrés",
+    "stored": "{count} enregistré | {count} enregistrés",
     "confirm": "Vider définitivement",
-    "done": "{count} enregistrements supprimés",
+    "done": "{count} enregistrement supprimé | {count} enregistrements supprimés",
     "logs": {
-      "title": "Vider le journal du service ?",
-      "description": "{count} entrées de journal seront supprimées définitivement. L'audit et les statistiques restent, tout comme les téléchargements, les paquets et les réglages."
+      "title": "Vider le journal du service ?",
+      "description": "{count} entrée de journal sera supprimée définitivement. L’audit et les statistiques restent, tout comme les téléchargements, les paquets et les réglages. | {count} entrées de journal seront supprimées définitivement. L’audit et les statistiques restent, tout comme les téléchargements, les paquets et les réglages."
     },
     "audit": {
-      "title": "Vider l'audit ?",
-      "description": "{count} entrées d'audit seront supprimées définitivement. Le vidage lui-même devient la première entrée du journal vidé. Le journal du service et les statistiques restent, tout comme les téléchargements, les paquets et les réglages."
+      "title": "Vider l’audit ?",
+      "description": "{count} entrée d’audit sera supprimée définitivement. Le vidage lui-même devient la première entrée du journal vidé. Le journal du service et les statistiques restent, tout comme les téléchargements, les paquets et les réglages. | {count} entrées d’audit seront supprimées définitivement. Le vidage lui-même devient la première entrée du journal vidé. Le journal du service et les statistiques restent, tout comme les téléchargements, les paquets et les réglages."
     },
     "stats": {
-      "title": "Vider les statistiques ?",
-      "description": "{count} lignes de statistiques seront supprimées définitivement, totaux cumulés compris. Le journal du service et l'audit restent, tout comme les téléchargements, les paquets et les réglages."
+      "title": "Vider les statistiques ?",
+      "description": "{count} ligne de statistiques sera supprimée définitivement, totaux cumulés compris. Le journal du service et l’audit restent, tout comme les téléchargements, les paquets et les réglages. | {count} lignes de statistiques seront supprimées définitivement, totaux cumulés compris. Le journal du service et l’audit restent, tout comme les téléchargements, les paquets et les réglages."
     },
     "notifications": {
-      "title": "Vider l'historique des notifications ?",
-      "description": "{count} envois terminés seront supprimés définitivement de l'historique. Les envois encore en file d'attente ou en nouvelle tentative restent, tout comme les destinations, les règles, le journal du service, l'audit et les statistiques."
+      "title": "Vider l’historique des notifications ?",
+      "description": "{count} envoi terminé sera supprimé définitivement de l’historique. Les envois encore en file d’attente ou en nouvelle tentative restent, tout comme les destinations, les règles, le journal du service, l’audit et les statistiques. | {count} envois terminés seront supprimés définitivement de l’historique. Les envois encore en file d’attente ou en nouvelle tentative restent, tout comme les destinations, les règles, le journal du service, l’audit et les statistiques."
     },
     "notifications_pending": {
       "button": "Abandonner les envois en attente",
-      "stored": "{count} en attente",
-      "title": "Abandonner les notifications en attente ?",
-      "description": "{count} notifications encore en file d'attente ou en nouvelle tentative seront supprimées et ne seront jamais envoyées. Les envois réussis et échoués restent dans l'historique, de même que les destinations, les règles, le journal, l'audit et les statistiques.",
+      "stored": "{count} en attente | {count} en attente",
+      "title": "Abandonner les notifications en attente ?",
+      "description": "{count} notification encore en file d’attente ou en nouvelle tentative sera supprimée et ne sera jamais envoyée. Les envois réussis et échoués restent dans l’historique, de même que les destinations, les règles, le journal, l’audit et les statistiques. | {count} notifications encore en file d’attente ou en nouvelle tentative seront supprimées et ne seront jamais envoyées. Les envois réussis et échoués restent dans l’historique, de même que les destinations, les règles, le journal, l’audit et les statistiques.",
       "confirm": "Abandonner définitivement",
-      "done": "{count} notifications abandonnées"
+      "done": "{count} notification abandonnée | {count} notifications abandonnées"
     },
     "storage_operations": {
       "button": "Vider l’historique",
-      "stored": "{count} entrées",
-      "title": "Vider l’historique du stockage ?",
-      "description": "{count} déplacements et liens de doublon terminés, échoués ou interrompus seront supprimés définitivement de l’historique. Une opération encore en cours reste. Aucun fichier n’est déplacé ni supprimé, et un déplacement interrompu reprend quand même au prochain démarrage.",
+      "stored": "{count} entrée | {count} entrées",
+      "title": "Vider l’historique du stockage ?",
+      "description": "{count} déplacement ou lien de doublon terminé, échoué ou interrompu sera supprimé définitivement de l’historique. Une opération encore en cours reste. Aucun fichier n’est déplacé ni supprimé, et un déplacement interrompu reprend quand même au prochain démarrage. | {count} déplacements et liens de doublon terminés, échoués ou interrompus seront supprimés définitivement de l’historique. Une opération encore en cours reste. Aucun fichier n’est déplacé ni supprimé, et un déplacement interrompu reprend quand même au prochain démarrage.",
       "confirm": "Vider définitivement",
-      "done": "{count} entrées d’historique supprimées"
+      "done": "{count} entrée d’historique supprimée | {count} entrées d’historique supprimées"
     },
     "content_index": {
       "button": "Vider l’index",
-      "stored": "{count} indexés",
-      "title": "Vider l’index de contenu ?",
-      "description": "{count} entrées d’index seront supprimées. Les fichiers et les téléchargements restent intacts, mais tant qu’un fichier n’est pas réindexé, il n’est pas reconnu comme doublon de contenu et ne peut pas être l’original d’un lien de doublon. « Vérifier l’index de contenu » (exécuté aussi à chaque démarrage) réindexe les téléchargements terminés encore dans la file dont le SHA-256 est connu et dont le fichier est toujours en place. Les fichiers de téléchargements supprimés ou jamais hachés ne reviennent qu’en les téléchargeant à nouveau.",
+      "stored": "{count} indexé | {count} indexés",
+      "title": "Vider l’index de contenu ?",
+      "description": "{count} entrée d’index sera supprimée. Les fichiers et les téléchargements restent intacts, mais tant qu’un fichier n’est pas réindexé, il n’est pas reconnu comme doublon de contenu et ne peut pas être l’original d’un lien de doublon. « Vérifier l’index de contenu » (exécuté aussi à chaque démarrage) réindexe les téléchargements terminés encore dans la file dont le SHA-256 est connu et dont le fichier est toujours en place. Les fichiers de téléchargements supprimés ou jamais hachés ne reviennent qu’en les téléchargeant à nouveau. | {count} entrées d’index seront supprimées. Les fichiers et les téléchargements restent intacts, mais tant qu’un fichier n’est pas réindexé, il n’est pas reconnu comme doublon de contenu et ne peut pas être l’original d’un lien de doublon. « Vérifier l’index de contenu » (exécuté aussi à chaque démarrage) réindexe les téléchargements terminés encore dans la file dont le SHA-256 est connu et dont le fichier est toujours en place. Les fichiers de téléchargements supprimés ou jamais hachés ne reviennent qu’en les téléchargeant à nouveau.",
       "confirm": "Vider l’index",
-      "done": "{count} entrées d’index supprimées"
+      "done": "{count} entrée d’index supprimée | {count} entrées d’index supprimées"
     },
     "history": {
       "button": "Vider l’historique",
-      "stored": "{count} entrées",
-      "title": "Vider l’historique des téléchargements ?",
-      "description": "{count} entrées seront supprimées définitivement de l’historique des téléchargements. La liste des téléchargements, les fichiers, les statistiques et les journaux restent intacts.",
+      "stored": "{count} entrée | {count} entrées",
+      "title": "Vider l’historique des téléchargements ?",
+      "description": "{count} entrée sera supprimée définitivement de l’historique des téléchargements. La liste des téléchargements, les fichiers, les statistiques et les journaux restent intacts. | {count} entrées seront supprimées définitivement de l’historique des téléchargements. La liste des téléchargements, les fichiers, les statistiques et les journaux restent intacts.",
       "confirm": "Vider définitivement",
-      "done": "{count} entrées d’historique supprimées"
+      "done": "{count} entrée d’historique supprimée | {count} entrées d’historique supprimées"
     }
   },
   "session_limits": {
     "eyebrow": "Sécurité",
-    "title": "Durée d'une connexion",
-    "description": "Une connexion prend fin lorsqu'elle n'a pas été utilisée pendant cette durée ou atteint sa durée maximale, selon ce qui arrive en premier. Une valeur plus courte met fin immédiatement aux connexions plus anciennes.",
+    "title": "Durée d’une connexion",
+    "description": "Une connexion prend fin lorsqu’elle n’a pas été utilisée pendant cette durée ou atteint sa durée maximale, selon ce qui arrive en premier. Une valeur plus courte met fin immédiatement aux connexions plus anciennes.",
     "idle_label": "Sans activité",
     "idle_description": "Heures sans requête avant de devoir se reconnecter. De 1 à 720 (30 jours).",
     "max_label": "Durée maximale",
@@ -604,16 +605,16 @@
   "extension": {
     "connected_title": "Extension du navigateur connectée",
     "connected_description": "Une extension du navigateur vient de se signaler. Les comptes qui reprennent la connexion de votre navigateur reçoivent la session par son intermédiaire.",
-    "missing_title": "Aucune extension du navigateur ne s'est encore signalée",
-    "missing_description": "Vérifié toutes les quelques secondes ; dès que l'extension est appairée et se signale, cela s'affiche ici.",
-    "why": "Les comptes d'hébergeurs qui reprennent la connexion de votre navigateur — DDownload, par exemple — ont besoin de l'extension rDownloader pour le navigateur : elle seule peut transmettre la session depuis le navigateur. L'appairage est facultatif ; sans l'extension, il reste le nom d'utilisateur et le mot de passe ou une clé d'API.",
-    "step_install": "Installez l'extension rDownloader dans le navigateur avec lequel vous êtes connecté à l'hébergeur.",
-    "step_pair": "Cliquez ci-dessous sur « Appairer » : rDownloader affiche un jeton une seule fois — copiez-le.",
-    "step_options": "Dans les options de l'extension, indiquez {origin} comme URL du serveur, collez le jeton, cliquez sur « Tester la connexion » puis sur « Enregistrer ».",
+    "missing_title": "Aucune extension du navigateur ne s’est encore signalée",
+    "missing_description": "Vérifié toutes les quelques secondes ; dès que l’extension est appairée et se signale, cela s’affiche ici.",
+    "why": "Les comptes d’hébergeurs qui reprennent la connexion de votre navigateur — DDownload, par exemple — ont besoin de l’extension rDownloader pour le navigateur : elle seule peut transmettre la session depuis le navigateur. L’appairage est facultatif ; sans l’extension, il reste le nom d’utilisateur et le mot de passe ou une clé API.",
+    "step_install": "Installez l’extension rDownloader dans le navigateur avec lequel vous êtes connecté à l’hébergeur.",
+    "step_pair": "Cliquez ci-dessous sur « Appairer » : rDownloader affiche un jeton une seule fois — copiez-le.",
+    "step_options": "Dans les options de l’extension, indiquez {origin} comme URL du serveur, collez le jeton, cliquez sur « Tester la connexion » puis sur « Enregistrer ».",
     "default_label": "Extension du navigateur",
-    "pair_title": "Appairer l'extension du navigateur",
-    "modal_title": "Appairer l'extension du navigateur",
-    "modal_description": "La connexion à l'hébergeur vient de votre navigateur, et seule l'extension peut la transmettre. Appairez-la ici sans quitter la page.",
+    "pair_title": "Appairer l’extension du navigateur",
+    "modal_title": "Appairer l’extension du navigateur",
+    "modal_description": "La connexion à l’hébergeur vient de votre navigateur, et seule l’extension peut la transmettre. Appairez-la ici sans quitter la page.",
     "done": "Terminé"
   },
   "updates": {
@@ -630,8 +631,8 @@
     "interval_label": "Vérifier toutes les",
     "interval_description": "Heures entre deux vérifications automatiques (1–168).",
     "check_now": "Vérifier maintenant",
-    "current": "Installée : {version}",
-    "installed_as": "Installée en tant que : {kind}",
+    "current": "Installée : {version}",
+    "installed_as": "Installée en tant que : {kind}",
     "kind": {
       "portable": "Archive portable",
       "msi": "Installateur Windows",
@@ -644,46 +645,46 @@
       "docker": "Image de conteneur",
       "unknown": "Inconnue"
     },
-    "last_checked": "Dernière vérification : {when}",
+    "last_checked": "Dernière vérification : {when}",
     "never_checked": "Pas encore vérifié",
-    "next_check": "Prochaine vérification : {when}",
+    "next_check": "Prochaine vérification : {when}",
     "up_to_date": "Vous avez la version la plus récente.",
     "available": "La version {version} est disponible",
-    "not_configured": "Cette version ne contient pas de clé de mise à jour ; la vérification est désactivée.",
+    "not_configured": "Cette version ne contient pas de clé de mise à jour ; la vérification est désactivée.",
     "modal": {
       "title": "rDownloader {version}",
-      "released": "Publiée : {when}",
+      "released": "Publiée : {when}",
       "notes": "Nouveautés",
       "no_notes": "Cette version n’a pas de notes.",
       "full_changes": "Modifications complètes",
       "download": "Télécharger",
-      "download_hint": "Remplace les fichiers du programme de cette installation par la nouvelle version ; vos réglages et téléchargements restent où ils sont.",
-      "command_hint": "{kind} gère cette installation. Mettez-la à jour avec :",
+      "download_hint": "Remplacez les fichiers du programme de cette installation par la nouvelle version ; vos réglages et téléchargements restent où ils sont.",
+      "command_hint": "{kind} gère cette installation. Mettez-la à jour avec :",
       "copy": "Copier",
       "close": "Fermer",
       "install": "Installer et redémarrer",
       "install_hint": "rDownloader télécharge la nouvelle version si elle ne l’est pas déjà, sauvegarde sa base de données, s’arrête, remplace ses fichiers de programme et redémarre. Vos réglages et téléchargements restent où ils sont.",
       "rollback_automatic": "Si la nouvelle version ne démarre pas correctement, la précédente revient d’elle-même.",
-      "rollback_unavailable": "Cette mise à jour par l’installateur Windows ne peut pas être annulée d’elle-même : l’installateur de la version actuelle n’a pas été conservé. À partir de la prochaine mise à jour, ce sera possible.",
+      "rollback_unavailable": "Cette mise à jour par l’installateur Windows ne peut pas être annulée d’elle-même : l’installateur de la version actuelle n’a pas été conservé. À partir de la prochaine mise à jour, ce sera possible.",
       "download_package": "Télécharger le paquet",
       "download_manual": "Télécharger manuellement",
       "release_page": "Page de la version"
     },
     "hints": {
-      "aur_helper": "Avec paru : paru -S rdownloader-bin",
+      "aur_helper": "Avec paru : paru -S rdownloader-bin",
       "docker_recreate": "Recrée ensuite le conteneur, par ex. avec docker compose up -d.",
-      "deb_file": "Le dépôt ne contient que les versions stables. Une bêta, ou un paquet installé depuis un téléchargement, s’installe depuis le fichier : sudo apt install ./<fichier>.deb",
-      "rpm_file": "Le dépôt ne contient que les versions stables. Une bêta, ou un paquet installé depuis un téléchargement, s’installe depuis le fichier : sudo dnf install ./<fichier>.rpm"
+      "deb_file": "Le dépôt ne contient que les versions stables. Une bêta, ou un paquet installé depuis un téléchargement, s’installe depuis le fichier : sudo apt install ./<fichier>.deb",
+      "rpm_file": "Le dépôt ne contient que les versions stables. Une bêta, ou un paquet installé depuis un téléchargement, s’installe depuis le fichier : sudo dnf install ./<fichier>.rpm"
     },
     "notice_version": "{version} disponible",
     "notice_installing": "Mise à jour vers {version}",
     "notice_updated": "Mis à jour vers {version}",
     "install": {
-      "confirm_title": "Installer {version} maintenant ?",
+      "confirm_title": "Installer {version} maintenant ?",
       "confirm_description": "rDownloader s’arrête environ une minute et redémarre en {version}. Les téléchargements en cours sont enregistrés et reprennent ensuite. Cette page se reconnecte d’elle-même.",
       "anyway": "Installer quand même",
       "reconnecting": "rDownloader redémarre – en attente de sa réponse …",
-      "lost": "rDownloader ne répond plus depuis plusieurs minutes. Arrêtez-le s’il tourne encore et démarrez-le à la main ; si la mise à jour est restée incomplète, la version précédente revient à ce démarrage.",
+      "lost": "rDownloader ne répond plus depuis plusieurs minutes. Arrêtez-le s’il tourne encore et démarrez-le à la main ; si la mise à jour est restée incomplète, la version précédente revient à ce démarrage.",
       "reload": "Recharger la page",
       "reload_hint": "Rechargez la page pour utiliser l’interface de la nouvelle version.",
       "state": {
@@ -692,7 +693,7 @@
         "restarting": "Arrêt de rDownloader pour la mise à jour …",
         "installing": "Installation de {version} …",
         "verifying": "Démarrage de {version} …",
-        "rolling_back": "{version} ne démarre pas correctement ; retour à {from} …",
+        "rolling_back": "{version} ne démarre pas correctement ; retour à {from} …",
         "done": "Mis à jour vers {version}.",
         "rolled_back": "{version} n’a pas démarré correctement, {from} fonctionne donc à nouveau.",
         "failed": "La mise à jour vers {version} a échoué."
@@ -702,23 +703,23 @@
     "download": {
       "downloading": "Téléchargement de {version} en arrière-plan …",
       "progress": "{received} sur {total}",
-      "ready": "{version} est téléchargée et vérifiée ; « Installer et redémarrer » utilise ce fichier.",
+      "ready": "{version} est téléchargée et vérifiée ; « Installer et redémarrer » utilise ce fichier.",
       "failed": "Le téléchargement de {version} a échoué."
     },
     "agents": {
-      "running": "Agent de capture : {versions}",
+      "running": "Agent de capture : {versions}",
       "unknown": "antérieur à 1.9",
-      "outdated_title": "Redémarrez l'agent de capture",
-      "outdated_description": "Un agent de capture tourne encore en version {agent}, rDownloader déjà en {service}. Depuis la 1.8.1, l'agent redémarre de lui-même dans la minute qui suit une mise à jour. S'il ne le fait pas — parce qu'il est plus ancien ou qu'un autre utilisateur l'a lancé —, quittez-le depuis son icône dans la zone de notification ou le Gestionnaire des tâches, puis relancez-le ; sous Linux, systemctl --user restart rdownloader-capture fait les deux.",
-      "self_offered": "Un agent de capture installé sans rDownloader se propose lui-même la version {version} : choisissez « Install update to {version} » dans le menu de son icône, ou lancez rdownloader-capture update."
+      "outdated_title": "Redémarrez l’agent de capture",
+      "outdated_description": "Un agent de capture tourne encore en version {agent}, rDownloader déjà en {service}. Depuis la 1.8.1, l’agent redémarre de lui-même dans la minute qui suit une mise à jour. S’il ne le fait pas — parce qu’il est plus ancien ou qu’un autre utilisateur l’a lancé —, quittez-le depuis son icône dans la zone de notification ou le Gestionnaire des tâches, puis relancez-le ; sous Linux, systemctl --user restart rdownloader-capture fait les deux.",
+      "self_offered": "Un agent de capture installé sans rDownloader se propose lui-même la version {version} : choisissez « Install update to {version} » dans le menu de son icône, ou lancez rdownloader-capture update."
     },
     "whats_new": "Nouveautés",
     "auto_install": {
       "label": "Installer les mises à jour automatiquement",
       "description": "Installe seul une nouvelle version trouvée dès que rien n’a été téléchargé, post-traité ni enregistré pendant cinq minutes – avec une sauvegarde avant et un retour arrière si elle ne démarre pas.",
-      "locked": "Indisponible : cette installation ({kind}) ne se met pas à jour elle-même ; son gestionnaire de paquets ou son conteneur s’en charge.",
+      "locked": "Indisponible : cette installation ({kind}) ne se met pas à jour elle-même ; son gestionnaire de paquets ou son conteneur s’en charge.",
       "window_label": "Installer et redémarrer uniquement dans une plage horaire",
-      "window_description": "S’applique à l’installation automatique et au redémarrage automatique ; sans plage, à tout moment. Les heures suivent le fuseau horaire de la planification de bande passante.",
+      "window_description": "S’applique à l’installation automatique et au redémarrage automatique ; sans plage, à tout moment. Les heures suivent le fuseau horaire de la planification de bande passante.",
       "from": "De",
       "until": "Jusqu’à",
       "window_empty": "Le début et la fin doivent différer."
@@ -731,38 +732,38 @@
   "oidc": {
     "eyebrow": "Fournisseur d’identité",
     "title": "Connexion via un fournisseur d’identité",
-    "description": "Connectez-vous avec le compte que vous utilisez déjà sur Authentik, Authelia, Keycloak ou Pocket ID (OpenID Connect). Il reste un seul administrateur : le compte que vous liez ici.",
+    "description": "Connectez-vous avec le compte que vous utilisez déjà sur Authentik, Authelia, Keycloak ou Pocket ID (OpenID Connect). Il reste un seul administrateur : le compte que vous liez ici.",
     "redirect_uri": "URI de redirection – à enregistrer chez le fournisseur",
     "copy": "Copier",
     "copied": "Copié",
     "copy_command": "Copier la commande",
-    "external_url_missing": "Sans URL externe, il n’y a pas d’URI de redirection. Renseignez-la sous Sécurité → Proxy inverse.",
-    "linked": "Lié : {label}",
+    "external_url_missing": "Sans URL externe, il n’y a pas d’URI de redirection. Renseignez-la dans Paramètres → Sécurité → Accès et proxy inverse.",
+    "linked": "Lié : {label}",
     "unnamed": "un compte sans nom",
     "linked_at": "Lié {moment}",
     "not_linked": "Aucun compte lié pour l’instant",
-    "link_hint": "Lier ouvre le fournisseur ; le compte avec lequel vous vous y connectez devient l’administrateur.",
+    "link_hint": "Lier ouvre le fournisseur ; le compte avec lequel vous vous y connectez devient l’administrateur.",
     "link": "Lier un compte",
     "linked_toast": "Compte lié",
     "saved_toast": "Fournisseur d’identité enregistré",
     "unlink": {
       "action": "Délier",
-      "title": "Délier ce compte ?",
+      "title": "Délier ce compte ?",
       "description": "Ensuite, plus personne ne se connecte via le fournisseur tant que vous n’avez pas lié un compte à nouveau.",
       "confirm": "Délier"
     },
     "remove": {
-      "title": "Retirer le fournisseur d’identité ?",
+      "title": "Retirer le fournisseur d’identité ?",
       "description": "La configuration, le secret client et le compte lié sont supprimés."
     },
     "password_is_off": "La connexion par mot de passe est désactivée",
-    "password_is_off_hint": "Seule la machine du service peut la réactiver : {command}. Les passkeys continuent de fonctionner et le mot de passe confirme toujours les modifications.",
+    "password_is_off_hint": "Seule la machine du service peut la réactiver : {command}. Les clés d’accès continuent de fonctionner et le mot de passe confirme toujours les modifications.",
     "password_off": {
       "action": "Désactiver la connexion par mot de passe",
-      "ready": "Cette session vient du fournisseur : vous pouvez désactiver la connexion par mot de passe.",
-      "needs_provider_session": "Connectez-vous une fois via le fournisseur ; seule cette session peut désactiver la connexion par mot de passe.",
-      "title": "Désactiver la connexion par mot de passe ?",
-      "description": "Ensuite, vous vous connectez via le fournisseur ou avec une passkey. Le retour n’est possible que sur la machine du service : {command}",
+      "ready": "Cette session vient du fournisseur : vous pouvez désactiver la connexion par mot de passe.",
+      "needs_provider_session": "Connectez-vous une fois via le fournisseur ; seule cette session peut désactiver la connexion par mot de passe.",
+      "title": "Désactiver la connexion par mot de passe ?",
+      "description": "Ensuite, vous vous connectez via le fournisseur ou avec une clé d’accès. Le retour n’est possible que sur la machine du service : {command}",
       "confirm": "Désactiver"
     },
     "issuer": "Émetteur (issuer)",
@@ -774,48 +775,48 @@
     "display_name_hint": "Par exemple Authentik ou Pocket ID.",
     "group_claim": "Claim de groupe",
     "group_value": "Groupe",
-    "group_hint": "Facultatif : le compte lié doit aussi appartenir à ce groupe.",
+    "group_hint": "Facultatif : le compte lié doit aussi appartenir à ce groupe.",
     "provider_logout": "Se déconnecter aussi chez le fournisseur",
-    "provider_logout_hint": "Désactivé : la déconnexion ne ferme que la session ici, vos autres services restent connectés.",
+    "provider_logout_hint": "Désactivé : la déconnexion ne ferme que la session ici, vos autres services restent connectés.",
     "step_up_hint": "Chaque modification ici demande à nouveau le mot de passe."
   },
   "token_expiry": {
     "label": "Expire",
     "hint": "Un jeton expiré est refusé comme un jeton révoqué et reste dans la liste jusqu’à ce que vous le révoquiez.",
     "never": "Jamais",
-    "days": "Après {count} jours",
+    "days": "Après {count} jour | Après {count} jours",
     "expires_on": "Expire le {date}",
     "expired": "Expiré"
   },
   "token_rate": {
     "label": "Appels par minute",
-    "hint": "REST et MCP ensemble. Vide signifie aucune limite ; un appel au-delà est refusé jusqu’à la fin de la minute.",
+    "hint": "REST et MCP ensemble. Vide signifie aucune limite ; un appel au-delà est refusé jusqu’à la fin de la minute.",
     "unit": "/min",
     "none": "Aucune limite",
-    "row": "Au plus {count} appels par minute"
+    "row": "Au plus {count} appel par minute | Au plus {count} appels par minute"
   },
   "restart": {
     "title": "Redémarrage en attente",
-    "intro": "Ces changements prennent effet après un redémarrage :",
+    "intro": "Ces changements prennent effet après un redémarrage :",
     "now": "Redémarrer maintenant",
     "anyway": "Redémarrer quand même",
-    "confirm_title": "Redémarrer rDownloader ?",
+    "confirm_title": "Redémarrer rDownloader ?",
     "failed_title": "Redémarrage impossible",
     "restarting_title": "rDownloader redémarre…",
     "restarting_hint": "Cette page se recharge dès que le service répond de nouveau.",
     "lost_title": "rDownloader n’est pas revenu",
     "lost": "Après cinq minutes, le service ne répond toujours pas. Il faut peut-être le démarrer à la main.",
-    "automatic_hint": "« Redémarrer automatiquement si nécessaire » est activé : rDownloader redémarre seul dès que rien n’a tourné pendant cinq minutes.",
+    "automatic_hint": "« Redémarrer automatiquement si nécessaire » est activé : rDownloader redémarre seul dès que rien n’a tourné pendant cinq minutes.",
     "how": {
       "self": "rDownloader se relance lui-même.",
       "systemd": "rDownloader s’arrête, et systemd relance le service.",
-      "container": "rDownloader s’arrête, et la politique de redémarrage du conteneur le relance ; sans politique (docker run sans --restart), vous devez le démarrer vous-même.",
+      "container": "rDownloader s’arrête, et la politique de redémarrage du conteneur le relance ; sans politique (docker run sans --restart), vous devez le démarrer vous-même.",
       "supervisor": "rDownloader s’arrête, et son gestionnaire de services le relance.",
-      "manual": "rDownloader s’arrête ; relancez-le vous-même ensuite."
+      "manual": "rDownloader s’arrête ; relancez-le vous-même ensuite."
     },
     "reason": {
       "plugin_installed": "{plugin} installé",
-      "plugin_updated": "{name} mis à jour : {from} → {version}",
+      "plugin_updated": "{name} mis à jour : {from} → {version}",
       "plugin_staged": "{plugin} préparé pour être essayé",
       "plugin_unstaged": "Version préparée de {plugin} abandonnée",
       "plugin_enabled": "{name} activé",

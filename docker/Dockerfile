@@ -12,7 +12,7 @@
 # Every base image is pinned by its tag and the digest of its multi-platform index (RD-191-09), so
 # a tag moved upstream changes nothing here until Dependabot's `docker` update moves both.
 
-FROM node:26-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1 AS web
+FROM node:26-bookworm-slim@sha256:0042e17d232a87a2cd485be1da7900fca4d10a4ad11b29e9285da1d2e54798c9 AS web
 WORKDIR /src/web
 # pnpm in the version web/package.json pins (`packageManager`), through Corepack (RD-150-14).
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -22,7 +22,7 @@ RUN pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm run build
 
-FROM rust:1.100.0-bookworm@sha256:ade39a710ef85f3506cffcfec3e8a24ba090badef1dff2fb798f71d878833fea AS builder
+FROM rust:1.100.0-bookworm@sha256:75d26c23c24cc6ea1cdabf0714a6bff8fd7bf3248716043fd7ae86dac7f41b94 AS builder
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
@@ -50,11 +50,13 @@ RUN cargo build --locked --release ${RD_BUILD_JOBS:+-j ${RD_BUILD_JOBS}} -p rdow
 # it on ubuntu-24.04 (glibc 2.39), and a binary linked against a newer glibc than the image has
 # does not start ("GLIBC_2.xx not found"). Moving the release runners to a newer Ubuntu therefore
 # means checking this line first; the `--version` guard below fails the build if it was not.
-FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS runtime-base
+FROM debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0 AS runtime-base
 # The Python tools — yt-dlp, streamlink, gallery-dl, apprise — and every dependency, pinned with
 # their hashes in docker/requirements.txt, which scripts/docker-tools.sh compiles from
 # docker/requirements.in (RD-191-09). `--bump` there moves them; yt-dlp in particular ages fast.
 COPY docker/requirements.txt /tmp/requirements.txt
+# Collects the licence texts pip installed and fails on a licence nobody allowed (RD-1480-12).
+COPY docker/python-licences.py /tmp/python-licences.py
 # RAR extraction (owner, 2026-09-26): Debian builds 7-Zip without the RAR codec, which lives in
 # `7zip-rar` in the non-free component, under the unRAR licence (extract only). The component is
 # switched on for that one package; the sed is checked, since a changed sources file would
@@ -76,7 +78,8 @@ RUN sed -i 's/^Components: main$/Components: main non-free/' /etc/apt/sources.li
     && python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --require-hashes --only-binary=:all: \
         -r /tmp/requirements.txt \
-    && rm /tmp/requirements.txt \
+    && /opt/venv/bin/python /tmp/python-licences.py /usr/share/doc/rdownloader/python \
+    && rm /tmp/requirements.txt /tmp/python-licences.py \
     && ln -s /opt/venv/bin/yt-dlp /opt/venv/bin/streamlink /opt/venv/bin/gallery-dl \
         /opt/venv/bin/apprise /usr/local/bin/ \
     # Post-processing and the tool status look up a binary called `7z`. Debian 13's 7zip package
@@ -93,6 +96,20 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 # Signed plugin packages produced by the release workflow. A local build without
 # scripts/build-plugins.sh copies an empty directory, and the service says so at startup.
 COPY dist/plugins /usr/local/lib/rdownloader/plugins
+# The licence texts of rDownloader and of what it contains, and where the source code of everything
+# in the image is offered (RD-1480-12). Debian's packages keep their own `copyright` files: the slim
+# base drops the rest of /usr/share/doc, never those.
+COPY LICENSE crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt docker/SOURCES.txt \
+    /usr/share/doc/rdownloader/
+# What a registry shows about the image. The licence is rDownloader's; SOURCES.txt above and
+# /usr/share/doc name those of everything else in it.
+LABEL org.opencontainers.image.title="rDownloader" \
+    org.opencontainers.image.description="Local-first download manager with a web interface" \
+    org.opencontainers.image.url="https://rdownloader.net" \
+    org.opencontainers.image.source="https://github.com/degoya/rDownloader" \
+    org.opencontainers.image.documentation="https://github.com/degoya/rDownloader/blob/main/docker/README.md" \
+    org.opencontainers.image.vendor="DEGOYA.digital" \
+    org.opencontainers.image.licenses="GPL-3.0-or-later"
 VOLUME ["/config", "/downloads"]
 EXPOSE 8710
 # RDOWNLOADER_INSTALL_KIND: the update check shows `docker pull` rather than a download

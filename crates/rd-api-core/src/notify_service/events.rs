@@ -2,6 +2,14 @@
 
 use super::*;
 
+/// What a delivery keeps besides its words: the finished package's folder (RD-1250-01) and what
+/// a webhook is told it is about (RD-1480-11).
+#[derive(Default)]
+pub(super) struct About {
+    pub(super) package_path: Option<String>,
+    pub(super) subject: Subject,
+}
+
 impl NotificationService {
     /// Turns matching bus events into queued deliveries.
     pub(super) async fn watch_events(self) {
@@ -59,10 +67,35 @@ impl NotificationService {
             category_id,
             &event.id.to_string(),
             (&title, &body),
-            package_path,
+            About {
+                package_path,
+                subject: self.subject(event).await?,
+            },
             values.as_ref(),
         )
         .await
+    }
+
+    /// What a bus event is about (RD-1480-11): its moment, and the package and the file its
+    /// payload names. A file's package is read when the payload names the file alone.
+    async fn subject(&self, event: &rd_core::EventEnvelope) -> anyhow::Result<Subject> {
+        let text = |key: &str| event.payload.get(key).and_then(serde_json::Value::as_str);
+        let download_id = text("download_id").and_then(|id| id.parse::<rd_core::DownloadId>().ok());
+        let mut package_id =
+            text("package_id").and_then(|id| id.parse::<rd_core::PackageId>().ok());
+        if let (None, Some(id)) = (package_id, download_id) {
+            package_id = self
+                .inner
+                .database
+                .get_download(id)
+                .await?
+                .map(|file| file.package_id);
+        }
+        Ok(Subject {
+            occurred_at: Some(event.occurred_at),
+            package_id,
+            download_id,
+        })
     }
 
     /// The folder of the package a `package.state` event names (RD-1250-01): what a media
@@ -87,24 +120,30 @@ impl NotificationService {
 
     /// Queues one delivery of an event for every rule that wants it, each rule with a template
     /// sending its own wording filled with `values` (RD-1280-02); without values, every rule
-    /// sends the built-in one. `package_path` is the finished package's folder, kept with each
-    /// delivery so a retry names it too.
+    /// sends the built-in one, in the language of the settings (RD-1480-11). `about` is kept with
+    /// each delivery so a retry says the same.
     pub(super) async fn queue_worded(
         &self,
         kind: NotificationEvent,
         category_id: Option<rd_core::CategoryId>,
         event_id: &str,
-        (title, body): (&str, &str),
-        package_path: Option<String>,
+        (title, body): (&Text, &Text),
+        about: About,
         values: Option<&rd_notify::Values>,
     ) -> anyhow::Result<()> {
-        for rule in self.inner.database.list_notification_rules().await? {
+        let rules = self.inner.database.list_notification_rules().await?;
+        if !rules.iter().any(|rule| rule.matches(kind, category_id)) {
+            return Ok(());
+        }
+        let language = notification_language(&self.inner.database).await;
+        let (title, body) = (title.say(language), body.say(language));
+        for rule in rules {
             if !rule.matches(kind, category_id) {
                 continue;
             }
             let (title, body) = values.map_or_else(
-                || (title.to_owned(), body.to_owned()),
-                |values| rule.wording(title, body, values),
+                || (title.clone(), body.clone()),
+                |values| rule.wording(&title, &body, values),
             );
             self.inner
                 .database
@@ -117,7 +156,8 @@ impl NotificationService {
                     event: kind,
                     title,
                     body,
-                    package_path: package_path.clone(),
+                    package_path: about.package_path.clone(),
+                    subject: about.subject,
                 })
                 .await?;
         }
@@ -125,7 +165,7 @@ impl NotificationService {
     }
 
     /// What the malware scan found in a package, as one line, when a finding is what stopped it.
-    pub(super) async fn malware_finding(&self, package_id: &str) -> Option<String> {
+    pub(super) async fn malware_finding(&self, package_id: &str) -> Option<Words> {
         let steps = self
             .inner
             .database
@@ -138,7 +178,7 @@ impl NotificationService {
         })?;
         Some(
             step.message
-                .unwrap_or_else(|| "ClamAV found malware".to_owned()),
+                .map_or_else(|| Text::new("package_malware.finding").into(), Words::from),
         )
     }
 
@@ -199,13 +239,16 @@ impl NotificationService {
         };
         let package = self.inner.database.get_package(package_id).await?;
         let category_id = package.as_ref().and_then(|package| package.category_id);
-        let name = package.map_or_else(|| "A package".to_owned(), |package| package.name);
+        let name: Words = package.map_or_else(
+            || Text::new("package.unnamed").into(),
+            |package| package.name.into(),
+        );
         if kind == NotificationEvent::PackageCompleted {
             return Ok(Some((
                 kind,
                 category_id,
-                format!("Package finished: {name}"),
-                format!("{name} ({})", PackageState::Completed),
+                Text::new("package_completed.title").with("name", name.clone()),
+                Text::new("package_completed.body").with("name", name),
             )));
         }
         // A package the malware scan stopped says so (RD-190-14): "failed" alone would read
@@ -215,15 +258,17 @@ impl NotificationService {
             return Ok(Some((
                 kind,
                 category_id,
-                format!("Malware found: {name}"),
-                format!("{name} ({finding})"),
+                Text::new("package_malware.title").with("name", name.clone()),
+                Text::new("package_malware.body")
+                    .with("name", name)
+                    .with("finding", finding),
             )));
         }
         Ok(Some((
             kind,
             category_id,
-            format!("Package failed: {name}"),
-            super::transitions::package_failed_body(payload, &name),
+            Text::new("package_failed.title").with("name", name.clone()),
+            super::transitions::package_failed_body(payload, name),
         )))
     }
 
@@ -257,8 +302,8 @@ impl NotificationService {
         Ok(Some((
             NotificationEvent::StreamRecorded,
             category_id,
-            format!("Stream recorded: {}", file.file_name),
-            format!("The recording {} is complete.", file.file_name),
+            Text::new("stream_recorded.title").with("name", file.file_name.clone()),
+            Text::new("stream_recorded.body").with("name", file.file_name),
         )))
     }
 
@@ -287,20 +332,15 @@ impl NotificationService {
             Some(id) => self.inner.database.subscription(id).await?,
             None => None,
         };
-        let (name, category_id) = subscription.map_or_else(
-            || ("A subscription".to_owned(), None),
-            |subscription| (subscription.name, subscription.category_id),
+        let (name, category_id): (Words, _) = subscription.map_or_else(
+            || (Text::new("subscription_matched.unnamed").into(), None),
+            |subscription| (subscription.name.into(), subscription.category_id),
         );
-        let items = if accepted == 1 {
-            "1 new item".to_owned()
-        } else {
-            format!("{accepted} new items")
-        };
         Ok(Some((
             NotificationEvent::SubscriptionMatched,
             category_id,
-            format!("New in {name}: {items}"),
-            format!("The check of {name} accepted {items}."),
+            Text::counted("subscription_matched.title", accepted).with("name", name.clone()),
+            Text::counted("subscription_matched.body", accepted).with("name", name),
         )))
     }
 
@@ -336,12 +376,12 @@ impl NotificationService {
         } else {
             (None, None)
         };
-        let name = name.unwrap_or_else(|| "the marked download".to_owned());
+        let name: Words = name.map_or_else(|| Text::new("stop_mark.unnamed").into(), Words::from);
         Ok(Some((
             NotificationEvent::StopMarkReached,
             package.and_then(|package| package.category_id),
-            format!("Stop mark reached: {name}"),
-            format!("The queue paused after {name}. Resume it to go on."),
+            Text::new("stop_mark.title").with("name", name.clone()),
+            Text::new("stop_mark.body").with("name", name),
         )))
     }
 
@@ -364,9 +404,9 @@ impl NotificationService {
             Some(id) => self.inner.database.get_package(id).await?,
             None => None,
         };
-        let name = package.as_ref().map_or_else(
-            || "A Usenet download".to_owned(),
-            |package| package.name.clone(),
+        let name: Words = package.as_ref().map_or_else(
+            || Text::new("usenet_hopeless.unnamed").into(),
+            |package| package.name.clone().into(),
         );
         let count = |key: &str| {
             payload
@@ -378,12 +418,11 @@ impl NotificationService {
         Ok(Some((
             NotificationEvent::UsenetJobHopeless,
             package.and_then(|package| package.category_id),
-            format!("Usenet download beyond repair: {name}"),
-            format!(
-                "{name}: {} PAR2 blocks are missing and at most {} can repair them; the rest was not downloaded.",
-                count("missing_blocks"),
-                count("available_blocks")
-            ),
+            Text::new("usenet_hopeless.title").with("name", name.clone()),
+            Text::new("usenet_hopeless.body")
+                .with("name", name)
+                .with("missing", count("missing_blocks"))
+                .with("available", count("available_blocks")),
         )))
     }
 }

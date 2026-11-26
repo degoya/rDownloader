@@ -23,7 +23,7 @@
     "proxy": "SOCKS5 proxy",
     "proxy_direct": "Direct connection",
     "connections": "Provider connections",
-    "connections_hint": "Maximum connections of this NNTP provider across all requests; the Usenet files running at once share them, unless the general settings lower the number per server",
+    "connections_hint": "Maximum connections of this NNTP provider across all requests; the Usenet files running at once share them, unless “NNTP connections and files” lowers the number per server",
     "enabled": "Server enabled",
     "clear_password": "Delete stored password",
     "save_changes": "Save changes",
@@ -88,7 +88,7 @@
       "created": "Indexer added",
       "updated": "Indexer saved",
       "deleted": "{name} deleted",
-      "tested": "{server} answers: {count} categories"
+      "tested": "{server} answers: {count} category | {server} answers: {count} categories"
     },
     "list_style": "Search list style",
     "list_style_hint": "How this indexer's hits appear in the LinkGrabber's search.",

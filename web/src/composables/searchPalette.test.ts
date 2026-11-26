@@ -12,6 +12,10 @@ import { i18n, setLocale } from '@/i18n'
 import { router } from '@/router'
 import { SETTINGS_SEARCH_ENTRIES } from '@/settingsSearch'
 import { loadEveryLocale } from '@/test/locales'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
+
+// Off by default (RD-1480-17); these tests are about the keys.
+shortcutsEnabled.value = true
 
 beforeAll(loadEveryLocale)
 
@@ -53,6 +57,12 @@ describe('the palette content', () => {
     expect(groups.map(group => group.id)).toEqual(['views', 'pages', 'settings'])
     expect(groups[0]?.items?.map(item => item.kbds)).toEqual(MAIN_VIEWS.map(view => [view.key]))
     for (const view of MAIN_VIEWS) expect(router.resolve(view.path).matched.length).toBeGreaterThan(0)
+  })
+
+  it('names no key while the shortcuts are off', () => {
+    shortcutsEnabled.value = false
+    expect(buildPaletteGroups(t)[0]?.items?.map(item => item.kbds)).toEqual(MAIN_VIEWS.map(() => []))
+    shortcutsEnabled.value = true
   })
 
   it('shows the views in sidebar order with the digits the shortcut catalogue binds', () => {

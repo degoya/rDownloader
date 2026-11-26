@@ -22,9 +22,11 @@
 # rd-plugin-host's bundled_locales test reads the core's server codes and the language list.
 ^web/src/locales/[^/]+/logs\.json$          rd-diagnostics
 ^web/src/locales/en/server\.json$           rd-plugin-host
-^web/src/locales/languages\.json$           rd-plugin-host
+^web/src/locales/languages\.json$           rd-plugin-host rd-notify
 # The About page's licence list against the npm lockfile and the vendor texts (RD-130-12).
 ^web/pnpm-lock\.yaml$                       rd-api
+# What the image installs, against the programs the page lists for it (RD-1480-12).
+^docker/Dockerfile$                         rd-api-admin
 ^resources/vendor-licenses/                 rd-api-admin
 # The capture agent's macOS helper and tray icon, compiled in.
 ^resources/macos/                           rd-capture

@@ -337,6 +337,29 @@ pub struct DownloadFile {
     pub updated_at: Timestamp,
 }
 
+/// What the queue's figures need of one row: its state and its bytes (RD-1480-19).
+///
+/// The rates are asked for with every progress event and the power supervisor looks every five
+/// seconds; reading whole rows, JSON columns included, cost each of them the entire queue.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DownloadFigures {
+    pub id: DownloadId,
+    pub state: DownloadState,
+    pub total_bytes: Option<ByteCount>,
+    pub committed_bytes: ByteCount,
+}
+
+impl From<&DownloadFile> for DownloadFigures {
+    fn from(file: &DownloadFile) -> Self {
+        Self {
+            id: file.id,
+            state: file.state,
+            total_bytes: file.total_bytes,
+            committed_bytes: file.committed_bytes,
+        }
+    }
+}
+
 /// Whether a queued file is PAR2 repair data rather than payload.
 ///
 /// Name-based on purpose: the NZB says nothing else about a file before its first segment

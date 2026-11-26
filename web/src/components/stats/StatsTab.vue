@@ -48,7 +48,7 @@ const tiles = computed(() => {
     { key: 'retries', label: t('stats.tiles.retries'), value: n(figures.retries), hint: t('stats.tiles.retries_hint') },
     { key: 'bytes', label: t('stats.tiles.bytes'), value: formatBytes(String(figures.bytes)), hint: t('stats.tiles.bytes_hint') },
     { key: 'turnaround', label: t('stats.tiles.turnaround'), value: turnaroundLabel, hint: t('stats.tiles.turnaround_hint') },
-    { key: 'all_time', label: t('stats.tiles.all_time'), value: formatBytes(String(allTime.bytes)), hint: t('stats.tiles.all_time_hint', { completed: n(allTime.completed) }) }
+    { key: 'all_time', label: t('stats.tiles.all_time'), value: formatBytes(String(allTime.bytes)), hint: t('stats.tiles.all_time_hint', { completed: n(allTime.completed) }, allTime.completed) }
   ]
 })
 

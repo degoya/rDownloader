@@ -2,8 +2,9 @@
 //! contains, served as `scripts/licenses.sh` wrote them.
 //!
 //! The list is `licenses/third-party.json`, written by `scripts/licenses.sh` from
-//! `cargo metadata` and `web/pnpm-lock.yaml` and held to both lockfiles by [`tests`]. The page's
-//! head — version, build, links and the bundled tools — is `rd_api_admin::about_page`, where the
+//! `cargo metadata` and `web/pnpm-lock.yaml` and held to both lockfiles by [`tests`]; the licence
+//! and copyright texts in full are `licenses/THIRD-PARTY-NOTICES.txt`, which the same script writes
+//! and every package carries as a file too (RD-1480-12). The page's head — version, build, links and the bundled tools — is `rd_api_admin::about_page`, where the
 //! MCP toolbox reaches it too (RD-160-06).
 
 use axum::http::header;
@@ -14,6 +15,9 @@ use utoipa::ToSchema;
 /// The dependency list `scripts/licenses.sh` generates. Served as it is: parsing it on every
 /// request would only prove again what `tests` proves once.
 const THIRD_PARTY: &str = include_str!("../licenses/third-party.json");
+
+/// Their licence, copyright and NOTICE texts, the same file every package carries.
+const NOTICES: &str = include_str!("../licenses/THIRD-PARTY-NOTICES.txt");
 
 /// The dependency licences, as `scripts/licenses.sh` writes them.
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -28,6 +32,8 @@ pub(crate) struct ThirdPartyLicenses {
     pub rust_not_shipped: Vec<String>,
     /// Every package of `web/pnpm-lock.yaml` the production dependencies reach.
     pub npm: Vec<ThirdPartyPackage>,
+    /// What ships and is neither: the Rust standard library and runtime.
+    pub other: Vec<ThirdPartyPackage>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -38,6 +44,8 @@ pub(crate) struct ThirdPartyPackage {
     /// SPDX expression as the package declares it, or as `licenses/overrides.json` records it
     /// for a package that declares none.
     pub license: String,
+    /// Where the source code of exactly this version is offered.
+    pub source: String,
 }
 
 /// A separate route from the page's head: the list runs to about a thousand entries, and the
@@ -47,6 +55,17 @@ pub(crate) async fn system_about_licenses() -> Response {
     ([(header::CONTENT_TYPE, "application/json")], THIRD_PARTY).into_response()
 }
 
+/// The licence and copyright texts of everything a package ships, in full. A route of its own:
+/// the file is close to two megabytes.
+#[utoipa::path(get, path = "/api/v1/system/about/notices", tag = "system", responses((status = 200, description = "The licence and copyright texts of every component a package ships", content_type = "text/plain", body = String)))]
+pub(crate) async fn system_about_notices() -> Response {
+    (
+        [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+        NOTICES,
+    )
+        .into_response()
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -54,7 +73,7 @@ mod tests {
         path::{Path, PathBuf},
     };
 
-    use super::THIRD_PARTY;
+    use super::{NOTICES, THIRD_PARTY};
 
     const REGENERATE: &str = "run scripts/licenses.sh";
 
@@ -231,7 +250,7 @@ mod tests {
     #[test]
     fn every_listed_dependency_names_its_licence() {
         let list = listed();
-        for package in list.rust.iter().chain(&list.npm) {
+        for package in list.rust.iter().chain(&list.npm).chain(&list.other) {
             assert!(
                 !package.license.trim().is_empty(),
                 "{}@{} has no licence; record it in crates/rd-api/licenses/overrides.json with \
@@ -239,6 +258,76 @@ mod tests {
                 package.name,
                 package.version
             );
+            assert!(
+                package.source.starts_with("https://"),
+                "{}@{} names no source code; {REGENERATE}",
+                package.name,
+                package.version
+            );
+        }
+    }
+
+    /// Every listed component has its entry in the texts, with its licence and its source, and
+    /// every text an entry names is there. A toolchain update changes the standard library both
+    /// name, so it fails here until the list follows.
+    #[test]
+    fn the_notices_cover_every_listed_component() {
+        let list = listed();
+        let lines: BTreeSet<&str> = NOTICES.lines().collect();
+        let mut absent = Vec::new();
+        for package in list.rust.iter().chain(&list.npm).chain(&list.other) {
+            let entry = format!("{} {} ({})", package.name, package.version, package.license);
+            let source = format!("    source: {}", package.source);
+            if !lines.contains(entry.as_str()) || !lines.contains(source.as_str()) {
+                absent.push(entry);
+            }
+        }
+        assert!(
+            absent.is_empty(),
+            "not in the notices: {absent:?}; {REGENERATE}"
+        );
+        let marks = |prefix: &str| -> BTreeSet<&'static str> {
+            NOTICES
+                .lines()
+                .filter_map(|line| line.strip_prefix(prefix)?.split_once(']'))
+                .map(|(mark, _)| mark)
+                .collect()
+        };
+        let referenced = marks("    text:   [");
+        let printed = marks("[");
+        assert!(!referenced.is_empty(), "the notices name no text at all");
+        let unprinted: Vec<_> = referenced.difference(&printed).collect();
+        assert!(
+            unprinted.is_empty(),
+            "named but not printed: {unprinted:?}; {REGENERATE}"
+        );
+
+        let toolchain = read("rust-toolchain.toml");
+        let channel = toolchain
+            .lines()
+            .find_map(|line| line.strip_prefix("channel = \"")?.strip_suffix('"'))
+            .expect("rust-toolchain.toml names a channel");
+        assert!(
+            list.other.iter().any(|package| package.version == channel),
+            "the list names no standard library {channel}; {REGENERATE}"
+        );
+    }
+
+    /// What the licences ask for word by word: the MIT and BSD conditions, Apache-2.0 in full with
+    /// the NOTICE files of section 4(d), the fonts' and the icons' licence.
+    #[test]
+    fn the_notices_carry_the_texts_the_licences_ask_for() {
+        for text in [
+            "Permission is hereby granted, free of charge",
+            "Redistributions in binary form must reproduce the above copyright",
+            "TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION",
+            "Apache Arrow Object Store",
+            "Mozilla Public License Version 2.0",
+            "UNICODE LICENSE V3",
+            "SIL OPEN FONT LICENSE Version 1.1",
+            "Lucide Icons and Contributors",
+        ] {
+            assert!(NOTICES.contains(text), "{text:?}; {REGENERATE}");
         }
     }
 }

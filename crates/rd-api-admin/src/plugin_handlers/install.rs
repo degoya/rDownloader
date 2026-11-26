@@ -18,7 +18,7 @@ pub struct InstallPluginQuery {
     request_body(content = Vec<u8>, content_type = "application/octet-stream"),
     responses(
         (status = 201, body = MessageResponse),
-        (status = 409, description = "Signed by a key the user has not confirmed yet", body = MessageResponse)
+        (status = 409, description = "Signed by a key the user has not confirmed yet", body = crate::error::ErrorBody)
     )
 )]
 pub async fn install_plugin(

@@ -6,6 +6,7 @@ import { clearWhenReconnected } from '@/composables/serviceConnection'
 import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { useLatestFetch } from '@/composables/useLatestFetch'
 import type { StatsRange, TransferStats, UsenetServerTraffic } from '@/api/types'
+import { isUsenetTransfer, payloadOf } from '@/utils/eventPayload'
 
 /** A finished transfer changes the figures; a burst of them should cost one read, not one each. */
 const EVENT_DEBOUNCE_MS = 2_000
@@ -19,7 +20,8 @@ const POLL_MS = 60_000
  * is asked. The store refreshes on `download.state` events, debounced, and once a minute.
  *
  * The traffic per Usenet server (RD-1100-05) is read beside it: fixed ranges, independent of the
- * chosen one, and refreshed on `usenet.changed` too, which is what a used-up quota announces.
+ * chosen one, and refreshed on `usenet.changed` too, which is what a used-up quota announces; a
+ * running transfer's checkpoints wait for the minute's read (RD-1480-18).
  */
 export const useStatsStore = defineStore('stats', () => {
   const range = ref<StatsRange>('day')
@@ -60,7 +62,10 @@ export const useStatsStore = defineStore('stats', () => {
     await refresh()
   }
 
-  const events = debouncedEventRefresh(['download.state', 'usenet.changed'], refresh, { delayMs: EVENT_DEBOUNCE_MS })
+  const events = debouncedEventRefresh(['download.state'], refresh, {
+    delayMs: EVENT_DEBOUNCE_MS,
+    handlers: { 'usenet.changed': (event) => { if (!isUsenetTransfer(payloadOf(event))) events.schedule() } }
+  })
 
   function start(): void {
     void refresh()

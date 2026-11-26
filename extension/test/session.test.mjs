@@ -3,6 +3,8 @@ import { test } from 'node:test'
 
 import { createSessionSharer, originPattern, scopeHost, submitCookies, toNetscape } from '../src/session.js'
 
+import { fakeBrowser } from './fake-browser.mjs'
+
 const CONFIG = { server: 'http://127.0.0.1:8710', token: 'capture-token' }
 
 function cookie(overrides = {}) {
@@ -42,172 +44,129 @@ test('prefixed cookies travel like any other', () => {
   assert.equal(rows[1], 'example.com\tFALSE\t/\tTRUE\t2000000000\t__Host-id\tabc')
 })
 
-/** A cookie jar that answers `getAll` the way a browser does. */
-function fakeCookies(calls, { forUrl = [], forDomain = [] } = {}) {
-  return {
-    getAll: async (query) => {
-      calls.push(['getAll', query])
-      return query.url ? forUrl : forDomain
-    }
-  }
+/** One share in a browser holding `jar`, clicked as a person does. */
+async function share(target, { scope = 'https://example.com/files', options, jar = [cookie()], config = CONFIG, submit, answer, prepare } = {}) {
+  const calls = []
+  const browser = fakeBrowser(target, { calls, answer, cookies: jar })
+  prepare?.(browser)
+  const posted = []
+  const sharer = createSessionSharer({
+    api: browser.api,
+    loadConfig: async () => config,
+    submit: submit ?? (async (_config, body) => { posted.push(body); return { ok: true } }),
+    message: (key, substitutions) => (substitutions ? `${key}:${substitutions.join(',')}` : key),
+    notify: async (body) => calls.push(['notify', body])
+  })
+  const result = browser.gesture(() => sharer.share(scope, options))
+  const prompted = browser.prompts.length
+  return { browser, calls, posted, prompted, sharer, result: await result, notices: browser.notices() }
+}
+
+const BUILT = { firefox: fakeBrowser('firefox').held(), chrome: fakeBrowser('chrome').held() }
+
+for (const target of ['firefox', 'chrome']) {
+  test(`${target}: sharing asks in the click itself, posts the cookies and drops the grant again`, async () => {
+    // The settings used to be read before the request; Firefox then refused it, and the share
+    // ended as refused without a word (RD-1480-01).
+    const { browser, calls, posted, prompted, result, notices } = await share(target)
+    assert.equal(prompted, 1, 'the prompt is there before the click handler returned')
+    assert.deepEqual(result, { ok: true, code: null })
+    const asked = { permissions: ['cookies'], origins: ['*://*.example.com/*'], ...(target === 'firefox' ? { data_collection: ['authenticationInfo'] } : {}) }
+    assert.deepEqual(calls.slice(0, 4), [
+      ['request', asked],
+      ['getAll', { url: 'https://example.com/files' }],
+      ['getAll', { domain: 'example.com' }],
+      // Keeping the permission afterwards would be a standing grant nobody asked for.
+      ['remove', asked]
+    ])
+    assert.deepEqual(browser.held(), BUILT[target])
+    // The same cookie from both queries is one row, not two.
+    assert.equal(posted[0].cookies.split('\n').length, 1)
+    assert.equal(posted[0].host, 'example.com')
+    assert.match(posted[0].cookies, /session\tabc$/)
+    assert.deepEqual(notices, ['sessionShared:example.com'])
+  })
+
+  test(`${target}: a refused permission reads no cookies at all, and is said`, async () => {
+    const { calls, posted, result, notices } = await share(target, { answer: () => false })
+    assert.deepEqual(result, { ok: false, code: 'denied' })
+    assert.deepEqual(notices, ['handoverDenied:example.com'])
+    assert.ok(!calls.some(([name]) => name === 'getAll'))
+    assert.deepEqual(posted, [])
+  })
+
+  test(`${target}: an unpaired extension never touches cookies and keeps no grant`, async () => {
+    const { browser, calls, posted, result, notices } = await share(target, { config: { ...CONFIG, token: '' } })
+    assert.deepEqual(result, { ok: false, code: 'unconfigured' })
+    assert.deepEqual(notices, ['sessionUnconfigured'])
+    assert.ok(!calls.some(([name]) => name === 'getAll'))
+    assert.deepEqual(posted, [])
+    assert.deepEqual(browser.held(), BUILT[target], 'what was granted is given back')
+  })
+}
+
+test('a request the browser refuses outright is a refusal, never a crash', async () => {
+  const { sharer, notices, calls } = await share('firefox', { answer: () => false })
+  // Firefox, once the click is over.
+  assert.deepEqual(await sharer.share('https://example.com/files'), { ok: false, code: 'denied' })
+  assert.equal(notices.length, 1)
+  assert.equal(calls.filter(([name]) => name === 'notify').length, 2, 'said as well')
+})
+
+/** A jar that answers the two queries apart, as a browser does. */
+function jarOf(browser, { forUrl = [], forDomain = [] }) {
+  const calls = browser.calls
+  Object.defineProperty(browser.api, 'cookies', {
+    get: () => ({ getAll: async (query) => { calls.push(['getAll', query]); return query.url ? forUrl : forDomain } })
+  })
 }
 
 test('a share of one page carries the cookie its parent domain set', async () => {
   // `getAll({ domain })` matches that domain and everything below it, never above, so a share
   // of https://www.hoster.com/files missed the login cookie on .hoster.com. `getAll({ url })`
   // is the browser answering which cookies it would send there (RD-109-22).
-  const calls = []
-  const parent = cookie({ name: 'login', domain: '.hoster.com' })
-  const api = {
-    permissions: { request: async () => true, remove: async () => true },
-    cookies: fakeCookies(calls, { forUrl: [parent], forDomain: [cookie({ name: 'ui', domain: 'www.hoster.com' })] })
-  }
-  let posted = null
-  const sharer = createSessionSharer({
-    api,
-    loadConfig: async () => CONFIG,
-    submit: async (_config, body) => { posted = body; return { ok: true } },
-    message: (key) => key,
-    notify: async () => {}
+  const { calls, posted, result } = await share('chrome', {
+    scope: 'https://www.hoster.com/files',
+    prepare: (browser) => jarOf(browser, { forUrl: [cookie({ name: 'login', domain: '.hoster.com' })], forDomain: [cookie({ name: 'ui', domain: 'www.hoster.com' })] })
   })
-
-  assert.deepEqual(await sharer.share('https://www.hoster.com/files'), { ok: true, code: null })
-  assert.deepEqual(calls[0], ['getAll', { url: 'https://www.hoster.com/files' }])
-  assert.deepEqual(calls[1], ['getAll', { domain: 'www.hoster.com' }])
-  assert.match(posted.cookies, /^\.hoster\.com\t.*\tlogin\tabc$/m)
-  assert.match(posted.cookies, /^www\.hoster\.com\t.*\tui\tabc$/m)
+  assert.deepEqual(result, { ok: true, code: null })
+  assert.deepEqual(calls.filter(([name]) => name === 'getAll'), [['getAll', { url: 'https://www.hoster.com/files' }], ['getAll', { domain: 'www.hoster.com' }]])
+  assert.match(posted[0].cookies, /^\.hoster\.com\t.*\tlogin\tabc$/m)
+  assert.match(posted[0].cookies, /^www\.hoster\.com\t.*\tui\tabc$/m)
 })
 
 test('includeSubdomains bounds the read it names', async () => {
-  const calls = []
-  const api = {
-    permissions: { request: async (value) => { calls.push(['request', value]); return true }, remove: async () => true },
-    cookies: fakeCookies(calls, {
-      forUrl: [cookie({ name: 'login', domain: '.hoster.com' })],
-      forDomain: [cookie({ name: 'sub', domain: 'files.hoster.com' })]
-    })
-  }
-  let posted = null
-  const sharer = createSessionSharer({
-    api,
-    loadConfig: async () => CONFIG,
-    submit: async (_config, body) => { posted = body; return { ok: true } },
-    message: (key) => key,
-    notify: async () => {}
+  const { calls, posted } = await share('chrome', {
+    scope: 'https://hoster.com/files',
+    options: { includeSubdomains: false },
+    prepare: (browser) => jarOf(browser, { forUrl: [cookie({ name: 'login', domain: '.hoster.com' })], forDomain: [cookie({ name: 'sub', domain: 'files.hoster.com' })] })
   })
-
-  await sharer.share('https://hoster.com/files', { includeSubdomains: false })
-  assert.deepEqual(
-    calls.map(([name]) => name),
-    ['request', 'getAll'],
-    'without subdomains the domain query is not made at all'
-  )
+  assert.deepEqual(calls.filter(([name]) => name !== 'remove' && name !== 'notify').map(([name]) => name), ['request', 'getAll'], 'without subdomains the domain query is not made at all')
   // The permission asked for says the same thing the read does.
   assert.deepEqual(calls[0][1].origins, ['*://hoster.com/*'])
-  assert.doesNotMatch(posted.cookies, /files\.hoster\.com/)
-  assert.equal(posted.includeSubdomains, false)
+  assert.doesNotMatch(posted[0].cookies, /files\.hoster\.com/)
+  assert.equal(posted[0].includeSubdomains, false)
 })
 
-test('sharing asks for permission, posts the cookies and drops the grant again', async () => {
-  const calls = []
-  const api = {
-    permissions: {
-      request: async (value) => { calls.push(['request', value]); return true },
-      remove: async (value) => { calls.push(['remove', value]); return true }
-    },
-    cookies: fakeCookies(calls, { forUrl: [cookie()], forDomain: [cookie()] })
+test('a site with no cookies is reported, not posted, and keeps no grant', async () => {
+  for (const target of ['firefox', 'chrome']) {
+    const { browser, result, notices, posted } = await share(target, { scope: 'example.com', jar: [] })
+    assert.deepEqual(result, { ok: false, code: 'empty' })
+    assert.deepEqual(notices, ['sessionEmpty'])
+    assert.deepEqual(posted, [])
+    assert.deepEqual(browser.held(), BUILT[target], 'the grant goes back here as on every other way out')
   }
-  let posted = null
-  const sharer = createSessionSharer({
-    api,
-    loadConfig: async () => CONFIG,
-    submit: async (_config, body) => { posted = body; return { ok: true } },
-    message: (key) => key,
-    notify: async () => {}
-  })
-
-  const result = await sharer.share('https://example.com/files')
-  assert.deepEqual(result, { ok: true, code: null })
-  assert.deepEqual(calls[0], ['request', { permissions: ['cookies'], origins: ['*://*.example.com/*'] }])
-  assert.deepEqual(calls[1], ['getAll', { url: 'https://example.com/files' }])
-  assert.deepEqual(calls[2], ['getAll', { domain: 'example.com' }])
-  // The same cookie from both queries is one row, not two.
-  assert.equal(posted.cookies.split('\n').length, 1)
-  // Keeping the permission afterwards would be a standing grant nobody asked for.
-  assert.equal(calls[3][0], 'remove')
-  assert.equal(posted.host, 'example.com')
-  assert.match(posted.cookies, /session\tabc$/)
-})
-
-test('a site with no cookies is reported, not posted', async () => {
-  const calls = []
-  const sharer = createSessionSharer({
-    api: {
-      permissions: { request: async () => true, remove: async (value) => { calls.push(['remove', value]); return true } },
-      cookies: fakeCookies(calls)
-    },
-    loadConfig: async () => CONFIG,
-    submit: async () => { throw new Error('must not submit') },
-    message: (key) => key,
-    notify: async (body) => calls.push(['notify', body])
-  })
-  assert.deepEqual(await sharer.share('example.com'), { ok: false, code: 'empty' })
-  assert.ok(calls.some(([name, body]) => name === 'notify' && body === 'sessionEmpty'))
 })
 
 test('a rejected upload is reported, and a permission that will not go still lets it be', async () => {
-  const calls = []
-  const sharer = createSessionSharer({
-    api: {
-      permissions: {
-        request: async () => true,
-        // Chrome refuses to drop a permission another grant still needs.
-        remove: async () => { throw new Error('cannot remove') }
-      },
-      cookies: fakeCookies(calls, { forUrl: [cookie()], forDomain: [cookie()] })
-    },
-    loadConfig: async () => CONFIG,
+  const { result, notices } = await share('chrome', {
+    scope: 'example.com',
     submit: async () => ({ ok: false, code: 'authprofile.credentials_invalid', message: 'bad' }),
-    message: (key, substitutions) => (substitutions ? `${key}:${substitutions.join(',')}` : key),
-    notify: async (body) => calls.push(['notify', body])
+    // Chrome refuses to drop a permission another grant still needs.
+    prepare: (browser) => { browser.api.permissions.remove = async () => { throw new Error('cannot remove') } }
   })
-  assert.deepEqual(await sharer.share('example.com'), { ok: false, code: 'authprofile.credentials_invalid' })
-  assert.ok(
-    calls.some(([name, body]) => name === 'notify' && body === 'sessionFailed:bad'),
-    'the outcome of the upload is reported even though the permission would not go'
-  )
-})
-
-test('a refused permission reads no cookies at all', async () => {
-  let read = false
-  const sharer = createSessionSharer({
-    api: {
-      permissions: { request: async () => false, remove: async () => true },
-      cookies: { getAll: async () => { read = true; return [cookie()] } }
-    },
-    loadConfig: async () => CONFIG,
-    submit: async () => { throw new Error('must not submit') },
-    message: (key) => key,
-    notify: async () => {}
-  })
-  assert.deepEqual(await sharer.share('example.com'), { ok: false, code: 'denied' })
-  assert.equal(read, false)
-})
-
-test('an unpaired extension never touches cookies', async () => {
-  let requested = false
-  const sharer = createSessionSharer({
-    api: {
-      permissions: { request: async () => { requested = true; return true }, remove: async () => true },
-      cookies: { getAll: async () => [cookie()] }
-    },
-    loadConfig: async () => ({ server: CONFIG.server, token: '' }),
-    submit: async () => { throw new Error('must not submit') },
-    message: (key) => key,
-    notify: async () => {}
-  })
-  assert.deepEqual(await sharer.share('example.com'), { ok: false, code: 'unconfigured' })
-  assert.equal(requested, false)
+  assert.deepEqual(result, { ok: false, code: 'authprofile.credentials_invalid' })
+  assert.deepEqual(notices, ['sessionFailed:bad'], 'the outcome of the upload is reported even though the permission would not go')
 })
 
 test('submitCookies talks to the capture endpoint with the capture token', async () => {

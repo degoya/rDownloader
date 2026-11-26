@@ -9,7 +9,8 @@
 #
 # <assets> is every workflow artifact of the run, downloaded into one directory. Drops what is
 # no release file — the archives without their plugins (`*.unpacked.*`), the packager `rd-pack`,
-# the binary legs' web interface `web-dist.tar` (RD-1120-07), a `*.dockerbuild` build record of
+# the binary legs' web interface `web-dist.tar` (RD-1120-07), the unsigned components
+# `plugin-components.tar` (RD-1480-14), a `*.dockerbuild` build record of
 # docker/build-push-action — and moves every `*.rdplug` into
 # <plugins>. Everything else stays: archives, installers, extensions, the site-rule pack and the
 # plugin index, whose entries point into the plugin release. Exit 1 when <assets> holds no
@@ -27,7 +28,7 @@
 # (RD-1210-03): `rdownloader-capture-<platform>-<arch>.<tar.gz|zip>` from
 # `rdownloader-<platform>-<arch>.<tar.gz|zip>`, holding the agent, its start and stop scripts
 # with the `start-rdownloader`/`stop-rdownloader` ones they call (RD-1390-04), the macOS helper
-# app, VERSION.txt, LICENSE and README.md — what an agent installed without the service runs from
+# app, VERSION.txt, LICENSE, THIRD-PARTY-NOTICES.txt and README.md — what an agent installed without the service runs from
 # and updates itself from. Run after `split` and before `sums`, so SHA256SUMS,
 # its Sigstore signature and the update manifest's `agent_artifacts` cover them like every other
 # asset. Exit 1 when <assets> holds no application archive, or one without the agent.
@@ -58,7 +59,8 @@ usage() {
 split() {
     local assets="$1" plugins="$2" moved=0 package
     [[ -d "$assets" ]] || { echo "release-assets: $assets is not a directory" >&2; exit 2; }
-    rm -f "$assets"/*.unpacked.* "$assets/rd-pack" "$assets/web-dist.tar" "$assets"/*.dockerbuild
+    rm -f "$assets"/*.unpacked.* "$assets/rd-pack" "$assets/web-dist.tar" \
+        "$assets/plugin-components.tar" "$assets"/*.dockerbuild
     mkdir -p "$plugins"
     for package in "$assets"/*.rdplug; do
         [[ -f "$package" ]] || continue
@@ -93,7 +95,7 @@ AGENT_ENTRIES=(rdownloader-capture rdownloader-capture.exe start-capture.sh stop
     start-capture.bat stop-capture.bat start-capture.command stop-capture.command
     start-rdownloader.sh stop-rdownloader.sh start-rdownloader.bat stop-rdownloader.bat
     start-rdownloader.command stop-rdownloader.command
-    "rDownloader Capture.app" VERSION.txt LICENSE README.md)
+    "rDownloader Capture.app" VERSION.txt LICENSE THIRD-PARTY-NOTICES.txt README.md)
 
 # The entries of AGENT_ENTRIES the unpacked archive $1 has, one per line; exit 1 without the agent.
 agent_entries_in() {

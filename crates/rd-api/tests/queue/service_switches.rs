@@ -148,6 +148,19 @@ async fn a_torrent_upload_is_refused_too() {
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
+/// The port test starts the engine, which a switched-off service must not do (audit 2026-11-25,
+/// TST-7). What the test finds is `rd-torrent`'s own suite.
+#[tokio::test]
+async fn the_torrent_port_is_not_tested_while_the_service_is_off() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let router = test_router(directory.path()).await;
+    update(&router, json!({ "torrent_service_enabled": false })).await;
+
+    let (status, body) = post_json(&router, "/api/v1/torrents/network/port-test", json!({})).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["code"], "torrent.service_disabled", "{body}");
+}
+
 /// Collects the `setting_target` of every settings-reader report, i.e. every "a stored value in
 /// service.settings has the wrong type or shape" ERROR.
 #[derive(Clone, Default)]

@@ -4,10 +4,8 @@
 //! to keep. An address is shown redacted, like every address the interface shows, and the
 //! piece hashes are summarised rather than listed — sixty thousand hex strings help nobody.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_core::Timestamp;
 use serde::Serialize;
 use utoipa::ToSchema;

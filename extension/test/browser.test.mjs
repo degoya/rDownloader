@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 const stored = {}
-const catalogue = { extName: 'rDownloader', sentLinks: '$1 link(s) sent to the LinkGrabber.' }
+const catalogue = { extName: 'rDownloader', sentLinks: '$1 links sent to the LinkGrabber.', sentLinksOne: '$1 link sent to the LinkGrabber.' }
 
 // `browser` and `chrome` both present: Firefox's namespace is the one that must win, because it
 // is the promise-based one this code is written against.
@@ -79,8 +79,18 @@ test('the list of file types is stored normalised, and a broken mode reads as "a
 
 test('a missing translation shows its key rather than an empty label', () => {
   assert.equal(message('extName'), 'rDownloader')
-  assert.equal(message('sentLinks', ['3']), '3 link(s) sent to the LinkGrabber.')
+  assert.equal(message('sentLinks', ['3']), '3 links sent to the LinkGrabber.')
   // `getMessage` answers '' for a key it does not know; an empty label reads as a broken UI,
   // the key at least says which string is missing.
   assert.equal(message('somethingNobodyTranslated'), 'somethingNobodyTranslated')
+})
+
+test('a counted message follows the plural rule of its catalogue (RD-1480-03)', () => {
+  // A catalogue that names no language is counted as English.
+  assert.equal(message('sentLinks', ['1']), '1 link sent to the LinkGrabber.')
+  assert.equal(message('sentLinks', ['0']), '0 links sent to the LinkGrabber.')
+  catalogue.pageLanguage = 'fr'
+  assert.equal(message('sentLinks', ['0']), '0 link sent to the LinkGrabber.', 'zero is singular in French')
+  assert.equal(message('sentLinks', ['2']), '2 links sent to the LinkGrabber.')
+  delete catalogue.pageLanguage
 })

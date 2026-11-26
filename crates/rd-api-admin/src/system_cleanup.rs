@@ -20,7 +20,8 @@
 
 use std::time::{Duration, SystemTime};
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_backup::update_retention::{self, BackupKind, UpdateBackupPlan, UpdateBackupPolicy};
 use rd_core::AuditAction;
 use serde::Serialize;

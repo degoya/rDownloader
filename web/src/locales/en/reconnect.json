@@ -14,7 +14,7 @@
   "checks_description": "One address per line, asked in order. Leave empty for the built-in list. These requests leave the machine.",
   "checks_placeholder": "https://api.ipify.org",
   "abort_label": "Interrupt running transfers",
-  "abort_description": "Off, a reconnect waits until nothing is transferring. On, transfers are paused and resumed around it.",
+  "abort_description": "Off: a reconnect waits until nothing is transferring. On: transfers are paused before it and resumed after it.",
   "windows_label": "Allowed times",
   "windows_description": "Leave empty to allow any time.",
   "window_add": "Add window",

@@ -60,7 +60,7 @@
   },
   "pieces": {
     "title": "Piece availability",
-    "count": "{count} pieces",
+    "count": "{count} piece | {count} pieces",
     "empty": "No piece information available."
   },
   "web_seeds": {
@@ -72,7 +72,7 @@
     "ratio": "Ratio target",
     "time": "Seed time",
     "unlimited": "Unlimited",
-    "minutes": "{count} minutes",
+    "minutes": "{count} minute | {count} minutes",
     "inherit": "Inherit",
     "override_enabled": "Override seeding",
     "override_ratio": "Override ratio",
@@ -96,7 +96,7 @@
     "path": "Folder inside it",
     "path_placeholder": "e.g. Archive/Series",
     "submit": "Move",
-    "no_roots": "Add a storage root under Settings › Routing first.",
+    "no_roots": "Add a storage root under Settings → Storage & rules first.",
     "running": "Moving to {path}…",
     "taken_back": "Move taken back: {reason}"
   },

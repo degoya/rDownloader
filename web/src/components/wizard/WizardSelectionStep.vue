@@ -132,9 +132,9 @@ defineExpose({ apply, installing, restartRequired })
         : []"
       data-testid="selection-installed-note"
     />
-    <UAlert v-if="error" color="error" :description="error" data-testid="selection-error" />
+    <UAlert v-if="error" color="error" role="alert" :description="error" data-testid="selection-error" />
     <div v-if="progress" class="space-y-2" data-testid="selection-progress">
-      <UProgress :model-value="percent" />
+      <UProgress :model-value="percent" :get-value-label="() => t('wizard.selection.progress', { done: progress?.done ?? 0, total: progress?.total ?? 0 })" />
       <p class="text-xs text-muted">{{ t('wizard.selection.progress', { done: progress.done, total: progress.total }) }}</p>
     </div>
     <BundledServicePicker

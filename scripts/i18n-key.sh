@@ -32,6 +32,10 @@
 # nothing, in all four languages at once, so the locale comparison could not see it either. Six
 # server codes reached the tree that way (see web/src/i18n/sourceKeys.test.ts).
 #
+# A French value gets its typography on the way in -- no-break spaces before `: ; ! ?` and inside
+# the guillemets, the typographic apostrophe (scripts/lib/fr_typography.py, RD-1480-15) -- so it can
+# be typed with a keyboard.
+#
 # The script now also refuses to open a new group inside a group whose keys already carry dots,
 # which is exactly the shape of `codes`. A mistake there is loud instead of silent.
 #
@@ -55,6 +59,10 @@ python3 - "$usage" "$@" <<'PY'
 import collections, json, pathlib, sys
 
 import os, re
+
+sys.dont_write_bytecode = True
+sys.path.insert(0, 'scripts/lib')
+from fr_typography import normalise
 
 usage, catalogue, key, *arguments = sys.argv[1:]
 
@@ -117,6 +125,8 @@ segments = split_key(key)
 locales = pathlib.Path(os.environ.get('RD_LOCALES_DIR', 'web/src/locales'))
 
 for language, value in pairs:
+    if language == 'fr':
+        value = normalise(value)
     path = locales / language / f'{catalogue}.json'
     if path.exists():
         data = json.loads(path.read_text(), object_pairs_hook=collections.OrderedDict)

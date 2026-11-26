@@ -147,10 +147,18 @@ fi
 # playwright in the npx cache. Missing either is a failure, not a skip: a smoke test that
 # silently drops its UI half is exactly the false green this pipeline exists to prevent.
 # ---------------------------------------------------------------------------------------------
-PW_ROOT="$(find "$HOME/.npm/_npx" -maxdepth 3 -type d -name playwright 2>/dev/null \
-    | head -1 | xargs -r dirname)"
+# The npx cache may hold several copies, each wanting a Chromium of its own, and `playwright install`
+# of one removes another's: the first whose browser is there is taken (1.48.0 took one without).
+PW_ROOT=""
+while IFS= read -r candidate; do
+    if node -e 'process.exit(require("fs").existsSync(require(process.argv[1]).chromium.executablePath()) ? 0 : 1)' \
+        "$candidate" 2> /dev/null; then
+        PW_ROOT="$(dirname "$candidate")"
+        break
+    fi
+done < <(find "$HOME/.npm/_npx" -maxdepth 3 -type d -name playwright 2> /dev/null | sort)
 if [[ -z "$PW_ROOT" ]]; then
-    fail "no playwright in the npx cache (npx playwright@latest --version once, then re-run)"
+    fail "no playwright in the npx cache whose Chromium is installed (npx playwright@latest --version once, npx playwright@latest install chromium, then re-run)"
 elif [[ ! -d "$HOME/.cache/ms-playwright" ]]; then
     fail "no browsers in ~/.cache/ms-playwright"
 else

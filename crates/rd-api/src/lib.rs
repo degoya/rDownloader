@@ -9,19 +9,27 @@
 #![warn(unreachable_pub)]
 
 mod about;
+mod conditional;
+mod created_location;
 mod event_stream;
 mod handlers;
 #[cfg(test)]
 mod mcp_coverage;
 #[cfg(test)]
 mod mcp_handler_tests;
+#[cfg(test)]
+mod mcp_untrusted_tests;
 mod openapi;
+#[cfg(test)]
+mod paging_bounds_tests;
 mod request_span;
 mod routes;
 #[cfg(test)]
 mod scope_policy_tests;
 mod security_headers;
 mod static_assets;
+#[cfg(test)]
+mod untested_routes_tests;
 
 use std::net::SocketAddr;
 
@@ -149,10 +157,15 @@ pub fn router(state: AppState) -> Router {
         // service-wide limit below, so it is the one the body extractors read.
         .layer(DefaultBodyLimit::max(PUBLIC_BODY_LIMIT_BYTES));
 
-    let protected = routes::protected().route_layer(middleware::from_fn_with_state(
-        state.clone(),
-        auth::require_session,
-    ));
+    let protected = routes::protected()
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            created_location::add,
+        ))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::require_session,
+        ));
 
     // Capture routes are token-authenticated and reachable from browser extensions,
     // userscripts and other tools: allow cross-origin calls (bearer header, JSON body).
@@ -412,5 +425,7 @@ pub async fn serve_on(state: AppState, listener: tokio::net::TcpListener) -> Res
 /// Returns the generated OpenAPI document.
 #[must_use]
 pub fn openapi_document() -> utoipa::openapi::OpenApi {
-    openapi::document()
+    let mut document = openapi::document();
+    created_location::declare(&mut document);
+    document
 }

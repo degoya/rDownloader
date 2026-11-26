@@ -5,10 +5,8 @@
 //! extractor-aware code in `rd-media`; what reaches the writer is an already-decided
 //! variant plus the criteria it came from.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_core::{
     CandidateId, MediaCandidateState, MediaFormatCriteria, MediaKind, MediaResolution,
     MediaSelectionUpdate, MediaTarget, MediaVariant, embed_warnings, track_warnings,

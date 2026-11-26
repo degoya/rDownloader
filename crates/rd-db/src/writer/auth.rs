@@ -95,6 +95,9 @@ impl Writer {
                     selection,
                 )
                 .await;
+                if result.is_ok() {
+                    self.broadcast_row_changed(id, "auth_profile");
+                }
                 send(reply, result);
             }
             AuthCommand::CreateAuthProfile { input, reply } => {

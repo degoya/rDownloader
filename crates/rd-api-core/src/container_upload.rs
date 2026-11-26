@@ -246,7 +246,7 @@ fn too_large(max_bytes: usize) -> ApiError {
     .with_param("max_mib", max_mib)
 }
 
-fn body_too_large() -> ApiError {
+pub(crate) fn body_too_large() -> ApiError {
     let max_mib = BODY_LIMIT_BYTES / MIB;
     ApiError::payload_too_large(
         "request.body_too_large",

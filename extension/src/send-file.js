@@ -5,7 +5,7 @@
 // and the files it was to send go with it. Nothing here needs a desktop agent, so a person whose
 // rDownloader runs on a NAS hands a file over from the browser alone.
 
-import { api, loadConfig, message } from './browser.js'
+import { api, loadConfig, localizePage, message } from './browser.js'
 import { submitFileBytes } from './files.js'
 import { BROWSER_ONLY_EXTENSIONS } from './intercept.js'
 
@@ -100,10 +100,7 @@ async function handOver(files) {
 }
 
 function init() {
-  for (const element of document.querySelectorAll('[data-i18n]')) {
-    element.textContent = message(element.dataset.i18n)
-  }
-  document.title = message('sendFileTitle')
+  localizePage(message('sendFileTitle'))
   document.getElementById('accepted').textContent = message('sendFileAccepted', [ACCEPTED_EXTENSIONS.join(' ')])
   const input = document.getElementById('files')
   input.accept = ACCEPTED_EXTENSIONS.join(',')

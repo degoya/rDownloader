@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { StorageCapacity, StorageCapacityRoot } from '@/api/types'
+import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 import { formatBytes } from '@/utils/format'
 
 const { t } = useI18n()
 const capacity = ref<StorageCapacity | null>(null)
 const error = ref<string | null>(null)
 const resuming = ref<string | null>(null)
-let timer: ReturnType<typeof setInterval> | null = null
 
 async function load(): Promise<void> {
   const response = await api.GET('/api/v1/storage/capacity')
@@ -31,20 +31,17 @@ async function resume(root: StorageCapacityRoot): Promise<void> {
   await load()
 }
 
-onMounted(() => {
-  void load()
-  timer = setInterval(() => void load(), 5000)
-})
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
-})
+onMounted(() => void load())
+// Announced when a target is blocked and when it is released (RD-1260-04); it was polled every
+// five seconds in every open tab (RD-1480-18).
+useDebouncedEventRefresh(['storage.capacity'], load)
 
 defineExpose({ reload: load })
 </script>
 
 <template>
   <div v-if="capacity?.roots.some(root => root.blocked)" class="flex flex-col gap-2">
-    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
     <UAlert
       v-for="root in capacity.roots.filter(entry => entry.blocked)"
       :key="root.target"
@@ -62,7 +59,7 @@ defineExpose({ reload: load })
         <p v-if="root.shortfall && !root.shortfall.size_known" class="mt-1 text-xs">
           {{ t('downloads.capacity.unknown_size') }}
         </p>
-        <p class="mt-1 truncate font-mono text-2xs opacity-80">{{ root.path }}</p>
+        <p class="mt-1 truncate font-mono text-2xs">{{ root.path }}</p>
       </template>
       <template #actions>
         <UButton

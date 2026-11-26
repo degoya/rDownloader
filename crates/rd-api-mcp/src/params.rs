@@ -154,6 +154,9 @@ pub(crate) struct AddDownloadsParams {
     pub priority: Option<PriorityParam>,
     /// Create the downloads in paused state instead of starting immediately.
     pub start_paused: Option<bool>,
+    /// 1-128 visible ASCII characters, e.g. a UUID: repeating the call with the same key and the
+    /// same arguments creates nothing twice.
+    pub idempotency_key: Option<String>,
 }
 
 #[derive(Deserialize, schemars::JsonSchema)]

@@ -71,7 +71,8 @@ homebrew() {
     [[ "${arch}" == arm64 ]] && arch=aarch64
     fixture="${RUNNER_TEMP}/brew-fixture"
     mkdir -p "${fixture}/stage/plugins"
-    cp target/debug/rdownloader target/debug/rdownloader-capture LICENSE README.md "${fixture}/stage/"
+    cp target/debug/rdownloader target/debug/rdownloader-capture LICENSE README.md \
+        crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt "${fixture}/stage/"
     osacompile -o "${fixture}/stage/rDownloader Capture.app" resources/macos/rdownloader-capture.applescript
     COPYFILE_DISABLE=1 tar --directory "${fixture}/stage" --create --gzip \
         --file "${fixture}/rdownloader-macos-${arch}.tar.gz" .

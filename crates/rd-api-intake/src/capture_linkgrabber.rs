@@ -14,7 +14,8 @@
 
 use std::collections::HashMap;
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_core::{
     CategoryId, CollectorPackageId, DownloadPriority, LinkCandidateState, NzbImportId,
     NzbImportState,

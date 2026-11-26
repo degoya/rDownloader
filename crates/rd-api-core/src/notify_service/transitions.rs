@@ -27,21 +27,25 @@ pub(crate) fn package_outcome(payload: &serde_json::Value) -> Option<Notificatio
 }
 
 /// The body of a failed package: how many of its files failed, when it was its files.
-pub(super) fn package_failed_body(payload: &serde_json::Value, name: &str) -> String {
+pub(super) fn package_failed_body(
+    payload: &serde_json::Value,
+    name: impl Into<rd_notify::Words>,
+) -> Text {
     let count = |key: &str| payload.get(key).and_then(serde_json::Value::as_u64);
     match (count("failed_files"), count("files")) {
-        (Some(1), Some(1)) => format!("{name}: its file failed."),
-        (Some(failed), Some(files)) if failed > 0 => {
-            format!("{name}: {failed} of {files} files failed.")
-        }
-        _ => format!("{name} (failed)"),
+        (Some(1), Some(1)) => Text::new("package_failed.body_single"),
+        (Some(failed), Some(files)) if failed > 0 => Text::new("package_failed.body_files")
+            .with("failed", failed)
+            .with("files", files),
+        _ => Text::new("package_failed.body"),
     }
+    .with("name", name)
 }
 
 /// The text of a `captcha.changed` event that is news: the first captcha to wait while none
 /// did, and the last waiting one running out unanswered. An answer, a decline, a download that
 /// stopped waiting and every further captcha of the same wait say nothing.
-pub(super) fn captcha_notice(payload: &serde_json::Value) -> Option<(String, String)> {
+pub(super) fn captcha_notice(payload: &serde_json::Value) -> Option<(Text, Text)> {
     let pending = payload
         .get("pending")
         .and_then(serde_json::Value::as_array)?;
@@ -53,19 +57,16 @@ pub(super) fn captcha_notice(payload: &serde_json::Value) -> Option<(String, Str
                 .and_then(serde_json::Value::as_str)
                 .filter(|host| !host.is_empty());
             Some((
-                "A captcha is waiting".to_owned(),
+                Text::new("captcha.waiting_title"),
                 host.map_or_else(
-                    || "A download is waiting for a captcha to be answered.".to_owned(),
-                    |host| {
-                        format!("A download from {host} is waiting for a captcha to be answered.")
-                    },
+                    || Text::new("captcha.waiting_body"),
+                    |host| Text::new("captcha.waiting_body_host").with("host", host),
                 ),
             ))
         }
         "expired" if pending.is_empty() => Some((
-            "Captcha not answered in time".to_owned(),
-            "Nobody answered the waiting captcha in time; its download stopped waiting for it."
-                .to_owned(),
+            Text::new("captcha.expired_title"),
+            Text::new("captcha.expired_body"),
         )),
         _ => None,
     }
@@ -76,44 +77,49 @@ pub(super) fn captcha_notice(payload: &serde_json::Value) -> Option<(String, Str
 pub(super) fn power_notice(
     payload: &serde_json::Value,
     occurred_at: rd_core::Timestamp,
-) -> Option<(String, String)> {
+) -> Option<(Text, Text)> {
+    // The action as a title starts with it, and as the middle of a sentence names it.
     let action = |key: &str| match text(payload, key) {
-        Some("shutdown") => "Shutdown",
-        Some("standby") => "Standby",
-        _ => "Power action",
+        Some("shutdown") => (
+            Text::new("power.shutdown"),
+            Text::new("power.shutdown_inline"),
+        ),
+        Some("standby") => (
+            Text::new("power.standby"),
+            Text::new("power.standby_inline"),
+        ),
+        _ => (Text::new("power.action"), Text::new("power.action_inline")),
     };
     match text(payload, "state")? {
         "pending" => {
-            let name = action("pending");
+            let (name, _) = action("pending");
             let seconds = payload
                 .get("runs_at")
                 .and_then(|value| serde_json::from_value::<rd_core::Timestamp>(value.clone()).ok())
                 .map(|runs_at| (runs_at - occurred_at).as_secs().max(0));
-            let when = seconds.map_or_else(
-                || "soon".to_owned(),
-                |seconds| format!("in {seconds} seconds"),
+            let body = seconds.map_or_else(
+                || Text::new("power.pending_body_soon"),
+                |seconds| Text::new("power.pending_body").with("seconds", seconds.to_string()),
             );
             Some((
-                format!("{name} pending"),
-                format!("The queue is done. {name} runs {when} unless you cancel it."),
+                Text::new("power.pending_title").with("action", name.clone()),
+                body.with("action", name),
             ))
         }
         "cancelled" => {
-            let name = action("action");
-            Some(if text(payload, "reason") == Some("new_work") {
+            let (name, inline) = action("action");
+            let (title, body) = if text(payload, "reason") == Some("new_work") {
                 (
-                    format!("{name} called off"),
-                    format!(
-                        "New work arrived, so the {} does not run.",
-                        name.to_lowercase()
-                    ),
+                    Text::new("power.called_off_title"),
+                    Text::new("power.called_off_body"),
                 )
             } else {
                 (
-                    format!("{name} cancelled"),
-                    format!("The {} countdown was cancelled.", name.to_lowercase()),
+                    Text::new("power.cancelled_title"),
+                    Text::new("power.cancelled_body"),
                 )
-            })
+            };
+            Some((title.with("action", name), body.with("action", inline)))
         }
         _ => None,
     }
@@ -127,20 +133,23 @@ pub(super) fn storage_blocked(payload: &serde_json::Value) -> bool {
 
 /// Title and text of "Storage root out of space", naming the root that ran out (RD-1270-18);
 /// `None` for a release. An event without a name keeps the general wording.
-pub(super) fn storage_notice(payload: &serde_json::Value) -> Option<(String, String)> {
+pub(super) fn storage_notice(payload: &serde_json::Value) -> Option<(Text, Text)> {
     if !storage_blocked(payload) {
         return None;
     }
     let Some(name) = text(payload, "name") else {
         return Some((
-            "Storage root out of space".to_owned(),
-            "A storage root fell below its free-space threshold and takes no new work.".to_owned(),
+            Text::new("storage_blocked.title"),
+            Text::new("storage_blocked.body"),
         ));
     };
-    let place = text(payload, "path").map_or_else(String::new, |path| format!(" ({path})"));
+    let body = text(payload, "path").map_or_else(
+        || Text::new("storage_blocked.body_named"),
+        |path| Text::new("storage_blocked.body_path").with("path", path),
+    );
     Some((
-        format!("Storage root out of space: {name}"),
-        format!("{name}{place} fell below its free-space threshold and takes no new work."),
+        Text::new("storage_blocked.title_named").with("name", name),
+        body.with("name", name),
     ))
 }
 
@@ -157,28 +166,29 @@ pub(crate) fn queue_moment(payload: &serde_json::Value) -> Option<NotificationEv
 }
 
 /// The notification of a `queue.state` event: the moment, its title and its text.
-pub(super) fn queue_notice(
-    payload: &serde_json::Value,
-) -> Option<(NotificationEvent, String, String)> {
+pub(super) fn queue_notice(payload: &serde_json::Value) -> Option<(NotificationEvent, Text, Text)> {
     let moment = queue_moment(payload)?;
     let (title, body) = match moment {
         NotificationEvent::QueuePaused => (
-            "Queue paused",
+            Text::new("queue_paused.title"),
             match text(payload, "reason") {
-                Some("automation") => "An automation paused the queue.",
-                Some("schedule") => "The bandwidth schedule pauses the queue.",
-                Some("stop_mark") => "The queue paused at its stop mark.",
-                Some("game_mode") => "Game mode paused the queue.",
-                _ => "The queue was paused by hand.",
+                Some("automation") => Text::new("queue_paused.body_automation"),
+                Some("schedule") => Text::new("queue_paused.body_schedule"),
+                Some("stop_mark") => Text::new("queue_paused.body_stop_mark"),
+                Some("game_mode") => Text::new("queue_paused.body_game_mode"),
+                _ => Text::new("queue_paused.body_manual"),
             },
         ),
-        NotificationEvent::QueueResumed => ("Queue resumed", "The queue runs again."),
+        NotificationEvent::QueueResumed => (
+            Text::new("queue_resumed.title"),
+            Text::new("queue_resumed.body"),
+        ),
         _ => (
-            "Queue finished",
-            "Nothing is waiting, downloading or being post-processed any more.",
+            Text::new("queue_finished.title"),
+            Text::new("queue_finished.body"),
         ),
     };
-    Some((moment, title.to_owned(), body.to_owned()))
+    Some((moment, title, body))
 }
 
 #[cfg(test)]

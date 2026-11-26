@@ -60,7 +60,7 @@
   },
   "pieces": {
     "title": "Piece-Verfügbarkeit",
-    "count": "{count} Pieces",
+    "count": "{count} Piece | {count} Pieces",
     "empty": "Keine Piece-Informationen verfügbar."
   },
   "web_seeds": {
@@ -72,7 +72,7 @@
     "ratio": "Zielverhältnis",
     "time": "Seed-Zeit",
     "unlimited": "Unbegrenzt",
-    "minutes": "{count} Minuten",
+    "minutes": "{count} Minute | {count} Minuten",
     "inherit": "Erben",
     "override_enabled": "Seeding überschreiben",
     "override_ratio": "Verhältnis überschreiben",
@@ -96,7 +96,7 @@
     "path": "Ordner darin",
     "path_placeholder": "z. B. Archiv/Serien",
     "submit": "Verschieben",
-    "no_roots": "Lege zuerst unter Einstellungen › Routing einen Speicherort an.",
+    "no_roots": "Lege zuerst unter Einstellungen → Ablage & Regeln einen Speicherort an.",
     "running": "Wird nach {path} verschoben …",
     "taken_back": "Verschieben zurückgenommen: {reason}"
   },

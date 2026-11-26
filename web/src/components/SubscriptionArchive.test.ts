@@ -69,7 +69,7 @@ function hit(state: SubscriptionItem['state']): SubscriptionItem {
 
 const subscription = {
   id: 's1',
-  name: 'scnlog - NSW',
+  name: 'releases - NSW',
   url: 'https://indexer.test/api',
   kind: 'indexer',
   enabled: true,

@@ -4,6 +4,8 @@ import { defineShortcuts } from '@nuxt/ui/composables/defineShortcuts'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
+
 const props = withDefaults(defineProps<{
   title: string
   description: string
@@ -24,7 +26,9 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 const confirmText = computed(() => props.confirmLabel ?? t('common.actions.confirm'))
-if (props.confirmKey) defineShortcuts({ [props.confirmKey]: () => emit('close', true) })
+/** The key, while the shortcuts are on; without them nothing opened the dialog by that key. */
+const key = computed(() => shortcutsEnabled.value ? props.confirmKey : undefined)
+if (key.value) defineShortcuts({ [key.value]: () => emit('close', true) })
 </script>
 
 <template>
@@ -46,7 +50,7 @@ if (props.confirmKey) defineShortcuts({ [props.confirmKey]: () => emit('close', 
         :color="destructive ? 'error' : 'primary'"
         @click="emit('close', true)"
       >
-        <template v-if="confirmKey" #trailing><UKbd :value="confirmKey" /></template>
+        <template v-if="key" #trailing><UKbd :value="key" /></template>
       </UButton>
     </template>
   </UModal>

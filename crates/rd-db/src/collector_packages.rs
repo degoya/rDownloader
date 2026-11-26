@@ -107,6 +107,17 @@ pub(crate) async fn get(
     .transpose()
 }
 
+/// Whether [`list`] shows this package: it exists and has a link not yet enqueued.
+pub(crate) async fn is_open(pool: &SqlitePool, id: CollectorPackageId) -> Result<bool> {
+    let open: i64 = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT COUNT(*) FROM collector_packages {OPEN_PACKAGES} AND collector_packages.id = ?"
+    )))
+    .bind(id.to_string())
+    .fetch_one(pool)
+    .await?;
+    Ok(open > 0)
+}
+
 pub(crate) async fn get_from_connection(
     connection: &mut SqliteConnection,
     id: CollectorPackageId,

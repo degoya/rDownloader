@@ -26,8 +26,8 @@ interface SharedRead<T, R> {
  * `load()` still asks the server every time — a view that opens shows the stored state, as it
  * did — but the components of one page that mount together share the request. `follow()` re-reads
  * the copy on `events`, debounced, for as long as one following component lives; the last one to
- * go drops the subscription. A read with no event behind it (the settings document) is never
- * followed.
+ * go drops the subscription. A read without `events` (the settings document, which the
+ * settings page follows itself) is never followed.
  */
 export function sharedRead<T, R extends ApiResult<T>>(
   read: () => Promise<R>,

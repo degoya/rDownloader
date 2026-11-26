@@ -9,10 +9,8 @@
 //! still being written, a clear that would touch a package with a running member — are the
 //! route's and nobody else's.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
 use serde::Deserialize;
 

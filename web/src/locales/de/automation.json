@@ -11,10 +11,10 @@
   "empty": "Noch keine Automationen.",
   "no_runs": "Noch nicht gelaufen.",
   "version": "Version {version}",
-  "action_count": "{count} Aktion(en)",
+  "action_count": "{count} Aktion | {count} Aktionen",
   "remove": {
     "title": "Automation löschen",
-    "description": "„{name}\" und ihre Laufhistorie werden entfernt. Bereits laufende Durchläufe werden zu Ende geführt.",
+    "description": "„{name}“ und ihre Laufhistorie werden entfernt. Bereits laufende Durchläufe werden zu Ende geführt.",
     "confirm": "Automation löschen"
   },
   "condition": {
@@ -29,7 +29,8 @@
     "predicate": "Vergleich",
     "all": "Alle von",
     "any": "Eine von",
-    "not": "Nicht"
+    "not": "Nicht",
+    "comparison": "{field} {operator} „{value}“"
   },
   "action": {
     "heading": "Aktionen",
@@ -40,7 +41,7 @@
     "no_scripts": "Noch kein Skript im Skriptordner. Lege eines dort ab und öffne das hier neu.",
     "category": "Kategorie",
     "target": "Benachrichtigungsziel",
-    "no_targets": "Es gibt noch kein Benachrichtigungsziel. Lege eines unter Einstellungen, Benachrichtigungen an.",
+    "no_targets": "Es gibt noch kein Benachrichtigungsziel. Lege eines unter Einstellungen → Benachrichtigungen an.",
     "at_least_once": "Aktionen laufen mindestens einmal: eine Automation startet einmal pro Ereignis, eine nach der Wirkung abgebrochene Aktion wird jedoch erneut versucht.",
     "webhook": "Webhook aufrufen",
     "script": "Skript ausführen",
@@ -65,7 +66,7 @@
       "link_grabber": "LinkGrabber",
       "downloads": "Downloads"
     },
-    "link_count": "{count} Links",
+    "link_count": "{count} Link | {count} Links",
     "pause_queue": "Warteschlange pausieren"
   },
   "dry_run": {
@@ -160,7 +161,7 @@
     "help": "Gilt in der Zeitzone des Dienstes. Ein Termin, den der Dienst um mehr als zwei Minuten verpasst hat, etwa weil er aus war, wird nicht nachgeholt.",
     "interval_help": "Gezählt ab Mitternacht: 60 läuft zur vollen Stunde, höchstens 1440 (ein Tag).",
     "cron_help": "Minute Stunde Tag Monat Wochentag, etwa „0 6 * * 1-5“ für werktags um sechs.",
-    "every_minutes": "alle {minutes} Minuten",
+    "every_minutes": "alle {minutes} min",
     "no_package": "Ein Zeitplan nennt kein Paket: Paket-Aktionen sind hier nicht wählbar."
   },
   "storage_threshold_help": "Läuft, wenn ein Speicherort unter seine Mindestreserve fällt. Damit die Automation läuft, wenn wieder Platz frei ist, setze die Bedingung „Speicheränderung“ gleich „released“. Für nur einen Speicherort wähle ihn unter „Speicherziel“.",

@@ -1,41 +1,18 @@
 use super::{is_transferring, moving_rates, queue_rate, remaining_of};
-use rd_core::{DownloadFile, DownloadId, DownloadState};
+use rd_core::{DownloadFigures, DownloadId, DownloadState};
 use std::collections::HashMap;
 
-/// Shared with `handlers`, which builds the capture summary out of the same queue.
-pub(crate) fn file(state: DownloadState, committed: u64, total: Option<u64>) -> DownloadFile {
-    let now = rd_core::Timestamp::now();
-    DownloadFile {
-        recording: None,
+/// Shared with `capture_summary`, which builds its figures out of the same queue.
+pub(crate) fn file(state: DownloadState, committed: u64, total: Option<u64>) -> DownloadFigures {
+    DownloadFigures {
         id: DownloadId::new(),
-        package_id: rd_core::PackageId::new(),
-        source: "https://example.test/a.bin".parse().expect("url"),
-        file_name: "a.bin".to_owned(),
         state,
         total_bytes: total.map(|value| rd_core::ByteCount::new(value).expect("size")),
         committed_bytes: rd_core::ByteCount::new(committed).unwrap_or_default(),
-        retry_count: 0,
-        next_retry_at: None,
-        expected_checksum: None,
-        computed_checksum: None,
-        last_error: None,
-        account_id: None,
-        proxy_profile_id: None,
-        remote_credential_id: None,
-        mirror_group: None,
-        auth_profile: rd_core::AuthProfileSelection::Auto,
-        position: 0,
-        kind: rd_core::DownloadKind::Http,
-        nzb_file_id: None,
-        recovery: false,
-        media: None,
-        enrichment: Vec::new(),
-        created_at: now,
-        updated_at: now,
     }
 }
 
-pub(crate) fn rates(entries: &[(&DownloadFile, u64)]) -> HashMap<DownloadId, u64> {
+pub(crate) fn rates(entries: &[(&DownloadFigures, u64)]) -> HashMap<DownloadId, u64> {
     entries
         .iter()
         .map(|(file, rate)| (file.id, *rate))
@@ -49,7 +26,7 @@ fn a_finished_download_keeps_no_rate() {
     let verifying = file(DownloadState::Verifying, 1_000, Some(1_000));
     let table = rates(&[(&running, 250), (&finished, 36_000_000), (&verifying, 10)]);
 
-    let moving = moving_rates(table, &[running.clone(), finished, verifying]);
+    let moving = moving_rates(table, &[running, finished, verifying]);
 
     assert_eq!(moving, HashMap::from([(running.id, 250)]));
 }
@@ -60,7 +37,7 @@ fn the_queue_estimate_is_the_outstanding_bytes_over_the_combined_rate() {
     let waiting = file(DownloadState::Queued, 0, Some(1_000));
     let table = rates(&[(&running, 250)]);
 
-    let queue = queue_rate(&table, &[running.clone(), waiting.clone()]);
+    let queue = queue_rate(&table, &[running, waiting]);
 
     assert_eq!(queue.bytes_per_second, 250);
     assert_eq!(queue.remaining_bytes, Some(1_500));
@@ -85,7 +62,7 @@ fn states_that_are_not_being_fetched_stay_out_of_the_estimate() {
     let paused = file(DownloadState::Paused, 0, Some(9_000_000));
     let table = rates(&[(&running, 100)]);
 
-    let queue = queue_rate(&table, &[running.clone(), paused]);
+    let queue = queue_rate(&table, &[running, paused]);
 
     assert_eq!(queue.remaining_bytes, Some(1_000));
     assert_eq!(queue.eta_seconds, Some(10));
@@ -99,7 +76,7 @@ fn an_unknown_size_leaves_the_queue_without_an_estimate() {
     let sizeless = file(DownloadState::Queued, 0, None);
     let table = rates(&[(&running, 250)]);
 
-    let queue = queue_rate(&table, &[running.clone(), sizeless]);
+    let queue = queue_rate(&table, &[running, sizeless]);
 
     assert_eq!(queue.remaining_bytes, None);
     assert_eq!(queue.eta_seconds, None);

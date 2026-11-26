@@ -8,7 +8,7 @@
  * captcha each; the header then counts "3 of 8" and says when a captcha waits for a person. A
  * release that is done or underway cannot be ticked again; one whose captcha went unanswered can.
  * "Take all" fetches every release that can still be fetched, filters or not — for a page whose
- * releases need no captcha, such as warez.cx's, the choice is a convenience (RD-1190-17).
+ * releases need no captcha, as on some release pages, the choice is a convenience (RD-1190-17).
  */
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'

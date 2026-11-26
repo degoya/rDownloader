@@ -7,14 +7,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
 use rd_core::AccountId;
 use rd_plugin_host::ResolverService;
 use url::Url;
 
+use crate::extract::{Json, Path};
 use crate::{ApiError, AppState, dto::AccountHostersResponse};
 
 const CACHE_TTL: Duration = Duration::from_secs(60 * 60);

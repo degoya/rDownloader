@@ -26,6 +26,7 @@ import SiteRulePackageFields from '@/components/settings/SiteRulePackageFields.v
 import SiteRuleSteps from '@/components/settings/SiteRuleSteps.vue'
 import SiteRuleTestResult from '@/components/settings/SiteRuleTestResult.vue'
 import { GROUP_MIRRORS, draftComplete, type RuleDraft } from '@/composables/useSiteRules'
+import { compareText } from '@/utils/collation'
 import { PLAIN } from '@/utils/numberInput'
 import { groupSlug } from '@/utils/siteRuleDraft'
 import { originView } from '@/utils/siteRuleOrigin'
@@ -64,7 +65,7 @@ const groupItems = computed(() => {
   const named = [...props.groups, ...created.value, draft.value.group]
     .map(group => group.trim())
     .filter(group => group.length > 0)
-  return [...new Set(named)].sort((left, right) => left.localeCompare(right))
+  return [...new Set(named)].sort(compareText)
 })
 /** The origin of the rule being edited, as the glyph and its sentence. */
 const origin = computed(() => props.origin ? originView(props.origin) : null)
@@ -105,7 +106,7 @@ function runTest(): void {
 
     <!-- Where the rule came from (RD-1200-05); saving a changed body makes it "written here". -->
     <div v-if="origin" class="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted" data-testid="site-rule-editor-origin">
-      <span>{{ t('siterules.origin.label') }}:</span>
+      <span>{{ t('common.text.label', { label: t('siterules.origin.label') }) }}</span>
       <UBadge :color="origin.color" variant="subtle" size="sm" :icon="origin.icon" :label="t(origin.label)" />
       <span>{{ t(origin.detail) }}</span>
     </div>

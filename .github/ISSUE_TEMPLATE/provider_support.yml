@@ -37,6 +37,6 @@ body:
     id: account
     attributes:
       label: Test account
-      description: Whether you can sponsor an account for testing, and how you would like to hand it over privately. Do not put the account details here.
+      description: Whether you can provide a test account, with nothing in return, and how you would like to hand it over privately. Do not put the account details here.
     validations:
       required: true

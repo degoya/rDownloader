@@ -57,7 +57,7 @@ function usage(free: string | null | undefined, total: string | null | undefined
             <template v-else><span class="text-warning">{{ t('downloads.summary.unreachable') }}</span></template>
           </p>
         </div>
-        <UProgress v-if="root.total_bytes" :model-value="usage(root.free_bytes, root.total_bytes)" size="xs" class="mt-2" :color="usage(root.free_bytes, root.total_bytes) > 90 ? 'error' : 'primary'" />
+        <UProgress v-if="root.total_bytes" :model-value="usage(root.free_bytes, root.total_bytes)" :get-value-label="() => t('common.a11y.usage_of', { name: root.name })" size="xs" class="mt-2" :color="usage(root.free_bytes, root.total_bytes) > 90 ? 'error' : 'primary'" />
         <p v-if="root.total_bytes" class="mt-1 text-xs text-muted">{{ t('downloads.summary.used', { percent: usage(root.free_bytes, root.total_bytes), total: formatBytes(root.total_bytes) }) }}</p>
       </div>
     </div>

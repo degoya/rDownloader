@@ -7,7 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import downloads from '@/locales/en/downloads.json'
 import server from '@/locales/en/server.json'
-import { mountComponent } from '@/test/mount'
+import { useTransfersStore } from '@/stores/transfers'
+import { mountComponent, settle } from '@/test/mount'
 
 const list = vi.fn()
 const decide = vi.fn()
@@ -71,5 +72,27 @@ describe('CollisionPromptsAlert', () => {
     const { container } = mountComponent(CollisionPromptsAlert, { messages: { downloads, server }, stubs })
     await waitFor(() => expect(list).toHaveBeenCalled())
     expect(container.querySelector('[data-testid="collision-prompts"]')).toBeNull()
+  })
+
+  it('asks again when the blocked files change, and not for any other', async () => {
+    list.mockResolvedValue({ ok: true, data: [] })
+    mountComponent(CollisionPromptsAlert, { messages: { downloads, server }, stubs })
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(1))
+    const transfers = useTransfersStore()
+    const show = async (state: string, updated_at: string): Promise<void> => {
+      transfers.downloads = [{ id: 'download-1', state, updated_at }] as unknown as typeof transfers.downloads
+      await settle()
+    }
+
+    await show('downloading', '1')
+    expect(list).toHaveBeenCalledTimes(1)
+    await show('blocked', '2')
+    expect(list).toHaveBeenCalledTimes(2)
+    await show('blocked', '2')
+    expect(list).toHaveBeenCalledTimes(2)
+    await show('blocked', '3')
+    expect(list, 'asked again within one read of the queue').toHaveBeenCalledTimes(3)
+    await show('queued', '4')
+    expect(list).toHaveBeenCalledTimes(4)
   })
 })

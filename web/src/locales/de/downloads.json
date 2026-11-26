@@ -59,7 +59,7 @@
     "queue_done_title": "Downloadliste abgearbeitet",
     "queue_done_body": "Keine Dateien fertiggestellt. | {count} Datei fertiggestellt. | {count} Dateien fertiggestellt.",
     "package_failed_title": "Downloads fehlgeschlagen: {package}",
-    "package_failed_body": "{count} von {total} Dateien konnten nicht heruntergeladen werden."
+    "package_failed_body": "{count} von {total} Dateien konnte nicht heruntergeladen werden. | {count} von {total} Dateien konnten nicht heruntergeladen werden."
   },
   "confirm": {
     "delete_package_title": "Paket löschen",
@@ -78,7 +78,7 @@
     "remove_download_completed": "Eintrag aus der Downloadliste entfernen? Die fertig heruntergeladene Datei bleibt erhalten.",
     "remove_download_partial": "Eintrag aus der Downloadliste entfernen? Eine vorhandene unvollständige Datei wird ebenfalls gelöscht.",
     "delete_package_active": "„{name}“ arbeitet noch. Trotzdem entfernen? Laufende Downloads werden abgebrochen und ihre unvollständigen Dateien gelöscht; fertige Dateien bleiben im Zielordner erhalten.",
-    "delete_packages_active": "{count} Paket(e) entfernen, davon {busy} noch aktiv? Laufende Downloads werden abgebrochen und ihre unvollständigen Dateien gelöscht; fertige Dateien bleiben im Zielordner erhalten."
+    "delete_packages_active": "{count} Paket entfernen, davon {busy} noch aktiv? Laufende Downloads werden abgebrochen und ihre unvollständigen Dateien gelöscht; fertige Dateien bleiben im Zielordner erhalten. | {count} Pakete entfernen, davon {busy} noch aktiv? Laufende Downloads werden abgebrochen und ihre unvollständigen Dateien gelöscht; fertige Dateien bleiben im Zielordner erhalten."
   },
   "rename_file": {
     "title": "Datei umbenennen",
@@ -177,11 +177,11 @@
     "trial_staged": "Mit {name} v{version} testen",
     "sources": {
       "title": "Quellen ({count})",
-      "pieces": "Geprüft in {count} Stücken zu {size} ({algorithm})",
+      "pieces": "Geprüft in {count} Stück zu {size} ({algorithm}) | Geprüft in {count} Stücken zu {size} ({algorithm})",
       "no_pieces": "Keine Stück-Hashes; der Hash der ganzen Datei wird vor dem Abschluss geprüft, wenn es einen gibt.",
       "priority": "Priorität {value}",
       "delivered": "{size} geliefert",
-      "failures": "{count} Fehler",
+      "failures": "{count} Fehler | {count} Fehler",
       "retry_after": "wieder ab {time}",
       "state": {
         "ready": "Bereit",
@@ -354,7 +354,7 @@
     "confirm": "Zurücksetzen"
   },
   "list": {
-    "aria": "Warteschlange, {count} Zeilen"
+    "aria": "Warteschlange, {count} Zeile | Warteschlange, {count} Zeilen"
   },
   "collision": {
     "policies": {
@@ -540,7 +540,7 @@
   "schedule_pause": {
     "label": "Pausiert nach Zeitplan bis {time}",
     "label_open": "Pausiert nach Zeitplan",
-    "title": "Das Bandbreitenprofil „{profile}“ pausiert Downloads. Pakete, die die Zeitplan-Pause ignorieren, laden weiter; unter Einstellungen › Bandbreite lässt sich auf ein anderes Profil umschalten.",
+    "title": "Das Bandbreitenprofil „{profile}“ pausiert Downloads. Pakete, die die Zeitplan-Pause ignorieren, laden weiter; unter Einstellungen → Bandbreite lässt sich auf ein anderes Profil umschalten.",
     "open_settings": "Profil wechseln"
   },
   "package_reset": {

@@ -13,6 +13,10 @@ import { useTransfersStore } from '@/stores/transfers'
 import { mountComponent } from '@/test/mount'
 
 import QueuePauseControl from './QueuePauseControl.vue'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
+
+// Off by default (RD-1480-17); these tests are about the keys.
+shortcutsEnabled.value = true
 
 vi.mock('@/api/client', () => apiClientMock({
   GET: vi.fn(async () => ({ data: undefined })),

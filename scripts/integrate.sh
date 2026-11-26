@@ -183,10 +183,11 @@ echo "==> the generators"
 scripts/api-contract.sh
 scripts/mcp-coverage.sh
 scripts/web-declarations.sh
-if ! git diff --quiet "$base" HEAD -- Cargo.lock web/pnpm-lock.yaml; then
+if ! git diff --quiet "$base" HEAD -- Cargo.lock web/pnpm-lock.yaml rust-toolchain.toml \
+    crates/rd-api/licenses scripts/licenses.sh scripts/lib/third_party_notices.py; then
     scripts/licenses.sh
 else
-    echo "    licences: neither lock file differs from $base"
+    echo "    licences: nothing they come from differs from $base"
 fi
 scripts/archive-jobs.sh
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then

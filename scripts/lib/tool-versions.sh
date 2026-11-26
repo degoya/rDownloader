@@ -29,6 +29,11 @@ RD_SHELLCHECK_SHA256="8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e
 RD_ACTIONLINT_VERSION="1.7.12"
 # shellcheck disable=SC2034
 RD_ACTIONLINT_SHA256="8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+# The 7-Zip rd-postprocess' live archive test runs (scripts/ci-tools.sh seven-zip).
+# shellcheck disable=SC2034
+RD_SEVEN_ZIP_VERSION="25.01"
+# shellcheck disable=SC2034
+RD_SEVEN_ZIP_SHA256="4ca3b7c6f2f67866b92622818b58233dc70367be2f36b498eb0bdeaaa44b53f4"
 
 # The Rust toolchain checkout $1 pins: rust-toolchain.toml's `channel`.
 rd_rust_version() {

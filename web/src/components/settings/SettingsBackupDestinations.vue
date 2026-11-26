@@ -230,7 +230,7 @@ onMounted(async () => {
         @click="edit(null)"
       />
     </div>
-    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
 
     <UEmpty v-if="!props.destinations.length && editing === null" :description="t('system.backup.full.destinations.empty')" />
     <ul v-if="props.destinations.length" class="divide-y divide-muted border border-muted" data-testid="backup-destination-list">

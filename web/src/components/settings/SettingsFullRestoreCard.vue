@@ -68,7 +68,7 @@ onMounted(() => void load(read))
       :title="t('system.backup.full_restore.title')"
       :description="t('system.backup.full_restore.description')"
     />
-    <UAlert v-if="error" class="mt-5" color="error" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" class="mt-5" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
     <DataState :loading="loading" :error="loadError" class="mt-5" />
     <template v-if="!loading && !loadError && status">
       <UAlert

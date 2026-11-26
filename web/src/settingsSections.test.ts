@@ -110,7 +110,8 @@ describe('where the settings document is edited', () => {
       .filter(tab => tab.documentCard)
       .map(tab => `${section}?tab=${tab.value}`))
     expect(tabs).toEqual([
-      'routing?tab=roots', 'bandwidth?tab=status', 'security?tab=signin', 'usenet?tab=servers', 'clients?tab=api'
+      'routing?tab=roots', 'bandwidth?tab=status', 'security?tab=signin', 'usenet?tab=servers', 'clients?tab=api',
+      'notifications?tab=targets'
     ])
   })
 

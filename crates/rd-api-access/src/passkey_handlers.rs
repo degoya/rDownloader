@@ -30,11 +30,11 @@
 //! detected at all.
 
 use axum::{
-    Json,
     extract::State,
     http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
+use rd_api_core::extract::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use webauthn_rs::prelude::{PublicKeyCredential, RegisterPublicKeyCredential};

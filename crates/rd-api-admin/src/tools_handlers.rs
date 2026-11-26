@@ -8,10 +8,8 @@
 //! the web interface can tell an untrusted manifest from a slow mirror instead of showing one
 //! sentence for both.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 
 use crate::{AppState, error::ApiError};
 

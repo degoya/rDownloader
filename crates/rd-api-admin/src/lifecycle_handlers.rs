@@ -10,7 +10,8 @@
 //! would end the session that asked, and the backup before an update is the first step of a
 //! version switch no agent performs (`mcp_coverage`).
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::Json;
 use rd_core::AuditAction;
 use serde::Serialize;
 use utoipa::ToSchema;

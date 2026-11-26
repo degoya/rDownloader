@@ -263,7 +263,7 @@ function proxyName(id: string | null | undefined): string {
           :eyebrow="t('network.account.eyebrow')"
           :title="editingAccountId ? t('network.account.edit_title') : t('network.account.new_title')"
         />
-        <UAlert v-if="error" class="mt-4" color="error" :description="error" />
+        <UAlert v-if="error" class="mt-4" color="error" role="alert" :description="error" />
         <FormFeedback class="mt-4" :error="browserSessions.error.value" :message="message" />
         <form ref="formElement" class="mt-4 grid gap-3" @submit.prevent="createAccount">
           <!-- A picker whose options are on their way is not drawn (design.md). -->

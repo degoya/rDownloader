@@ -21,6 +21,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/accounts", Method::GET, SECRETS),
     entry("/api/v1/accounts", Method::POST, SECRETS),
     entry("/api/v1/accounts/{id}", Method::DELETE, SECRETS),
+    entry("/api/v1/accounts/{id}", Method::GET, SECRETS),
     entry("/api/v1/accounts/{id}", Method::PUT, SECRETS),
     entry("/api/v1/accounts/{id}/auth", Method::DELETE, SECRETS),
     entry("/api/v1/accounts/{id}/auth", Method::GET, SECRETS),
@@ -51,6 +52,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/api-tokens", Method::POST, SECRETS),
     entry("/api/v1/api-tokens/scopes", Method::GET, SECRETS),
     entry("/api/v1/api-tokens/{id}", Method::DELETE, SECRETS),
+    entry("/api/v1/api-tokens/{id}", Method::GET, SECRETS),
     // Re-scoping is the one route that can *widen* a credential, so it costs the area that
     // already covers handing one out in the first place.
     entry("/api/v1/api-tokens/{id}", Method::PATCH, SECRETS),
@@ -68,6 +70,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/auth-profiles", Method::GET, SECRETS),
     entry("/api/v1/auth-profiles", Method::POST, SECRETS),
     entry("/api/v1/auth-profiles/{id}", Method::DELETE, SECRETS),
+    entry("/api/v1/auth-profiles/{id}", Method::GET, SECRETS),
     entry("/api/v1/auth-profiles/{id}", Method::PUT, SECRETS),
     entry("/api/v1/auth-profiles/{id}/disable", Method::POST, SECRETS),
     entry("/api/v1/auth-profiles/{id}/enable", Method::POST, SECRETS),
@@ -107,6 +110,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/automations/runs", Method::GET, CONFIG),
     entry("/api/v1/automations/vocabulary", Method::GET, CONFIG),
     entry("/api/v1/automations/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/automations/{id}", Method::GET, CONFIG),
     entry("/api/v1/automations/{id}", Method::PUT, CONFIG),
     entry("/api/v1/automations/{id}/enable", Method::POST, CONFIG),
     entry("/api/v1/automations/{id}/versions", Method::GET, CONFIG),
@@ -127,6 +131,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/backups/archives/{id}/verify", Method::POST, ADMIN),
     entry("/api/v1/backups/destinations", Method::POST, ADMIN),
     entry("/api/v1/backups/destinations/{id}", Method::DELETE, ADMIN),
+    entry("/api/v1/backups/destinations/{id}", Method::GET, ADMIN),
     entry("/api/v1/backups/destinations/{id}", Method::PUT, ADMIN),
     entry(
         "/api/v1/backups/destinations/{id}/retention",
@@ -157,6 +162,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/bandwidth/profiles", Method::GET, CONFIG),
     entry("/api/v1/bandwidth/profiles", Method::POST, CONFIG),
     entry("/api/v1/bandwidth/profiles/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/bandwidth/profiles/{id}", Method::GET, CONFIG),
     entry("/api/v1/bandwidth/profiles/{id}", Method::PUT, CONFIG),
     entry("/api/v1/bandwidth/schedule", Method::GET, CONFIG),
     entry("/api/v1/bandwidth/schedule", Method::PUT, CONFIG),
@@ -244,6 +250,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/categories", Method::GET, CONFIG),
     entry("/api/v1/categories", Method::POST, CONFIG),
     entry("/api/v1/categories/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/categories/{id}", Method::GET, CONFIG),
     entry("/api/v1/categories/{id}", Method::PUT, CONFIG),
     entry(
         "/api/v1/categories/{id}/collision-policy",
@@ -263,6 +270,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/category-rules", Method::POST, CONFIG),
     entry("/api/v1/category-rules/test-regex", Method::POST, CONFIG),
     entry("/api/v1/category-rules/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/category-rules/{id}", Method::GET, CONFIG),
     entry("/api/v1/category-rules/{id}", Method::PUT, CONFIG),
     entry("/api/v1/collector/batches", Method::GET, QUEUE),
     entry("/api/v1/collector/batches", Method::POST, INTAKE),
@@ -273,6 +281,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/collector/candidates/reorder", Method::POST, QUEUE),
     entry("/api/v1/collector/candidates/unhide", Method::POST, QUEUE),
     entry("/api/v1/collector/candidates/{id}", Method::DELETE, QUEUE),
+    entry("/api/v1/collector/candidates/{id}", Method::GET, QUEUE),
     entry("/api/v1/collector/candidates/{id}", Method::PATCH, QUEUE),
     entry(
         "/api/v1/collector/candidates/{id}/auth-profile",
@@ -368,6 +377,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/collector/packages/regroup", Method::POST, QUEUE),
     entry("/api/v1/collector/packages/reorder", Method::POST, QUEUE),
     entry("/api/v1/collector/packages/{id}", Method::DELETE, QUEUE),
+    entry("/api/v1/collector/packages/{id}", Method::GET, QUEUE),
     entry("/api/v1/collector/packages/{id}", Method::PATCH, QUEUE),
     entry(
         "/api/v1/collector/packages/{id}/enqueue",
@@ -416,6 +426,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/downloads/reresolve", Method::POST, QUEUE),
     entry("/api/v1/downloads/summary", Method::GET, READ),
     entry("/api/v1/downloads/{id}", Method::DELETE, QUEUE),
+    entry("/api/v1/downloads/{id}", Method::GET, READ),
     entry("/api/v1/downloads/{id}", Method::PATCH, QUEUE),
     entry("/api/v1/downloads/{id}/auth-profile", Method::PUT, QUEUE),
     entry("/api/v1/downloads/{id}/cancel", Method::POST, QUEUE),
@@ -478,6 +489,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/hotfolders", Method::GET, CONFIG),
     entry("/api/v1/hotfolders", Method::POST, CONFIG),
     entry("/api/v1/hotfolders/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/hotfolders/{id}", Method::GET, CONFIG),
     entry("/api/v1/hotfolders/{id}", Method::PUT, CONFIG),
     // An indexer is an address and an API key: the credential scope, its `GET` included
     // (RD-180-19). Searching one and taking hits into the LinkGrabber is intake, like an NZB
@@ -487,6 +499,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/indexers/grab", Method::POST, INTAKE),
     entry("/api/v1/indexers/search", Method::POST, INTAKE),
     entry("/api/v1/indexers/{id}", Method::DELETE, SECRETS),
+    entry("/api/v1/indexers/{id}", Method::GET, SECRETS),
     entry("/api/v1/indexers/{id}", Method::PUT, SECRETS),
     entry("/api/v1/indexers/{id}/caps", Method::POST, SECRETS),
     // LinkFilter rules (RD-1240-09): written like the routing rules; applying them changes the
@@ -498,6 +511,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/link-filters/import", Method::POST, ADMIN),
     entry("/api/v1/link-filters/reorder", Method::POST, CONFIG),
     entry("/api/v1/link-filters/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/link-filters/{id}", Method::GET, CONFIG),
     entry("/api/v1/link-filters/{id}", Method::PUT, CONFIG),
     // The one route the scrape scope reaches, and the one route `api:read` does not: a
     // Prometheus target is a credential that lives in a configuration file for years, so it
@@ -530,10 +544,12 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/notifications/rules", Method::GET, CONFIG),
     entry("/api/v1/notifications/rules", Method::POST, CONFIG),
     entry("/api/v1/notifications/rules/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/notifications/rules/{id}", Method::GET, CONFIG),
     entry("/api/v1/notifications/rules/{id}", Method::PUT, CONFIG),
     entry("/api/v1/notifications/targets", Method::GET, CONFIG),
     entry("/api/v1/notifications/targets", Method::POST, CONFIG),
     entry("/api/v1/notifications/targets/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/notifications/targets/{id}", Method::GET, CONFIG),
     entry("/api/v1/notifications/targets/{id}", Method::PUT, CONFIG),
     entry(
         "/api/v1/notifications/targets/{id}/test",
@@ -561,6 +577,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/nzb/imports", Method::GET, QUEUE),
     entry("/api/v1/nzb/imports", Method::POST, INTAKE),
     entry("/api/v1/nzb/imports/{id}", Method::DELETE, QUEUE),
+    entry("/api/v1/nzb/imports/{id}", Method::GET, QUEUE),
     entry("/api/v1/nzb/imports/{id}", Method::PATCH, QUEUE),
     entry("/api/v1/nzb/imports/{id}/enqueue", Method::POST, QUEUE),
     entry("/api/v1/nzb/imports/{id}/files", Method::GET, QUEUE),
@@ -583,6 +600,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
         Method::DELETE,
         SECRETS,
     ),
+    entry("/api/v1/object-storage/profiles/{id}", Method::GET, SECRETS),
     entry("/api/v1/object-storage/profiles/{id}", Method::PUT, SECRETS),
     entry(
         "/api/v1/object-storage/profiles/{id}/test",
@@ -600,6 +618,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/packages/extract", Method::POST, QUEUE),
     entry("/api/v1/packages/reorder", Method::POST, QUEUE),
     entry("/api/v1/packages/{id}", Method::DELETE, QUEUE),
+    entry("/api/v1/packages/{id}", Method::GET, READ),
     entry("/api/v1/packages/{id}", Method::PATCH, QUEUE),
     entry("/api/v1/packages/{id}/collision-policy", Method::GET, READ),
     entry("/api/v1/packages/{id}/collision-policy", Method::PUT, QUEUE),
@@ -636,6 +655,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/plugins/repositories/refresh", Method::POST, ADMIN),
     entry("/api/v1/plugins/repositories/settings", Method::PUT, ADMIN),
     entry("/api/v1/plugins/repositories/{id}", Method::DELETE, ADMIN),
+    entry("/api/v1/plugins/repositories/{id}", Method::GET, ADMIN),
     entry("/api/v1/plugins/repositories/{id}", Method::PATCH, ADMIN),
     entry(
         "/api/v1/plugins/repositories/{id}/install",
@@ -662,6 +682,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // policy, so the same scope (RD-191-10).
     entry("/api/v1/plugins/updates/settings", Method::GET, ADMIN),
     entry("/api/v1/plugins/updates/settings", Method::PUT, ADMIN),
+    entry("/api/v1/plugins/{id}", Method::GET, ADMIN),
     entry("/api/v1/plugins/{id}", Method::PATCH, ADMIN),
     entry("/api/v1/plugins/{id}/executions", Method::GET, ADMIN),
     // Which build of a plugin runs is the same kind of decision as installing it (RD-140-02).
@@ -710,6 +731,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/proxy-profiles", Method::GET, SECRETS),
     entry("/api/v1/proxy-profiles", Method::POST, SECRETS),
     entry("/api/v1/proxy-profiles/{id}", Method::DELETE, SECRETS),
+    entry("/api/v1/proxy-profiles/{id}", Method::GET, SECRETS),
     entry("/api/v1/proxy-profiles/{id}", Method::PUT, SECRETS),
     entry("/api/v1/queue/pause", Method::DELETE, QUEUE),
     entry("/api/v1/queue/pause", Method::GET, READ),
@@ -735,6 +757,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
         SECRETS,
     ),
     entry("/api/v1/remote-credentials/{id}", Method::DELETE, SECRETS),
+    entry("/api/v1/remote-credentials/{id}", Method::GET, SECRETS),
     entry("/api/v1/remote-credentials/{id}", Method::PUT, SECRETS),
     entry(
         "/api/v1/remote-credentials/{id}/test",
@@ -768,6 +791,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/sessions/revoke-others", Method::POST, SECRETS),
     entry("/api/v1/sessions/{id}", Method::DELETE, SECRETS),
     entry("/api/v1/settings", Method::GET, CONFIG),
+    entry("/api/v1/settings", Method::PATCH, CONFIG),
     entry("/api/v1/settings", Method::PUT, CONFIG),
     entry("/api/v1/settings/capture-agent", Method::GET, CONFIG),
     entry("/api/v1/settings/capture-agent", Method::PATCH, CONFIG),
@@ -799,6 +823,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // the network, so it costs what changing the rule costs and not what reading it does.
     entry("/api/v1/site-rules/test", Method::POST, CONFIG),
     entry("/api/v1/site-rules/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/site-rules/{id}", Method::GET, CONFIG),
     entry("/api/v1/site-rules/{id}", Method::PUT, CONFIG),
     entry("/api/v1/site-rules/{id}/enabled", Method::PUT, CONFIG),
     entry("/api/v1/stats/transfers", Method::GET, READ),
@@ -811,6 +836,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/storage-roots", Method::GET, CONFIG),
     entry("/api/v1/storage-roots", Method::POST, CONFIG),
     entry("/api/v1/storage-roots/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/storage-roots/{id}", Method::GET, CONFIG),
     entry("/api/v1/storage-roots/{id}", Method::PUT, CONFIG),
     entry("/api/v1/storage/capacity", Method::GET, READ),
     entry(
@@ -829,6 +855,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/streams/channels", Method::GET, CONFIG),
     entry("/api/v1/streams/channels", Method::POST, CONFIG),
     entry("/api/v1/streams/channels/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/streams/channels/{id}", Method::GET, CONFIG),
     entry("/api/v1/streams/channels/{id}", Method::PUT, CONFIG),
     entry("/api/v1/streams/export", Method::GET, ADMIN),
     entry("/api/v1/streams/import", Method::POST, ADMIN),
@@ -837,6 +864,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/streams/schedules", Method::GET, CONFIG),
     entry("/api/v1/streams/schedules", Method::POST, CONFIG),
     entry("/api/v1/streams/schedules/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/streams/schedules/{id}", Method::GET, CONFIG),
     entry("/api/v1/streams/schedules/{id}", Method::PUT, CONFIG),
     entry("/api/v1/subscriptions", Method::GET, CONFIG),
     entry("/api/v1/subscriptions", Method::POST, CONFIG),
@@ -852,6 +880,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     ),
     entry("/api/v1/subscriptions/review-summary", Method::GET, CONFIG),
     entry("/api/v1/subscriptions/{id}", Method::DELETE, CONFIG),
+    entry("/api/v1/subscriptions/{id}", Method::GET, CONFIG),
     entry("/api/v1/subscriptions/{id}", Method::PUT, CONFIG),
     entry("/api/v1/subscriptions/{id}/caps", Method::POST, CONFIG),
     entry("/api/v1/subscriptions/{id}/disable", Method::POST, CONFIG),
@@ -875,6 +904,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     // page's token may show them.
     entry("/api/v1/system/about", Method::GET, READ),
     entry("/api/v1/system/about/licenses", Method::GET, READ),
+    entry("/api/v1/system/about/notices", Method::GET, READ),
     // What a clean-up of the data directory would remove, and the clean-up itself (RD-1240-34):
     // the backups an update's rollback reaches for, so the service's own.
     entry("/api/v1/system/cleanup", Method::GET, ADMIN),
@@ -920,6 +950,7 @@ pub const ROUTE_POLICY: &[RoutePolicy] = &[
     entry("/api/v1/usenet/servers", Method::GET, SECRETS),
     entry("/api/v1/usenet/servers", Method::POST, SECRETS),
     entry("/api/v1/usenet/servers/{id}", Method::DELETE, SECRETS),
+    entry("/api/v1/usenet/servers/{id}", Method::GET, SECRETS),
     entry("/api/v1/usenet/servers/{id}", Method::PUT, SECRETS),
     entry("/api/v1/usenet/servers/{id}/quota", Method::PUT, SECRETS),
     entry("/api/v1/usenet/servers/{id}/test", Method::POST, SECRETS),

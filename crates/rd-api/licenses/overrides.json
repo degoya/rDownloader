@@ -1,10 +1,20 @@
 {
-  "_comment": "Licences of packages that declare none of their own, keyed name@version so an update is checked again. Each entry names where the licence was read. Input to scripts/licenses.sh (RD-130-12); third-party.json is generated, this file is not.",
+  "_comment": "Licences of packages that declare none of their own, keyed name@version so an update is checked again. Each entry names where the licence was read. `texts` adds a licence text (a file of texts/) to a package that carries the work of a project without that project's text, keyed by name. Input to scripts/licenses.sh (RD-130-12, RD-1480-12); third-party.json and THIRD-PARTY-NOTICES.txt are generated, this file is not.",
   "rust": {},
   "npm": {
     "vaul-vue@0.4.1": {
       "license": "MIT",
       "source": "https://github.com/unovue/vaul-vue/blob/main/LICENSE"
+    }
+  },
+  "texts": {
+    "rust": {},
+    "npm": {
+      "@iconify-json/lucide": {
+        "label": "LICENSE of the Lucide project",
+        "file": "lucide.txt",
+        "source": "LICENSE of the npm package @lucide/vue 1.66.0, which the Lucide project publishes; @iconify-json/lucide names https://github.com/lucide-icons/lucide/blob/main/LICENSE as its licence and carries no text"
+      }
     }
   }
 }

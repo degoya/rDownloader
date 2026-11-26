@@ -260,13 +260,14 @@ function scopeLabel(token: CaptureToken): string {
             </i18n-t>
           </template>
         </SectionHeader>
-        <UAlert v-if="pairError" class="mt-4" color="error" :description="pairError" />
+        <UAlert v-if="pairError" class="mt-4" color="error" role="alert" :description="pairError" />
         <form class="mt-4 space-y-3" @submit.prevent="pair">
           <UFormField :label="t('system.mcp.label_label')" required>
             <UInput v-model="pairLabel" required maxlength="100" icon="i-lucide-monitor-cog" class="w-full" :placeholder="t('system.mcp.label_placeholder')" />
           </UFormField>
           <div class="space-y-2">
             <p class="text-xs leading-5 text-muted">{{ t('system.mcp.scopes_hint') }}</p>
+            <p class="text-xs leading-5 text-muted">{{ t('system.mcp.data_flow_hint') }}</p>
             <UCheckboxGroup v-model="chosen" :items="scopeItems" :legend="t('system.mcp.scopes_label')" variant="table">
               <template #label="{ item }">
                 <span class="flex flex-wrap items-center gap-2">
@@ -397,7 +398,7 @@ function scopeLabel(token: CaptureToken): string {
                   data-testid="token-edit-rate"
                 />
               </UFormField>
-              <UAlert v-if="editError" class="mt-2" color="error" :description="editError" />
+              <UAlert v-if="editError" class="mt-2" color="error" role="alert" :description="editError" />
               <FormActions
                 class="mt-3"
                 editing

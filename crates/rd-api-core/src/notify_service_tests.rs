@@ -1,7 +1,7 @@
 //! The retry decision for plugin failures and the `budget_exhausted` mapping (RD-120-62).
 
 use rd_core::{Failure, FailureKind};
-use rd_notify::{Attempt, DeliveryState, NotificationEvent};
+use rd_notify::{Attempt, DeliveryState, NotificationEvent, NotificationLanguage as L};
 
 use super::{budget_exhausted, plugin_failure, settle, usenet_quota_reached};
 
@@ -100,6 +100,7 @@ fn only_a_budget_running_out_becomes_budget_exhausted() {
     .expect("a used-up budget notifies");
     assert_eq!(event, NotificationEvent::BudgetExhausted);
     assert_eq!(category, None);
+    let (title, body) = (title.say(L::En), body.say(L::En));
     assert_eq!(title, "Traffic budget used up");
     assert!(
         body.contains("monthly") && body.contains("500 bytes"),
@@ -132,6 +133,7 @@ fn only_a_used_up_usenet_quota_becomes_usenet_quota_reached() {
     .expect("a used-up quota notifies");
     assert_eq!(event, NotificationEvent::UsenetQuotaReached);
     assert_eq!(category, None);
+    let (title, body) = (title.say(L::En), body.say(L::En));
     assert_eq!(title, "Usenet quota used up: Block");
     assert!(
         body.contains("1000 bytes") && body.contains("paused"),

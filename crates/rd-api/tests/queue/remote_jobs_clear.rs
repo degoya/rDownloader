@@ -19,7 +19,7 @@ const CLEAR: &str = "/api/v1/remote-jobs/clear";
 /// A plugin id nothing installs: a job naming it cannot be deleted at its provider.
 const NOT_INSTALLED: &str = "019d0000-0000-7000-8000-0000000012b1";
 
-async fn account(harness: &common::Harness, provider: &str) -> AccountId {
+pub(crate) async fn account(harness: &common::Harness, provider: &str) -> AccountId {
     harness
         .database
         .create_account(rd_db::NewAccount {
@@ -38,7 +38,7 @@ async fn account(harness: &common::Harness, provider: &str) -> AccountId {
 }
 
 /// A row in `state`, polled no sooner than tomorrow so the sweep leaves it where it is.
-async fn job(
+pub(crate) async fn job(
     harness: &common::Harness,
     account: AccountId,
     state: RemoteJobState,

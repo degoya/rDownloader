@@ -6,8 +6,8 @@ description: >
   so a tag's own rust-toolchain.toml cannot change what repro.yml builds with. Without a pinned
   version a new Rust release reached CI on its own day (1.99's deprecation of fetch_update,
   2026-10-01). The version is read from rust-toolchain.toml (input `toolchain-file`,
-  RD-1280-12); the component cache keys of ci-components.yml and release-plugins.yml
-  name it too, held to it by scripts/tool-versions.sh --check.
+  RD-1280-12); the component cache key of ci-components.yml names it too, held to it by
+  scripts/tool-versions.sh --check.
 inputs:
   components:
     description: Comma-separated rustup components (rustfmt, clippy, …)

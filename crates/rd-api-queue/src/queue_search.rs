@@ -4,7 +4,8 @@
 //! Bounded on the server: the palette asks on every pause in typing, and a queue of thousands of
 //! files must not travel for the eight rows it shows.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Query};
 use rd_core::{DownloadId, DownloadState, PackageId, PackageState};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -25,6 +26,7 @@ pub struct QueueSearchQuery {
     /// Part of a package or file name, case-insensitive for ASCII letters; blank finds nothing.
     pub q: Option<String>,
     /// Rows of each kind, 1 to 50; 8 when left out.
+    #[param(minimum = 1, maximum = 50)]
     pub limit: Option<u32>,
 }
 
@@ -49,8 +51,8 @@ impl<S: Send + Sync> axum::extract::FromRequestParts<S> for QueueSearchParams {
         parts: &mut axum::http::request::Parts,
         _state: &S,
     ) -> Result<Self, Self::Rejection> {
-        axum::extract::Query::<QueueSearchQuery>::try_from_uri(&parts.uri)
-            .map(|axum::extract::Query(query)| Self(query))
+        Query::<QueueSearchQuery>::try_from_uri(&parts.uri)
+            .map(|Query(query)| Self(query))
             .map_err(|_| queue_search_invalid())
     }
 }

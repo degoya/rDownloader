@@ -260,6 +260,7 @@ function runsOf(id: string) {
               v-if="store.error"
               class="mb-4"
               color="error"
+              role="alert"
               :description="store.error"
             />
             <form v-if="open" ref="formElement" data-testid="automation-form" @submit.prevent="save">
@@ -348,7 +349,7 @@ function runsOf(id: string) {
                   {{ match.condition_matches ? t('automation.dry_run.condition_yes') : t('automation.dry_run.condition_no') }}
                   <template v-if="match.next_run_at">, {{ t('automation.dry_run.next_run', { time: formatMoment(match.next_run_at) }) }}</template>
                   <span v-if="match.actions.length" class="block text-xs" data-testid="automation-dry-run-actions">
-                    {{ t('automation.dry_run.would_run') }}:
+                    {{ t('common.text.label', { label: t('automation.dry_run.would_run') }) }}
                     {{ match.actions.map(action => describeAction(action, t, id => referenceNames.get(id))).join(' · ') }}
                   </span>
                 </li>

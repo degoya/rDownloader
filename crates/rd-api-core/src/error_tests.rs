@@ -102,3 +102,29 @@ async fn an_unreadable_secret_answers_its_code_not_an_internal_error() {
     assert_eq!(error.code(), rd_secrets::SECRET_UNREADABLE);
     assert!(!error.message().contains("vault://"), "{}", error.message());
 }
+
+/// A `429` that names its wait says it in `Retry-After` as well; nothing else does (RD-1480-08).
+#[test]
+fn a_rate_limit_names_its_wait_in_the_header() {
+    use axum::{http::header, response::IntoResponse as _};
+
+    let header_of = |error: ApiError| {
+        error
+            .into_response()
+            .headers()
+            .get(header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned)
+    };
+    let limited = || ApiError::too_many_requests("auth.too_many_attempts", "Too many attempts");
+    assert_eq!(
+        header_of(limited().with_param("seconds", 42)).as_deref(),
+        Some("42")
+    );
+    assert_eq!(header_of(limited()), None);
+    assert_eq!(header_of(limited().with_param("seconds", "soon")), None);
+    assert_eq!(
+        header_of(ApiError::conflict("request.invalid_id", "Later").with_param("seconds", 42)),
+        None
+    );
+}

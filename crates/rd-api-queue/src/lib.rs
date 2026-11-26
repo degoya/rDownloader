@@ -30,6 +30,7 @@ pub mod reconnect_handlers;
 pub mod remote_job_handlers;
 pub mod replay_dto;
 pub mod replay_handlers;
+pub mod single_reads;
 pub mod stop_mark_handlers;
 pub mod storage_handlers;
 pub mod torrent_control;

@@ -6,6 +6,7 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
 import { renderBuiltUrl } from './src/builtUrl'
+import { precompressPlugin } from './src/precompress'
 import { uiTheme } from './src/uiTheme'
 
 /**
@@ -38,7 +39,8 @@ export default defineConfig({
     ui({
       ui: uiTheme,
       icon: { clientBundle: iconClientBundle }
-    })
+    }),
+    precompressPlugin()
   ],
   resolve: {
     alias: [

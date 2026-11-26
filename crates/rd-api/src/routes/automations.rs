@@ -37,7 +37,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/automations/{id}",
-            axum::routing::put(automation_handlers::update_automation)
+            get(rd_api_admin::single_reads::get_automation)
+                .put(automation_handlers::update_automation)
                 .delete(automation_handlers::delete_automation),
         )
         .route(
@@ -70,6 +71,7 @@ pub(crate) fn routes() -> Router<AppState> {
         crate::area_backup::export_automations,
         crate::area_backup::import_automations,
         automation_handlers::automation_vocabulary,
+        rd_api_admin::single_reads::get_automation,
     ),
     components(schemas(
         automation_handlers::AutomationResponse,

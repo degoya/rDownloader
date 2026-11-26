@@ -1,43 +1,20 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import { api, responseError } from '@/api/client'
 import type { Settings } from '@/api/types'
 import DataState from '@/components/DataState.vue'
-import SettingsAboutTab from '@/components/settings/SettingsAboutTab.vue'
-import SettingsAccountsTab from '@/components/settings/SettingsAccountsTab.vue'
-import SettingsBandwidthTab from '@/components/settings/SettingsBandwidthTab.vue'
-import SettingsBackupRestore from '@/components/settings/SettingsBackupRestore.vue'
-import SettingsCaptchaTab from '@/components/settings/SettingsCaptchaTab.vue'
-import SettingsClientsTab from '@/components/settings/SettingsClientsTab.vue'
-import SettingsGeneralTab from '@/components/settings/SettingsGeneralTab.vue'
-import SettingsHotfoldersTab from '@/components/settings/SettingsHotfoldersTab.vue'
-import SettingsInterfaceTab from '@/components/settings/SettingsInterfaceTab.vue'
-import SettingsLinkgrabberTab from '@/components/settings/SettingsLinkgrabberTab.vue'
-import SettingsMediaTab from '@/components/settings/SettingsMediaTab.vue'
-import SettingsNetworkTab from '@/components/settings/SettingsNetworkTab.vue'
-import SettingsNotificationsTab from '@/components/settings/SettingsNotificationsTab.vue'
-import SettingsPluginsTab from '@/components/settings/SettingsPluginsTab.vue'
-import SettingsPostprocessTab from '@/components/settings/SettingsPostprocessTab.vue'
-import SettingsRoutingTab from '@/components/settings/SettingsRoutingTab.vue'
-import SettingsSecurityTab from '@/components/settings/SettingsSecurityTab.vue'
-import SettingsSiteRulesTab from '@/components/settings/SettingsSiteRulesTab.vue'
-import SettingsServicesTab from '@/components/settings/SettingsServicesTab.vue'
-import SettingsSystemTab from '@/components/settings/SettingsSystemTab.vue'
-import SettingsToolsTab from '@/components/settings/SettingsToolsTab.vue'
-import SettingsTorrentTab from '@/components/settings/SettingsTorrentTab.vue'
-import SettingsTransfersTab from '@/components/settings/SettingsTransfersTab.vue'
-import SettingsUnattendedTab from '@/components/settings/SettingsUnattendedTab.vue'
-import SettingsUsenetTab from '@/components/settings/SettingsUsenetTab.vue'
 import { clearWhenReconnected, onServiceReconnected } from '@/composables/serviceConnection'
 import { useConfirm } from '@/composables/useConfirm'
 import { useFetchState } from '@/composables/useFetchState'
+import { useLazySection } from '@/composables/useLazySection'
 import { provideSettingsDocument } from '@/composables/useSettingsDocument'
+import { useSettingsDraft } from '@/composables/useSettingsDraft'
 import { useSettingsSubTab } from '@/composables/useSettingsSubTab'
 import { useUnsavedGuard } from '@/composables/useUnsavedGuard'
-import { defaultSettings, emptyNumberFields } from '@/settingsDefaults'
+import { emptyNumberFields } from '@/settingsDefaults'
 import { SETTINGS_SECTIONS, settingsSection } from '@/settingsSections'
 import { useProxyProfiles } from '@/stores/proxyProfiles'
 import { useSettingsStore } from '@/stores/settings'
@@ -48,24 +25,51 @@ import { setShowNzbHandOver } from '@/utils/nzbHandOver'
 import { setShowPackageHandOver } from '@/utils/packageHandOver'
 import { setPackagesClosedByDefault } from '@/utils/packageGroups'
 import { setTitleStatus } from '@/utils/titleStatus'
-import { MIB } from '@/utils/format'
 
 const { t } = useI18n()
+/** One chunk per page: the URL shows one of them, and together they were 654 KB (RD-1480-18). */
+const lazySection = useLazySection()
+const SettingsAboutTab = lazySection(() => import('@/components/settings/SettingsAboutTab.vue'))
+const SettingsAccountsTab = lazySection(() => import('@/components/settings/SettingsAccountsTab.vue'))
+const SettingsBandwidthTab = lazySection(() => import('@/components/settings/SettingsBandwidthTab.vue'))
+const SettingsBackupRestore = lazySection(() => import('@/components/settings/SettingsBackupRestore.vue'))
+const SettingsCaptchaTab = lazySection(() => import('@/components/settings/SettingsCaptchaTab.vue'))
+const SettingsClientsTab = lazySection(() => import('@/components/settings/SettingsClientsTab.vue'))
+const SettingsGeneralTab = lazySection(() => import('@/components/settings/SettingsGeneralTab.vue'))
+const SettingsHotfoldersTab = lazySection(() => import('@/components/settings/SettingsHotfoldersTab.vue'))
+const SettingsInterfaceTab = lazySection(() => import('@/components/settings/SettingsInterfaceTab.vue'))
+const SettingsLinkgrabberTab = lazySection(() => import('@/components/settings/SettingsLinkgrabberTab.vue'))
+const SettingsMediaTab = lazySection(() => import('@/components/settings/SettingsMediaTab.vue'))
+const SettingsNetworkTab = lazySection(() => import('@/components/settings/SettingsNetworkTab.vue'))
+const SettingsNotificationsTab = lazySection(() => import('@/components/settings/SettingsNotificationsTab.vue'))
+const SettingsPluginsTab = lazySection(() => import('@/components/settings/SettingsPluginsTab.vue'))
+const SettingsPostprocessTab = lazySection(() => import('@/components/settings/SettingsPostprocessTab.vue'))
+const SettingsRoutingTab = lazySection(() => import('@/components/settings/SettingsRoutingTab.vue'))
+const SettingsSecurityTab = lazySection(() => import('@/components/settings/SettingsSecurityTab.vue'))
+const SettingsSiteRulesTab = lazySection(() => import('@/components/settings/SettingsSiteRulesTab.vue'))
+const SettingsServicesTab = lazySection(() => import('@/components/settings/SettingsServicesTab.vue'))
+const SettingsSystemTab = lazySection(() => import('@/components/settings/SettingsSystemTab.vue'))
+const SettingsToolsTab = lazySection(() => import('@/components/settings/SettingsToolsTab.vue'))
+const SettingsTorrentTab = lazySection(() => import('@/components/settings/SettingsTorrentTab.vue'))
+const SettingsTransfersTab = lazySection(() => import('@/components/settings/SettingsTransfersTab.vue'))
+const SettingsUnattendedTab = lazySection(() => import('@/components/settings/SettingsUnattendedTab.vue'))
+const SettingsUsenetTab = lazySection(() => import('@/components/settings/SettingsUsenetTab.vue'))
 const transfers = useTransfersStore()
-/** One shared settings object: the PUT replaces the whole document, so saving is global. */
-const settings = reactive<Settings>(defaultSettings())
 const { proxies, fetchProxies } = useProxyProfiles()
 const { fetchSettings } = useSettingsStore()
-const speedMiB = ref<number | null>(null)
 const pending = ref(false)
 /**
  * Whether the document on screen is the stored one. Until it is, `settings` holds the
- * placeholders of `defaultSettings()`, and the PUT replaces the whole document: a save before a
- * successful load — the service restarting while the page was open — wrote those placeholders
- * over the real configuration (WEB-01). The pages bound to the document, the save bar and the
- * reset wait for it.
+ * placeholders of `defaultSettings()`, and an edit of one would be saved as a choice (WEB-01).
+ * The pages bound to the document, the save bar and the reset wait for it.
  */
 const loaded = ref(false)
+/** One shared settings object over every page, so saving is global: it sends what changed (RD-1480-07). */
+const { settings, speedMiB, foreign, dirty, replace, takeForeign, save: saveDraft } = useSettingsDraft({
+  loaded: () => loaded.value,
+  busy: () => pending.value,
+  onStored: applyLoadedSettings
+})
 /** Why the document could not be loaded, shown in place of the pages bound to it. */
 const loadError = ref<string | null>(null)
 const message = ref<string | null>(null)
@@ -135,23 +139,6 @@ const waitingForDocument = computed(() => {
 /** The sub-tabs above the document's state, so a waiting tab is not a dead end on its page. */
 const waitingTabItems = computed(() => subTabs.value.map(tab => ({ value: tab.value, label: t(tab.labelKey), icon: tab.icon })))
 
-/**
- * What leaving would lose (RD-180-16): the document as last loaded or saved against the one on
- * screen. `hotfolder_poll_seconds` is left out — the hotfolders page saves it itself and then
- * writes the stored value in here, which is no edit. Keys are sorted, so an object built here in
- * another order than the server's compares equal.
- */
-function documentState(): string {
-  return JSON.stringify({ ...settings, hotfolder_poll_seconds: undefined, speedMiB: speedMiB.value }, sortedKeys)
-}
-
-function sortedKeys(_key: string, value: unknown): unknown {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
-    : value
-}
-
-const savedDocument = ref(documentState())
 /** An obligatory number field the person emptied holds the save until it has a value again. */
 const numberEmpty = computed(() => emptyNumberFields(settings).length > 0)
 const captchaDirty = computed(() => captchaTab.value?.dirty ?? false)
@@ -162,7 +149,7 @@ const proxyDirty = computed(() => networkTab.value?.proxyDirty ?? false)
  * asks only for those, and leaving the settings or closing the tab asks for any of them.
  */
 useUnsavedGuard(
-  () => documentState() !== savedDocument.value || captchaDirty.value || proxyDirty.value,
+  () => dirty() || captchaDirty.value || proxyDirty.value,
   {
     dropsEdits: to => (captchaDirty.value && to.params.section !== 'captcha')
       || (proxyDirty.value && to.params.section !== 'network')
@@ -189,13 +176,12 @@ async function load(): Promise<void> {
     else loadError.value = responseError(response)
     return
   }
-  applyLoadedSettings(response.data)
+  replace(response)
   loaded.value = true
   loadError.value = null
 }
 
 function applyLoadedSettings(value: Settings): void {
-  Object.assign(settings, value)
   // Every view formats sizes through the same module, so applying it here makes a saved change
   // visible everywhere at once instead of after a reload.
   setByteDisplay(value.byte_display)
@@ -208,10 +194,6 @@ function applyLoadedSettings(value: Settings): void {
   // The status bar sets the speed limit and the parallel downloads too (RD-1120-22); what this
   // page loaded or saved is what the bar shows from now on.
   transfers.applyRailSettings(value)
-  speedMiB.value = value.speed_limit_bytes_per_second
-    ? Number(value.speed_limit_bytes_per_second) / MIB
-    : null
-  savedDocument.value = documentState()
 }
 
 /**
@@ -235,50 +217,15 @@ async function save(): Promise<void> {
   pending.value = true
   message.value = null
   error.value = null
-  settings.speed_limit_bytes_per_second = speedMiB.value
-    ? String(Math.round(speedMiB.value * MIB))
-    : null
-  settings.global_proxy_profile_id = settings.global_proxy_profile_id || null
-  settings.custom_ca_pem = settings.custom_ca_pem?.trim() || null
-  settings.rar_executable = settings.rar_executable?.trim() || null
-  settings.passwords_file = settings.passwords_file?.trim() || null
-  settings.scripts_directory = settings.scripts_directory?.trim() || null
-  settings.excluded_domains_file = settings.excluded_domains_file?.trim() || null
-  settings.dlc_service_endpoint = settings.dlc_service_endpoint?.trim() || null
-  settings.vendor_directory = settings.vendor_directory?.trim() || null
-  settings.managed_tools_manifest_url = settings.managed_tools_manifest_url?.trim() || null
-  settings.upload_remote = settings.upload_remote?.trim() || null
-  settings.rclone_executable = settings.rclone_executable?.trim() || null
-  settings.ui_port = settings.ui_port || null
-  settings.cleanup_extensions = settings.cleanup_extensions
-    .map(extension => extension.trim().replace(/^\./, '').toLowerCase())
-    .filter((extension, index, all) => extension && all.indexOf(extension) === index)
-  settings.media_ytdlp_executable = settings.media_ytdlp_executable?.trim() || null
-  settings.media_ffmpeg_executable = settings.media_ffmpeg_executable?.trim() || null
-  settings.gallery_executable = settings.gallery_executable?.trim() || null
-  settings.record_streamlink_executable = settings.record_streamlink_executable?.trim() || null
-  settings.record_default_quality = settings.record_default_quality.trim() || 'best'
-  settings.gallery_hosts = settings.gallery_hosts
-    .map(host => host.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, ''))
-    .filter((host, index, all) => host && all.indexOf(host) === index)
-  settings.media_hosts = settings.media_hosts
-    .map(host => host.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, ''))
-    .filter((host, index, all) => host && all.indexOf(host) === index)
   // Captcha credentials use a separate, redacted API document, but belong to the same UI save.
-  const [response, captchaSaved] = await Promise.all([
-    api.PUT('/api/v1/settings', { body: settings }),
+  const [outcome, captchaSaved] = await Promise.all([
+    saveDraft(),
     captchaTab.value?.saveCaptcha() ?? Promise.resolve(true)
   ])
   pending.value = false
-  if (response.data) {
-    // Not a bare Object.assign: the display preferences live in module refs that every view
-    // formats through, and a save that only updated this component left the rest of the
-    // interface on the old unit until the page was reloaded.
-    applyLoadedSettings(response.data)
-    if (captchaSaved) message.value = t('settings.messages.saved')
-  } else {
-    error.value = responseError(response)
-  }
+  // A conflict is the notice above the save bar, which names the fields.
+  if ('refused' in outcome) error.value = responseError(outcome.refused)
+  else if ('saved' in outcome && captchaSaved) message.value = t('settings.messages.saved')
 }
 
 async function resetSettings(): Promise<void> {
@@ -297,7 +244,7 @@ async function resetSettings(): Promise<void> {
   const response = await api.POST('/api/v1/settings/reset')
   pending.value = false
   if (response.data) {
-    applyLoadedSettings(response.data)
+    replace(response)
     message.value = t('settings.messages.reset_done')
   } else {
     error.value = responseError(response)
@@ -379,7 +326,7 @@ async function resetSettings(): Promise<void> {
             <SettingsToolsTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'notifications'" class="pt-4">
-            <SettingsNotificationsTab v-model:sub-tab="subTab" />
+            <SettingsNotificationsTab v-model:sub-tab="subTab" :model-value="settings" />
           </div>
           <div v-if="activeSection === 'clients'" class="pt-4">
             <SettingsClientsTab v-model:sub-tab="subTab" :model-value="settings" />
@@ -414,8 +361,23 @@ async function resetSettings(): Promise<void> {
           </div>
         </div>
 
+        <UAlert
+          v-if="foreign"
+          :color="foreign.conflicts.length ? 'warning' : 'info'"
+          role="status"
+          icon="i-lucide-git-merge"
+          :title="t('settings.foreign.title')"
+          :description="foreign.conflicts.length ? t('settings.foreign.conflict', { fields: foreign.conflicts.join(', ') }) : t('settings.foreign.merged')"
+          :close="!foreign.conflicts.length"
+          data-testid="settings-foreign"
+          @update:open="foreign = null"
+        >
+          <template v-if="foreign.conflicts.length" #actions>
+            <UButton type="button" icon="i-lucide-undo-2" :label="t('settings.foreign.take')" color="neutral" variant="outline" size="sm" @click="takeForeign" />
+          </template>
+        </UAlert>
         <UAlert v-if="message" color="success" icon="i-lucide-circle-check" :description="message" />
-        <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
+        <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
         <template v-if="showSaveBar">
           <div class="flex flex-wrap items-center justify-end gap-2">
             <p v-if="numberEmpty" class="text-sm text-error" data-testid="settings-number-empty">{{ t('settings.messages.number_empty') }}</p>

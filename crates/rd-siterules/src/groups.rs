@@ -11,7 +11,7 @@
 //! **Mirrors are stated per group**, because the page states them per release: the n-th link
 //! at one hoster is the same file as the n-th link at every other hoster of that release
 //! (`by-host`), or every link of the release is the same file (`all`). Matching by position is
-//! what the measured pages allow -- warez.cx names no file per link, only the hoster lists in
+//! what the measured pages allow -- a release page names no file per link, only the hoster lists in
 //! the same episode order -- and it is what the LinkGrabber's declared mirror groups
 //! (RD-110-18) take as they are.
 //!

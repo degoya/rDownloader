@@ -327,7 +327,7 @@ const {
                 :description="t('streams.schedules.hint')"
                 class="mb-4"
               />
-              <UAlert v-if="scheduleError" class="mb-3" color="error" :description="scheduleError" />
+              <UAlert v-if="scheduleError" class="mb-3" color="error" role="alert" :description="scheduleError" />
               <form ref="scheduleForm" class="grid gap-3" @submit.prevent="submitSchedule">
                 <UFormField :label="t('streams.schedules.channel')" required>
                   <SearchableSelect v-model="schedule.channelId" :items="channelItems" class="w-full" />

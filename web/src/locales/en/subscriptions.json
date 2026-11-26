@@ -54,7 +54,7 @@
     "api_key_keep": "Leave empty to keep the stored key",
     "add_mapping": "Add category mapping",
     "source_category": "Indexer category id",
-    "caps_summary": "{count} categories, supports: {types}",
+    "caps_summary": "{count} category, supports: {types} | {count} categories, supports: {types}",
     "regex_editor": "Edit as a regular expression",
     "source_categories": "Categories to fetch",
     "source_categories_description": "Only these categories are requested from the indexer. With none chosen, everything is fetched and filtered afterwards.",
@@ -170,19 +170,19 @@
   },
   "remove": {
     "title": "Delete subscription?",
-    "description": "\"{name}\" is removed along with its filters, its category routing and the record of what it has already seen."
+    "description": "“{name}” is removed along with its filters, its category routing and the record of what it has already seen."
   },
   "history": {
     "action": "Clear completed history",
     "title": "Clear completed history for “{name}”?",
-    "description": "{count} completed hits and {runs} check records will be deleted permanently. Open hits remain. Deleted hits may reappear during a later check.",
-    "done": "Deleted {deleted_items} completed hits and {deleted_runs} check records."
+    "description": "Completed hits ({count}) and check records ({runs}) will be deleted permanently. Open hits remain. Deleted hits may reappear during a later check.",
+    "done": "Deleted – completed hits: {deleted_items}, check records: {deleted_runs}."
   },
   "notices": {
-    "poll_started": "Check of \"{name}\" started. The result appears here once it has finished.",
-    "poll_start_failed": "The check of \"{name}\" could not be started: {error}",
-    "poll_finished": "Check of \"{name}\" finished: {found} found, {accepted} accepted, {skipped} skipped.",
-    "poll_failed": "Check of \"{name}\" failed: {error}"
+    "poll_started": "Check of “{name}” started. The result appears here once it has finished.",
+    "poll_start_failed": "The check of “{name}” could not be started: {error}",
+    "poll_finished": "Check of “{name}” finished: {found} found, {accepted} accepted, {skipped} skipped.",
+    "poll_failed": "Check of “{name}” failed: {error}"
   },
   "requeue": {
     "no_source": "No link or NZB is stored for this entry",

@@ -21,7 +21,9 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/bandwidth/profiles/{id}",
-            put(bandwidth_handlers::update_profile).delete(bandwidth_handlers::delete_profile),
+            get(rd_api_queue::single_reads::get_bandwidth_profile)
+                .put(bandwidth_handlers::update_profile)
+                .delete(bandwidth_handlers::delete_profile),
         )
         .route(
             "/api/v1/bandwidth/schedule",
@@ -46,7 +48,9 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/notifications/targets/{id}",
-            put(notify_handlers::update_target).delete(notify_handlers::delete_target),
+            get(rd_api_admin::single_reads::get_notification_target)
+                .put(notify_handlers::update_target)
+                .delete(notify_handlers::delete_target),
         )
         .route(
             "/api/v1/notifications/targets/{id}/test",
@@ -58,7 +62,9 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/notifications/rules/{id}",
-            put(notify_handlers::update_rule).delete(notify_handlers::delete_rule),
+            get(rd_api_admin::single_reads::get_notification_rule)
+                .put(notify_handlers::update_rule)
+                .delete(notify_handlers::delete_rule),
         )
         .route(
             "/api/v1/notifications/placeholders",
@@ -147,5 +153,8 @@ pub(crate) fn routes() -> Router<AppState> {
     crate::reconnect_handlers::reconnect_status,
     crate::reconnect_handlers::trigger_reconnect,
     power_handlers::cancel_power_action,
+    rd_api_admin::single_reads::get_notification_rule,
+    rd_api_admin::single_reads::get_notification_target,
+    rd_api_queue::single_reads::get_bandwidth_profile,
 ))]
 pub(crate) struct Doc;

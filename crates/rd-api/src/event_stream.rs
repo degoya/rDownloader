@@ -51,7 +51,7 @@ pub(crate) const RECONNECT_AFTER: Duration = Duration::from_secs(5);
 /// The event name a subscriber sees when the bus dropped messages before it read them.
 ///
 /// Not an `EventKind`: it does not come off the bus, it says that part of the bus was missed.
-const LAGGED_EVENT: &str = "stream.lagged";
+pub(crate) const LAGGED_EVENT: &str = "stream.lagged";
 
 /// The event name a subscriber sees when the id it resumed from is no longer in the buffer.
 ///
@@ -59,7 +59,7 @@ const LAGGED_EVENT: &str = "stream.lagged";
 /// everything since the client's last event is gone -- because the id fell out of the buffer,
 /// because the service restarted, or because it never was an id. Silence would look exactly
 /// like a quiet bus.
-const EXPIRED_EVENT: &str = "stream.expired";
+pub(crate) const EXPIRED_EVENT: &str = "stream.expired";
 
 const LAST_EVENT_ID: &str = "last-event-id";
 
@@ -73,6 +73,17 @@ const LAST_EVENT_ID: &str = "last-event-id";
 /// The extension is missing only if this handler is ever mounted outside the session layer.
 /// That would be a routing mistake, and the safe reading of it is an empty scope set -- a
 /// silent stream rather than a stream of everything.
+///
+/// The description a client reads is `openapi::events`', written from the names and the areas.
+#[utoipa::path(
+    get,
+    path = "/api/v1/events",
+    tag = "system",
+    summary = "Live events as Server-Sent Events",
+    description = "",
+    params(("last-event-id" = Option<String>, Header, description = "The last event id the client saw; the stream resumes after it")),
+    responses((status = 200, description = "The event stream, open until either side ends it", content_type = "text/event-stream", body = String))
+)]
 pub(crate) async fn events(
     State(state): State<AppState>,
     granted: Option<Extension<Granted>>,
@@ -111,6 +122,15 @@ pub(crate) async fn events(
 /// While it is open the agent counts as running, with the version it named in its
 /// `User-Agent` (`rd_api_core::capture_agents`, RD-190-07): the stream holds the connection,
 /// and the entry ends with it.
+#[utoipa::path(
+    get,
+    path = "/api/v1/capture/events",
+    tag = "capture",
+    summary = "A capture agent's events as Server-Sent Events",
+    description = "",
+    params(("last-event-id" = Option<String>, Header, description = "The last event id the client saw; the stream resumes after it")),
+    responses((status = 200, description = "The event stream, open until either side ends it", content_type = "text/event-stream", body = String))
+)]
 pub(crate) async fn capture_events(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -329,7 +349,7 @@ fn redacted_captcha_signal(event: &EventEnvelope) -> serde_json::Value {
     })
 }
 
-fn event_name(kind: &EventKind) -> &'static str {
+pub(crate) fn event_name(kind: &EventKind) -> &'static str {
     match kind {
         EventKind::DownloadProgress => "download.progress",
         EventKind::DownloadState => "download.state",
@@ -362,6 +382,7 @@ fn event_name(kind: &EventKind) -> &'static str {
         EventKind::ReconnectChanged => "reconnect.changed",
         EventKind::RemoteJobChanged => "remote_job.changed",
         EventKind::SiteRuleChanged => "site_rule.changed",
+        EventKind::SettingsChanged => "settings.changed",
         EventKind::QueueStopMark => "queue.stop_mark",
         EventKind::QueueState => "queue.state",
         EventKind::System => "system",

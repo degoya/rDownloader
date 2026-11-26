@@ -8,11 +8,13 @@
 #[path = "../common/mod.rs"]
 mod common;
 
+mod about_notices;
 mod api_tokens;
 mod audit;
 mod auth;
 mod auth_profiles;
 mod browser_session;
+mod capture_agents;
 mod cross_site;
 mod grant_ceiling;
 mod host_check;
@@ -27,7 +29,9 @@ mod reverse_proxy;
 mod scope_matrix;
 mod scope_matrix_compat;
 mod sessions;
+mod setup_wizard;
 mod sign_in_doors;
+mod sign_in_probes;
 mod step_up;
 mod stream_revocation;
 mod token_expiry;

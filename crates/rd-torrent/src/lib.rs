@@ -41,7 +41,7 @@ use rd_scheduler::ExternalRunner;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
-pub use error::{TorrentError, TorrentErrorKind, port_in_use, torrent_kind};
+pub use error::{TorrentError, TorrentErrorKind, port_in_use, retry_after_seconds, torrent_kind};
 pub use forget::TorrentLocation;
 pub use metadata::{ParsedTorrent, parse_torrent};
 pub use network::{INTERFACE_CHECK_INTERVAL, NetworkInterface, TorrentNetworkStatus, interfaces};

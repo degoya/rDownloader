@@ -6,7 +6,8 @@
 //! with the other imports: a torrent's link needs no online check, so `enqueue` queues its
 //! package at once, through the same enqueue a click in the LinkGrabber runs.
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::Json;
 
 use crate::{
     ApiError, AppState,

@@ -24,6 +24,10 @@ pub(crate) fn routes() -> Router<AppState> {
             get(about::system_about_licenses),
         )
         .route(
+            "/api/v1/system/about/notices",
+            get(about::system_about_notices),
+        )
+        .route(
             "/api/v1/system/data-reset",
             get(data_reset_handlers::data_reset_preview),
         )
@@ -82,7 +86,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/collector/candidates/{id}",
-            delete(candidate_handlers::delete_candidate)
+            get(rd_api_intake::single_reads::get_candidate)
+                .delete(candidate_handlers::delete_candidate)
                 .patch(collector_handlers::rename_candidate),
         )
         .route(
@@ -95,7 +100,9 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/nzb/imports/{id}",
-            delete(nzb_handlers::delete_nzb_import).patch(nzb_handlers::update_nzb_import),
+            get(rd_api_intake::single_reads::get_nzb_import)
+                .delete(nzb_handlers::delete_nzb_import)
+                .patch(nzb_handlers::update_nzb_import),
         )
         .route("/api/v1/capture/pair", post(login_handlers::pair_capture))
         .route(
@@ -108,7 +115,9 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/settings",
-            get(settings_handlers::get_settings).put(settings_handlers::put_settings),
+            get(settings_handlers::get_settings)
+                .put(settings_handlers::put_settings)
+                .patch(settings_handlers::patch_settings),
         )
         .route(
             "/api/v1/settings/reset",
@@ -126,6 +135,8 @@ pub(crate) fn routes() -> Router<AppState> {
 #[derive(OpenApi)]
 #[openapi(paths(
     handlers::health,
+    crate::event_stream::events,
+    crate::event_stream::capture_events,
     login_handlers::auth_status,
     login_handlers::setup,
     login_handlers::login,
@@ -151,6 +162,7 @@ pub(crate) fn routes() -> Router<AppState> {
     tools_handlers::media_status,
     about_page::system_about,
     about::system_about_licenses,
+    about::system_about_notices,
     tools_handlers::list_managed_tools,
     tools_handlers::refresh_tool_manifest,
     tools_handlers::install_managed_tool,
@@ -172,13 +184,17 @@ pub(crate) fn routes() -> Router<AppState> {
     candidate_handlers::enqueue_candidate,
     nzb_handlers::list_nzb_imports,
     nzb_handlers::import_nzb,
+    nzb_handlers::capture_nzb,
     nzb_handlers::update_nzb_import,
     nzb_handlers::delete_nzb_import,
     settings_handlers::get_settings,
     settings_handlers::put_settings,
+    settings_handlers::patch_settings,
     settings_handlers::reset_settings,
     data_reset_handlers::data_reset_preview,
     system_cleanup::cleanup_preview,
     system_cleanup::run_cleanup,
+    rd_api_intake::single_reads::get_candidate,
+    rd_api_intake::single_reads::get_nzb_import,
 ))]
 pub(crate) struct Doc;

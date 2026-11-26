@@ -9,6 +9,11 @@ type Translate = (key: string, named?: Record<string, unknown>) => string
 
 const KEY = 'routing.rule.regex_editor.diagram'
 
+/** "Label: value", with the space French puts before the colon. */
+function labelled(label: string, value: string, t: Translate): string {
+  return t('common.text.labelled', { label, value })
+}
+
 /** The ↻ line under a repeated box: `0–1`, `1–∞`, `3`. */
 export function repeatRange(node: RegexNode): string {
   const min = node.min ?? 0
@@ -65,7 +70,7 @@ export function nodeLabel(node: RegexNode, t: Translate): string {
     case 'intersection':
     case 'difference':
     case 'symmetric_difference':
-      return node.negated ? `${t(`${KEY}.none_of`)}: ${t(`${KEY}.${node.kind}`)}` : t(`${KEY}.${node.kind}`)
+      return node.negated ? labelled(t(`${KEY}.none_of`), t(`${KEY}.${node.kind}`), t) : t(`${KEY}.${node.kind}`)
     case 'group':
       if (node.index == null) return t(`${KEY}.non_capturing_group`)
       return node.name ? t(`${KEY}.named_group`, { index: node.index, name: node.name }) : t(`${KEY}.group`, { index: node.index })
@@ -84,17 +89,17 @@ function describeNode(node: RegexNode, t: Translate): string {
       return `${children.map(child => describeNode(child, t)).join('')} (${repeatWords(node, t)})`
     case 'group': {
       const flags = node.flags?.length ? ` (${flagWords(node, t)})` : ''
-      return `${nodeLabel(node, t)}${flags}: ${children.map(child => describeNode(child, t)).join('')}`
+      return labelled(`${nodeLabel(node, t)}${flags}`, children.map(child => describeNode(child, t)).join(''), t)
     }
     case 'alternation':
-      return `${nodeLabel(node, t)}: ${children.map(child => describeNode(child, t)).join(` ${t(`${KEY}.or`)} `)}`
+      return labelled(nodeLabel(node, t), children.map(child => describeNode(child, t)).join(` ${t(`${KEY}.or`)} `), t)
     case 'class':
     case 'intersection':
     case 'difference':
     case 'symmetric_difference':
-      return `${nodeLabel(node, t)}: ${children.map(child => describeNode(child, t)).join(', ')}`
+      return labelled(nodeLabel(node, t), children.map(child => describeNode(child, t)).join(', '), t)
     case 'flags':
-      return `${nodeLabel(node, t)}: ${flagWords(node, t)}`
+      return labelled(nodeLabel(node, t), flagWords(node, t), t)
     default:
       return nodeLabel(node, t)
   }

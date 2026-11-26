@@ -5,7 +5,8 @@
 //! (`restart_service`). The tray reads only whether a restart is pending and restarts through its
 //! own routes with the agent's `capture:server_update` right (`capture_server_update`).
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::Json;
 
 use crate::audit::AuditContext;
 use crate::dto::{RestartRequest, RestartStartedResponse, RestartStatusResponse};

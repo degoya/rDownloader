@@ -27,6 +27,7 @@ pub mod nzb_handlers;
 pub mod nzb_zip;
 pub mod regex_tester;
 pub mod remote_listing_handlers;
+pub mod single_reads;
 pub mod site_rule_picks;
 pub mod site_rule_picks_dto;
 pub mod site_rules_dto;

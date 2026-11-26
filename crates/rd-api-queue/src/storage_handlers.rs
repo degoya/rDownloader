@@ -6,10 +6,8 @@
 //! lands in the storage history and, as a trust-relevant change to somebody's files, in the
 //! audit log.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath, Query};
 use rd_core::Timestamp;
 use rd_core::{
     DownloadId, DownloadKind, DownloadState, PackageId, ReuseCapability, StorageOperationKind,
@@ -86,6 +84,7 @@ pub async fn link_support(
 #[derive(Deserialize, IntoParams)]
 pub struct StorageOperationsQuery {
     /// Newest rows to return (1-1000, default 100).
+    #[param(minimum = 1, maximum = 1000)]
     pub limit: Option<u32>,
 }
 

@@ -18,7 +18,8 @@
 
 use std::time::Duration;
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_core::{DownloadFile, DownloadId, DownloadState};
 use rd_db::StoreErrorKind;
 

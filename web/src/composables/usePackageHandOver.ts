@@ -24,34 +24,40 @@ export interface PackageHandOverTarget {
 
 /**
  * The accounts, the provider slugs an installed remote-job plugin runs jobs on, and those whose
- * plugin also takes a `.torrent` file. Module-level, like `useNzbHandOver`: every package row of
+ * plugin also takes a `.torrent` or an NZB file. Module-level, like `useNzbHandOver`: every package row of
  * the LinkGrabber asks the same question, and one read answers all of them.
  */
 const accounts = ref<Account[]>([])
 const linkProviders = ref<Set<string> | null>(null)
 const torrentProviders = ref<Set<string>>(new Set())
+const nzbProviders = ref<Set<string>>(new Set())
 let loaded = false
 
 const lowered = (slugs: string[] | undefined) => new Set((slugs ?? []).map(slug => slug.toLowerCase()))
 
 async function refresh(): Promise<void> {
-  const [accountsResponse, providersResponse, torrentResponse] = await Promise.all([
+  const [accountsResponse, providersResponse, torrentResponse, nzbResponse] = await Promise.all([
     useAccountsStore().fetchAccounts(),
     api.GET('/api/v1/remote-jobs/providers'),
-    api.GET('/api/v1/remote-jobs/providers', { params: { query: { container: 'torrent' } } })
+    api.GET('/api/v1/remote-jobs/providers', { params: { query: { container: 'torrent' } } }),
+    api.GET('/api/v1/remote-jobs/providers', { params: { query: { container: 'nzb' } } })
   ])
   accounts.value = accountsResponse.data ?? []
   linkProviders.value = lowered(providersResponse.data)
   torrentProviders.value = lowered(torrentResponse.data)
+  nzbProviders.value = lowered(nzbResponse.data)
 }
 
 /** An account added or removed, or a remote-job plugin installed or removed, changes the menu. */
 const events = debouncedEventRefresh(['plugin_catalog.changed', 'account.changed'], refresh)
 
 /** What kinds of remote-job source a package's links make (RD-1440-07). */
-function sourceKinds(candidates: readonly LinkCandidate[]): { links: boolean, torrentFiles: boolean } {
+function sourceKinds(candidates: readonly LinkCandidate[]): { links: boolean, nzbs: boolean, torrentFiles: boolean } {
+  // An NZB link's address carries the indexer's key: the service hands over its document.
+  const isNzb = (candidate: LinkCandidate) => candidate.provider === 'nzb'
   return {
-    links: candidates.some(candidate => /^(magnet:|https?:)/i.test(candidate.url)),
+    links: candidates.some(candidate => !isNzb(candidate) && /^(magnet:|https?:)/i.test(candidate.url)),
+    nzbs: candidates.some(candidate => isNzb(candidate) && /^https?:/i.test(candidate.url)),
     torrentFiles: candidates.some(candidate => /^file:.*\.torrent$/i.test(candidate.url))
   }
 }
@@ -60,8 +66,8 @@ function sourceKinds(candidates: readonly LinkCandidate[]): { links: boolean, to
  * Handing a LinkGrabber package to a remote-job provider (RD-1440-07), from the package's menu.
  *
  * Offered only for accounts whose provider's plugin takes one of the package's kinds of source:
- * a magnet or an address any remote-job plugin may claim, a `.torrent` file only one that
- * declares the container (`GET /api/v1/remote-jobs/providers?container=torrent`). Whether the
+ * a magnet or an address any remote-job plugin may claim, a `.torrent` file or an NZB link only
+ * one that declares the container (`GET /api/v1/remote-jobs/providers?container=…`). Whether the
  * links handed over leave the LinkGrabber is the service's setting; the toast counts what went
  * and what stayed, and names the first reason.
  */
@@ -88,7 +94,9 @@ export function usePackageHandOver() {
       .filter(account => {
         if (!account.enabled) return false
         const slug = account.provider.toLowerCase()
-        return (kinds.links && providers.has(slug)) || (kinds.torrentFiles && torrentProviders.value.has(slug))
+        return (kinds.links && providers.has(slug))
+          || (kinds.nzbs && nzbProviders.value.has(slug))
+          || (kinds.torrentFiles && torrentProviders.value.has(slug))
       })
       .map(account => ({
         accountId: account.id,
@@ -125,7 +133,7 @@ export function usePackageHandOver() {
         toast.add({ title: t('linkgrabber.package_hand_over.done', summary, done), color: 'success', icon: 'i-lucide-cloud-upload' })
       } else {
         // The first reason stands for the rest: a package to one account tends to stay for one cause.
-        const reason = translateServerMessage({ code: first.code, message: first.message })
+        const reason = translateServerMessage(first)
         const key = done ? 'linkgrabber.package_hand_over.partly' : 'linkgrabber.package_hand_over.nothing'
         toast.add({ title: t(key, summary), description: reason, color: 'warning', icon: 'i-lucide-circle-alert' })
       }

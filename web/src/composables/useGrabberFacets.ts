@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { LinkCandidate } from '@/api/types'
 import { useHiddenHosters } from '@/composables/useHiddenHosters'
 import { useCollectorStore } from '@/stores/collector'
+import { compareText } from '@/utils/collation'
 import { hosterOf } from '@/utils/collectorSort'
 import { facetValues, type MirrorFacet } from '@/utils/mirrorGroups'
 
@@ -74,7 +75,7 @@ export function useGrabberFacets() {
     if (collector.mirrorPreference.hoster) values.add(collector.mirrorPreference.hoster)
     return [
       { label: t('linkgrabber.filter.all_hosters'), value: 'all' },
-      ...[...values].sort().map(hoster => ({ label: hoster, value: hoster }))
+      ...[...values].sort(compareText).map(hoster => ({ label: hoster, value: hoster }))
     ]
   })
   /**
@@ -86,7 +87,7 @@ export function useGrabberFacets() {
     const values = facetValues(collector.candidates, facet)
     const current = collector.mirrorPreference[facet]
     if (current && !values.includes(current)) values.push(current)
-    return [{ label: allLabel, value: 'all' }, ...values.sort().map(value => ({ label: value, value }))]
+    return [{ label: allLabel, value: 'all' }, ...values.sort(compareText).map(value => ({ label: value, value }))]
   }
   const qualityItems = computed(() => facetItems('quality', t('linkgrabber.filter.all_qualities')))
   const languageItems = computed(() => facetItems('language', t('linkgrabber.filter.all_languages')))

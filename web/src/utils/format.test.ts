@@ -3,8 +3,9 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import type { Download } from '@/api/types'
 import { i18n, setLocale } from '@/i18n'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
+import { unitName } from '@/utils/units'
 
-import { GIB, MIB, byteModel, formatByteProgress, formatBytes, formatDay, formatDuration, formatMoment, formatPauseEnd, formatRate, hasExtractable, isRecoveryVolume, progressOf, stateLabel } from './format'
+import { GIB, MIB, byteModel, formatByteProgress, formatBytes, formatDay, formatDuration, formatMoment, formatPauseEnd, formatPercent, formatRate, formatRatio, hasExtractable, isRecoveryVolume, progressOf, stateLabel } from './format'
 import { loadEveryLocale } from '@/test/locales'
 
 beforeAll(loadEveryLocale)
@@ -159,6 +160,61 @@ describe('fixed byte unit', () => {
   it('falls back to automatic scaling for a value it does not know', () => {
     setByteUnit('nonsense')
     expect(formatBytes(String(1_024n))).toBe('1.0 KiB')
+  })
+})
+
+describe('figures in the interface language', () => {
+  afterEach(async () => {
+    setByteDisplay('binary')
+    setByteUnit('auto')
+    await setLocale('en')
+  })
+
+  it.each([
+    ['en', '1.5 GiB', '1.5 MiB/s', '83.4 / 84.0 MiB', '1.50'],
+    ['de', '1,5 GiB', '1,5 MiB/s', '83,4 / 84,0 MiB', '1,50'],
+    ['es', '1,5 GiB', '1,5 MiB/s', '83,4 / 84,0 MiB', '1,50'],
+    ['fr', '1,5 Gio', '1,5 Mio/s', '83,4 / 84,0 Mio', '1,50']
+  ])('writes sizes, rates and ratios the way %s does', async (locale, size, rate, progress, ratio) => {
+    await setLocale(locale)
+    expect(formatBytes('1610612736')).toBe(size)
+    expect(formatRate(1_572_864)).toBe(rate)
+    expect(formatByteProgress('87451238', '88080384')).toBe(progress)
+    expect(formatRatio(1.5)).toBe(ratio)
+  })
+
+  it.each([
+    ['en', '45%'],
+    ['de', '45 %'],
+    ['es', '45 %'],
+    ['fr', '45 %']
+  ])('writes a percentage the way %s does', async (locale, percent) => {
+    await setLocale(locale)
+    // The languages differ in which unbreakable space they put there.
+    expect(formatPercent(45.4).replace(/\s/g, ' ')).toBe(percent)
+  })
+
+  it('keeps the digits of the figures, without a thousands separator', async () => {
+    await setLocale('de')
+    expect(formatBytes(String(1023 * 1024 ** 2))).toBe('1023 MiB')
+    expect(formatBytes('512')).toBe('512 B')
+    setByteUnit('kilo')
+    expect(formatBytes('3221225472')).toBe('3145728 KiB')
+    setByteUnit('peta')
+    expect(formatBytes('1')).toBe('<0,001 PiB')
+  })
+
+  it('names the units from one source, the decimal ladder included', async () => {
+    await setLocale('fr')
+    expect(formatBytes('512')).toBe('512 o')
+    expect(formatRate(Number.NaN)).toBe('— o/s')
+    setByteDisplay('decimal')
+    expect(formatBytes('1500')).toBe('1,5 ko')
+    expect(formatBytes('1500000000')).toBe('1,5 Go')
+    expect(unitName('MiB/s')).toBe('Mio/s')
+    expect(unitName('min')).toBe('min')
+    await setLocale('de')
+    expect(unitName('MiB/s')).toBe('MiB/s')
   })
 })
 

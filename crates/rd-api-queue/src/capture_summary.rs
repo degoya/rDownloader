@@ -1,7 +1,8 @@
 //! The capture agent's figures: how much is running, queued and failed, and how fast.
 
-use axum::{Extension, Json, extract::State};
+use axum::{Extension, extract::State};
 use rd_api_core::auth::Granted;
+use rd_api_core::extract::Json;
 
 use crate::{ApiError, AppState};
 
@@ -15,7 +16,7 @@ pub async fn capture_summary(
     State(state): State<AppState>,
     granted: Option<Extension<Granted>>,
 ) -> Result<Json<crate::dto::CaptureSummaryResponse>, ApiError> {
-    let downloads = state.database.list_downloads().await?;
+    let downloads = state.database.download_figures().await?;
     let mut figures = capture_figures(
         &downloads,
         &crate::download_handlers::moving_rates(state.scheduler.transfer_rates(), &downloads),
@@ -46,7 +47,7 @@ pub async fn capture_summary(
 /// without standing up a scheduler. The estimate is read out of the same `queue_rate()` value
 /// the rate comes from; there is deliberately no second call and no second formula here.
 pub(crate) fn capture_figures(
-    downloads: &[rd_core::DownloadFile],
+    downloads: &[rd_core::DownloadFigures],
     rates: &std::collections::HashMap<rd_core::DownloadId, u64>,
 ) -> crate::dto::CaptureSummaryResponse {
     use rd_core::DownloadState;
@@ -59,7 +60,7 @@ pub(crate) fn capture_figures(
         )
         .unwrap_or(u32::MAX)
     };
-    let unfinished = |download: &rd_core::DownloadFile| {
+    let unfinished = |download: &rd_core::DownloadFigures| {
         !matches!(
             download.state,
             DownloadState::Completed
@@ -116,7 +117,7 @@ mod capture_summary_tests {
         let waiting = file(DownloadState::Queued, 0, Some(1_000));
         let table = rates(&[(&running, 250)]);
 
-        let figures = capture_figures(&[running.clone(), waiting], &table);
+        let figures = capture_figures(&[running, waiting], &table);
 
         assert_eq!(figures.active, 1);
         assert_eq!(figures.queued, 1);
@@ -132,7 +133,7 @@ mod capture_summary_tests {
         let sizeless = file(DownloadState::Queued, 0, None);
         let table = rates(&[(&running, 250)]);
         assert_eq!(
-            capture_figures(&[running.clone(), sizeless], &table).eta_seconds,
+            capture_figures(&[running, sizeless], &table).eta_seconds,
             None,
             "one entry of unknown size makes the sum a lower bound"
         );
@@ -161,7 +162,7 @@ mod capture_summary_tests {
         let resolving = file(DownloadState::Resolving, 0, Some(1_000));
         let table = rates(&[(&running, 100)]);
 
-        let figures = capture_figures(&[running.clone(), resolving], &table);
+        let figures = capture_figures(&[running, resolving], &table);
 
         assert_eq!(figures.active, 1);
         assert_eq!(figures.queued, 0);

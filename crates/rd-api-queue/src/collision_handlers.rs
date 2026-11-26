@@ -4,10 +4,8 @@
 //! with the rest of it; these routes carry the two levels below it and the one question the
 //! queue can ask about a file.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rd_core::Timestamp;
 use rd_core::{
     CollisionDecision, CollisionPhase, CollisionPolicy, DownloadId, DownloadState,

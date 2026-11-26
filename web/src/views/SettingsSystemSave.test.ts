@@ -16,12 +16,12 @@ import settingsCatalogue from '@/locales/en/settings.json'
 import { defaultSettings } from '@/settingsDefaults'
 import { loadEveryLocale } from '@/test/locales'
 import { mountComponent } from '@/test/mount'
+import { loadSettingsPages } from '@/test/settingsPages'
 
 beforeAll(loadEveryLocale)
 
 vi.mock('@/api/client', () => apiClientMock({
   POST: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
-  PATCH: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
   DELETE: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } }))
 }))
 vi.mock('@nuxt/ui/composables', () => toastMock())
@@ -49,14 +49,16 @@ function saveButton(): HTMLElement | null {
   return screen.queryByRole('button', { name: settingsCatalogue.save })
 }
 
+beforeAll(loadSettingsPages, 60_000)
+
 describe('saving the System page', () => {
   beforeEach(() => {
     vi.mocked(api.GET).mockReset()
     vi.mocked(api.GET).mockImplementation((async (path: string) => path === '/api/v1/settings'
       ? { data: structuredClone(stored) }
       : { data: undefined, error: { code: 'internal' } }) as never)
-    vi.mocked(api.PUT).mockReset()
-    vi.mocked(api.PUT).mockImplementation((async (_path: string, init: { body: unknown }) => ({ data: init.body })) as never)
+    vi.mocked(api.PATCH).mockReset()
+    vi.mocked(api.PATCH).mockImplementation((async (_path: string, init: { body: object }) => ({ data: { ...stored, ...init.body } })) as never)
   })
 
   it('saves a changed retention field with the page’s own button', async () => {
@@ -70,10 +72,12 @@ describe('saving the System page', () => {
     await fireEvent.update(records, '120000')
     await fireEvent.click(saveButton() as HTMLElement)
 
-    await waitFor(() => expect(api.PUT).toHaveBeenCalledTimes(1))
-    const [path, init] = vi.mocked(api.PUT).mock.calls[0] as unknown as [string, { body: { log_retention_records: number } }]
+    await waitFor(() => expect(api.PATCH).toHaveBeenCalledTimes(1))
+    const [path, init] = vi.mocked(api.PATCH).mock.calls[0] as unknown as [string, { body: object }]
     expect(path).toBe('/api/v1/settings')
-    expect(init.body.log_retention_records).toBe(120000)
+    // The changed field alone: every other one is whatever the service holds (RD-1480-07).
+    expect(init.body).toEqual({ log_retention_records: 120000 })
+    expect(api.PUT).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.getByText(settingsCatalogue.messages.saved)).toBeTruthy())
   })
 
@@ -85,12 +89,12 @@ describe('saving the System page', () => {
       return input as HTMLInputElement
     })
 
-    // The number field hands an emptied field over as `undefined`, which the PUT would drop.
+    // The number field hands an emptied field over as `undefined`, which the request would drop.
     await fireEvent.update(records, '')
     await waitFor(() => expect(screen.getByText(settingsCatalogue.messages.number_empty)).toBeTruthy())
     expect((saveButton() as HTMLButtonElement).disabled).toBe(true)
     await fireEvent.click(saveButton() as HTMLElement)
-    expect(api.PUT).not.toHaveBeenCalled()
+    expect(api.PATCH).not.toHaveBeenCalled()
 
     await fireEvent.update(records, '1000')
     await waitFor(() => expect(screen.queryByText(settingsCatalogue.messages.number_empty)).toBeNull())
@@ -101,7 +105,7 @@ describe('saving the System page', () => {
     await mountSystem('updates')
     await waitFor(() => expect(saveButton()).not.toBeNull())
     // The reset sits in the page header already; the bar does not repeat it.
-    expect(screen.getAllByRole('button', { name: settingsCatalogue.reset.button })).toHaveLength(1)
+    await waitFor(() => expect(screen.getAllByRole('button', { name: settingsCatalogue.reset.button })).toHaveLength(1))
 
     document.body.innerHTML = ''
     await mountSystem('')

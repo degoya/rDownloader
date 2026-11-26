@@ -21,13 +21,17 @@ import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { About, AboutLink, ThirdPartyLicenses, ThirdPartyPackage } from '@/api/types'
+import { withBase } from '@/basePath'
 import DataState from '@/components/DataState.vue'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { useFetchState } from '@/composables/useFetchState'
 import { subTabItems } from '@/composables/useSettingsSubTab'
 import { safeHttpUrl } from '@/utils/safeUrl'
 
-type Ecosystem = 'rust' | 'npm'
+type Ecosystem = 'rust' | 'npm' | 'other'
+
+/** The licence texts in full, as a file the browser opens: two megabytes are no part of a page. */
+const NOTICES_URL = withBase('/api/v1/system/about/notices')
 
 /** Owned by the settings view, which keeps it in the address. */
 const activeTab = defineModel<string>('subTab', { default: 'about' })
@@ -37,7 +41,7 @@ const about = ref<About | null>(null)
 const licenses = ref<ThirdPartyLicenses | null>(null)
 const { loading, loadError, load: trackAbout } = useFetchState()
 const { loading: licensesLoading, loadError: licensesError, load: trackLicenses } = useFetchState()
-const open = reactive<Record<Ecosystem, boolean>>({ rust: false, npm: false })
+const open = reactive<Record<Ecosystem, boolean>>({ rust: false, npm: false, other: false })
 const filter = ref('')
 
 onMounted(() => {
@@ -79,7 +83,8 @@ const LINK_LABELS: Record<AboutLink['kind'], string> = {
 
 const ECOSYSTEMS: readonly { value: Ecosystem, labelKey: string }[] = [
   { value: 'rust', labelKey: 'settings.about.licenses.rust' },
-  { value: 'npm', labelKey: 'settings.about.licenses.npm' }
+  { value: 'npm', labelKey: 'settings.about.licenses.npm' },
+  { value: 'other', labelKey: 'settings.about.licenses.other' }
 ]
 
 function packages(ecosystem: Ecosystem): ThirdPartyPackage[] {
@@ -99,10 +104,11 @@ function summary(ecosystem: Ecosystem): { license: string, count: number }[] {
 
 type BundledTool = About['bundled_tools'][number]
 
+/** Only the container image comes with the programs, and with their texts to point at. */
 const toolColumns = computed<TableColumn<BundledTool>[]>(() => [
   { id: 'name', header: t('settings.about.licenses.column_name') },
   { id: 'license', header: t('settings.about.licenses.column_license') },
-  { id: 'file', header: t('settings.about.licenses.column_file') }
+  ...(about.value?.tools_shipped ? [{ id: 'file', header: t('settings.about.licenses.column_file') }] : [])
 ])
 
 const packageColumns = computed<TableColumn<ThirdPartyPackage>[]>(() => [
@@ -118,7 +124,7 @@ function visible(ecosystem: Ecosystem): ThirdPartyPackage[] {
     entry.name.toLowerCase().includes(term) || entry.license.toLowerCase().includes(term))
 }
 
-const anyOpen = computed(() => open.rust || open.npm)
+const anyOpen = computed(() => ECOSYSTEMS.some(({ value }) => open[value]))
 </script>
 
 <template>
@@ -217,8 +223,8 @@ const anyOpen = computed(() => open.rust || open.npm)
             <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.own') }}</h3>
             <p class="mt-1 text-sm text-toned">{{ t('settings.about.licenses.own_text', { license: about.license }) }}</p>
 
-            <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.tools') }}</h3>
-            <p class="mt-1 text-xs text-muted">{{ t('settings.about.licenses.tools_hint') }}</p>
+            <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t(about.tools_shipped ? 'settings.about.licenses.tools' : 'settings.about.licenses.tools_used') }}</h3>
+            <p class="mt-1 text-xs text-muted">{{ t(about.tools_shipped ? 'settings.about.licenses.tools_hint_shipped' : 'settings.about.licenses.tools_hint_used') }}</p>
             <div class="mt-3 overflow-x-auto">
               <UTable
                 :data="about.bundled_tools"
@@ -236,6 +242,20 @@ const anyOpen = computed(() => open.rust || open.npm)
 
             <h3 class="mt-5 text-sm font-semibold text-highlighted">{{ t('settings.about.licenses.dependencies') }}</h3>
             <p class="mt-1 text-xs text-muted">{{ t('settings.about.licenses.dependencies_hint') }}</p>
+            <UButton
+              class="mt-3"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-scale"
+              trailing-icon="i-lucide-external-link"
+              external
+              :to="NOTICES_URL"
+              target="_blank"
+              rel="noopener"
+              :label="t('settings.about.licenses.notices')"
+              data-testid="about-notices"
+            />
             <DataState class="mt-3" :loading="licensesLoading" :error="licensesError" variant="inline" />
             <template v-if="licenses">
               <UInput
@@ -283,7 +303,7 @@ const anyOpen = computed(() => open.rust || open.npm)
                           :ui="{ thead: 'eyebrow', th: 'px-3 py-1 font-normal', td: 'px-3 py-1 font-mono text-xs' }"
                           :data-list="ecosystem"
                         >
-                          <template #name-cell="{ row }"><span class="break-all">{{ row.original.name }}</span></template>
+                          <template #name-cell="{ row }"><ULink :to="safeHttpUrl(row.original.source)" target="_blank" rel="noopener noreferrer" class="break-all underline-offset-2 hover:underline">{{ row.original.name }}</ULink></template>
                           <template #version-cell="{ row }"><span class="numeric">{{ row.original.version }}</span></template>
                           <template #license-cell="{ row }">{{ row.original.license }}</template>
                         </UTable>

@@ -50,7 +50,14 @@ test('only the Firefox build may block a request and copy a response', () => {
     assert.ok(!base.permissions.includes(permission), `${permission} is in the base manifest`)
   }
   assert.deepEqual(base.host_permissions, chrome.host_permissions, 'no host is granted up front for it')
-  assert.deepEqual(firefox.host_permissions, base.host_permissions)
+})
+
+test('the Firefox build names its hosts without the port, the Chrome build with it', () => {
+  // Firefox matches a pattern with a port against nothing (bugs 1362809, 1468162), so four host
+  // permissions were none there (RD-1480-01). Chrome keeps the narrower grant.
+  assert.deepEqual(manifestFor('firefox', base).host_permissions, ['http://127.0.0.1/*', 'http://localhost/*'])
+  assert.deepEqual(manifestFor('chrome', base).host_permissions, base.host_permissions)
+  assert.ok(manifestFor('chrome', base).host_permissions.every((pattern) => /:\d+\/\*$/.test(pattern)))
 })
 
 test('Click\'n\'Load takes the two port addresses and, in Chrome alone, session rules', () => {
@@ -146,6 +153,13 @@ test('the base manifest requests the download interception permissions', () => {
   assert.ok(base.permissions.includes('activeTab'), 'the popup needs the active tab\'s address')
 })
 
+test('the Firefox build reaches a server over plain http', () => {
+  // Firefox adds `upgrade-insecure-requests` to an MV3 add-on that names no policy, and turns
+  // every request to `http://nas.local:8710` into https. Chrome does not.
+  assert.deepEqual(manifestFor('firefox', base).content_security_policy, { extension_pages: "script-src 'self'" })
+  assert.equal(manifestFor('chrome', base).content_security_policy, undefined)
+})
+
 test('the manifest declares the fields without which the extension does not load', () => {
   assert.equal(base.manifest_version, 3)
   assert.equal(base.default_locale, 'en')
@@ -175,6 +189,7 @@ test('a real build writes two manifests, both pages and all four icons', () => {
         assert.ok(existsSync(join(dir, path)), `${target} is missing ${path}`)
       }
       assert.ok(existsSync(join(dir, '_locales', 'en', 'messages.json')), `${target} ships no catalogue`)
+      assert.equal(readFileSync(join(dir, 'LICENSE'), 'utf8'), readFileSync(join(root, '..', 'LICENSE'), 'utf8'), `${target} ships no licence`)
       for (const path of manifest.web_accessible_resources.flatMap((entry) => entry.resources)) {
         assert.ok(existsSync(join(dir, path)), `${target} is missing ${path}`)
       }
@@ -257,6 +272,21 @@ test('every locale ships the same message keys as English, filled and with the s
   for (const key of ['extName', 'menuLink', 'menuPage', 'menuSelection', 'menuSession', 'interceptSending', 'interceptKeep', 'sessionShared', 'captchaWaiting', 'captchaAnswer']) {
     assert.ok(keys.includes(key))
   }
+})
+
+test('each catalogue names its own language, and the store line fits', () => {
+  // `pageLanguage` is the `lang` of the three pages and the plural rule (RD-1480-03); the
+  // description is what the stores show from the package, Chrome at most 132 characters of it.
+  for (const locale of requiredLocales) {
+    const catalogue = JSON.parse(readFileSync(join(root, '_locales', locale, 'messages.json'), 'utf8'))
+    assert.equal(catalogue.pageLanguage.message, locale)
+    assert.ok(catalogue.extDescription.message.length <= 132, `${locale}: ${catalogue.extDescription.message.length}`)
+  }
+})
+
+test('the German catalogue spells its umlauts', () => {
+  const german = readFileSync(join(root, '_locales', 'de', 'messages.json'), 'utf8')
+  assert.deepEqual(german.match(/\b(fuer|koennen|muessen|waehlen|ueber|geloescht|zurueck)\w*/gi), null)
 })
 
 test('a stray file in the locales directory is ignored, not fatal', () => {

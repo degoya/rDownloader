@@ -2,13 +2,14 @@
 #
 # The end-to-end runs of RD-180-12 on this machine, the same files `.github/workflows/e2e.yml`
 # runs: the Chrome extension in Chromium against a fresh service (web/e2e/extension.e2e.mjs, and
-# Click'n'Load through it, web/e2e/click-and-load.e2e.mjs) and the capture agent against one
-# (web/e2e/capture.e2e.mjs). Each starts its own throwaway service; nothing here touches a running
-# installation.
+# Click'n'Load through it, web/e2e/click-and-load.e2e.mjs), the web interface in Chromium
+# (web/e2e/web-ui.e2e.mjs), the extension in Firefox where Firefox and geckodriver are installed
+# (web/e2e/firefox.e2e.mjs) and the capture agent (web/e2e/capture.e2e.mjs). Each starts its own
+# throwaway service; nothing here touches a running installation.
 #
 # Usage:
-#   scripts/e2e.sh                     # both, with the newest binaries found (see below)
-#   scripts/e2e.sh --browser           # the extension only
+#   scripts/e2e.sh                     # all, with the newest binaries found (see below)
+#   scripts/e2e.sh --browser           # the extension and the web interface only
 #   scripts/e2e.sh --capture           # the capture agent only
 #   scripts/e2e.sh --bin-dir DIR       # rdownloader and rdownloader-capture from DIR
 #   scripts/e2e.sh --build             # build both in `release-test` first
@@ -59,7 +60,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h | --help)
-            sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
@@ -123,6 +124,31 @@ if [[ "$browser" -eq 1 ]]; then
     else
         echo "FAIL the Click'n'Load run (service log: $work/click-and-load/service/service.log)" >&2
         failures=$((failures + 1))
+    fi
+    # The interface is the one the binary embeds: an old binary shows an old one (RD-1480-25).
+    echo "==> the web interface against a fresh service"
+    if RD_E2E_SERVER="$bin_dir/rdownloader" RD_E2E_WORK="$work/web-ui" \
+       node --test --test-reporter=spec web/e2e/web-ui.e2e.mjs; then
+        echo "ok   the web interface run"
+    else
+        echo "FAIL the web interface run (service log: $work/web-ui/service/service.log)" >&2
+        failures=$((failures + 1))
+    fi
+    # RD-1480-04. Not every machine here has Firefox; e2e.yml's runner does, and there a missing
+    # one fails. 127.0.0.1:9666 has to be free for this run as well.
+    if command -v "${RD_E2E_GECKODRIVER:-geckodriver}" >/dev/null \
+       && command -v "${RD_E2E_FIREFOX:-firefox}" >/dev/null; then
+        echo "==> the Firefox extension against a fresh service"
+        if RD_E2E_SERVER="$bin_dir/rdownloader" RD_E2E_WORK="$work/firefox" \
+           RD_E2E_FIREFOX_EXTENSION="$ROOT/artifacts/browser-extensions/firefox" \
+           node --test --test-reporter=spec web/e2e/firefox.e2e.mjs; then
+            echo "ok   the Firefox run"
+        else
+            echo "FAIL the Firefox run (logs: $work/firefox)" >&2
+            failures=$((failures + 1))
+        fi
+    else
+        echo "NOT RUN the Firefox extension: no firefox or no geckodriver here; e2e.yml runs it" >&2
     fi
 fi
 

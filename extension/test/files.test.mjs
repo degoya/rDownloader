@@ -27,6 +27,7 @@ import {
 import { filesOutcome } from '../src/popup.js'
 import { createSessionSharer } from '../src/session.js'
 
+import { fakeBrowser } from './fake-browser.mjs'
 import { CONFIG, names, setupInterceptor } from './fakes.mjs'
 
 const CART = 'https://indexer.test/getnzb/abc'
@@ -38,48 +39,14 @@ const SESSION = [
   { name: 'sess', value: 's3cr3t', domain: '.indexer.test', path: '/', secure: true, httpOnly: true }
 ]
 
-/**
- * A browser whose grants and `storage.local` are real state: what `permissions.request` grants,
- * `permissions.contains` answers, and `permissions.remove` takes away again.
- */
+/** A browser that has `filter` copy a response (Firefox), or none (Chrome). */
 function browser(calls, { grant = true, sites = [], granted = [], filter = null } = {}) {
-  const local = { [SITES_KEY]: sites }
-  const grants = new Set(granted)
-  const api = {
-    runtime: { id: 'self', getURL: (path) => `moz-extension://self/${path}` },
-    storage: {
-      local: {
-        get: async (defaults) => ({ ...defaults, ...structuredClone(local) }),
-        set: async (values) => { calls.push(['store', structuredClone(values)]); Object.assign(local, structuredClone(values)) }
-      }
-    },
-    permissions: {
-      request: async (value) => {
-        calls.push(['request', value])
-        if (grant) for (const entry of [...value.permissions, ...value.origins]) grants.add(entry)
-        return grant
-      },
-      contains: async (value) => [...(value.permissions ?? []), ...value.origins].every((entry) => grants.has(entry)),
-      remove: async (value) => {
-        calls.push(['remove', value])
-        for (const entry of [...value.permissions, ...value.origins]) grants.delete(entry)
-        return true
-      }
-    },
-    cookies: { getAll: async (query) => { calls.push(['getAll', query]); return SESSION } },
-    downloads: {
-      pause: async (id) => calls.push(['pause', id]),
-      resume: async (id) => calls.push(['resume', id]),
-      cancel: async (id) => calls.push(['cancel', id]),
-      removeFile: async (id) => calls.push(['removeFile', id]),
-      erase: async (query) => calls.push(['erase', query.id])
-    },
-    webRequest: filter ? { filterResponseData: (requestId) => { calls.push(['filter', requestId]); return filter } } : {}
-  }
-  return { api, local, grants }
+  const fake = fakeBrowser(filter ? 'firefox' : 'chrome', { calls, answer: () => grant, local: { [SITES_KEY]: sites }, grants: granted, cookies: SESSION })
+  if (filter) fake.api.webRequest.filterResponseData = (requestId) => { calls.push(['filter', requestId]); return filter }
+  return { api: fake.api, local: fake.stored, gesture: fake.gesture, held: fake.held }
 }
 
-const ALLOWED = { sites: [HOST], granted: ['cookies', sitePattern(HOST)] }
+const ALLOWED = { sites: [HOST], granted: ['cookies', 'authenticationInfo', sitePattern(HOST)] }
 
 /** A StreamFilter that records what the browser would receive. */
 function streamFilter(calls) {
@@ -136,8 +103,8 @@ test('a consent names one host, both schemes, and nothing below it', () => {
 
 test('allowing asks the browser first and records the site only once it granted', async () => {
   const calls = []
-  const { api, local } = browser(calls)
-  const result = await allowSite(api, CART)
+  const { api, local, gesture } = browser(calls)
+  const result = await gesture(() => allowSite(api, CART))
   assert.deepEqual(result, { ok: true, code: null, host: HOST })
   // The request is the first thing the click does, so it is still the click's gesture.
   assert.deepEqual(calls[0], ['request', { permissions: ['cookies'], origins: ['*://indexer.test/*'] }])
@@ -146,10 +113,20 @@ test('allowing asks the browser first and records the site only once it granted'
   assert.equal(await siteConsented(api, 'https://www.indexer.test/getnzb/abc'), false, 'one host, not its neighbours')
 })
 
+test('the permission is requested in the click itself, as Firefox demands', async () => {
+  const fake = fakeBrowser('firefox')
+  assert.equal((await fake.gesture(() => allowSite(fake.api, CART))).ok, true)
+  assert.equal(fake.prompts.length, 1)
+  // Out of the click Firefox refuses the call; that is a refusal, and nothing is recorded.
+  const late = fakeBrowser('firefox')
+  assert.deepEqual(await allowSite(late.api, CART), { ok: false, code: 'denied', host: HOST })
+  assert.ok(!(SITES_KEY in late.stored))
+})
+
 test('a refused permission records nothing', async () => {
   const calls = []
-  const { api, local } = browser(calls, { grant: false })
-  assert.deepEqual(await allowSite(api, CART), { ok: false, code: 'denied', host: HOST })
+  const { api, local, gesture } = browser(calls, { grant: false })
+  assert.deepEqual(await gesture(() => allowSite(api, CART)), { ok: false, code: 'denied', host: HOST })
   assert.deepEqual(local[SITES_KEY], [])
   assert.ok(!names(calls).includes('store'))
   assert.deepEqual(filesOutcome({ ok: false, code: 'denied', host: HOST }), { key: 'filesDenied', substitutions: [HOST], ok: false })
@@ -157,7 +134,7 @@ test('a refused permission records nothing', async () => {
 
 test('revoking takes the row and the grant back, and cookies with the last site', async () => {
   const calls = []
-  const { api, local, grants } = browser(calls, {
+  const { api, local, held } = browser(calls, {
     sites: [HOST, 'other.test'],
     granted: ['cookies', sitePattern(HOST), sitePattern('other.test')]
   })
@@ -165,7 +142,7 @@ test('revoking takes the row and the grant back, and cookies with the last site'
   assert.deepEqual(local[SITES_KEY], ['other.test'])
   assert.deepEqual(calls.at(-1), ['remove', { permissions: [], origins: ['*://indexer.test/*'] }])
   assert.equal(await siteConsented(api, CART), false)
-  assert.ok(grants.has('cookies'), 'another site still stands on cookies')
+  assert.ok(held().includes('cookies'), 'another site still stands on cookies')
   await revokeSite(api, 'other.test')
   assert.deepEqual(calls.at(-1), ['remove', { permissions: ['cookies'], origins: ['*://other.test/*'] }])
   assert.equal(await holdsCookieConsent(api), false)
@@ -402,7 +379,7 @@ test('the interceptor hands an NZB to the file handover and still never pauses i
 
 test('a session share or handover leaves cookies granted while a site stands on them', async () => {
   const calls = []
-  const { api } = browser(calls, ALLOWED)
+  const { api, gesture } = browser(calls, ALLOWED)
   const sharer = createSessionSharer({
     api,
     loadConfig: async () => CONFIG,
@@ -410,7 +387,7 @@ test('a session share or handover leaves cookies granted while a site stands on 
     message: (key) => key,
     notify: async () => {}
   })
-  await sharer.share(CART, { includeSubdomains: false })
+  await gesture(() => sharer.share(CART, { includeSubdomains: false }))
   // The share's own origin is this site's, which the consent holds: neither goes.
   assert.deepEqual(calls.find(([name]) => name === 'remove'), ['remove', { permissions: [], origins: [] }])
   assert.equal(await siteConsented(api, CART), true)

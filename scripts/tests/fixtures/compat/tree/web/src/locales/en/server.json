@@ -1,0 +1,7 @@
+{
+  "codes": {
+    "item.gone": "The item is gone",
+    "item.kept": "The item was kept",
+    "item.not_found": "Item not found"
+  }
+}

@@ -241,6 +241,7 @@ const emptyActions = computed(() => [
     <UAlert
       v-if="rules.error.value"
       color="error"
+      role="alert"
       icon="i-lucide-circle-alert"
       :description="rules.error.value"
     />

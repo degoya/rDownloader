@@ -142,7 +142,7 @@
     "import_unreadable": "That file is not a rule export.",
     "imported": "Imported: {stored} new, {replaced} replaced, of {total} rules in the file.",
     "refused_one": "{name} was refused",
-    "export_selected": "Export {count} rules",
+    "export_selected": "Export {count} rule | Export {count} rules",
     "export_hint": "Writes the ticked rules to a file, or every rule when none is ticked, each with its switch. Another installation imports the file without rework.",
     "select": "Select {name} for the export"
   },
@@ -202,13 +202,13 @@
   "clear": {
     "button": "Delete all",
     "title": "Delete every site rule?",
-    "description": "All {count} rules are deleted from this installation with their check results. Export them first if you want to keep them. The group switches stay.",
+    "description": "{count} rule is deleted from this installation with its check results. Export it first if you want to keep it. The group switches stay. | All {count} rules are deleted from this installation with their check results. Export them first if you want to keep them. The group switches stay.",
     "confirm": "Delete all",
-    "done": "{count} rules deleted."
+    "done": "{count} rule deleted. | {count} rules deleted."
   },
   "examples": {
     "restore": "Restore bundled rules",
-    "restored": "{count} bundled rules restored, switched off.",
+    "restored": "{count} bundled rule restored, switched off. | {count} bundled rules restored, switched off.",
     "none_missing": "Every bundled rule is already here."
   },
   "bundled": {

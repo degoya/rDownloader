@@ -130,7 +130,9 @@
     "skip_to_content": "Skip to content",
     "main_navigation": "Main navigation",
     "queue_status": "{active} of {total} packages downloading",
-    "reorder_keys": "Arrow keys up and down move the entry without a mouse"
+    "reorder_keys": "Arrow keys up and down move the entry without a mouse",
+    "progress_of": "Progress: {name}",
+    "usage_of": "Space used: {name}"
   },
   "backup": {
     "export": "Export",
@@ -139,7 +141,7 @@
     "invalid_file": "This file is not an rDownloader bundle",
     "confirm_title": "Import bundle?",
     "confirm": "Import",
-    "confirm_description": "The file carries {count} entries. Existing ones of the same name are left untouched.",
+    "confirm_description": "The file carries {count} entry. Existing ones of the same name are left untouched. | The file carries {count} entries. Existing ones of the same name are left untouched.",
     "import_success": "Import finished",
     "import_summary": "{created} imported, {skipped} skipped"
   },
@@ -240,5 +242,23 @@
   "selection": {
     "detail": "{items} in {packages}",
     "summary": "{figures} selected"
+  },
+  "byte_units": {
+    "kib": "KiB",
+    "mib": "MiB",
+    "gib": "GiB",
+    "tib": "TiB",
+    "pib": "PiB",
+    "b": "B",
+    "kb": "kB",
+    "mb": "MB",
+    "gb": "GB",
+    "tb": "TB",
+    "pb": "PB"
+  },
+  "text": {
+    "labelled": "{label}: {value}",
+    "label": "{label}:",
+    "quoted": "“{text}”"
   }
 }

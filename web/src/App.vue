@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import * as uiLocales from '@nuxt/ui/locale'
-import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { onSessionLost } from '@/api/client'
 import AuthGate from '@/components/AuthGate.vue'
 import ControlRoomLayout from '@/components/ControlRoomLayout.vue'
-import SetupWizard from '@/components/wizard/SetupWizard.vue'
 import { useDocumentTitle } from '@/composables/useDocumentTitle'
 import { resumeEventStream, suspendEventStream } from '@/composables/useEventStream'
+import { uiLocaleOf } from '@/i18n/uiLocales'
 import { useCaptchasStore } from '@/stores/captchas'
 import { useCollectorStore } from '@/stores/collector'
 import { useQueuePauseStore } from '@/stores/queuePause'
@@ -30,9 +29,9 @@ const queuePause = useQueuePauseStore()
 const { t, locale } = useI18n()
 // The one place the browser tab is written; every view leaves it alone (RD-106-07).
 useDocumentTitle()
-// Nuxt UI names its locales by the same two letters, so a language added to `languages.json`
-// gets its component strings without a change here; one Nuxt UI lacks stays English.
-const uiLocale = computed(() => (uiLocales as Record<string, typeof uiLocales.en>)[locale.value] ?? uiLocales.en)
+const uiLocale = computed(() => uiLocaleOf(locale.value))
+// Seen once per installation, so it is not part of what every visit loads (RD-1480-18).
+const SetupWizard = defineAsyncComponent(() => import('@/components/wizard/SetupWizard.vue'))
 
 onMounted(() => void session.initialize())
 // Any request refused for want of a session sends the whole interface back to the sign-in,

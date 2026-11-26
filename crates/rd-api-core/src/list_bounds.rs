@@ -7,7 +7,7 @@
 
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 
-use crate::{ApiError, dto::PageQuery, error_codes::bulk_range};
+use crate::{ApiError, dto::PageQuery, error_codes::bulk_range, extract::Query};
 
 /// The most ids one bulk request may carry; every bulk route refuses more.
 ///
@@ -45,9 +45,9 @@ pub(crate) fn page_limit_range() -> ApiError {
 
 /// The page window a request asks for, read from its query string.
 ///
-/// An extractor of its own rather than `Query<PageQuery>`: axum answers a `limit` or `offset`
-/// that is not a number with an uncoded plain-text `400`, and every REST error here carries a
-/// stable code. A malformed value is refused like one out of range, as `request.page_limit`.
+/// An extractor of its own rather than `Query<PageQuery>`: a malformed `limit` or `offset`
+/// is refused like one out of range, as `request.page_limit`, rather than as the query string's
+/// general `request.query_invalid`.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Page(pub PageQuery);
 
@@ -58,8 +58,8 @@ impl<S: Send + Sync> axum::extract::FromRequestParts<S> for Page {
         parts: &mut axum::http::request::Parts,
         _state: &S,
     ) -> Result<Self, Self::Rejection> {
-        axum::extract::Query::<PageQuery>::try_from_uri(&parts.uri)
-            .map(|axum::extract::Query(query)| Self(query))
+        Query::<PageQuery>::try_from_uri(&parts.uri)
+            .map(|Query(query)| Self(query))
             .map_err(|_| page_limit_range())
     }
 }

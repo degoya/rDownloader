@@ -99,12 +99,12 @@ const remove = () => send({ limit_bytes: null })
       <span v-if="quota?.reset_on" class="text-muted">· {{ t('usenet.quota.resets_on', { date: formatDay(`${quota.reset_on}T12:00:00Z`) }) }}</span>
       <UButton v-if="!open" size="xs" color="neutral" variant="ghost" icon="i-lucide-gauge" :label="t('usenet.quota.edit')" @click="edit" />
     </div>
-    <UProgress v-if="quota" :model-value="percent" size="xs" :color="quota.reached_at ? 'warning' : 'primary'" />
+    <UProgress v-if="quota" :model-value="percent" :get-value-label="() => t('usenet.quota.title')" size="xs" :color="quota.reached_at ? 'warning' : 'primary'" />
     <p v-if="quota?.reached_at" class="text-warning" role="status">
       {{ quota.action === 'pause' ? t('usenet.quota.reached_pause') : t('usenet.quota.reached_backup') }}
     </p>
     <form v-if="open" class="grid gap-3 border border-muted p-3" @submit.prevent="save">
-      <UAlert v-if="error" color="error" :description="error" />
+      <UAlert v-if="error" color="error" role="alert" :description="error" />
       <UFormField :label="t('usenet.quota.limit')" name="quota_limit" :description="t('usenet.quota.limit_hint')" required>
         <NumberWithUnit v-model="form.limitGiB" unit="GiB" :min="0.01" :format-options="DECIMAL" :step-snapping="false" required class="w-full" />
       </UFormField>

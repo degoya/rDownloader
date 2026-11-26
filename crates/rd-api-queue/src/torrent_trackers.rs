@@ -4,10 +4,8 @@
 //! API addresses an entry by the stable id derived from its URL and answers with the
 //! redacted form only; a client that wants to remove or reorder a tracker sends ids.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path, Query};
 use rd_core::{DownloadId, TorrentTracker, TrackerOrigin, TrackerScrape, redact_tracker_url};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -211,7 +209,9 @@ pub async fn reannounce(
         // meant a reworded refusal quietly turned a documented 429 into a 400.
         match rd_torrent::torrent_kind(&error) {
             Some(rd_torrent::TorrentErrorKind::RateLimited) => {
+                let seconds = rd_torrent::retry_after_seconds(&error).unwrap_or(1);
                 ApiError::too_many_requests("torrent.reannounce_rate_limited", message)
+                    .with_param("seconds", seconds)
             }
             // The engine did not start: another program holds its fixed port (RD-1250-04).
             Some(rd_torrent::TorrentErrorKind::PortInUse) => {
@@ -323,8 +323,9 @@ fn validate_tracker_url(url: &str) -> Result<String, ApiError> {
 /// Query parameters of the peer list.
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct PeerPageQuery {
-    /// Page size; clamped to the server maximum.
+    /// Page size, 1 to 200; 50 when left out. A value outside is brought to the nearest bound.
     #[serde(default)]
+    #[param(minimum = 1, maximum = 200)]
     pub limit: Option<usize>,
     /// Opaque cursor from the previous page.
     #[serde(default)]
@@ -373,7 +374,7 @@ pub async fn torrent_stats(
 pub async fn torrent_peers(
     State(state): State<AppState>,
     Path(id): Path<DownloadId>,
-    axum::extract::Query(query): axum::extract::Query<PeerPageQuery>,
+    Query(query): Query<PeerPageQuery>,
 ) -> Result<Json<rd_core::TorrentPeerPage>, ApiError> {
     if !state.queue.torrent.capabilities().peer_stats {
         return Err(crate::torrent_control::unsupported("peer_stats"));

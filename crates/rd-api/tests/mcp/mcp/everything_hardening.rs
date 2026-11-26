@@ -209,6 +209,51 @@ async fn an_answer_quoting_third_parties_ends_with_the_untrusted_notice() {
     assert!(!described("get_settings").contains("[untrusted content]"));
 }
 
+/// RD-1480-06: `tools/list` offers what the token may call, with each tool's hints; a tool left
+/// out is refused all the same when it is called.
+#[tokio::test]
+async fn the_tool_list_follows_the_token_and_the_call_is_still_checked() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let router = installation(directory.path()).await;
+    let body = json!({ "jsonrpc": "2.0", "id": 11, "method": "tools/list" }).to_string();
+    let mut lists = Vec::new();
+    for bearer in [API_BEARER, common::READ_BEARER] {
+        let session = handshake(&router, bearer).await;
+        let (_, content_type, response) =
+            call(&router, mcp_request(Some(bearer), Some(&session), &body)).await;
+        let answer = extract_json(&content_type, &response);
+        lists.push(answer["result"]["tools"].as_array().expect("tools").clone());
+    }
+    let [all, read] = lists.as_slice() else {
+        panic!("two lists");
+    };
+    let named = |tools: &[serde_json::Value], name: &str| {
+        tools.iter().find(|tool| tool["name"] == name).cloned()
+    };
+    assert!(read.len() < all.len(), "{} of {}", read.len(), all.len());
+    assert!(named(read, "list_downloads").is_some());
+    assert!(named(read, "delete_packages").is_none());
+
+    let hints = |name: &str| named(all, name).expect(name)["annotations"].clone();
+    assert_eq!(hints("list_downloads"), json!({ "readOnlyHint": true }));
+    assert_eq!(hints("delete_packages")["destructiveHint"], true);
+    assert_eq!(hints("create_category")["destructiveHint"], false);
+
+    let session = handshake(&router, common::READ_BEARER).await;
+    let refused = envelope(
+        &router,
+        common::READ_BEARER,
+        &session,
+        "delete_packages",
+        &json!({ "ids": [] }),
+    )
+    .await;
+    assert_eq!(
+        refused["error"]["data"]["code"], "auth.scope_insufficient",
+        "{refused}"
+    );
+}
+
 #[tokio::test]
 async fn a_webhook_destination_is_answered_without_the_key_in_its_path() {
     const KEY: &str = "rd-1190-21-hook-5e8a7c";

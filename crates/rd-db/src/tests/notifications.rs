@@ -55,6 +55,7 @@ async fn notification_deliveries_are_trimmed_per_rule_but_never_while_pending() 
                     title: format!("Package {index}"),
                     body: "done".to_owned(),
                     package_path: None,
+                    subject: rd_notify::Subject::default(),
                 })
                 .await
                 .expect("queue delivery"),
@@ -119,6 +120,12 @@ async fn a_retried_delivery_still_names_its_package_folder_after_a_restart() {
     let directory = tempfile::tempdir().expect("tempdir");
     let path = directory.path().join("notifications.sqlite");
     let folder = "/srv/downloads/Holiday {2026}";
+    // RD-1480-11: what a webhook says it is about, kept the same way.
+    let subject = rd_notify::Subject {
+        occurred_at: rd_core::Timestamp::from_unix_seconds(1_790_000_000),
+        package_id: Some(rd_core::PackageId::new()),
+        download_id: Some(rd_core::DownloadId::new()),
+    };
     {
         let database = Database::open(&path).await.expect("database");
         let target = database
@@ -152,7 +159,10 @@ async fn a_retried_delivery_still_names_its_package_folder_after_a_restart() {
             )
             .await
             .expect("rule");
-        for (key, package_path) in [("with", Some(folder.to_owned())), ("without", None)] {
+        for (key, package_path, subject) in [
+            ("with", Some(folder.to_owned()), subject),
+            ("without", None, rd_notify::Subject::default()),
+        ] {
             database
                 .queue_notification_delivery(crate::NewDelivery {
                     rule_id: rule.id,
@@ -162,6 +172,7 @@ async fn a_retried_delivery_still_names_its_package_folder_after_a_restart() {
                     title: key.to_owned(),
                     body: "done".to_owned(),
                     package_path,
+                    subject,
                 })
                 .await
                 .expect("queue delivery");
@@ -201,6 +212,13 @@ async fn a_retried_delivery_still_names_its_package_folder_after_a_restart() {
     };
     assert_eq!(named("with"), Some((1, Some(folder.to_owned()))));
     assert_eq!(named("without"), Some((1, None)));
+    let about = |key: &str| {
+        due.iter()
+            .find(|delivery| delivery.idempotency_key == key)
+            .map(|delivery| delivery.subject)
+    };
+    assert_eq!(about("with"), Some(subject));
+    assert_eq!(about("without"), Some(rd_notify::Subject::default()));
 }
 
 /// RD-1280-02: a rule keeps its own title and text across a reopen, and a save without them

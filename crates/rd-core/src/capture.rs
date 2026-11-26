@@ -232,6 +232,7 @@ impl Scope {
             // `PostprocessCatalogChanged`, one scope along.
             | Kind::PluginCatalogChanged
             | Kind::ReconnectChanged
+            | Kind::SettingsChanged
             | Kind::System => Self::Config,
             // Announce that a credential exists, was added or was taken away.
             Kind::AccountChanged

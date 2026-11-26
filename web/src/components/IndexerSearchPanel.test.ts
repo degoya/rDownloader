@@ -14,6 +14,10 @@ import linkgrabber from '@/locales/en/linkgrabber.json'
 import subscriptions from '@/locales/en/subscriptions.json'
 import { mountComponent, settle } from '@/test/mount'
 import { setShowItemImages } from '@/utils/itemImages'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
+
+// Off by default (RD-1480-17); these tests are about the keys.
+shortcutsEnabled.value = true
 
 const get = vi.fn()
 const post = vi.fn()
@@ -129,6 +133,14 @@ describe('IndexerSearchPanel with an enabled indexer', () => {
     await ready()
     expect(screen.queryByTestId('indexer-search-unavailable')).toBeNull()
     expect(within(screen.getByTestId('indexer-search')).getByText('f').tagName).toBe('KBD')
+  })
+
+  it('shows no key at the field while the shortcuts are off', async () => {
+    shortcutsEnabled.value = false
+    mount()
+    await ready()
+    expect(within(screen.getByTestId('indexer-search')).queryByText('f')).toBeNull()
+    shortcutsEnabled.value = true
   })
 
   it('offers all enabled indexers or one, never a switched-off one', async () => {

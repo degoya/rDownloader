@@ -8,12 +8,12 @@
 use std::path::PathBuf;
 
 use axum::{
-    Json,
     body::Body,
-    extract::{Path, Query, State},
+    extract::State,
     http::{HeaderValue, header},
     response::{IntoResponse, Response},
 };
+use rd_api_core::extract::{Json, Path, Query};
 use rd_core::{LogLevel, LogRetentionSettings, Timestamp};
 use rd_db::LogQuery;
 use rd_diagnostics::{BundleInput, activity, bundle};

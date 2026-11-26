@@ -7,7 +7,7 @@ import SchedulePauseNotice from '@/components/SchedulePauseNotice.vue'
 import { shortcutKeys, withShortcut } from '@/composables/shortcutDefinitions'
 import { nextOccurrence, PAUSE_DURATIONS, useQueuePauseStore } from '@/stores/queuePause'
 import { useTransfersStore } from '@/stores/transfers'
-import { DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
+import { DOWNLOADS_NAV_NOTICES, DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
 import { formatDuration, formatPauseEnd } from '@/utils/format'
 import { clockOf, timeFieldValue } from '@/utils/timeFields'
 
@@ -99,8 +99,11 @@ async function resumeNow(): Promise<void> {
 
 <template>
   <div class="flex shrink-0 items-center gap-1" data-testid="queue-pause-control">
-    <SchedulePauseNotice :placement="props.placement" />
-    <AccountTrafficNotice :placement="props.placement" />
+    <!-- Where the header has no room the view shows them on a line of their own (RD-1480-17). -->
+    <div :class="compact ? 'contents' : DOWNLOADS_NAV_NOTICES">
+      <SchedulePauseNotice :placement="props.placement" />
+      <AccountTrafficNotice :placement="props.placement" />
+    </div>
     <template v-if="queuePause.active">
       <UButton
         icon="i-lucide-play"

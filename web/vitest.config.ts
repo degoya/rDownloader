@@ -24,6 +24,8 @@ export default defineConfig({
       '#imports': new URL('./src/test/nuxtUi/imports.ts', import.meta.url).pathname,
       '#build/app.config': new URL('./src/test/nuxtUi/imports.ts', import.meta.url).pathname,
       '#build/ui/input-number': new URL('./src/test/nuxtUi/inputNumberTheme.ts', import.meta.url).pathname,
+      // The colour plugin's sheet, read by `src/test/renderedColors.ts` (RD-1480-17).
+      '#build/ui-colors': new URL('./src/test/nuxtUi/uiColors.ts', import.meta.url).pathname,
       // The real select menu of `SearchableSelect.test.ts` and the search field inside it (RD-1180-02).
       '#build/ui/select-menu': new URL('./src/test/nuxtUi/selectMenuTheme.ts', import.meta.url).pathname,
       '#build/ui/input': new URL('./src/test/nuxtUi/selectMenuTheme.ts', import.meta.url).pathname

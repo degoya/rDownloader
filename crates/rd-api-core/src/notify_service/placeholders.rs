@@ -45,7 +45,8 @@ impl NotificationService {
         if !self.worded(burst.event, burst.category_id).await? {
             return Ok(None);
         }
-        let mut values = burst.values(&jiff::tz::TimeZone::system());
+        let language = notification_language(&self.inner.database).await;
+        let mut values = burst.values(&jiff::tz::TimeZone::system(), language);
         set_budget(&mut values, self.budget_reading().await?);
         if burst.single()
             && let Some(id) = burst.package_id
@@ -183,7 +184,7 @@ impl NotificationService {
     /// What stopped a failed package: the malware scan's finding, else its first failed file's.
     async fn package_error(&self, id: rd_core::PackageId) -> anyhow::Result<String> {
         if let Some(finding) = self.malware_finding(&id.to_string()).await {
-            return Ok(rd_core::redact_text(&finding));
+            return Ok(rd_core::redact_text(&finding.say(NotificationLanguage::En)));
         }
         Ok(self
             .inner

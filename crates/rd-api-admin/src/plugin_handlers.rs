@@ -1,11 +1,7 @@
 //! Plugin manager endpoints: listing, trust-on-first-use installation and key management.
 
-use axum::{
-    Json,
-    body::Bytes,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use axum::{body::Bytes, extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path, Query};
 use rd_plugin_host::VerifyError;
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};
@@ -133,8 +129,8 @@ pub async fn list_plugin_executions(
     ),
     responses(
         (status = 200, body = MessageResponse),
-        (status = 404, body = MessageResponse),
-        (status = 409, body = MessageResponse, description = "Unfinished work is bound to this version")
+        (status = 404, body = crate::error::ErrorBody),
+        (status = 409, body = crate::error::ErrorBody, description = "Unfinished work is bound to this version")
     )
 )]
 pub async fn remove_plugin_version(
@@ -327,7 +323,9 @@ pub async fn set_plugin_enabled(
     Path(id): Path<String>,
     Json(request): Json<PluginEnabledRequest>,
 ) -> Result<Json<MessageResponse>, ApiError> {
-    let mut settings = crate::settings_store::stored_settings(&state.database).await?;
+    let turn = state.admin.settings_turn.take().await;
+    let before = crate::settings_store::stored_settings(&state.database).await?;
+    let mut settings = before.clone();
     settings.disabled_plugins.retain(|entry| entry != &id);
     if !request.enabled {
         settings.disabled_plugins.push(id.clone());
@@ -343,6 +341,8 @@ pub async fn set_plugin_enabled(
             serde_json::to_value(&settings).map_err(anyhow::Error::new)?,
         )
         .await?;
+    rd_api_core::settings_change::announce(&state.database, Some(&before), &settings);
+    drop(turn);
     state.admin.plugins.set_disabled(settings.disabled_plugins);
     // A switched-off plugin contributes no provider, the same way startup filters it out. Doing
     // it here too means the accounts list stops offering it at once instead of at the next

@@ -13,7 +13,7 @@ import { usePackageCounts } from '@/composables/usePackageCounts'
 import { usePackageDownloadWindow } from '@/composables/usePackageDownloadWindow'
 import { usePackageStartAfter } from '@/composables/usePackageStartAfter'
 import { useStopMark } from '@/composables/useStopMark'
-import { formatByteProgress, formatDuration, formatMoment, formatRate, hasExtractable, postprocessStageLabel, priorityItems } from '@/utils/format'
+import { formatByteProgress, formatDuration, formatMoment, formatPercent, formatRate, hasExtractable, postprocessStageLabel, priorityItems } from '@/utils/format'
 import { pickableCategories } from '@/utils/pickableCategories'
 import { NO_SELECTION } from '@/utils/select'
 import { sourcePageUrl } from '@/utils/sourcePage'
@@ -351,7 +351,7 @@ function controlPackage(): void {
             <UBadge :color="windowGlyph.closed ? 'warning' : 'neutral'" variant="subtle" size="sm" icon="i-lucide-calendar-clock" class="shrink-0" role="img" :aria-label="t('downloads.window.glyph')" data-testid="download-window" />
           </UTooltip>
           <UTooltip v-if="usenet" :text="t('downloads.package.usenet')">
-            <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-newspaper" class="shrink-0" :aria-label="t('downloads.package.usenet')" data-testid="package-usenet" />
+            <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-newspaper" class="shrink-0" role="img" :aria-label="t('downloads.package.usenet')" data-testid="package-usenet" />
           </UTooltip>
           <span v-if="showPassword" class="flex shrink-0 items-center gap-1 text-warning" :title="t('downloads.package.password_stored')">
             <UIcon name="i-lucide-key-round" class="size-4" />
@@ -375,11 +375,11 @@ function controlPackage(): void {
           </UTooltip>
           <!-- Finished and unpacked are unambiguous enough to be glyphs; the word each dropped
                stays on the badge as its accessible name (RD-109-30). -->
-          <UBadge v-else-if="props.complete" color="success" variant="subtle" size="sm" icon="i-lucide-circle-check" class="shrink-0" :aria-label="t('downloads.package.complete')" :title="t('downloads.package.complete_title')" />
+          <UBadge v-else-if="props.complete" color="success" variant="subtle" size="sm" icon="i-lucide-circle-check" class="shrink-0" role="img" :aria-label="t('downloads.package.complete')" :title="t('downloads.package.complete_title')" />
           <UTooltip v-else-if="waitingForParts" :text="t('downloads.package.waiting_for_parts_title')">
-            <UBadge color="neutral" variant="subtle" size="sm" icon="i-lucide-hourglass" class="shrink-0" :aria-label="t('downloads.package.waiting_for_parts')" data-testid="waiting-for-parts" />
+            <UBadge color="neutral" variant="subtle" size="sm" icon="i-lucide-hourglass" class="shrink-0" role="img" :aria-label="t('downloads.package.waiting_for_parts')" data-testid="waiting-for-parts" />
           </UTooltip>
-          <UBadge v-if="!postprocessing && extraction === 'success'" color="success" variant="outline" size="sm" icon="i-lucide-package-open" class="shrink-0" :aria-label="t('downloads.package.extracted')" :title="t('downloads.package.extracted_title')" />
+          <UBadge v-if="!postprocessing && extraction === 'success'" color="success" variant="outline" size="sm" icon="i-lucide-package-open" class="shrink-0" role="img" :aria-label="t('downloads.package.extracted')" :title="t('downloads.package.extracted_title')" />
           <!-- Handed to a provider (RD-191-13), as an NZB row in the LinkGrabber says it; the badge
                leads to where the job can be watched. -->
           <UTooltip v-if="props.handedOverTo" :text="`${t('downloads.package.handed_over', { provider: props.handedOverTo })} — ${t('downloads.package.handed_over_hint')}`">
@@ -403,8 +403,8 @@ function controlPackage(): void {
         </span>
         <!-- A full bar already says 100%; the number beside it is the same statement twice. -->
         <div class="queue-cell-progress items-center gap-2">
-          <UProgress :model-value="progress" size="xs" class="flex-1" :color="postprocessFailed ? 'error' : 'primary'" />
-          <span v-if="progress < 100" class="numeric w-9 text-right text-2xs text-toned">{{ progress }}%</span>
+          <UProgress :model-value="progress" :get-value-label="() => t('common.a11y.progress_of', { name: props.package.name })" size="xs" class="flex-1" :color="postprocessFailed ? 'error' : 'primary'" />
+          <span v-if="progress < 100" class="numeric w-9 text-right text-2xs text-toned">{{ formatPercent(progress) }}</span>
         </div>
         <span class="queue-cell-size min-w-0 text-right">
           <span class="numeric block truncate text-xs text-muted">{{ formatByteProgress(committed, total) }}</span>

@@ -1,7 +1,7 @@
 //! Each case of the analysis, counted (RD-1260-04): how many notifications a run of events
 //! makes, decided on the payloads alone.
 
-use rd_notify::NotificationEvent;
+use rd_notify::{NotificationEvent, NotificationLanguage as L};
 use serde_json::json;
 
 use super::{
@@ -40,14 +40,17 @@ fn a_package_of_failed_files_is_one_failure_with_the_count() {
         Some(NotificationEvent::PackageFailed)
     );
     assert_eq!(
-        package_failed_body(&failed, "Holiday"),
+        package_failed_body(&failed, "Holiday").say(L::En),
         "Holiday: 50 of 50 files failed."
     );
     let again = json!({ "package_id": "p", "state": "failed", "previous": "failed" });
     assert_eq!(package_outcome(&again), None);
     // A post-processing failure has no failed file to count.
     let unpack = json!({ "state": "failed", "files": 3, "failed_files": 0 });
-    assert_eq!(package_failed_body(&unpack, "Holiday"), "Holiday (failed)");
+    assert_eq!(
+        package_failed_body(&unpack, "Holiday").say(L::En),
+        "Holiday (failed)"
+    );
 }
 
 fn captcha(change: &str, waiting: usize) -> serde_json::Value {
@@ -73,7 +76,11 @@ fn a_wave_of_captchas_is_one_start_and_one_end() {
         captcha("expired", 1),
         captcha("expired", 0),
     ];
-    let notices: Vec<_> = events.iter().filter_map(captcha_notice).collect();
+    let notices: Vec<_> = events
+        .iter()
+        .filter_map(captcha_notice)
+        .map(|(title, body)| (title.say(L::En), body.say(L::En)))
+        .collect();
     assert_eq!(notices.len(), 2, "{notices:?}");
     assert_eq!(notices[0].0, "A captcha is waiting");
     assert!(notices[0].1.contains("files.example"), "{}", notices[0].1);
@@ -99,20 +106,21 @@ fn a_countdown_is_one_start_and_its_end_is_named() {
         now,
     )
     .expect("a countdown starting is news");
-    assert_eq!(title, "Shutdown pending");
+    assert_eq!(title.say(L::En), "Shutdown pending");
+    let body = body.say(L::En);
     assert!(body.contains("in 60 seconds"), "{body}");
     let (title, _) = power_notice(
         &json!({ "state": "cancelled", "action": "standby", "reason": "cancelled" }),
         now,
     )
     .expect("a cancelled countdown is news");
-    assert_eq!(title, "Standby cancelled");
+    assert_eq!(title.say(L::En), "Standby cancelled");
     let (title, _) = power_notice(
         &json!({ "state": "cancelled", "action": "shutdown", "reason": "new_work" }),
         now,
     )
     .expect("a countdown called off is news");
-    assert_eq!(title, "Shutdown called off");
+    assert_eq!(title.say(L::En), "Shutdown called off");
     assert_eq!(
         power_notice(&json!({ "state": "running", "action": "shutdown" }), now),
         None
@@ -143,16 +151,16 @@ fn out_of_space_names_its_storage_root() {
         "name": "Downloads", "path": "/srv/downloads"
     }))
     .expect("a block is notified");
-    assert_eq!(title, "Storage root out of space: Downloads");
+    assert_eq!(title.say(L::En), "Storage root out of space: Downloads");
     assert_eq!(
-        body,
+        body.say(L::En),
         "Downloads (/srv/downloads) fell below its free-space threshold and takes no new work."
     );
     // A root no longer configured has no name: the general wording.
     let (title, _) =
         storage_notice(&json!({ "blocked": 1, "change": "blocked", "target": "x", "name": null }))
             .expect("still notified");
-    assert_eq!(title, "Storage root out of space");
+    assert_eq!(title.say(L::En), "Storage root out of space");
     assert!(
         storage_notice(&json!({ "blocked": 0, "change": "released", "name": "Downloads" }))
             .is_none()
@@ -165,20 +173,71 @@ fn the_queue_s_moments_say_what_happened() {
     let (event, title, body) =
         queue_notice(&json!({ "state": "paused", "reason": "schedule" })).expect("a pause");
     assert_eq!(event, NotificationEvent::QueuePaused);
-    assert_eq!(title, "Queue paused");
-    assert_eq!(body, "The bandwidth schedule pauses the queue.");
+    assert_eq!(title.say(L::En), "Queue paused");
+    assert_eq!(body.say(L::En), "The bandwidth schedule pauses the queue.");
     let (_, _, body) =
         queue_notice(&json!({ "state": "paused", "reason": "manual" })).expect("a pause");
-    assert_eq!(body, "The queue was paused by hand.");
+    assert_eq!(body.say(L::En), "The queue was paused by hand.");
     assert_eq!(
         queue_moment(&json!({ "state": "resumed" })),
         Some(NotificationEvent::QueueResumed)
     );
     let (event, title, _) = queue_notice(&json!({ "state": "finished" })).expect("ran empty");
     assert_eq!(
-        (event, title.as_str()),
+        (event, title.say(L::En).as_str()),
         (NotificationEvent::QueueFinished, "Queue finished")
     );
     assert!(queue_notice(&json!({ "state": "busy" })).is_none());
     assert!(queue_notice(&json!({})).is_none());
+}
+
+/// RD-1480-11: no text of these shows an unfilled hole or stays English in another language, and
+/// the English ones read as they did before there was a language.
+#[test]
+fn every_notice_is_said_in_every_language() {
+    let now = rd_core::Timestamp::now();
+    let runs_at = now + rd_core::SignedDuration::from_secs(60);
+    let cancelled = |action: &str, reason: &str| {
+        power_notice(
+            &json!({ "state": "cancelled", "action": action, "reason": reason }),
+            now,
+        )
+    };
+    let pending = json!({ "state": "pending", "pending": "shutdown", "runs_at": runs_at });
+    let soon = json!({ "state": "pending", "pending": "standby" });
+    let texts: Vec<_> = [
+        captcha_notice(&captcha("added", 1)),
+        captcha_notice(&captcha("expired", 0)),
+        power_notice(&pending, now),
+        power_notice(&soon, now),
+        cancelled("shutdown", "new_work"),
+        cancelled("hibernate", "cancelled"),
+        storage_notice(&json!({ "change": "blocked", "name": "Downloads" })),
+        storage_notice(&json!({ "change": "blocked", "name": "Downloads", "path": "/srv" })),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    assert_eq!(texts.len(), 8, "{texts:?}");
+    for (title, body) in &texts {
+        for language in L::ALL {
+            let said = format!("{} / {}", title.say(language), body.say(language));
+            assert!(!said.contains('{'), "{language:?}: {said}");
+            let english = format!("{} / {}", title.say(L::En), body.say(L::En));
+            assert!(language == L::En || said != english, "{language:?}: {said}");
+        }
+    }
+    let english: Vec<_> = texts[2..6]
+        .iter()
+        .map(|(_, body)| body.say(L::En))
+        .collect();
+    assert_eq!(
+        english,
+        [
+            "The queue is done. Shutdown runs in 60 seconds unless you cancel it.",
+            "The queue is done. Standby runs soon unless you cancel it.",
+            "New work arrived, so the shutdown does not run.",
+            "The power action countdown was cancelled.",
+        ]
+    );
 }

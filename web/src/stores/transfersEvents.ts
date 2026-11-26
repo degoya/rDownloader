@@ -134,14 +134,16 @@ export function applyPostprocessProgress(packages: Ref<DownloadPackage[]>, event
     return
   }
   if (!payload.owner_id) return
-  const pkg = packages.value.find(item => item.id === payload.owner_id)
-  if (pkg) {
-    pkg.postprocess = {
-      stage: payload.stage ?? pkg.postprocess?.stage ?? null,
-      percent: payload.percent ?? null,
-      current: payload.current ?? null
-    }
-  }
+  packages.value = packages.value.map(pkg => pkg.id === payload.owner_id
+    ? {
+        ...pkg,
+        postprocess: {
+          stage: payload.stage ?? pkg.postprocess?.stage ?? null,
+          percent: payload.percent ?? null,
+          current: payload.current ?? null
+        }
+      }
+    : pkg)
   usePostprocessStore().applyProgress(payload.owner_id, payload.stage ?? null, payload.percent ?? null, payload.current ?? null)
 }
 

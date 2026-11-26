@@ -11,10 +11,8 @@
 //! installation's own list is a different act with a different endpoint, and it sends nothing
 //! anywhere. A single "delete" that did both is exactly the mistake the separation prevents.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path, Query};
 use rd_core::{AccountId, RemoteJob, RemoteJobId};
 use rd_plugin_host::extension::RemoteJobSource;
 use serde::{Deserialize, Serialize};

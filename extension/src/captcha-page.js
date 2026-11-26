@@ -5,6 +5,8 @@
 // origin pattern names exactly that page, and the reader that runs inside it. `captcha.js`
 // re-exports everything here, so nothing that imports the feature has to know about the split.
 
+import { grantPattern } from './grants.js'
+
 /**
  * How long the reader keeps looking at an unanswered widget before it gives up, in milliseconds.
  *
@@ -55,11 +57,11 @@ export function answerFieldFor(kind) {
 }
 
 /** `<scheme>://<host>/*` for exactly the page's origin: not its subdomains, never all sites. */
-export function pageOriginPattern(pageUrl) {
+export function pageOriginPattern(pageUrl, manifest) {
   try {
     const url = new URL(String(pageUrl ?? ''))
     if (!/^https?:$/.test(url.protocol)) return null
-    return `${url.protocol}//${url.host}/*`
+    return grantPattern(url, manifest)
   } catch {
     return null
   }

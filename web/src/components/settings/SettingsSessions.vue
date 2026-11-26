@@ -130,7 +130,7 @@ function deviceLabel(session: Session): string {
       />
     </div>
 
-    <UAlert v-if="error" class="mt-3" color="error" :description="error" />
+    <UAlert v-if="error" class="mt-3" color="error" role="alert" :description="error" />
 
     <div v-if="loading && sessions.length === 0" class="mt-4 text-sm text-muted">
       {{ t('system.sessions.loading') }}

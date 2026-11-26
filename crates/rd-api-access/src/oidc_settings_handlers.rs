@@ -18,11 +18,11 @@
 //!   the only way in, and the command line is the way back the decision names.
 
 use axum::{
-    Json,
     extract::State,
     http::{HeaderMap, HeaderValue, header},
     response::{IntoResponse, Response},
 };
+use rd_api_core::extract::Json;
 use rd_api_core::input_checks::{TextLimit, optional_text, required_text};
 use rd_api_core::oidc_client::{self, LinkedIdentity, ProviderConfig};
 use rd_authn::oidc::{self, FlowPurpose};

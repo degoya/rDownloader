@@ -77,7 +77,7 @@ mkdir -p "$OUT/plugins"
 echo "==> assembling $OUT"
 install -m 755 "$binaries/rdownloader.exe" "$OUT/rdownloader.exe"
 install -m 755 "$binaries/rdownloader-capture.exe" "$OUT/rdownloader-capture.exe"
-install -m 644 README.md LICENSE "$OUT/"
+install -m 644 README.md LICENSE crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt "$OUT/"
 rd_write_version_file "$OUT" "$version" "windows x86_64" "$profile"
 install -m 644 scripts/windows/start-rdownloader.bat scripts/windows/stop-rdownloader.bat \
     scripts/windows/start-capture.bat scripts/windows/stop-capture.bat "$OUT/"

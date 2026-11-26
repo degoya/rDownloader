@@ -11,6 +11,10 @@ Google-Translate customisation id, every `<script>` body, every `<iframe>` and `
 every HTML comment, and the `owner_name` of the API answers (`Redacted Owner`). The quick
 keys, file names, sizes and content hashes are the public share's own and stay.
 
+The file page is shortened to the parts the page reader looks at (RD-1480-23, 136 kB before): the
+title, the two style rules that name the captcha form, the header's links, the download form with
+its links and one button. What is kept is verbatim; a comment marks every gap.
+
 | File | What it is |
 | --- | --- |
 | `file-page-2026-09-21.html` | the file page, `200`, `downloadButton` present |

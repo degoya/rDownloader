@@ -1,6 +1,7 @@
 {
   "name": "rDownloader",
   "short_name": "rDownloader",
+  "lang": "en",
   "description": "Local-first, cross-platform download manager",
   "id": "/",
   "start_url": "/downloads",

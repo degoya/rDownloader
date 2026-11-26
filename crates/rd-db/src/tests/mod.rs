@@ -14,6 +14,7 @@ mod collector;
 mod collector_hand_over;
 mod diagnostics;
 mod download_batches;
+mod download_figures;
 mod downloads;
 mod enrichment;
 mod grabber_order;

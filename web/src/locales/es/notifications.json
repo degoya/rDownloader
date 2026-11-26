@@ -84,7 +84,7 @@
     "form_new": "Nuevo destino",
     "secret_copy": "No se ha copiado: vuelve a introducirlo; hasta entonces la copia no tiene ninguno.",
     "setting_unset": "Sin definir",
-    "web_push_description": "Envía a cada navegador que haya activado «Push en este dispositivo» en Ajustes › Interfaz. No hace falta dirección ni secreto; el primer navegador crea este destino por sí solo."
+    "web_push_description": "Envía a cada navegador que haya activado «Push en este dispositivo» en Ajustes → Interfaz. No hace falta dirección ni secreto; el primer navegador crea este destino por sí solo."
   },
   "smtp": {
     "from": "Remitente",
@@ -129,7 +129,7 @@
     "target_removed": "destino eliminado"
   },
   "desktop": {
-    "quiet_summary_title": "Durante las horas silenciosas: {count} notificaciones",
+    "quiet_summary_title": "Durante las horas silenciosas: {count} notificación | Durante las horas silenciosas: {count} notificaciones",
     "quiet_summary_more": "y {count} más"
   },
   "template": {
@@ -172,5 +172,11 @@
     "count": "Cuántas veces ocurrió el evento en el grupo: importaciones o inicios",
     "items": "Enlaces o descargas del grupo en total",
     "names": "Los primeros nombres del grupo: los archivos iniciados, el resto como «and N more», o los orígenes de los enlaces"
+  },
+  "language": {
+    "eyebrow": "Textos",
+    "title": "Idioma de las notificaciones",
+    "description": "El idioma en que rDownloader escribe sus propios textos para push, correo, Telegram y webhooks. Lo que redactas tú en una regla queda como lo escribiste.",
+    "label": "Idioma"
   }
 }

@@ -193,7 +193,7 @@ function isSettingsBundle(value: Record<string, unknown>): value is SettingsBund
               :title="t('system.backup.export.title')"
               :description="t('system.backup.export.description')"
             />
-            <UAlert v-if="exportError" class="mt-5" color="error" icon="i-lucide-circle-alert" :description="exportError" />
+            <UAlert v-if="exportError" class="mt-5" color="error" role="alert" icon="i-lucide-circle-alert" :description="exportError" />
             <form class="mt-5 space-y-4" @submit.prevent="downloadBackup">
               <UFormField
                 name="include-secrets"
@@ -227,7 +227,7 @@ function isSettingsBundle(value: Record<string, unknown>): value is SettingsBund
               :title="t('system.backup.import.title')"
               :description="t('system.backup.import.description')"
             />
-            <UAlert v-if="importError" class="mt-5" color="error" icon="i-lucide-circle-alert" :description="importError" />
+            <UAlert v-if="importError" class="mt-5" color="error" role="alert" icon="i-lucide-circle-alert" :description="importError" />
             <form class="mt-5 space-y-4" @submit.prevent="restoreBackup">
               <div class="flex flex-wrap items-center gap-3">
                 <UFileUpload v-slot="{ open }" :model-value="null" accept=".json" reset :dropzone="false" @update:model-value="selectFile">

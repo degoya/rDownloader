@@ -58,7 +58,7 @@ defineExpose({ reload: load })
         @click="load"
       />
     </div>
-    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
     <template v-if="status">
       <UAlert
         v-if="status.kill_switch_engaged"

@@ -9,10 +9,8 @@
 //! the waiting widgets and takes the token back. A CutCaptcha never reaches this queue: only
 //! a solver service answers one.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path, Query};
 use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_captcha::{
     CaptchaAnswerers, CaptchaSettings, PendingCaptcha, PendingWidget, SolverKind, SubmitOutcome,

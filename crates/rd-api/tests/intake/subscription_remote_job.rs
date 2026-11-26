@@ -30,7 +30,7 @@ const NZB: &str = r#"<?xml version="1.0"?>
 
 /// The indexer: the NZB, and the refusal an exhausted allowance answers with inside a `200`.
 /// `asked` counts every download, so a refusal can be shown to come before the indexer is asked.
-async fn indexer(asked: Arc<AtomicUsize>) -> rd_testkit::TestServer {
+pub(crate) async fn indexer(asked: Arc<AtomicUsize>) -> rd_testkit::TestServer {
     let app = Router::new()
         .route(
             "/getnzb",

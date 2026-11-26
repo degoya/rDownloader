@@ -12,6 +12,7 @@ import { useTransfersStore } from '@/stores/transfers'
 import { MAX_ACTIVE_FILES, MIN_ACTIVE_FILES } from '@/stores/transfersSpeedLimit'
 import { formatBytes, formatDuration, formatRate } from '@/utils/format'
 import { DECIMAL, WHOLE } from '@/utils/numberInput'
+import { unitName } from '@/utils/units'
 
 const { t } = useI18n()
 const transfers = useTransfersStore()
@@ -145,7 +146,7 @@ onMounted(() => void transfers.loadRailSettings())
             :aria-label="t('downloads.toolbar.speed_limit_aria')"
             @keyup.enter="applySpeedLimit"
           />
-          <UBadge color="neutral" variant="outline" label="MiB/s" class="font-mono" />
+          <UBadge color="neutral" variant="outline" :label="unitName('MiB/s')" class="font-mono" />
         </UFieldGroup>
         <UButton v-if="!speedLimitApplied" size="xs" color="neutral" variant="outline" :label="t('downloads.toolbar.limit')" :loading="transfers.speedLimitBusy" @click="applySpeedLimit" />
         <UButton v-else size="xs" color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('downloads.toolbar.clear_limit_aria')" :title="t('downloads.toolbar.clear_limit_title')" :loading="transfers.speedLimitBusy" @click="transfers.setSpeedLimit(null)" />

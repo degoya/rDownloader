@@ -59,7 +59,7 @@ export function usePluginSupersededRemoval(options: {
 
   function announce(result: SupersededRemoval): void {
     const kept = result.kept.map(entry =>
-      `${entry.name} v${entry.version}: ${translateServerMessage(entry.reason)}`)
+      t('common.text.labelled', { label: `${entry.name} v${entry.version}`, value: translateServerMessage(entry.reason) }))
     toast.add({
       title: t('plugins.remove.superseded_done', { removed: result.removed.length, kept: kept.length }),
       ...(kept.length ? { description: kept.join(' · ') } : {}),

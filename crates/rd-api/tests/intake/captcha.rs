@@ -563,7 +563,7 @@ async fn a_cutcaptcha_without_a_solver_is_refused_with_a_code_and_never_queued()
             rd_plugin_api::CaptchaChallenge::Cutcaptcha(rd_plugin_api::CutcaptchaChallenge {
                 site_key: "SAs61IAI".to_owned(),
                 misery_key: "a1488b66da00bf332a1488993a5443c79047e752".to_owned(),
-                page_url: "https://filecrypt.cc/Container/ABC.html".to_owned(),
+                page_url: "https://container.example/Container/ABC.html".to_owned(),
             }),
             std::time::Duration::from_secs(300),
         )

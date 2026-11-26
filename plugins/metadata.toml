@@ -20,5 +20,5 @@ public_key = "5C0fhOCoSaW9Ucdh1x3lUw05IX8YfNzJcgXkgnwjzeY="
 [metadata]
 author = "DEGOYA.digital"
 homepage = "https://rdownloader.net"
-license = "MIT"
+license = "GPL-3.0-or-later"
 min_app_version = "1.9.0"

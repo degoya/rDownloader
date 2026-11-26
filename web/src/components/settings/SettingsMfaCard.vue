@@ -175,7 +175,7 @@ async function copy(value: string): Promise<void> {
   <UCard as="section" data-settings-anchor="security.mfa">
     <SectionHeader :eyebrow="t('system.mfa.eyebrow')" :title="t('system.mfa.title')" :description="t('system.mfa.description')" />
 
-    <UAlert v-if="error" class="mt-3" color="error" :description="error" />
+    <UAlert v-if="error" class="mt-3" color="error" role="alert" :description="error" />
 
     <!-- Enrolment in progress: the one time the secret and the codes are visible. -->
     <UAlert v-if="pending" class="mt-4" color="warning" :title="t('system.mfa.enrol.once')">

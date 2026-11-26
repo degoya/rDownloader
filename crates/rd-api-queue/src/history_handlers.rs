@@ -4,7 +4,8 @@
 //! Paged in SQL rather than sliced here like the other API-15 lists: the history grows with
 //! every finished package and is read with a search, so the database counts and cuts it.
 
-use axum::{Json, extract::State, http::HeaderMap};
+use axum::{extract::State, http::HeaderMap};
+use rd_api_core::extract::{Json, Query};
 use rd_api_core::list_bounds::{Page, total_header};
 use rd_core::Timestamp;
 use serde::Deserialize;
@@ -39,8 +40,8 @@ pub fn history_filter_invalid() -> ApiError {
 
 /// The filters a request asks for, read from its query string beside `limit` and `offset`.
 ///
-/// An extractor of its own for the reason [`Page`] is one: axum answers a value that does not
-/// parse with an uncoded plain-text `400`.
+/// An extractor of its own for the reason [`Page`] is one: a value that does not parse is
+/// refused as `history.filter_invalid`.
 #[derive(Clone, Debug, Default)]
 pub struct HistoryFilter(pub HistoryFilterQuery);
 
@@ -51,8 +52,8 @@ impl<S: Send + Sync> axum::extract::FromRequestParts<S> for HistoryFilter {
         parts: &mut axum::http::request::Parts,
         _state: &S,
     ) -> Result<Self, Self::Rejection> {
-        axum::extract::Query::<HistoryFilterQuery>::try_from_uri(&parts.uri)
-            .map(|axum::extract::Query(query)| Self(query))
+        Query::<HistoryFilterQuery>::try_from_uri(&parts.uri)
+            .map(|Query(query)| Self(query))
             .map_err(|_| history_filter_invalid())
     }
 }

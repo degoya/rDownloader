@@ -224,6 +224,7 @@ async fn seed_deliveries(database: &rd_db::Database) {
                 title: title.clone(),
                 body: String::new(),
                 package_path: None,
+                subject: rd_notify::Subject::default(),
             })
             .await
             .expect("queue");

@@ -12,7 +12,7 @@
 //! A valid pattern also comes back as its structure, the tree the editor draws as a diagram
 //! (RD-1140-06, `regex_tester_structure.rs`).
 
-use axum::Json;
+use rd_api_core::extract::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

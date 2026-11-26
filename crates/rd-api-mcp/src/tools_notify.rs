@@ -7,10 +7,8 @@
 //! address keeps the stored one. The browsers that receive push messages (RD-1240-13) are listed
 //! the same way: a push service's address names the browser in its path.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{
@@ -136,7 +134,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "List the rules deciding which events reach which notification destination."
+        description = "List the rules deciding which events reach which notification destination. A rule without its own wording sends the built-in one, in the language of the settings key notification_language (update_settings): en (default), de, es or fr, from the next notification on."
     )]
     pub async fn list_notification_rules(&self) -> McpToolResult {
         respond(
@@ -147,7 +145,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Create a notification rule: which events, from which category and above which severity, go to one destination. Besides the queue events (among them usenet_job_hopeless: a Usenet download given up as beyond repair, and stop_mark_reached: the queue paused at its stop mark) there are operational ones: backup_failed, backup_verify_failed, update_available, update_installed (rDownloader runs a newer version after an update), update_failed (an update did not go ahead or was taken back), service_restarting (rDownloader restarts to apply a plugin installed or updated, by request or by restart_when_needed; once per restart), plugin_update_available, plugin_update_failed, account_expiring, account_invalid, usenet_quota_reached. Activity events: stream_recorded (a livestream recording finished), subscription_matched (a subscription check accepted new items), and the opt-in download_started and links_added, which only a rule listing them gets and whose bursts arrive as one notification each. The queue's moments, opt-in too: queue_paused (the whole queue paused, once per pause; {reason} is manual, automation, schedule, stop_mark or game_mode; a used-up traffic budget stays budget_exhausted), queue_resumed (the pause ended) and queue_finished (nothing waiting, downloading or post-processed any more; once until work comes back). Its own wording: title_template and body_template with {placeholder} holes (list_notification_placeholders: which event fills which, e.g. {package}, {time}, {error}); a placeholder the event does not fill comes out empty, a name that is no placeholder is refused with notification.template_unknown_placeholder, an unbalanced brace with notification.template_syntax, a title over 200 or a text over 2000 characters with notification.template_too_long. Left out, the built-in title and text are sent. A burst of download_started or links_added is one notification, worded once when it closes: {count} (imports or starts), {items} (links or downloads in all), {names} (the first files started, the rest as 'and N more', or the links' sources), and for a burst of one start {file}, {package} and {category}. The webhook JSON keeps its fields: the templates fill only title and body."
+        description = "Create a notification rule: which events, from which category and above which severity, go to one destination. Queue events (among them usenet_job_hopeless: a Usenet download given up as beyond repair; stop_mark_reached: the queue paused at its stop mark). Operational: backup_failed, backup_verify_failed, update_available, update_installed (a newer version runs after an update), update_failed (it did not go ahead or was taken back), service_restarting (to apply a plugin installed or updated, by request or restart_when_needed; once per restart), plugin_update_available, plugin_update_failed, account_expiring, account_invalid, usenet_quota_reached. Activity events: stream_recorded (a livestream recording finished), subscription_matched (a subscription check accepted new items), and the opt-in download_started and links_added, which only a rule listing them gets and whose bursts arrive as one notification each. The queue's moments, opt-in too: queue_paused (the whole queue paused, once per pause; {reason} is manual, automation, schedule, stop_mark or game_mode; a used-up traffic budget stays budget_exhausted), queue_resumed (the pause ended) and queue_finished (nothing waiting, downloading or post-processed any more; once until work comes back). Its own wording: title_template and body_template with {placeholder} holes (list_notification_placeholders: which event fills which, e.g. {package}, {time}, {error}); a placeholder the event does not fill comes out empty, a name that is no placeholder is refused with notification.template_unknown_placeholder, an unbalanced brace with notification.template_syntax, a title over 200 or a text over 2000 characters with notification.template_too_long. Left out, the built-in title and text are sent. The placeholders of a download_started or links_added burst are in list_notification_placeholders too. The webhook JSON keeps its fields: the templates fill only title and body."
     )]
     pub async fn create_notification_rule(
         &self,

@@ -18,10 +18,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use axum::{
-    Json,
-    extract::{Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Query};
 use rd_core::PluginId;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -176,8 +174,8 @@ fn chosen_services<'a>(
     request_body = BundledInstallRequest,
     responses(
         (status = 200, body = BundledInstallResponse),
-        (status = 400, body = MessageResponse),
-        (status = 404, body = MessageResponse, description = "The bundle has no service of that key")
+        (status = 400, body = crate::error::ErrorBody),
+        (status = 404, body = crate::error::ErrorBody, description = "The bundle has no service of that key")
     )
 )]
 pub async fn install_bundled_services(
@@ -338,8 +336,8 @@ async fn audit_install(
     request_body = BundledRemoveRequest,
     responses(
         (status = 200, body = BundledRemoveResponse),
-        (status = 400, body = MessageResponse),
-        (status = 404, body = MessageResponse, description = "The bundle has no service of that key")
+        (status = 400, body = crate::error::ErrorBody),
+        (status = 404, body = crate::error::ErrorBody, description = "The bundle has no service of that key")
     )
 )]
 pub async fn remove_bundled_services(

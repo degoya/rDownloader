@@ -312,6 +312,10 @@ pub struct Delivery {
     /// the API do not show it.
     #[serde(skip)]
     pub package_path: Option<String>,
+    /// When it happened and to which package or file, for a webhook's body (RD-1480-11).
+    /// Internal like the folder.
+    #[serde(skip)]
+    pub subject: crate::Subject,
 }
 
 #[cfg(test)]

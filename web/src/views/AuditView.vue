@@ -165,7 +165,7 @@ onMounted(() => {
           </span>
         </h2>
         <p v-if="store.retention" class="text-xs text-muted">
-          {{ t('audit.list.retention', { days: store.retention.days, records: store.retention.records }) }}
+          {{ t('audit.list.retention', { days: store.retention.days, records: store.retention.records }, store.retention.days) }}
         </p>
       </div>
 

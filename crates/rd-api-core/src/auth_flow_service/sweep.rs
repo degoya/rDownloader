@@ -142,7 +142,7 @@ impl AuthFlowService {
                     // somebody does it again (RD-190-19).
                     let notice = crate::notify_notice::Notice::account_invalid(
                         account,
-                        &message,
+                        message.as_str(),
                         now.date(),
                     );
                     if let Err(error) = self

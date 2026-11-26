@@ -215,6 +215,7 @@ describe('the settings search registry (RD-170-15)', () => {
       'interface.language': 'browser',
       'interface.theme': 'browser',
       'interface.palette': 'browser',
+      'interface.shortcuts': 'browser',
       'interface.browser_notifications': 'browser',
       'interface.web_push': 'browser',
       'interface.display': 'display',

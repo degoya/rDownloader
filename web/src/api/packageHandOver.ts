@@ -21,6 +21,8 @@ export interface CandidateStayed {
   candidate_id: string
   code: string
   message: string
+  /** What the code's translation names: an indexer's reason, a limit. */
+  params?: Record<string, string>
 }
 
 export interface CollectorPackageHandOver {

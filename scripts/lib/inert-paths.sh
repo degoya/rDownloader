@@ -49,6 +49,7 @@ RD_GENERATED_FILES=(
     web/src/api/schema.d.ts
     crates/rd-api/mcp-coverage.md
     crates/rd-api/licenses/third-party.json
+    crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt
     web/components.d.ts
     web/auto-imports.d.ts
 )

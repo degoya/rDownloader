@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "rDownloader",
-    "loading": "Lecture de l'état du service",
+    "loading": "Lecture de l’état du service",
     "title_active": "{count} actifs"
   },
   "actions": {
@@ -26,7 +26,7 @@
     "duplicate": "Dupliquer",
     "copy_link": "Copier le lien",
     "copy_links": "Copier les liens",
-    "open_source_page": "Ouvrir la page d'origine"
+    "open_source_page": "Ouvrir la page d’origine"
   },
   "states": {
     "queued": "En attente",
@@ -63,12 +63,12 @@
     "no": "Non"
   },
   "errors": {
-    "request_failed": "La requête n'a pas pu être traitée.",
-    "batch_stopped": "{error} – arrêté après la partie {done} sur {total} ; les parties précédentes ont été appliquées."
+    "request_failed": "La requête n’a pas pu être traitée.",
+    "batch_stopped": "{error} – arrêté après la partie {done} sur {total} ; les parties précédentes ont été appliquées."
   },
   "data": {
     "loading": "Chargement",
-    "load_failed": "Ces données n'ont pas pu être chargées."
+    "load_failed": "Ces données n’ont pas pu être chargées."
   },
   "preferences": {
     "language": "Langue",
@@ -102,44 +102,46 @@
     "go_streams": "Aller aux streams",
     "go_subscriptions": "Aller aux abonnements",
     "go_remote_jobs": "Aller aux travaux distants",
-    "go_automation": "Aller à l'automatisation",
+    "go_automation": "Aller à l’automatisation",
     "go_settings": "Aller aux paramètres",
     "import_nzb": "Importer des fichiers",
     "toggle_transfers": "Démarrer ou mettre en pause tous les téléchargements",
     "show_help": "Afficher les raccourcis clavier",
     "toast": {
-      "paused": "Aucun transfert n'a été mis en pause. | {count} transfert a été mis en pause. | {count} transferts ont été mis en pause.",
-      "resumed": "Aucun transfert n'a été démarré. | {count} transfert a été démarré ou repris. | {count} transferts ont été démarrés ou repris.",
+      "paused": "Aucun transfert n’a été mis en pause. | {count} transfert a été mis en pause. | {count} transferts ont été mis en pause.",
+      "resumed": "Aucun transfert n’a été démarré. | {count} transfert a été démarré ou repris. | {count} transferts ont été démarrés ou repris.",
       "nothing": "Rien à mettre en pause ou à reprendre."
     },
     "toggle_sidebar": "Replier ou déplier la barre latérale",
-    "go_stats": "Aller aux statistiques et à l'historique",
+    "go_stats": "Aller aux statistiques et à l’historique",
     "go_logs": "Aller au journal",
-    "go_audit": "Aller à l'audit",
+    "go_audit": "Aller à l’audit",
     "open_search": "Ouvrir la recherche",
     "clear_completed": "Retirer les paquets terminés (dans les téléchargements)",
-    "focus_indexer_search": "Recherche : ouvre la recherche dans les indexeurs dans le LinkGrabber, depuis n’importe quelle page",
-    "add_links": "Ajouter : des liens dans le LinkGrabber, une tâche directe dans Téléchargements",
+    "focus_indexer_search": "Recherche : ouvre la recherche dans les indexeurs dans le LinkGrabber, depuis n’importe quelle page",
+    "add_links": "Ajouter : des liens dans le LinkGrabber, une tâche directe dans Téléchargements",
     "enqueue_all": "Tout charger (dans le LinkGrabber)",
     "enqueue_paused": "Tout ajouter en pause (dans le LinkGrabber)",
     "clear_linkgrabber": "Supprimer tous les liens (dans le LinkGrabber)",
     "close_dialog": "Fermer la boîte de dialogue",
-    "go_history": "Aller à l'historique"
+    "go_history": "Aller à l’historique"
   },
   "a11y": {
     "skip_to_content": "Aller au contenu",
     "main_navigation": "Navigation principale",
     "queue_status": "{active} paquets sur {total} en cours de téléchargement",
-    "reorder_keys": "Les flèches haut et bas déplacent l’entrée sans souris"
+    "reorder_keys": "Les flèches haut et bas déplacent l’entrée sans souris",
+    "progress_of": "Progression : {name}",
+    "usage_of": "Espace utilisé : {name}"
   },
   "backup": {
     "export": "Exporter",
     "import": "Importer",
     "export_success": "Fichier créé",
-    "invalid_file": "Ce fichier n'est pas un ensemble rDownloader",
-    "confirm_title": "Importer l'ensemble ?",
+    "invalid_file": "Ce fichier n’est pas un ensemble rDownloader",
+    "confirm_title": "Importer l’ensemble ?",
     "confirm": "Importer",
-    "confirm_description": "Le fichier contient {count} entrées. Celles qui existent déjà sous le même nom ne sont pas modifiées.",
+    "confirm_description": "Le fichier contient {count} entrée. Celles qui existent déjà sous le même nom ne sont pas modifiées. | Le fichier contient {count} entrées. Celles qui existent déjà sous le même nom ne sont pas modifiées.",
     "import_success": "Importation terminée",
     "import_summary": "{created} importées, {skipped} ignorées"
   },
@@ -148,7 +150,7 @@
   "copy_suffix": "copie",
   "enrichment": {
     "show": "Afficher les métadonnées",
-    "show_hint": "Masque ce que les plugins ont trouvé sur les liens ; rien n'est supprimé.",
+    "show_hint": "Masque ce que les plugins ont trouvé sur les liens ; rien n’est supprimé.",
     "source": "{name}, consulté par un plugin le {at}",
     "fields": {
       "title": "Titre",
@@ -163,12 +165,12 @@
   },
   "copy": {
     "failed_title": "La copie a échoué",
-    "failed_description": "Le navigateur n'a pas autorisé l'accès au presse-papiers. Sélectionnez le texte et copiez-le manuellement.",
+    "failed_description": "Le navigateur n’a pas autorisé l’accès au presse-papiers. Sélectionnez le texte et copiez-le manuellement.",
     "links_copied": "Aucun lien copié | {count} lien copié | {count} liens copiés",
     "copied": "Copié"
   },
   "unsaved": {
-    "title": "Abandonner les modifications non enregistrées ?",
+    "title": "Abandonner les modifications non enregistrées ?",
     "description": "Certaines modifications ne sont pas encore enregistrées. Si vous quittez la page maintenant, elles seront perdues.",
     "discard": "Abandonner"
   },
@@ -180,14 +182,14 @@
     "size": "Taille",
     "meta_downloads": "Catégorie · Compte",
     "meta_linkgrabber": "Hébergeur · Variante",
-    "resize": "Largeur de la colonne « {column} »",
-    "resize_hint": "Faites glisser ou utilisez les flèches (Maj pour des pas plus grands) ; un double-clic ou Entrée la rétablit",
+    "resize": "Largeur de la colonne « {column} »",
+    "resize_hint": "Faites glisser ou utilisez les flèches (Maj pour des pas plus grands) ; un double-clic ou Entrée la rétablit",
     "menu": "Colonnes",
     "reset_all": "Réinitialiser toutes les largeurs de colonne",
     "state_linkgrabber": "État du lien",
-    "sort": "Trier l’affichage par « {column} »",
-    "sorted_asc": "Trié par « {column} », croissant – cliquez pour décroissant",
-    "sorted_desc": "Trié par « {column} », décroissant – cliquez pour l’ordre de la file",
+    "sort": "Trier l’affichage par « {column} »",
+    "sorted_asc": "Trié par « {column} », croissant – cliquez pour décroissant",
+    "sorted_desc": "Trié par « {column} », décroissant – cliquez pour l’ordre de la file",
     "shown": "Colonnes affichées"
   },
   "weekdays": {
@@ -235,10 +237,28 @@
     "passphrase_mismatch": "Les deux saisies ne correspondent pas.",
     "passphrase_short": "Au moins 8 caractères.",
     "nzbs": "{count} NZB intégré. | {count} NZB intégrés.",
-    "nzb_failed": "Non intégrés : {list}"
+    "nzb_failed": "Non intégrés : {list}"
   },
   "selection": {
     "detail": "{items} dans {packages}",
-    "summary": "Sélection : {figures}"
+    "summary": "Sélection : {figures}"
+  },
+  "byte_units": {
+    "kib": "Kio",
+    "mib": "Mio",
+    "gib": "Gio",
+    "tib": "Tio",
+    "pib": "Pio",
+    "b": "o",
+    "kb": "ko",
+    "mb": "Mo",
+    "gb": "Go",
+    "tb": "To",
+    "pb": "Po"
+  },
+  "text": {
+    "labelled": "{label} : {value}",
+    "label": "{label} :",
+    "quoted": "« {text} »"
   }
 }

@@ -112,12 +112,21 @@ fn checkpoint_event(checkpoint: &NzbCheckpoint) -> EventEnvelope {
                 "state": state,
             }),
         ),
-        _ => EventEnvelope::new(
+        // The file whose bytes moved: a client that follows progress as figures alone tells by it
+        // whether the row it shows is one the figures cover (RD-1480-18).
+        NzbCheckpoint::AssemblySegments { file_id, .. } => EventEnvelope::new(
             EventKind::UsenetChanged,
             serde_json::json!({
-                "resource": "nzb_checkpoint"
+                "resource": "nzb_checkpoint",
+                "nzb_file_id": file_id,
             }),
         ),
+        NzbCheckpoint::FileOutput { .. } | NzbCheckpoint::EnqueueSteps { .. } => {
+            EventEnvelope::new(
+                EventKind::UsenetChanged,
+                serde_json::json!({ "resource": "nzb_checkpoint" }),
+            )
+        }
     }
 }
 

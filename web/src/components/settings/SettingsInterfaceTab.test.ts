@@ -115,7 +115,7 @@ describe('SettingsInterfaceTab tabs', () => {
     const { container } = mount()
 
     const entries = SETTINGS_SEARCH_ENTRIES.filter(entry => entry.section === 'interface')
-    expect(entries).toHaveLength(12)
+    expect(entries).toHaveLength(13)
     for (const entry of entries) {
       expect(panel(container, entry.tab ?? '').querySelector(`[data-settings-anchor="${entry.id}"]`), entry.id).not.toBeNull()
     }

@@ -2,6 +2,6 @@
   "name": "WebDAV",
   "description": "Envoie les paquets terminés vers un serveur WebDAV et vérifie chaque fichier avant toute suppression locale.",
   "codes": {
-    "webdav_storage.upload_rejected": "Le serveur WebDAV a refusé l'envoi."
+    "webdav_storage.upload_rejected": "Le serveur WebDAV a refusé l’envoi."
   }
 }

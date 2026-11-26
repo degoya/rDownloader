@@ -14,7 +14,13 @@
 export const NUMBER_FORMATS: Record<string, Intl.NumberFormatOptions> = {
   decimal: { style: 'decimal', maximumFractionDigits: 1 },
   integer: { style: 'decimal', maximumFractionDigits: 0 },
-  percent: { style: 'percent', maximumFractionDigits: 0 }
+  percent: { style: 'percent', maximumFractionDigits: 0 },
+  // A measured figure with exactly so many decimals and no thousands separator, what `toFixed`
+  // printed: the columns are as wide as `1023 MiB`, not `1.023 MiB` (RD-1480-16).
+  fixed0: { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0, useGrouping: false },
+  fixed1: { style: 'decimal', minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false },
+  fixed2: { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false },
+  fixed3: { style: 'decimal', minimumFractionDigits: 3, maximumFractionDigits: 3, useGrouping: false }
 }
 
 export const DATETIME_FORMATS: Record<string, Intl.DateTimeFormatOptions> = {

@@ -211,7 +211,7 @@ function lastError(repository: PluginRepository): string {
           level="sub"
         />
         <UAlert v-if="message" class="mb-4" color="success" :description="message" />
-        <UAlert v-if="error" class="mb-4" color="error" :description="error" />
+        <UAlert v-if="error" class="mb-4" color="error" role="alert" :description="error" />
         <!-- A repository is registered, not made here, so the action says "Add" rather than
              "Create"; there is no edit state, so the row carries no cancel. -->
         <form class="space-y-3" @submit.prevent="add()">

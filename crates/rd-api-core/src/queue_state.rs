@@ -21,7 +21,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use rd_core::{DownloadFile, DownloadId, DownloadState};
+use rd_core::{DownloadFigures, DownloadId, DownloadState};
 
 /// What one tick saw.
 pub(crate) struct Sample<'a> {
@@ -29,7 +29,7 @@ pub(crate) struct Sample<'a> {
     pub queue_pause: Option<rd_scheduler::PauseReason>,
     /// Whether the profile in force pauses downloads.
     pub schedule_pauses: bool,
-    pub downloads: &'a [DownloadFile],
+    pub downloads: &'a [DownloadFigures],
     /// Whether a package waits for or runs in post-processing.
     pub postprocessing: bool,
 }

@@ -38,6 +38,8 @@ pub struct TorrentError {
     kind: TorrentErrorKind,
     message: String,
     port: Option<u16>,
+    /// Whole seconds until the call is allowed again ([`TorrentErrorKind::RateLimited`]).
+    retry_after: Option<u64>,
 }
 
 impl TorrentError {
@@ -47,6 +49,7 @@ impl TorrentError {
             kind,
             message: message.into(),
             port: None,
+            retry_after: None,
         }
     }
 
@@ -62,9 +65,12 @@ impl TorrentError {
         self.port
     }
 
-    /// Too soon since the last call of its kind.
-    pub fn rate_limited(message: impl Into<String>) -> Self {
-        Self::new(TorrentErrorKind::RateLimited, message)
+    /// Too soon since the last call of its kind; allowed again in `seconds`.
+    pub fn rate_limited(message: impl Into<String>, seconds: u64) -> Self {
+        Self {
+            retry_after: Some(seconds),
+            ..Self::new(TorrentErrorKind::RateLimited, message)
+        }
     }
 
     /// The torrent is not in the running session.
@@ -111,18 +117,28 @@ pub fn port_in_use(error: &anyhow::Error) -> Option<u16> {
         .and_then(TorrentError::port)
 }
 
+/// Whole seconds until a rate-limited call is allowed again, when that is why it was refused.
+#[must_use]
+pub fn retry_after_seconds(error: &anyhow::Error) -> Option<u64> {
+    error
+        .downcast_ref::<TorrentError>()
+        .and_then(|refusal| refusal.retry_after)
+}
+
 #[cfg(test)]
 mod tests {
     use anyhow::Context;
 
-    use super::{TorrentError, TorrentErrorKind, port_in_use, torrent_kind};
+    use super::{TorrentError, TorrentErrorKind, port_in_use, retry_after_seconds, torrent_kind};
 
     #[test]
     fn a_reason_survives_being_bailed_and_being_attached_as_context() {
         let bailed = anyhow::Error::new(TorrentError::rate_limited(
             "wait 12 seconds before announcing again",
+            12,
         ));
         assert_eq!(torrent_kind(&bailed), Some(TorrentErrorKind::RateLimited));
+        assert_eq!(retry_after_seconds(&bailed), Some(12));
         // The sentence is unchanged, so logs and error bodies read exactly as before.
         assert_eq!(
             bailed.to_string(),
@@ -145,6 +161,7 @@ mod tests {
         assert_eq!(port_in_use(&refused), Some(51_413));
         let other = anyhow::Error::new(TorrentError::not_active("torrent is not active"));
         assert_eq!(port_in_use(&other), None);
+        assert_eq!(retry_after_seconds(&other), None);
     }
 
     #[test]

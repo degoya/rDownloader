@@ -44,7 +44,9 @@ fn account_security_routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/api-tokens/{id}",
-            delete(api_tokens::revoke_api_token).patch(api_tokens::update_api_token_scopes),
+            get(rd_api_access::single_reads::get_api_token)
+                .delete(api_tokens::revoke_api_token)
+                .patch(api_tokens::update_api_token_scopes),
         )
         .route(
             "/api/v1/api-tokens/{id}/limits",
@@ -129,7 +131,8 @@ fn credential_routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/auth-profiles/{id}",
-            axum::routing::put(auth_profile_handlers::update_auth_profile)
+            get(rd_api_access::single_reads::get_auth_profile)
+                .put(auth_profile_handlers::update_auth_profile)
                 .delete(auth_profile_handlers::delete_auth_profile),
         )
         .route(
@@ -160,7 +163,8 @@ fn credential_routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/remote-credentials/{id}",
-            axum::routing::put(remote_handlers::update_remote_credential)
+            get(rd_api_admin::single_reads::get_remote_credential)
+                .put(remote_handlers::update_remote_credential)
                 .delete(remote_handlers::delete_remote_credential),
         )
         .route(
@@ -174,7 +178,8 @@ fn credential_routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/object-storage/profiles/{id}",
-            axum::routing::put(object_storage_handlers::update_object_storage_profile)
+            get(rd_api_admin::single_reads::get_object_storage_profile)
+                .put(object_storage_handlers::update_object_storage_profile)
                 .delete(object_storage_handlers::delete_object_storage_profile),
         )
         .route(
@@ -251,5 +256,9 @@ fn credential_routes() -> Router<AppState> {
     object_storage_handlers::test_object_storage_profile,
     remote_listing_handlers::get_candidate_listing,
     remote_listing_handlers::put_candidate_listing_plan,
+    rd_api_access::single_reads::get_api_token,
+    rd_api_access::single_reads::get_auth_profile,
+    rd_api_admin::single_reads::get_object_storage_profile,
+    rd_api_admin::single_reads::get_remote_credential,
 ))]
 pub(crate) struct Doc;

@@ -338,6 +338,7 @@ async function openExtensionSetup(): Promise<void> {
         <UAlert
           v-if="captchas.error"
           color="error"
+          role="alert"
           icon="i-lucide-circle-alert"
           :title="captchas.error"
         />

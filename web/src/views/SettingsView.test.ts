@@ -85,7 +85,7 @@ describe('one setting per row on the tool pages', () => {
 /**
  * The display preferences — unit ladder, pinned magnitude, tab title, subscription images —
  * live in module refs that every view formats through, not in this component's own object.
- * `save()` used to write the response back with a bare `Object.assign`, so a saved change
+ * `save()` once wrote the response back with a bare `Object.assign`, so a saved change
  * reached the rest of the interface only after a reload. This holds the two apart.
  */
 describe('saving the display preferences', () => {
@@ -95,12 +95,9 @@ describe('saving the display preferences', () => {
     import: 'default'
   })['./SettingsView.vue'] as string
 
-  it('routes a saved settings document through applyLoadedSettings', () => {
-    const save = source.slice(source.indexOf('async function save('))
-    const body = save.slice(0, save.indexOf('\n}'))
-
-    expect(body).toContain('applyLoadedSettings(response.data)')
-    expect(body).not.toContain('Object.assign(settings, response.data)')
+  it('routes every stored settings document through applyLoadedSettings', () => {
+    expect(source).toContain('onStored: applyLoadedSettings')
+    expect(source).not.toContain('Object.assign(settings')
   })
 
   it('applies every module-level display preference in one place', () => {

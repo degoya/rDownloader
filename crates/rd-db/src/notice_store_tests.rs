@@ -53,6 +53,7 @@ async fn a_notice_is_queued_once_per_rule_even_after_the_history_was_cleared() {
             title: format!("rDownloader {version} is available"),
             body: String::new(),
             package_path: None,
+            subject: rd_notify::Subject::default(),
         }]
     };
 

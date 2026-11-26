@@ -155,7 +155,7 @@ async function remove(rule: WordedRule): Promise<void> {
         />
         <p class="mt-2 mb-2 text-xs leading-5 text-muted">{{ t('notifications.rule.description') }}</p>
         <SettingsCrossLink class="mb-4" anchor="unattended.quiet_hours" />
-        <UAlert v-if="error" class="mb-3" color="error" :description="error" />
+        <UAlert v-if="error" class="mb-3" color="error" role="alert" :description="error" />
 
         <form v-if="targets.length" ref="formElement" class="grid gap-3" @submit.prevent="submit">
           <UFormField :label="t('notifications.rule.name_label')" required>

@@ -49,7 +49,7 @@
   "selection_package": "{name} (selection)",
   "select_all_hint": "Select all entries",
   "bulk": {
-    "enqueued": "Enqueued {links} links and {nzbs} NZB imports",
+    "enqueued": "Enqueued – links: {links}, NZB imports: {nzbs}",
     "free_download": "{count} link will download without an account (free/direct) | {count} links will download without an account (free/direct)",
     "enqueue_failed": "{count} package could not be enqueued | {count} packages could not be enqueued",
     "removing": "{done} of {total} deleted …"
@@ -181,7 +181,7 @@
       "started": "“{name}” handed to {provider}",
       "already_running": "{provider} is already fetching “{name}”",
       "summary": "{done} of {total} NZBs handed to {provider}",
-      "summary_failed": "{failed} of {total} NZBs could not be handed to {provider}: {reason}",
+      "summary_failed": "{failed} of {total} NZBs could not be handed to {provider}: {reason} | {failed} of {total} NZBs could not be handed to {provider}: {reason}",
       "failed": "“{name}” could not be handed over",
       "provider_fallback": "a provider"
     }
@@ -193,7 +193,7 @@
     "torrent_duplicate_description": "“{name}” was marked as a duplicate and can be deliberately enqueued again.",
     "torrent_failed": "Torrent import failed",
     "batch": "File import finished",
-    "batch_description": "{created} imported, {duplicates} duplicates, {errors} errors.",
+    "batch_description": "Imported: {created}, duplicates: {duplicates}, errors: {errors}.",
     "container_imported": "Container imported",
     "container_imported_description": "“{name}” added {count} link to the LinkGrabber. | “{name}” added {count} links to the LinkGrabber.",
     "container_failed": "Container import failed",
@@ -373,12 +373,12 @@
       "automaticNamed": "Automatic — {profile}",
       "automaticNone": "Automatic — no matching profile",
       "none": "Send no session",
-      "empty": "No cookie profile covers this address. Add one under Settings → Authentication."
+      "empty": "No cookie profile covers this address. Add one under Settings → Accounts → Site logins."
     },
     "unresolved_title": "This page offers nothing to choose from",
     "unresolved": {
       "formats_missing": "yt-dlp reported no downloadable format for this page. Check the link again; if the list stays empty, the site is not supported.",
-      "audio_missing": "The page offers video streams but not a single audio track. \"Best\" still downloads the video, without sound."
+      "audio_missing": "The page offers video streams but not a single audio track. “Best” still downloads the video, without sound."
     },
     "preset_label": "Quality preset",
     "audio_format": "Audio format",
@@ -490,7 +490,7 @@
     "reorder_filter_active": "The order can only be changed with no filter active – the hidden links would otherwise be sorted wrongly."
   },
   "list": {
-    "aria": "Collected links, {count} rows"
+    "aria": "Collected links, {count} row | Collected links, {count} rows"
   },
   "mirror": {
     "mirrors": "{count} mirror | {count} mirrors",
@@ -526,13 +526,13 @@
   },
   "duplicates": {
     "queued": "{count} × already queued",
-    "queued_hint": "The same source is already queued {count} time(s) – recognised by the normalised address, the info-hash or the hoster.",
+    "queued_hint": "The same source is already queued {count} time – recognised by the normalised address, the info-hash or the hoster. | The same source is already queued {count} times – recognised by the normalised address, the info-hash or the hoster.",
     "history": "Already downloaded",
     "history_hint": "The same source is in the download history: “{name}”, ended on {date}."
   },
   "sources": {
     "title": "Sources ({count})",
-    "badge": "{count} sources",
+    "badge": "{count} source | {count} sources",
     "priority": "Priority {value}",
     "hint": "Tried in this order. An address that points at your own machine — or, for a document you did not hand over yourself, into your local network — is not requested."
   },
@@ -570,7 +570,7 @@
       "category": "Category"
     },
     "unavailable": "No indexer is switched on yet. Add an indexer first – indexer subscriptions alone are not searched here.",
-    "unavailable_link": "Settings › Usenet › Indexers",
+    "unavailable_link": "Settings → Usenet → Indexers",
     "grab_one": "Add to the LinkGrabber: {title}",
     "grab_one_done": "In the LinkGrabber: {title}",
     "grab_one_failed": "Not added, try again: {title}",
@@ -590,7 +590,7 @@
     },
     "type_unsupported": "None of the chosen indexers offers this search.",
     "torrent": "Torrent",
-    "swarm": "{seeders} seeders, {leechers} leechers",
+    "swarm": "Seeders: {seeders}, leechers: {leechers}",
     "grabbed_torrents": "No torrent added | One torrent added to the LinkGrabber | {count} torrents added to the LinkGrabber",
     "open": "Search indexers",
     "drawer_hint": "One request per search; what you take lands in the LinkGrabber for review."

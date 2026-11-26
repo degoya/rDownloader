@@ -18,10 +18,8 @@
 //! `get_about` reads the About page's head (RD-130-12). Not its licence list: a thousand
 //! entries answer no question an agent is asked, and the route stays one call away for a person.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
 
 use super::{
@@ -114,7 +112,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Change only the post-processing of one category (id from list_configuration section categories, which also shows the current values). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote (rclone `remote:path`, or `object-storage:<profile id>/<bucket>/<prefix>` naming an existing profile; one bound to a bucket takes only that bucket), sorting, unwrap_package_folder (dissolve a single folder named like the package, per archive folder too with unpack_to_subfolder), package_name_rules, package_name_regex. Every field is replaced, so pass the current values of the ones you keep. `sorting` is {series, dated, movie}: the sort and rename templates for finished series episodes, dated episodes and films (null = no sorting); try them first with preview_category_sorting. `package_name_rules` is {spaces_to_dots, collapse_separators, strip_bracket_tags, lowercase}, each true, false or null (= the global setting): how the name, and with it the folder, of a new package in this category is tidied; `package_name_regex` is a list of up to 10 {pattern, replacement} pairs run after them (null = the global list, [] = none); try both with preview_package_name. Names come from list_postprocess_options. Naming a script the category does not carry yet is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
+        description = "Change only the post-processing of one category (id from list_configuration section categories, which also shows the current values). `body` is the REST body of PATCH /api/v1/categories/{id}/postprocess: postprocess_level, script, cleanup_extensions, recursive_unpack, unpack_to_subfolder, direct_unpack, malware_scan, sfv_verify, safe_postproc, delete_par2, plugin_steps, upload_enabled, upload_remote (rclone `remote:path`, or `object-storage:<profile id>/<bucket>/<prefix>` naming an existing profile; one bound to a bucket takes only that bucket), sorting, unwrap_package_folder (dissolve a single folder named like the package, per archive folder too with unpack_to_subfolder), package_name_rules, package_name_regex. Every field is replaced, so pass the current values of the ones you keep. `sorting` is {series, dated, movie}: the sort and rename templates for finished series episodes, dated episodes and films (null = no sorting); try them first with preview_category_sorting. `package_name_rules` {spaces_to_dots, collapse_separators, strip_bracket_tags, lowercase}, each true, false or null (= global), tidies the name and folder of a new package in this category; `package_name_regex`, up to 10 {pattern, replacement} pairs run after them (null = the global list, [] = none); try both with preview_package_name. Names come from list_postprocess_options. Naming a script the category does not carry yet is refused with mcp.script_not_allowed unless the person allowed scripts for tools in the settings."
     )]
     pub async fn update_category_postprocess(
         &self,
@@ -282,7 +280,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Read the application update status: the running version, the channel (stable or beta), how this installation was installed, when the last check ran and what it found, and the newer version on offer with its notes for users (one point per line), the links to its full changes (changelog_url) and its release page, and what to do about it (a download, or the package manager's command), whether this installation installs an update itself (installs_itself: the portable archive or the Windows installer) and whether it does so automatically (auto_install, the update_auto_install setting: off by default; once nothing has transferred, post-processed or recorded for five minutes, inside update_auto_install_window if one is set, it installs the offered version with the backup and roll-back of a manual install, announced as update_available before and update_installed or update_failed after), and per connected capture agent its version, whether it is older than the service (outdated) and where its own update stands (self_update: with_service, disabled, unchecked, current, offered, failed or installing; offered_version; remote_update_allowed). An agent installed without the service installs its own update from its tray or with rdownloader-capture update; no tool here installs software on the agent's machine. Read-only; check_for_updates asks GitHub again."
+        description = "Read the application update status: the running version, the channel (stable or beta), how this installation was installed, when the last check ran and what it found, and the newer version on offer with its notes for users (one point per line), the links to its full changes (changelog_url) and its release page, and what to do about it (a download, or the package manager's command), whether this installation installs an update itself (installs_itself: the portable archive or the Windows installer) and automatically (auto_install, the update_auto_install setting, off by default: once nothing has transferred, post-processed or recorded for five minutes, inside update_auto_install_window if set, with a manual install's backup and roll-back, announced as update_available before and update_installed or update_failed after), and per connected capture agent its version, whether it is older than the service (outdated) and its own update (self_update: with_service, disabled, unchecked, current, offered, failed or installing; offered_version; remote_update_allowed). An agent installed without the service installs its own update from its tray or with rdownloader-capture update; no tool here installs software on the agent's machine. Read-only; check_for_updates asks GitHub again."
     )]
     pub async fn get_update_status(&self) -> McpToolResult {
         let Json(answer) = updates::get_update_status(State(self.state.clone())).await;
@@ -329,7 +327,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Which rDownloader is running: version, commit and build time, the plugin contract versions it links, the platform, its licence and authors, the project's addresses (each says whether it is published yet), and the helper tools the packages ship with their licences."
+        description = "Which rDownloader is running: version, commit and build time, the plugin contract versions it links, the platform, its licence and authors, the project's addresses (each says whether it is published yet), and the helper programs it runs with their licences (`tools_shipped` says whether this installation came with them; only the container image does)."
     )]
     pub async fn get_about(&self) -> McpToolResult {
         let Json(answer) = crate::about_page::system_about(State(self.state.clone())).await;

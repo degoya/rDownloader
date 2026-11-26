@@ -28,6 +28,9 @@ impl Writer {
                     }
                     postponed
                 });
+                if result.is_ok() {
+                    self.broadcast_row_changed(id, "renamed");
+                }
                 send(reply, result);
             }
             NzbCommand::DeferPar2Verdict { id, missing, reply } => {

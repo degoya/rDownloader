@@ -1,24 +1,26 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
+    <title>rDownloader</title>
     <style>
       body { font: 14px system-ui, sans-serif; margin: 0; padding: 12px; width: 280px; color: #0f172a; background: #f8fafc; }
       @media (prefers-color-scheme: dark) { body { color: #e2e8f0; background: #0b1620; } }
-      button { display: block; width: 100%; margin: 6px 0; padding: 9px 12px; border: 0; border-radius: 4px; background: #14b8b0; color: #fff; font: inherit; cursor: pointer; text-align: left; }
+      button { display: block; width: 100%; margin: 6px 0; padding: 9px 12px; border: 0; border-radius: 4px; background: #117572; color: #fff; font: inherit; cursor: pointer; text-align: left; }
       button.secondary { background: #64748b; }
       #status { margin-top: 8px; min-height: 1.2em; font-size: 12px; }
       #version { margin-top: 8px; font-size: 11px; opacity: 0.6; text-align: right; }
-      .ok { color: #0f938f; } .error { color: #cf3832; }
-      h3 { margin: 0 0 8px; font-size: 14px; }
+      .ok { color: #117572; } .error { color: #cf3832; }
+      @media (prefers-color-scheme: dark) { .ok { color: #0f938f; } .error { color: #fa746d; } }
+      h1 { margin: 0 0 8px; font-size: 14px; }
       #captchas { margin: 0 0 10px; padding: 8px; border: 1px solid #f59e0b; border-radius: 4px; background: rgba(245, 158, 11, 0.12); }
-      #captchas h4 { margin: 0 0 6px; font-size: 13px; }
+      #captchas h2 { margin: 0 0 6px; font-size: 13px; }
       #captchas .captcha { margin: 6px 0 0; }
       #captchas .host { display: block; font-size: 12px; margin-bottom: 4px; word-break: break-all; }
       #captchas .row { display: flex; gap: 6px; }
       #captchas .row button { margin: 0; padding: 7px 10px; font-size: 12px; }
       #handovers { margin: 0 0 10px; padding: 8px; border: 1px solid #14b8b0; border-radius: 4px; background: rgba(20, 184, 176, 0.1); }
-      #handovers h4 { margin: 0 0 6px; font-size: 13px; }
+      #handovers h2 { margin: 0 0 6px; font-size: 13px; }
       #handovers .handover { margin: 6px 0 0; }
       #handovers .host { display: block; font-size: 12px; margin-bottom: 4px; word-break: break-all; }
       #handovers .note { display: block; font-size: 11px; opacity: 0.8; margin-bottom: 4px; }
@@ -30,26 +32,28 @@
     </style>
   </head>
   <body>
-    <h3 data-i18n="extName"></h3>
-    <section id="captchas" hidden>
-      <h4 data-i18n="captchaSection"></h4>
-      <div id="captcha-list"></div>
-    </section>
-    <section id="handovers" hidden>
-      <h4 data-i18n="handoverSection"></h4>
-      <div id="handover-list"></div>
-    </section>
-    <section id="files" hidden>
-      <button id="files-toggle" class="secondary"></button>
-      <span id="files-note" class="note"></span>
-    </section>
-    <label class="check"><input id="intercept" type="checkbox" /><span data-i18n="optionsIntercept"></span></label>
-    <button id="page" data-i18n="popupSendPage"></button>
-    <button id="clipboard" data-i18n="popupSendClipboard"></button>
-    <button id="send-file" data-i18n="menuSendFile"></button>
-    <button id="options" class="secondary" data-i18n="popupOptions"></button>
-    <div id="status"></div>
-    <div id="version"></div>
+    <main>
+      <h1 data-i18n="extName"></h1>
+      <section id="captchas" hidden>
+        <h2 data-i18n="captchaSection"></h2>
+        <div id="captcha-list"></div>
+      </section>
+      <section id="handovers" hidden>
+        <h2 data-i18n="handoverSection"></h2>
+        <div id="handover-list"></div>
+      </section>
+      <section id="files" hidden>
+        <button id="files-toggle" class="secondary"></button>
+        <span id="files-note" class="note"></span>
+      </section>
+      <label class="check"><input id="intercept" type="checkbox" /><span data-i18n="optionsIntercept"></span></label>
+      <button id="page" data-i18n="popupSendPage"></button>
+      <button id="clipboard" data-i18n="popupSendClipboard"></button>
+      <button id="send-file" data-i18n="menuSendFile"></button>
+      <button id="options" class="secondary" data-i18n="popupOptions"></button>
+      <div id="status" role="status"></div>
+      <div id="version"></div>
+    </main>
     <script type="module" src="popup.js"></script>
   </body>
 </html>

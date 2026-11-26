@@ -4,8 +4,9 @@ The container image is the whole service: REST API, web interface, scheduler and
 transport. It does not contain the desktop capture agent — for Click'n'Load and clipboard
 capture on a headless setup, use the [browser extension](../extension/README.md) instead.
 
-Images are published for `linux/amd64` and `linux/arm64`, signed with cosign, and carry an SBOM
-and build provenance. Each holds the same `rdownloader` binary as that release's Linux tarball
+Images are published for `linux/amd64` and `linux/arm64`, signed with cosign, and carry an SBOM of
+the Debian and Python packages and build provenance; the program's own crates are in the release's
+`rdownloader.spdx.json`. Each holds the same `rdownloader` binary as that release's Linux tarball
 for its architecture, on `debian:trixie-slim`.
 
 **The image is the way to run rDownloader on an older Linux.** The native Linux binaries
@@ -174,8 +175,25 @@ galleries, unpacking, PAR2 repair and Apprise notifications work out of the box:
 | RAR codec for `7z` | Debian non-free `7zip-rar` | unRAR licence | Extracting RAR, RAR5 included |
 | `par2` | Debian | GPL-2.0-or-later | Usenet PAR2 verification and repair |
 
-The full licence texts are in the image: `/usr/share/doc/<package>/copyright` for the Debian
-packages, the `*.dist-info` folders under `/opt/venv/lib/` for the pip ones.
+The pip tools bring Python packages of their own, among them `certifi` (MPL-2.0), which carries
+the root certificates, and `pycountry` (LGPL-2.1-only), which Streamlink uses. The image build fails
+when one of them declares a licence that [python-licences.py](python-licences.py) does not allow.
+
+**Licence texts and source code.** The texts are in the image:
+
+| Part | Where in the image |
+| --- | --- |
+| rDownloader (GPL-3.0-or-later) | `/usr/share/doc/rdownloader/LICENSE` |
+| What rDownloader and its plugins contain of others | `/usr/share/doc/rdownloader/THIRD-PARTY-NOTICES.txt` |
+| The Debian packages | `/usr/share/doc/<package>/copyright` |
+| The Python packages | `/usr/share/doc/rdownloader/python/<package>/` |
+
+`/usr/share/doc/rdownloader/SOURCES.txt` ([in the repository](SOURCES.txt)) says where the source
+code of exactly the installed versions is offered: rDownloader's at the Git tag of its version, the
+Debian packages' at <https://snapshot.debian.org>, the Python packages' as source distributions at
+<https://pypi.org>. `docker exec rdownloader cat /usr/share/doc/rdownloader/SOURCES.txt` shows it;
+the interface lists the same programs under *Settings → About rDownloader → Licenses*. That wording
+is a draft no lawyer has reviewed.
 
 **RAR is extract only.** Debian builds 7-Zip without the RAR codec, because the codec is under
 the unRAR licence, which allows extracting RAR archives but forbids using the code to create

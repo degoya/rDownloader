@@ -157,6 +157,7 @@ pub(crate) static COVERAGE: &[Capability] = &[
         &[
             only("/api/v1/downloads", "GET"),
             only("/api/v1/downloads", "POST"),
+            only("/api/v1/downloads/{id}", "GET"),
             any("/api/v1/downloads/bulk"),
             any("/api/v1/downloads/summary"),
         ],
@@ -166,6 +167,7 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "Downloads",
         &[
             only("/api/v1/packages", "GET"),
+            only("/api/v1/packages/{id}", "GET"),
             any("/api/v1/packages/delete"),
         ],
     ),
@@ -190,6 +192,8 @@ pub(crate) static COVERAGE: &[Capability] = &[
     // RD-1420-02: `accept_local_network_names` (the host check's local names) the same way,
     // named with `allowed_hosts` in update_settings' description.
     // RD-1420-03: `refuse_unknown_archive_tool_version` the same way, named in update_settings'
+    // description.
+    // RD-1480-11: `notification_language` the same way, named in list_notification_rules'
     // description.
     covered(
         "The settings document",
@@ -637,8 +641,9 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "History",
         &[any("/api/v1/history")],
     ),
-    // The licence list beneath it is claimed too: reading the page is the capability, and a
-    // thousand dependency rows are not an answer an agent needs a tool of its own for.
+    // The licence list and the licence texts beneath it are claimed too: reading the page is the
+    // capability, and a thousand dependency rows or two megabytes of licence texts are not an
+    // answer an agent needs a tool of its own for.
     covered(
         "About rDownloader",
         "Settings > About",
@@ -917,6 +922,7 @@ pub(crate) static COVERAGE: &[Capability] = &[
         &[any("/api/v1/downloads/rates")],
         "A chart's data series, sampled per second. get_status_summary answers how fast the \
          queue is going in one number, and get_transfer_stats answers it over time; the \
+         state and bytes of the entries at work are list_downloads' own; the \
          queued files waiting for their host are list_downloads' waiting_for_host, and the \
          Usenet connections at work (RD-1270-21) are list_downloads' connections and \
          list_usenet_servers' busy_connections.",
@@ -938,6 +944,15 @@ pub(crate) static COVERAGE: &[Capability] = &[
          it, and mcp::tool_scope refuses a tool priced by a public route rather than making \
          it free. What it answers -- the service is up, its name and version -- is what the \
          MCP initialize handshake already carries in its server_info.",
+    ),
+    omitted(
+        "The event stream",
+        "-",
+        &[any("/api/v1/events")],
+        "Not a capability but the channel the interface listens on to know when to read again \
+         (RD-1480-09): a tool call has one answer, and a stream that stays open has none. What \
+         an event announces, the list tools read -- list_downloads, get_status_summary and \
+         their neighbours -- at the same permission area.",
     ),
     // ---- RD-180-02, RD-180-03 ----
     omitted(
@@ -1067,6 +1082,7 @@ pub(crate) static COVERAGE: &[Capability] = &[
         "LinkGrabber > Indexer search",
         &[
             only("/api/v1/indexers", "GET"),
+            only("/api/v1/indexers/{id}", "GET"),
             any("/api/v1/indexers/search"),
             any("/api/v1/indexers/grab"),
         ],

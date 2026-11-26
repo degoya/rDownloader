@@ -97,7 +97,7 @@
       "confirm": "Reemplazar configuración",
       "button": "Importar y reemplazar",
       "success": "Ajustes restaurados",
-      "success_description": "Se importaron {count} entradas de configuración.",
+      "success_description": "Se importó {count} entrada de configuración. | Se importaron {count} entradas de configuración.",
       "password": "Contraseña de administrador",
       "password_hint": "Sustituir la configuración vuelve a pedir la contraseña."
     },
@@ -158,7 +158,7 @@
         "path_description": "Ruta absoluta en el equipo donde se ejecuta rDownloader; también sirve un recurso NAS montado.",
         "profile": "Perfil de almacenamiento de objetos",
         "profile_placeholder": "Elige un perfil",
-        "profile_none": "Aún no hay perfiles: crea uno primero en los ajustes de almacenamiento de objetos.",
+        "profile_none": "Aún no hay perfiles: crea uno primero en Ajustes → FTP, SFTP, WebDAV y S3 → S3.",
         "prefix": "Bucket y carpeta",
         "prefix_description": "<bucket>/<carpeta>; sin bucket se usa el del perfil.",
         "remote": "Remoto de rclone",
@@ -169,8 +169,8 @@
         "keep_days_description": "Los archivos más recientes se quedan; vacío conserva todos.",
         "retention": {
           "none": "Conserva todos los archivos",
-          "last": "Los {count} más recientes",
-          "days": "{count} días",
+          "last": "El más reciente ({count}) | Los {count} más recientes",
+          "days": "{count} día | {count} días",
           "hint": "El archivo más reciente siempre se queda. Solo se eliminan archivos que esta instalación escribió allí, nunca archivos ajenos.",
           "preview": "Vista previa",
           "result": "Conserva {keep}, elimina {remove}; todavía no se borra nada."
@@ -205,7 +205,7 @@
       "history": {
         "title": "Historial",
         "empty": "Todavía no se ha ejecutado ninguna copia completa.",
-        "parts": "{count} partes",
+        "parts": "{count} parte | {count} partes",
         "origin": {
           "scheduled": "Programada",
           "manual": "Manual"
@@ -216,7 +216,7 @@
           "failed": "Fallida",
           "interrupted": "Interrumpida"
         },
-        "pruned": "{count} archivos antiguos eliminados por la retención"
+        "pruned": "{count} archivo antiguo eliminado por la retención | {count} archivos antiguos eliminados por la retención"
       }
     },
     "full_restore": {
@@ -258,8 +258,8 @@
         "created": "Creada el {date} por rDownloader {version}, {size}",
         "newer": "Una versión más reciente creó esta copia. Actualiza primero al menos a esa versión (aquí se ejecuta {version}).",
         "part": "{count} × {size}",
-        "counts": "{categories} categorías, {accounts} cuentas, {proxies} proxies, {servers} servidores Usenet, {subscriptions} suscripciones, {hotfolders} carpetas vigiladas",
-        "state": "{partial} transferencias sin terminar, {trust} entradas de confianza de plugins.",
+        "counts": "Categorías: {categories}, cuentas: {accounts}, proxies: {proxies}, servidores Usenet: {servers}, suscripciones: {subscriptions}, carpetas vigiladas: {hotfolders}",
+        "state": "Transferencias sin terminar: {partial}, entradas de confianza de plugins: {trust}.",
         "credentials_included": "Las credenciales están incluidas, cifradas.",
         "credentials_missing": "Las credenciales no están incluidas.",
         "kind": {
@@ -286,7 +286,7 @@
         "action": "Restauración de prueba",
         "ok": "La restauración de prueba no encontró nada que impida la restauración.",
         "failed": "La restauración de prueba encontró errores que impiden la restauración.",
-        "summary": "{packages} paquetes, {moved} rutas movidas, {credentials} credenciales restauradas, {migrated} migraciones aplicadas.",
+        "summary": "Paquetes: {packages}, rutas movidas: {moved}, credenciales restauradas: {credentials}, migraciones aplicadas: {migrated}.",
         "none": "Sin hallazgos.",
         "severity": {
           "error": "Error",
@@ -372,13 +372,14 @@
     "scopes_label": "Qué puede hacer este token",
     "scopes_hint": "Concede solo lo que el cliente necesita realmente. Todo lo que actúa también puede leer, así que la lectura no hay que añadirla aparte.",
     "scopes_empty": "Elige al menos un área.",
-    "scope_operations": "{count} operaciones",
+    "scope_operations": "{count} operación | {count} operaciones",
     "scope_none": "Sin acceso a la API",
     "sensitive": "Sensible",
     "sensitive_warning": "Este token podrá leer credenciales guardadas o administrar el servicio. Ninguna otra área lo concede, así que dáselo solo a un cliente que realmente lo necesite.",
     "also_includes": "Incluye además: {areas}",
     "minted_areas": "Este token incluye: {areas}",
-    "label_label": "Nombre del cliente"
+    "label_label": "Nombre del cliente",
+    "data_flow_hint": "Un asistente de IA que conectes por MCP recibe enlaces, nombres de archivo y líneas del registro en las respuestas de las herramientas; los procesa el proveedor de ese asistente."
   },
   "readiness": {
     "eyebrow": "Configuración",
@@ -431,7 +432,7 @@
     "revoke_others": {
       "action": "Cerrar sesión en todo lo demás ({count})",
       "title": "¿Cerrar sesión en todo lo demás?",
-      "description": "Se finalizarán {count} otras sesiones. Esta seguirá activa.",
+      "description": "Se finalizará {count} otra sesión. Esta seguirá activa. | Se finalizarán {count} otras sesiones. Esta seguirá activa.",
       "confirm": "Finalizar",
       "done": "Otras sesiones finalizadas"
     }
@@ -479,7 +480,7 @@
     "unconfirmed": "Sin confirmar",
     "last_used": "Último uso: {moment}",
     "never_used": "nunca",
-    "remaining": "Quedan {count} códigos de recuperación",
+    "remaining": "Queda {count} código de recuperación | Quedan {count} códigos de recuperación",
     "remove": {
       "action": "Eliminar",
       "title": "¿Eliminar este segundo factor?",
@@ -522,7 +523,7 @@
       "title": "¿Quitar esta clave de acceso?",
       "description": "«{label}» dejará de poder iniciar sesión. Tu contraseña sigue funcionando."
     },
-    "step_up_hint": "Añadir o quitar una passkey vuelve a pedir la contraseña."
+    "step_up_hint": "Añadir o quitar una clave de acceso vuelve a pedir la contraseña."
   },
   "password": {
     "eyebrow": "Contraseña",
@@ -530,7 +531,7 @@
     "description": "Sustituye la contraseña con la que inicias sesión. Necesitas la actual para ello. No existe recuperación sin la contraseña actual.",
     "current_label": "Contraseña actual",
     "new_label": "Contraseña nueva",
-    "confirm_label": "Repita la contraseña nueva",
+    "confirm_label": "Repite la contraseña nueva",
     "new_hint": "Al menos diez caracteres.",
     "action": "Cambiar la contraseña",
     "mismatch": "Las dos contraseñas nuevas no coinciden.",
@@ -540,56 +541,56 @@
   },
   "data_reset": {
     "button": "Vaciar",
-    "stored": "{count} almacenados",
+    "stored": "{count} almacenado | {count} almacenados",
     "confirm": "Vaciar definitivamente",
-    "done": "{count} registros eliminados",
+    "done": "{count} registro eliminado | {count} registros eliminados",
     "logs": {
       "title": "¿Vaciar el registro del servicio?",
-      "description": "Se eliminarán definitivamente {count} registros del servicio. La auditoría y las estadísticas se mantienen, igual que las descargas, los paquetes y los ajustes."
+      "description": "Se eliminará definitivamente {count} registro del servicio. La auditoría y las estadísticas se mantienen, igual que las descargas, los paquetes y los ajustes. | Se eliminarán definitivamente {count} registros del servicio. La auditoría y las estadísticas se mantienen, igual que las descargas, los paquetes y los ajustes."
     },
     "audit": {
       "title": "¿Vaciar la auditoría?",
-      "description": "Se eliminarán definitivamente {count} registros de auditoría. El vaciado queda como la primera entrada de la auditoría vacía. El registro del servicio y las estadísticas se mantienen, igual que las descargas, los paquetes y los ajustes."
+      "description": "Se eliminará definitivamente {count} registro de auditoría. El vaciado queda como la primera entrada de la auditoría vacía. El registro del servicio y las estadísticas se mantienen, igual que las descargas, los paquetes y los ajustes. | Se eliminarán definitivamente {count} registros de auditoría. El vaciado queda como la primera entrada de la auditoría vacía. El registro del servicio y las estadísticas se mantienen, igual que las descargas, los paquetes y los ajustes."
     },
     "stats": {
       "title": "¿Vaciar las estadísticas?",
-      "description": "Se eliminarán definitivamente {count} filas de estadísticas, incluidos los totales históricos. El registro del servicio y la auditoría se mantienen, igual que las descargas, los paquetes y los ajustes."
+      "description": "Se eliminará definitivamente {count} fila de estadísticas, incluidos los totales históricos. El registro del servicio y la auditoría se mantienen, igual que las descargas, los paquetes y los ajustes. | Se eliminarán definitivamente {count} filas de estadísticas, incluidos los totales históricos. El registro del servicio y la auditoría se mantienen, igual que las descargas, los paquetes y los ajustes."
     },
     "notifications": {
       "title": "¿Vaciar el historial de notificaciones?",
-      "description": "Se eliminarán definitivamente del historial {count} entregas finalizadas. Las entregas aún en cola o en reintento se mantienen, igual que los destinos, las reglas, el registro del servicio, la auditoría y las estadísticas."
+      "description": "Se eliminará definitivamente del historial {count} entrega finalizada. Las entregas aún en cola o en reintento se mantienen, igual que los destinos, las reglas, el registro del servicio, la auditoría y las estadísticas. | Se eliminarán definitivamente del historial {count} entregas finalizadas. Las entregas aún en cola o en reintento se mantienen, igual que los destinos, las reglas, el registro del servicio, la auditoría y las estadísticas."
     },
     "notifications_pending": {
       "button": "Descartar pendientes",
-      "stored": "{count} pendientes",
+      "stored": "{count} pendiente | {count} pendientes",
       "title": "¿Descartar las notificaciones pendientes?",
-      "description": "{count} notificaciones que siguen en cola o en reintento se eliminarán y no se enviarán nunca. Las entregas realizadas y fallidas permanecen en el historial, al igual que los destinos, las reglas, el registro, la auditoría y las estadísticas.",
+      "description": "{count} notificación que sigue en cola o en reintento se eliminará y no se enviará nunca. Las entregas realizadas y fallidas permanecen en el historial, al igual que los destinos, las reglas, el registro, la auditoría y las estadísticas. | {count} notificaciones que siguen en cola o en reintento se eliminarán y no se enviarán nunca. Las entregas realizadas y fallidas permanecen en el historial, al igual que los destinos, las reglas, el registro, la auditoría y las estadísticas.",
       "confirm": "Descartar definitivamente",
-      "done": "{count} notificaciones descartadas"
+      "done": "{count} notificación descartada | {count} notificaciones descartadas"
     },
     "storage_operations": {
       "button": "Vaciar historial",
-      "stored": "{count} entradas",
+      "stored": "{count} entrada | {count} entradas",
       "title": "¿Vaciar el historial de almacenamiento?",
-      "description": "{count} traslados y enlaces de duplicado completados, fallidos o interrumpidos se eliminarán del historial definitivamente. Una operación que sigue en curso permanece. Ningún archivo se mueve ni se borra, y un traslado interrumpido se reanuda igualmente en el próximo inicio.",
+      "description": "{count} traslado o enlace de duplicado completado, fallido o interrumpido se eliminará del historial definitivamente. Una operación que sigue en curso permanece. Ningún archivo se mueve ni se borra, y un traslado interrumpido se reanuda igualmente en el próximo inicio. | {count} traslados y enlaces de duplicado completados, fallidos o interrumpidos se eliminarán del historial definitivamente. Una operación que sigue en curso permanece. Ningún archivo se mueve ni se borra, y un traslado interrumpido se reanuda igualmente en el próximo inicio.",
       "confirm": "Vaciar definitivamente",
-      "done": "{count} entradas del historial eliminadas"
+      "done": "{count} entrada del historial eliminada | {count} entradas del historial eliminadas"
     },
     "content_index": {
       "button": "Vaciar índice",
-      "stored": "{count} indexados",
+      "stored": "{count} indexado | {count} indexados",
       "title": "¿Vaciar el índice de contenido?",
-      "description": "Se eliminarán {count} entradas del índice. Los archivos y las descargas no se tocan, pero hasta que un archivo vuelva a estar indexado no se reconoce como duplicado de contenido ni puede ser el original de un enlace de duplicado. «Comprobar el índice de contenido» (también se ejecuta en cada inicio) vuelve a indexar las descargas terminadas que siguen en la cola, cuyo SHA-256 se conoce y cuyo archivo sigue en su sitio. Los archivos de descargas eliminadas o nunca calculadas solo vuelven al descargarlos de nuevo.",
+      "description": "Se eliminará {count} entrada del índice. Los archivos y las descargas no se tocan, pero hasta que un archivo vuelva a estar indexado no se reconoce como duplicado de contenido ni puede ser el original de un enlace de duplicado. «Comprobar el índice de contenido» (también se ejecuta en cada inicio) vuelve a indexar las descargas terminadas que siguen en la cola, cuyo SHA-256 se conoce y cuyo archivo sigue en su sitio. Los archivos de descargas eliminadas o nunca calculadas solo vuelven al descargarlos de nuevo. | Se eliminarán {count} entradas del índice. Los archivos y las descargas no se tocan, pero hasta que un archivo vuelva a estar indexado no se reconoce como duplicado de contenido ni puede ser el original de un enlace de duplicado. «Comprobar el índice de contenido» (también se ejecuta en cada inicio) vuelve a indexar las descargas terminadas que siguen en la cola, cuyo SHA-256 se conoce y cuyo archivo sigue en su sitio. Los archivos de descargas eliminadas o nunca calculadas solo vuelven al descargarlos de nuevo.",
       "confirm": "Vaciar el índice",
-      "done": "{count} entradas del índice eliminadas"
+      "done": "{count} entrada del índice eliminada | {count} entradas del índice eliminadas"
     },
     "history": {
       "button": "Vaciar historial",
-      "stored": "{count} entradas",
+      "stored": "{count} entrada | {count} entradas",
       "title": "¿Vaciar el historial de descargas?",
-      "description": "{count} entradas se eliminarán del historial de descargas definitivamente. La lista de descargas, los archivos, las estadísticas y los registros no se tocan.",
+      "description": "{count} entrada se eliminará del historial de descargas definitivamente. La lista de descargas, los archivos, las estadísticas y los registros no se tocan. | {count} entradas se eliminarán del historial de descargas definitivamente. La lista de descargas, los archivos, las estadísticas y los registros no se tocan.",
       "confirm": "Vaciar definitivamente",
-      "done": "{count} entradas del historial eliminadas"
+      "done": "{count} entrada del historial eliminada | {count} entradas del historial eliminadas"
     }
   },
   "session_limits": {
@@ -736,7 +737,7 @@
     "copy": "Copiar",
     "copied": "Copiado",
     "copy_command": "Copiar el comando",
-    "external_url_missing": "Sin URL externa no hay URI de redirección. Configúrala en Seguridad → Proxy inverso.",
+    "external_url_missing": "Sin URL externa no hay URI de redirección. Configúrala en Ajustes → Seguridad → Acceso y proxy inverso.",
     "linked": "Vinculada: {label}",
     "unnamed": "una cuenta sin nombre",
     "linked_at": "Vinculada {moment}",
@@ -756,13 +757,13 @@
       "description": "Se borran la configuración, el secreto del cliente y la cuenta vinculada."
     },
     "password_is_off": "El inicio de sesión con contraseña está desactivado",
-    "password_is_off_hint": "Solo el equipo donde se ejecuta el servicio puede reactivarlo: {command}. Las passkeys siguen funcionando y la contraseña sigue confirmando los cambios.",
+    "password_is_off_hint": "Solo el equipo donde se ejecuta el servicio puede reactivarlo: {command}. Las claves de acceso siguen funcionando y la contraseña sigue confirmando los cambios.",
     "password_off": {
       "action": "Desactivar el inicio con contraseña",
       "ready": "Esta sesión viene del proveedor: puedes desactivar el inicio de sesión con contraseña.",
       "needs_provider_session": "Inicia sesión una vez con el proveedor; solo desde esa sesión se puede desactivar el inicio con contraseña.",
       "title": "¿Desactivar el inicio de sesión con contraseña?",
-      "description": "Después iniciarás sesión con el proveedor o con una passkey. Solo se puede volver atrás en el equipo del servicio: {command}",
+      "description": "Después iniciarás sesión con el proveedor o con una clave de acceso. Solo se puede volver atrás en el equipo del servicio: {command}",
       "confirm": "Desactivar"
     },
     "issuer": "Emisor (issuer)",
@@ -783,7 +784,7 @@
     "label": "Caduca",
     "hint": "Un token caducado se rechaza como uno revocado y permanece en la lista hasta que lo revoques.",
     "never": "Nunca",
-    "days": "Tras {count} días",
+    "days": "Tras {count} día | Tras {count} días",
     "expires_on": "Caduca el {date}",
     "expired": "Caducado"
   },
@@ -792,7 +793,7 @@
     "hint": "REST y MCP juntos. Vacío significa sin límite; una llamada por encima se rechaza hasta que termine el minuto.",
     "unit": "/min",
     "none": "Sin límite",
-    "row": "Como máximo {count} llamadas por minuto"
+    "row": "Como máximo {count} llamada por minuto | Como máximo {count} llamadas por minuto"
   },
   "restart": {
     "title": "Reinicio pendiente",

@@ -12,9 +12,20 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.48.0
+## 1.49.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.48.0
+
+- The Firefox extension saves the address of an rDownloader on another machine again, shares a site's login and hands over Click'n'Load; plain http in your own network works too.
+- Text, buttons and focus marks are readable in light and dark, and screen readers hear errors and progress.
+- Single-key shortcuts are off until you switch them on in each browser, under Settings, Interface.
+- Notifications come in German, English, Spanish or French; choose the language under Settings, Notifications.
+- The queue page needs far less data while downloads run, and the interface opens faster.
+- Saving the settings no longer overwrites what was changed in another window meanwhile.
+- Handing an NZB link over to a provider keeps the key of your indexer on this machine.
+- Sizes, numbers and sorting follow the language of the interface, and many hints name the right page again.
 
 ## 1.47.0
 

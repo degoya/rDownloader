@@ -87,6 +87,7 @@ jobs:
           fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ env.REF || format('refs/tags/{0}', env.TAG) }}
           path: ${{ matrix.source }}
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
@@ -101,6 +102,7 @@ jobs:
       # file beside it, for setup-rust (RD-1280-15). The build reads nothing from ci-actions/.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           path: ci-actions
           sparse-checkout: |
             .github/actions

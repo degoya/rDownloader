@@ -10,12 +10,12 @@
   "empty": "Noch keine Kanäle. Füge mit dem Formular einen Kanal hinzu und schalte ihn ein, damit er automatisch aufzeichnet.",
   "delete": {
     "title": "Kanal löschen",
-    "description": "\"{name}\" löschen? Bereits erstellte Aufnahmen bleiben erhalten."
+    "description": "„{name}“ löschen? Bereits erstellte Aufnahmen bleiben erhalten."
   },
   "messages": {
     "created": "Kanal hinzugefügt.",
     "updated": "Kanal gespeichert.",
-    "recording_started": "Aufnahme \"{name}\" gestartet."
+    "recording_started": "Aufnahme „{name}“ gestartet."
   },
   "form": {
     "url_label": "Kanal-URL",

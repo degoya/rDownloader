@@ -1,7 +1,7 @@
 //! The operational notices' keys and the account check's reading (RD-190-19).
 
 use jiff::civil::Date;
-use rd_notify::NotificationEvent;
+use rd_notify::{NotificationEvent, NotificationLanguage as L, Text};
 use rd_plugin_host::{AccountStatus, LabelPart};
 
 use super::{Notice, account_check_notices, account_failure_notice, premium_end};
@@ -51,8 +51,13 @@ fn a_scheduled_backup_is_announced_once_per_run_whichever_way_it_failed() {
     assert_eq!(partial.event, NotificationEvent::BackupFailed);
     assert_eq!(failed.key, "backup_failed:run-1");
     assert_eq!(failed.key, partial.key, "one run, one notice");
-    assert!(failed.body.contains("backup.destination_unreachable"));
-    assert!(partial.body.contains("NAS: refused"));
+    assert!(
+        failed
+            .body
+            .say(L::En)
+            .contains("backup.destination_unreachable")
+    );
+    assert!(partial.body.say(L::En).contains("NAS: refused"));
 }
 
 #[test]
@@ -66,8 +71,13 @@ fn a_failed_verification_is_announced_once_per_verification() {
     );
     assert_eq!(notice.event, NotificationEvent::BackupVerifyFailed);
     assert_eq!(notice.key, "backup_verify_failed:verify-1");
-    assert!(notice.body.contains("rdownloader-2026.rdbackup"));
-    assert!(notice.body.contains("backup.verify_digest_mismatch"));
+    assert!(notice.body.say(L::En).contains("rdownloader-2026.rdbackup"));
+    assert!(
+        notice
+            .body
+            .say(L::En)
+            .contains("backup.verify_digest_mismatch")
+    );
 }
 
 #[test]
@@ -81,7 +91,7 @@ fn a_failed_automatic_plugin_update_is_keyed_by_plugin_and_version() {
         Notice::plugin_update_available("rapidgator", "Rapidgator", "1.2.0", "1.3.0").key,
         "failing and waiting are two notices"
     );
-    assert!(notice.body.contains("repository.offline"));
+    assert!(notice.body.say(L::En).contains("repository.offline"));
 }
 
 #[test]
@@ -104,11 +114,14 @@ fn an_update_is_keyed_by_its_version_and_a_plugin_update_by_plugin_and_version()
     let failed = Notice::update_failed("1.9.1", "1.9.0", "update.health_timeout");
     assert_eq!(failed.event, NotificationEvent::UpdateFailed);
     assert_eq!(failed.key, "update_failed:1.9.1");
-    assert!(failed.body.contains("update.health_timeout") && failed.body.contains("1.9.0"));
+    assert!(
+        failed.body.say(L::En).contains("update.health_timeout")
+            && failed.body.say(L::En).contains("1.9.0")
+    );
     let plugin = Notice::plugin_update_available("rapidgator", "Rapidgator", "1.2.0", "1.3.0");
     assert_eq!(plugin.event, NotificationEvent::PluginUpdateAvailable);
     assert_eq!(plugin.key, "plugin_update_available:rapidgator:1.3.0");
-    assert!(plugin.body.contains("1.2.0"));
+    assert!(plugin.body.say(L::En).contains("1.2.0"));
     // RD-1240-32: once per restart, by the moment it began.
     let restarting =
         Notice::service_restarting("2026-10-10T03:00:00+00:00", "Rapidgator 1.3.0", true);
@@ -117,7 +130,10 @@ fn an_update_is_keyed_by_its_version_and_a_plugin_update_by_plugin_and_version()
         restarting.key,
         "service_restarting:2026-10-10T03:00:00+00:00"
     );
-    assert!(restarting.body.contains("Rapidgator 1.3.0") && restarting.body.contains("by itself"));
+    assert!(
+        restarting.body.say(L::En).contains("Rapidgator 1.3.0")
+            && restarting.body.say(L::En).contains("by itself")
+    );
 }
 
 #[test]
@@ -141,9 +157,12 @@ fn a_premium_end_within_a_week_is_announced_once_per_date() {
         soon[0].key,
         format!("account_expiring:{}:2026-10-08", account.id)
     );
-    assert!(soon[0].body.contains("ends on 2026-10-08"), "{soon:?}");
     assert!(
-        !soon[0].body.contains("someone@example.test"),
+        soon[0].body.say(L::En).contains("ends on 2026-10-08"),
+        "{soon:?}"
+    );
+    assert!(
+        !soon[0].body.say(L::En).contains("someone@example.test"),
         "a notice never names the user name"
     );
 
@@ -180,7 +199,10 @@ fn an_ended_premium_is_announced_and_an_unreadable_date_is_not_guessed() {
         ),
         today,
     );
-    assert!(past[0].body.contains("ended on 2026-09-30"), "{past:?}");
+    assert!(
+        past[0].body.say(L::En).contains("ended on 2026-09-30"),
+        "{past:?}"
+    );
 
     assert_eq!(premium_end("2027-01-31T00:00:00Z"), Some(day("2027-01-31")));
     assert_eq!(premium_end("31.01.2027"), None);
@@ -205,7 +227,7 @@ fn an_invalid_account_is_announced_at_most_once_a_day() {
         failed.key, refused[0].key,
         "one a day, however it was noticed"
     );
-    assert!(failed.body.contains("wrong password"));
+    assert!(failed.body.say(L::En).contains("wrong password"));
 
     let offline = rd_core::Failure::new(
         rd_core::FailureKind::Transient {
@@ -217,6 +239,36 @@ fn an_invalid_account_is_announced_at_most_once_a_day() {
         account_failure_notice(&account, &offline, today).is_none(),
         "an unreachable provider says nothing about the account"
     );
+}
+
+/// RD-1480-11: a notice is said in the language asked for; its codes, its key and what fills a
+/// rule's own wording stay the same.
+#[test]
+fn a_notice_speaks_the_chosen_language() {
+    let refused =
+        &account_check_notices(&account(), &status(false, Vec::new()), day("2026-10-02"))[0];
+    for language in L::ALL {
+        let body = refused.body.say(language);
+        assert!(body.contains("Main (rapidgator)"), "{language:?}: {body}");
+        assert!(
+            body.contains(&Text::new("account_invalid.refused").say(language)),
+            "{language:?}: {body}"
+        );
+        assert!(!body.contains('{'), "{language:?}: {body}");
+    }
+    assert_ne!(refused.body.say(L::De), refused.body.say(L::En));
+    assert_eq!(
+        refused.values.get(rd_notify::Placeholder::Error),
+        "the provider refused the account"
+    );
+    let failed = Notice::update_failed("1.9.1", "1.9.0", "update.health_timeout");
+    for language in L::ALL {
+        let body = failed.body.say(language);
+        assert!(
+            body.contains("update.health_timeout"),
+            "{language:?}: {body}"
+        );
+    }
 }
 
 /// RD-1280-02: a notice carries what its event's placeholders name, and the account by its label

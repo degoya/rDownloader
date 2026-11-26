@@ -60,7 +60,7 @@
   },
   "pieces": {
     "title": "Disponibilidad de piezas",
-    "count": "{count} piezas",
+    "count": "{count} pieza | {count} piezas",
     "empty": "No hay información de piezas."
   },
   "web_seeds": {
@@ -72,7 +72,7 @@
     "ratio": "Proporción objetivo",
     "time": "Tiempo de seeding",
     "unlimited": "Sin límite",
-    "minutes": "{count} minutos",
+    "minutes": "{count} minuto | {count} minutos",
     "inherit": "Heredar",
     "override_enabled": "Sobrescribir el seeding",
     "override_ratio": "Sobrescribir la proporción",
@@ -96,7 +96,7 @@
     "path": "Carpeta dentro",
     "path_placeholder": "p. ej. Archivo/Series",
     "submit": "Mover",
-    "no_roots": "Añade primero una ubicación de almacenamiento en Ajustes › Enrutamiento.",
+    "no_roots": "Añade primero una ubicación de almacenamiento en Ajustes → Almacenamiento y reglas.",
     "running": "Moviendo a {path}…",
     "taken_back": "Traslado deshecho: {reason}"
   },

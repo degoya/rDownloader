@@ -1,12 +1,13 @@
 use std::{borrow::Cow, collections::BTreeMap};
 
 use axum::{
-    Json,
-    http::StatusCode,
+    http::{HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
 use utoipa::ToSchema;
+
+use crate::extract::Json;
 
 /// Flat string parameters referenced by a translated message.
 pub type MessageParams = BTreeMap<String, String>;
@@ -28,7 +29,11 @@ pub struct ApiError {
 }
 
 impl ApiError {
-    fn with_status(status: StatusCode, code: &'static str, message: impl Into<String>) -> Self {
+    pub(crate) fn with_status(
+        status: StatusCode,
+        code: &'static str,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             status,
             code: Cow::Borrowed(code),
@@ -88,6 +93,12 @@ impl ApiError {
         Self::with_status(StatusCode::CONFLICT, code, message)
     }
 
+    /// Creates a "the resource is not the one your `If-Match` names" error.
+    #[must_use]
+    pub fn precondition_failed(code: &'static str, message: impl Into<String>) -> Self {
+        Self::with_status(StatusCode::PRECONDITION_FAILED, code, message)
+    }
+
     /// Creates a "understood but cannot be fulfilled" error.
     ///
     /// Used where the request is well-formed and the resource exists, but the combination
@@ -109,7 +120,7 @@ impl ApiError {
         Self::with_status(StatusCode::UNSUPPORTED_MEDIA_TYPE, code, message)
     }
 
-    /// Creates a rate-limit error.
+    /// Creates a rate-limit error. With a `seconds` parameter it carries `Retry-After` as well.
     #[must_use]
     pub fn too_many_requests(code: &'static str, message: impl Into<String>) -> Self {
         Self::with_status(StatusCode::TOO_MANY_REQUESTS, code, message)
@@ -211,7 +222,13 @@ pub struct ErrorBody {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (
+        // Every `429` names its wait as the `seconds` parameter; said in the header too, an HTTP
+        // client backs off without reading the body (RD-1480-08).
+        let retry_after = (self.status == StatusCode::TOO_MANY_REQUESTS)
+            .then(|| self.params.get("seconds"))
+            .flatten()
+            .and_then(|seconds| seconds.parse::<u64>().ok());
+        let mut response = (
             self.status,
             Json(ErrorBody {
                 // Total, retroactive cover: every handler's message passes here, so a new
@@ -221,7 +238,13 @@ impl IntoResponse for ApiError {
                 params: self.params,
             }),
         )
-            .into_response()
+            .into_response();
+        if let Some(seconds) = retry_after {
+            response
+                .headers_mut()
+                .insert(header::RETRY_AFTER, HeaderValue::from(seconds));
+        }
+        response
     }
 }
 

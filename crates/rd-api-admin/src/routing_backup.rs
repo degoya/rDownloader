@@ -7,10 +7,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use axum::{
-    Json,
-    extract::{Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Query};
 use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};

@@ -50,6 +50,13 @@ describe('SettingsMcpAccess', () => {
     expect(config?.checked).toBe(false)
   })
 
+  /** RD-1480-06: what an assistant's provider gets to see stands where the areas are chosen. */
+  it('says before a token is made that the assistant\'s provider processes the answers', async () => {
+    mount()
+    await waitFor(() => expect(screen.getAllByRole('checkbox')).toHaveLength(2))
+    expect(screen.getByText(en.mcp.data_flow_hint)).toBeTruthy()
+  })
+
   it('warns only once a sensitive area is actually chosen', async () => {
     mount()
     await waitFor(() => expect(screen.getAllByRole('checkbox')).toHaveLength(2))

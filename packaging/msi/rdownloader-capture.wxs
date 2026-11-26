@@ -89,6 +89,7 @@
         <File Id="stop_rdownloader.bat" Source="$(var.Stage)\stop-rdownloader.bat" />
         <File Id="README.md" Source="$(var.Stage)\README.md" />
         <File Id="LICENSE" Source="$(var.Stage)\LICENSE" />
+        <File Id="THIRD_PARTY_NOTICES.txt" Source="$(var.Stage)\THIRD-PARTY-NOTICES.txt" />
         <File Id="VERSION.txt" Source="$(var.Stage)\VERSION.txt" />
         <File Id="install_kind" Name="install-kind" Source="$(var.InstallKind)" />
         <RemoveFolder Id="RemoveInstallFolder" On="uninstall" />

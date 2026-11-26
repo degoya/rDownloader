@@ -49,6 +49,31 @@ for kind in deb rpm; do
             "$([[ "$source" == "$ROOT"/* && -s "$source" ]] && basename "$source")"
     done
 done
+# RD-1480-12: the licence texts where each format looks for them.
+deb_config="$SCRATCH/out/nfpm-deb-aarch64.yaml"
+rpm_config="$SCRATCH/out/nfpm-rpm-aarch64.yaml"
+for path in LICENSE THIRD-PARTY-NOTICES.txt copyright; do
+    expect "the deb installs doc/rdownloader/$path" "    packager: deb" \
+        "$(grep -A1 -F "dst: /usr/share/doc/rdownloader/$path" "$deb_config" | sed -n '2p')"
+done
+expect "copyright comes from the checkout" yes \
+    "$([[ -s "$(grep -B1 'dst: /usr/share/doc/rdownloader/copyright' "$deb_config" | sed -n 's/^  - src: "\(.*\)"$/\1/p')" ]] && echo yes)"
+for path in LICENSE THIRD-PARTY-NOTICES.txt; do
+    expect "the rpm marks $path as a licence" "    type: license     packager: rpm" \
+        "$(grep -A2 -F "dst: /usr/share/licenses/rdownloader/$path" "$rpm_config" | sed -n '2,3p' | paste -sd' ')"
+done
+run_status python3 - "$ROOT/packaging/linux/copyright" "$ROOT/LICENSE" <<'PY'
+import sys
+text = open(sys.argv[1], encoding="utf-8").read()
+assert text.startswith("Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/\n")
+paragraphs = [paragraph.split("\n") for paragraph in text.strip().split("\n\n")]
+files = [p for p in paragraphs if p[0].startswith("Files: ")]
+assert len(files) == 1 and files[0][0] == "Files: *", files
+assert "License: GPL-3.0-or-later" in files[0]
+assert any(p[0] == "License: GPL-3.0-or-later" and len(p) > 10 for p in paragraphs)
+assert all(line[:1] in " " or ":" in line for p in paragraphs for line in p), "a line is neither field nor text"
+PY
+expect_status "copyright is in the form Debian's policy names" 0
 run_status python3 - "$ROOT/packaging/linux/rdownloader.desktop" <<'PY'
 import configparser, sys
 entry = configparser.ConfigParser(interpolation=None, comment_prefixes=("#",))
@@ -96,7 +121,8 @@ if command -v nfpm > /dev/null; then
         for path in ./usr/lib/rdownloader/rdownloader ./usr/lib/rdownloader/install-kind \
             ./usr/lib/rdownloader/plugins/http-1.0.0.rdplug ./usr/lib/systemd/user/rdownloader.service \
             ./usr/lib/systemd/user/rdownloader-capture.service "./usr/bin/rdownloader -> /usr/lib/rdownloader/rdownloader" \
-            ./usr/share/applications/rdownloader.desktop ./usr/share/icons/hicolor/scalable/apps/rdownloader.svg; do
+            ./usr/share/applications/rdownloader.desktop ./usr/share/icons/hicolor/scalable/apps/rdownloader.svg \
+            ./usr/share/doc/rdownloader/copyright ./usr/share/doc/rdownloader/THIRD-PARTY-NOTICES.txt; do
             expect_output "the deb carries $path" "$path"
         done
         mkdir -p "$SCRATCH/unpacked"

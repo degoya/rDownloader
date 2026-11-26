@@ -19,6 +19,7 @@ import { createI18n } from 'vue-i18n'
 
 import { messageResolver } from '@/i18n/resolver'
 import { DATETIME_FORMATS } from '@/i18n/formats'
+import { PLURAL_RULES } from '@/i18n/plurals'
 import common from '@/locales/en/common.json'
 
 import { uiStubs } from './stubs'
@@ -42,7 +43,8 @@ export function createTestI18n(messages: Record<string, unknown> = {}, locale = 
     // The same shapes the application registers. Without them `d()` answers an unregistered
     // format with an empty string, so a timestamp a component renders would vanish under test
     // and the test would still pass.
-    datetimeFormats: { [locale]: DATETIME_FORMATS }
+    datetimeFormats: { [locale]: DATETIME_FORMATS },
+    pluralRules: PLURAL_RULES
   })
 }
 

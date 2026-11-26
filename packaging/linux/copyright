@@ -1,0 +1,27 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: rDownloader
+Upstream-Contact: DEGOYA.digital
+Source: https://github.com/degoya/rDownloader
+Comment:
+ The binaries and the plugins also contain the work of others. Every such
+ component, its licence, its copyright notices and where its source code is
+ offered are in /usr/share/doc/rdownloader/THIRD-PARTY-NOTICES.txt.
+
+Files: *
+Copyright: 2026 Alexander Herling / DEGOYA.digital
+License: GPL-3.0-or-later
+
+License: GPL-3.0-or-later
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ The full text of the GNU General Public License version 3 is in
+ /usr/share/doc/rdownloader/LICENSE and, on Debian systems, in
+ /usr/share/common-licenses/GPL-3.

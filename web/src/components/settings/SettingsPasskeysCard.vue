@@ -121,7 +121,7 @@ function defaultLabel(): string {
   <UCard as="section" data-settings-anchor="security.passkeys">
     <SectionHeader :eyebrow="t('system.passkeys.eyebrow')" :title="t('system.passkeys.title')" :description="t('system.passkeys.description')" />
 
-    <UAlert v-if="error" class="mt-3" color="error" :description="error" />
+    <UAlert v-if="error" class="mt-3" color="error" role="alert" :description="error" />
     <UAlert
       v-if="!supported"
       class="mt-3"

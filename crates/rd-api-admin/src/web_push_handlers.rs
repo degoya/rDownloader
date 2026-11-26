@@ -6,11 +6,8 @@
 //! the `web_push` notification target and a rule for every event (`rd-db`'s `web_push_store`);
 //! each browser's own choice of events filters what reaches it.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rd_notify::{NotificationEvent, WebPushSubscription};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

@@ -1,7 +1,8 @@
 //! LinkGrabber intake, packages, ordering and enqueueing, and a package's hand-over to a
 //! remote-job provider (RD-1440-07).
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::Json;
 
 use crate::{
     ApiError, AppState,

@@ -4,11 +4,8 @@
 //! so the interface reads a state rather than polling a provider — which is also why closing
 //! the browser in the middle of a sign-in loses nothing.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    response::Redirect,
-};
+use axum::{extract::State, response::Redirect};
+use rd_api_core::extract::{Json, Path, Query};
 use rd_plugin_host::OAuthFlowManifest;
 use serde::Deserialize;
 

@@ -9,10 +9,10 @@ import { useStatsStore } from './stats'
 vi.mock('@/api/client', () => apiClientMock({ responseError: vi.fn(() => 'The statistics are unavailable') }))
 
 let stateEvent: (() => void) | null = null
-let usenetEvent: (() => void) | null = null
+let usenetEvent: ((event?: unknown) => void) | null = null
 const released = vi.fn()
 vi.mock('@/composables/useEventStream', () => eventStreamMock({
-  subscribeEvents: (handlers: Record<string, () => void>) => {
+  subscribeEvents: (handlers: Record<string, (event?: unknown) => void>) => {
     stateEvent = handlers['download.state'] ?? null
     usenetEvent = handlers['usenet.changed'] ?? null
     return () => { stateEvent = null; usenetEvent = null; released() }
@@ -133,9 +133,21 @@ describe('stats store', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(store.servers.map(server => server.name)).toEqual(['Block'])
     expect(store.servers[0]?.total).toBe(50)
-    usenetEvent?.()
+    const usenet = (payload: Record<string, unknown>): void =>
+      usenetEvent?.(new MessageEvent('usenet.changed', { data: JSON.stringify({ payload }) }))
+    usenet({ resource: 'usenet_quota', quota_reached: true })
     await vi.advanceTimersByTimeAsync(2_500)
     expect(calls('/api/v1/stats/usenet-servers')).toBe(2)
+
+    // A running transfer's checkpoints wait for the minute's read (RD-1480-18).
+    usenet({ resource: 'nzb_checkpoint', nzb_file_id: 'f-1' })
+    usenet({ nzb_segment_id: 's-1', state: 'downloading' })
+    await vi.advanceTimersByTimeAsync(2_500)
+    expect(calls('/api/v1/stats/usenet-servers')).toBe(2)
+    // A hole in the stream names nothing and reads again.
+    usenetEvent?.(new MessageEvent('stream.lagged', { data: '{"dropped":3}' }))
+    await vi.advanceTimersByTimeAsync(2_500)
+    expect(calls('/api/v1/stats/usenet-servers')).toBe(3)
     store.stop()
   })
 })

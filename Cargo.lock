@@ -149,15 +149,15 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.104"
+version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+checksum = "2cb931c189b85683d69a5cfad41d4d418671e1ac413dd209f3f2fc31e3cfd902"
 
 [[package]]
 name = "apple-native-keyring-store"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b350bfd03649e07aa05c0a81b3e15934374e585c98204a57e20b9d49f49bb9a"
+checksum = "02e465454e78fda6f7cd9dab7eb47518ca28c59b1bc392ca865af61452741dd3"
 dependencies = [
  "keyring-core",
  "log",
@@ -304,9 +304,9 @@ dependencies = [
 
 [[package]]
 name = "async-compression"
-version = "0.4.52"
+version = "0.4.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ad47a740fb906fffdd891e8b6d5fde2511600f7bfaebd68939fa08a14999459"
+checksum = "0c31224bd2c09447484a1143f2fc1d871eb405789859c8e5470a3e7f95f40a18"
 dependencies = [
  "compression-codecs",
  "compression-core",
@@ -1156,9 +1156,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.6.9"
+version = "4.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "844c5c0b65be192cb68d570cca1b21a6444431d24e39c084dc0336177015337c"
+checksum = "50066ca966813ca8957ee15361752f19424a8ff620dbe9c8993d9f99d99b04b3"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1166,9 +1166,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.6.7"
+version = "4.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec0797fb7aeb1406c84efac526901f7ec3ead2124f946b494e72879d4b54704d"
+checksum = "a0ed97c96ef4efb3cc84e09fa388df4463e7cc3224ec38d7b1d9e45749333590"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1254,9 +1254,9 @@ dependencies = [
 
 [[package]]
 name = "compression-codecs"
-version = "0.4.48"
+version = "0.4.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e41632c2efd201c62f1432f7cbee121b97878eab579da9d85676573d1fd33b9"
+checksum = "f938fc0d88fbe2c8d6f0e1ba96ba1165d89ff698e98468cd019d92cff2ecd367"
 dependencies = [
  "compression-core",
  "flate2",
@@ -1301,18 +1301,18 @@ dependencies = [
 
 [[package]]
 name = "constant_time_eq"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9eb6feb175df65d0a3ccd3e73484e940d0ac664e8034f0519fd49a93db3071d9"
+checksum = "144e7f1de087984240b7816d47f698b414979faa6f40839c5b86d6bd47db57b7"
 dependencies = [
  "rustversion",
 ]
 
 [[package]]
 name = "cookie"
-version = "0.18.2"
+version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a373e3602691c3cdea496d2f0ee5935151e6168fe87739483c463db1b2f2f87"
+checksum = "d55f2d6c30eeec7d5c6f98bd4395d4abb1895629eab97ee6522d340623615f8a"
 dependencies = [
  "percent-encoding",
  "time",
@@ -1596,9 +1596,9 @@ dependencies = [
 
 [[package]]
 name = "crc32fast"
-version = "1.5.5"
+version = "1.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b929dd2a135771f40afabd1073f85eed59c800b7c61901e5c254270497dad64"
+checksum = "fd9ae8fcb3ea71b0b26338b4ffb13006bb175de8fd07921089a906ce7e5e6945"
 dependencies = [
  "cfg-if",
 ]
@@ -1609,7 +1609,7 @@ version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c0d18af839fad650d1673db4e2e40cfad3288dcb84a13670a9014e8d0978008"
 dependencies = [
- "jiff 1.0.2",
+ "jiff 1.0.3",
 ]
 
 [[package]]
@@ -2265,7 +2265,7 @@ dependencies = [
  "cc",
  "memchr",
  "rustc_version",
- "toml 1.2.2+spec-1.1.0",
+ "toml 1.2.3+spec-1.1.0",
  "vswhom",
  "winreg",
 ]
@@ -3126,9 +3126,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.20"
+version = "0.4.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d29020232d6aa3fb1daca64c1127cf662cf97f254ae16c18c05b8ab635fc118"
+checksum = "b634322c4924093fe6a6e05ecbe5717cd3c6014934455f4ae8e5cf14ba3264a8"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -3342,9 +3342,9 @@ dependencies = [
 
 [[package]]
 name = "hyper"
-version = "1.12.0"
+version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c3e324da4c95177d6291d4c8730197c0d1822f8a9766814a4a44fa5ab797c9c"
+checksum = "229c6ff5584df4c6becbfe00567128bac768c8cd32ebc8a8366bd81ed072e8f3"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -3684,12 +3684,12 @@ dependencies = [
 
 [[package]]
 name = "jiff"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5e77cbfb9fff4798e283c2d69dff39fc2c45e7da017e5ce95b654e46ea41236"
+checksum = "107f2e89536b6818514025f6787b0d94d819e54fe3b40365275fc753de485b3f"
 dependencies = [
- "jiff-core 1.0.1",
- "jiff-static 1.0.2",
+ "jiff-core 1.0.2",
+ "jiff-static 1.0.3",
  "jiff-tzdb 1.0.0",
  "jiff-tzdb-platform 1.0.0",
  "log",
@@ -3710,9 +3710,9 @@ dependencies = [
 
 [[package]]
 name = "jiff-core"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6b46a105a9874634dd96231021526bf24ca04955a5998c59a9c7666e634b7b8"
+checksum = "d44c923edf2bf456a982253f1a9ee1f6e89e421dffd0065d9b9a581da0def58f"
 dependencies = [
  "log",
 ]
@@ -3731,11 +3731,11 @@ dependencies = [
 
 [[package]]
 name = "jiff-static"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9067a0b23e5be3147d56b2dcf652b18e6b1364caca93fb157653b6fbcab23a9"
+checksum = "4996f71e569e3a3e32b925c28ef8f0027dc30bb1d594b33eeda409eea185f5c8"
 dependencies = [
- "jiff-core 1.0.1",
+ "jiff-core 1.0.2",
  "proc-macro2",
  "quote",
  "syn 3.0.10",
@@ -4423,9 +4423,9 @@ checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 
 [[package]]
 name = "litrs"
-version = "1.0.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4744e383959f0db86ede514b809b1c53251889093803c05267acc7d4e7030d70"
+checksum = "02b614978e47ce529faee66579f2b2fe19c94aa96d910a6a9a8043b2b02d8175"
 
 [[package]]
 name = "lock_api"
@@ -6114,7 +6114,7 @@ version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e67ba7e9b2b56446f1d419b1d807906278ffa1a658a8a5d8a39dcb1f5a78614f"
 dependencies = [
- "toml_edit 0.25.20+spec-1.1.0",
+ "toml_edit 0.25.21+spec-1.1.0",
 ]
 
 [[package]]
@@ -6152,9 +6152,9 @@ dependencies = [
 
 [[package]]
 name = "psl"
-version = "2.1.261"
+version = "2.1.263"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3058f918351d1ee290ff4e70243e419b33269dcb83bc8cd46c5afa8a97a90012"
+checksum = "4ce5fe095326c5a930f8f4af012fa5494c56587bcc02311dc80a8f6827f2742e"
 dependencies = [
  "psl-types",
 ]
@@ -6485,7 +6485,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6495,7 +6495,7 @@ dependencies = [
  "futures-util",
  "hex",
  "http-body-util",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "mime_guess",
  "rd-api-access",
  "rd-api-admin",
@@ -6554,7 +6554,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-access"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -6583,7 +6583,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-admin"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -6591,7 +6591,7 @@ dependencies = [
  "axum",
  "base64 0.23.1",
  "chacha20poly1305",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "rand 0.10.4",
  "rd-api-core",
  "rd-authn",
@@ -6627,7 +6627,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-compat"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -6645,7 +6645,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-core"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -6656,7 +6656,7 @@ dependencies = [
  "dunce",
  "fs4",
  "hex",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "openidconnect",
  "percent-encoding",
  "rand 0.10.4",
@@ -6710,13 +6710,13 @@ dependencies = [
 
 [[package]]
 name = "rd-api-intake"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
  "axum",
  "base64 0.23.1",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "percent-encoding",
  "rand 0.10.4",
  "rcgen",
@@ -6757,7 +6757,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-mcp"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -6780,7 +6780,7 @@ dependencies = [
 
 [[package]]
 name = "rd-api-queue"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -6810,7 +6810,7 @@ dependencies = [
 
 [[package]]
 name = "rd-authn"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
@@ -6832,10 +6832,10 @@ dependencies = [
 
 [[package]]
 name = "rd-automation"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "croner",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "rd-core",
  "rd-notify",
  "regex",
@@ -6847,7 +6847,7 @@ dependencies = [
 
 [[package]]
 name = "rd-autostart"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "directories",
@@ -6858,7 +6858,7 @@ dependencies = [
 
 [[package]]
 name = "rd-backup"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "argon2 0.6.0",
@@ -6867,7 +6867,7 @@ dependencies = [
  "chacha20poly1305",
  "futures-util",
  "hex",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "rand 0.10.4",
  "rd-core",
  "rd-db",
@@ -6896,7 +6896,7 @@ dependencies = [
 
 [[package]]
 name = "rd-captcha"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -6920,7 +6920,7 @@ dependencies = [
 
 [[package]]
 name = "rd-capture"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -6930,7 +6930,7 @@ dependencies = [
  "directories",
  "embed-resource",
  "global-hotkey",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "keyring",
  "notify-rust",
  "objc2",
@@ -6955,7 +6955,7 @@ dependencies = [
  "tao",
  "tokio",
  "tokio-util",
- "toml 1.2.2+spec-1.1.0",
+ "toml 1.2.3+spec-1.1.0",
  "tower-http 0.7.1",
  "tracing",
  "tracing-subscriber",
@@ -6969,7 +6969,7 @@ dependencies = [
 
 [[package]]
 name = "rd-cnl"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "aes",
  "anyhow",
@@ -6983,7 +6983,7 @@ dependencies = [
 
 [[package]]
 name = "rd-collector"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "aes",
  "anyhow",
@@ -7007,7 +7007,7 @@ dependencies = [
  "chrono",
  "chrono-tz",
  "hex",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "percent-encoding",
  "rd-crash-points",
  "rd-plugin-types",
@@ -7031,12 +7031,12 @@ version = "1.0.0"
 
 [[package]]
 name = "rd-db"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
  "futures-util",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "rd-automation",
  "rd-collector",
  "rd-core",
@@ -7060,7 +7060,7 @@ dependencies = [
 
 [[package]]
 name = "rd-diagnostics"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "hex",
@@ -7084,7 +7084,7 @@ dependencies = [
 
 [[package]]
 name = "rd-extract"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7107,7 +7107,7 @@ dependencies = [
 
 [[package]]
 name = "rd-files"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "crc32fast",
@@ -7131,11 +7131,11 @@ dependencies = [
 
 [[package]]
 name = "rd-ftp"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "rd-core",
  "rd-db",
  "rd-files",
@@ -7155,7 +7155,7 @@ dependencies = [
 
 [[package]]
 name = "rd-gallery"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7175,7 +7175,7 @@ dependencies = [
 
 [[package]]
 name = "rd-hotfolder"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7194,7 +7194,7 @@ dependencies = [
 
 [[package]]
 name = "rd-http"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "aes",
  "anyhow",
@@ -7236,11 +7236,11 @@ dependencies = [
 
 [[package]]
 name = "rd-limits"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "governor",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "rd-core",
  "serde",
  "tokio",
@@ -7249,7 +7249,7 @@ dependencies = [
 
 [[package]]
 name = "rd-media"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7274,14 +7274,14 @@ dependencies = [
 
 [[package]]
 name = "rd-notify"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "aws-lc-rs",
  "base64 0.23.1",
  "hex",
  "hmac 0.13.0",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "lettre",
  "rd-core",
  "rd-files",
@@ -7298,7 +7298,7 @@ dependencies = [
 
 [[package]]
 name = "rd-object-storage"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7306,7 +7306,7 @@ dependencies = [
  "base64 0.23.1",
  "chrono",
  "futures-util",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "object_store",
  "rcgen",
  "rd-core",
@@ -7335,7 +7335,7 @@ dependencies = [
 
 [[package]]
 name = "rd-pack"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -7383,7 +7383,7 @@ dependencies = [
  "async-trait",
  "rd-plugin-types",
  "serde",
- "toml 1.2.2+spec-1.1.0",
+ "toml 1.2.3+spec-1.1.0",
  "url",
 ]
 
@@ -7549,7 +7549,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-ext"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "aes",
  "anyhow",
@@ -7571,7 +7571,7 @@ dependencies = [
  "sha2 0.11.1",
  "tempfile",
  "tokio",
- "toml 1.2.2+spec-1.1.0",
+ "toml 1.2.3+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -7644,7 +7644,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-host"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "aes",
  "anyhow",
@@ -7681,7 +7681,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-util",
- "toml 1.2.2+spec-1.1.0",
+ "toml 1.2.3+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
  "url",
@@ -7741,7 +7741,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "toml 1.2.2+spec-1.1.0",
+ "toml 1.2.3+spec-1.1.0",
  "url",
  "xfs-common",
 ]
@@ -7782,7 +7782,7 @@ dependencies = [
  "rd-plugin-types",
  "serde_json",
  "tokio",
- "toml 1.2.2+spec-1.1.0",
+ "toml 1.2.3+spec-1.1.0",
  "url",
 ]
 
@@ -8257,7 +8257,7 @@ dependencies = [
 
 [[package]]
 name = "rd-plugin-transfer"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8274,7 +8274,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tokio-util",
- "toml 1.2.2+spec-1.1.0",
+ "toml 1.2.3+spec-1.1.0",
  "tracing",
  "url",
 ]
@@ -8339,7 +8339,7 @@ dependencies = [
 
 [[package]]
 name = "rd-postprocess"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "dunce",
@@ -8358,11 +8358,11 @@ dependencies = [
 
 [[package]]
 name = "rd-power"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "rd-core",
  "rd-files",
  "rd-limits",
@@ -8385,7 +8385,7 @@ dependencies = [
 
 [[package]]
 name = "rd-scheduler"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8418,7 +8418,7 @@ dependencies = [
 
 [[package]]
 name = "rd-secrets"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -8437,11 +8437,11 @@ dependencies = [
 
 [[package]]
 name = "rd-sftp"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "rd-core",
  "rd-db",
  "rd-files",
@@ -8461,7 +8461,7 @@ dependencies = [
 
 [[package]]
 name = "rd-sign"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -8475,7 +8475,7 @@ dependencies = [
 
 [[package]]
 name = "rd-siterules"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -8492,11 +8492,11 @@ dependencies = [
 
 [[package]]
 name = "rd-stream"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "rd-core",
  "rd-db",
  "rd-files",
@@ -8517,13 +8517,13 @@ dependencies = [
 
 [[package]]
 name = "rd-subscription"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
  "croner",
  "hex",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "quick-xml 0.42.0",
  "rd-collector",
  "rd-core",
@@ -8550,7 +8550,7 @@ dependencies = [
 
 [[package]]
 name = "rd-tools"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -8581,7 +8581,7 @@ dependencies = [
 
 [[package]]
 name = "rd-torrent"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8610,7 +8610,7 @@ dependencies = [
 
 [[package]]
 name = "rd-transfer-file"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "rd-core",
@@ -8627,7 +8627,7 @@ dependencies = [
 
 [[package]]
 name = "rd-update"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8655,7 +8655,7 @@ dependencies = [
 
 [[package]]
 name = "rd-usenet"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8686,7 +8686,7 @@ dependencies = [
 
 [[package]]
 name = "rd-webdav"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "httpdate",
@@ -8700,14 +8700,14 @@ dependencies = [
 
 [[package]]
 name = "rd-win32"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "windows",
 ]
 
 [[package]]
 name = "rdownloader"
-version = "1.47.0"
+version = "1.48.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -8716,7 +8716,7 @@ dependencies = [
  "dunce",
  "embed-resource",
  "hex",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "rd-api",
  "rd-autostart",
  "rd-backup",
@@ -9698,7 +9698,7 @@ dependencies = [
  "indexmap 1.9.3",
  "indexmap 2.14.2",
  "jiff 0.2.46",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "schemars 0.9.0",
  "schemars 1.2.3",
  "serde_core",
@@ -10285,7 +10285,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "919688e3d2128f0c3e77f4dff7a2035f2d73ccf488851ba96ba42002e850cad5"
 dependencies = [
  "async-trait",
- "jiff 1.0.2",
+ "jiff 1.0.3",
  "lazy-regex",
  "log",
  "pin-project",
@@ -10703,9 +10703,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "1.2.2+spec-1.1.0"
+version = "1.2.3+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5426cb1b964690d913f6c5c1a1ae0b42f428ec506bb4d452876d7a209c9bca3b"
+checksum = "26b1f26e9485c1fa43ee89fe76e9f3fb9e2e52bb227f8594b4d687496b83d073"
 dependencies = [
  "indexmap 2.14.2",
  "serde_core",
@@ -10760,9 +10760,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.25.20+spec-1.1.0"
+version = "0.25.21+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e76360e201d6dbd6583e17795ba71a88f47365a9139c8450a7979c32303b8e73"
+checksum = "88497dab46de5bf343ec66b05c251e48c6213f3e9170c70a70a823f7abe886a4"
 dependencies = [
  "indexmap 2.14.2",
  "toml_datetime 1.1.3+spec-1.1.0",
@@ -10772,9 +10772,9 @@ dependencies = [
 
 [[package]]
 name = "toml_parser"
-version = "1.1.6+spec-1.1.0"
+version = "1.1.7+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6769c452d71ba30696c6b37770c439a9cc9110f47f7d5cdbeda79840ef5ea31"
+checksum = "0bb28d6e049a9766c3bd91a8326e6179f5b132dec87906bb97018ef7a2f3431a"
 dependencies = [
  "winnow 1.0.5",
 ]
@@ -11466,7 +11466,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "sha2 0.10.9",
- "toml 1.2.2+spec-1.1.0",
+ "toml 1.2.3+spec-1.1.0",
  "wasmtime-environ",
  "windows-sys 0.61.2",
  "zstd",
@@ -12568,18 +12568,18 @@ dependencies = [
 
 [[package]]
 name = "zerocopy"
-version = "0.8.64"
+version = "0.8.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed43f3060383c64b000f3c630550aebdfa9d3b76d48de32390483dd2cc7e0865"
+checksum = "32bc8a75f879cd6fe53a6bedf3c28f0e1b914c77424fc2be9e2ec85d7d25aff5"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.64"
+version = "0.8.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5cbd820fe3e35fb38c83b6dc7e6b1618bc46e0cd10073ae94e8d52dc468d8b9"
+checksum = "b8bfd2644ea1681f60cf95029ff18aa8ad1cc3f7b8fe37286f8e473bb29f816b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -12663,9 +12663,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "9.8.1"
+version = "9.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9534624d547e3f516ecde0ed9a70d37788f01d340efcfdd03bf3ea8e163c1d0"
+checksum = "2d8dbe089cf6b0448b78f5fc50139ab5aaa40d08ac07cdc1baf2c13add35fcce"
 dependencies = [
  "aes",
  "constant_time_eq",
@@ -12687,9 +12687,9 @@ dependencies = [
 
 [[package]]
 name = "zlib-rs"
-version = "0.6.8"
+version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112"
+checksum = "aa76918995d776d9dd34d371030be228d021137449771493d56e29f77e4148ac"
 
 [[package]]
 name = "zmij"
@@ -12711,27 +12711,27 @@ dependencies = [
 
 [[package]]
 name = "zstd"
-version = "0.13.5"
+version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50adf04cf3ec914b0b9905c9dde90c80fe74bfd701e331fc80a39c512c525278"
+checksum = "b04655dc7bf4abd8ebe23dac6bef20fceea52a29ad19e37a4101b3951d7e8b45"
 dependencies = [
  "zstd-safe",
 ]
 
 [[package]]
 name = "zstd-safe"
-version = "7.4.1"
+version = "7.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "498d94ad68720c89b4fbe41b9090850651e68cb2dd9210ce7ffbff3a94653819"
+checksum = "df2575690b2a3eccad509fe7898cdde32a5afca06a06449ff4dcfb318c7b7281"
 dependencies = [
  "zstd-sys",
 ]
 
 [[package]]
 name = "zstd-sys"
-version = "2.1.3+zstd.1.5.7"
+version = "2.2.0+zstd.1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f729a06d0257428fd9d997ac8db7e1407bd0262ab016b085b36bc52957c0052d"
+checksum = "c3f4089cda6dda4dc43c43dd9f8964140064fd2f752f3da46c3a483c3c175160"
 dependencies = [
  "cc",
  "pkg-config",

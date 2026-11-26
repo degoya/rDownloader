@@ -279,6 +279,7 @@ async fn nzb_assembly_batch_confirms_every_segment_or_none() {
         "a refused batch confirms nothing"
     );
 
+    let mut events = database.subscribe();
     database
         .checkpoint_nzb_assembly_segments(
             file.id,
@@ -288,6 +289,12 @@ async fn nzb_assembly_batch_confirms_every_segment_or_none() {
         )
         .await
         .expect("batch");
+    let event = events.try_recv().expect("event");
+    assert_eq!(
+        event.payload,
+        serde_json::json!({ "resource": "nzb_checkpoint", "nzb_file_id": file.id }),
+        "the checkpoint names the file whose bytes moved (RD-1480-18)"
+    );
     let files = database.list_nzb_files(import.id).await.expect("files");
     let by_number = |number| {
         files[0]

@@ -9,6 +9,7 @@
 mod common;
 
 mod address_rule;
+mod candidate_routes;
 mod captcha;
 mod capture_boundary;
 mod capture_click_and_load;
@@ -21,12 +22,14 @@ mod check_auth_profile;
 mod collector_pages;
 mod collector_picks;
 mod collector_remote_job;
+mod collector_remote_job_unchecked;
 mod container_json;
 mod containers;
 mod dlc;
 mod enqueue_cancellation;
 mod event_resume;
 mod hotfolder_poll;
+mod link_filter_order;
 mod media_manifest;
 mod mirrors;
 mod nzb_paused;

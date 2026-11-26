@@ -3,7 +3,8 @@
 use super::*;
 
 /// Direct URL queue request.
-#[derive(Deserialize, ToSchema)]
+// `Serialize` is what its `Idempotency-Key` fingerprint is taken from.
+#[derive(Deserialize, Serialize, ToSchema)]
 pub struct CreateDownloadRequest {
     #[schema(format = "uri")]
     pub url: String,
@@ -34,6 +35,7 @@ pub struct CreateDownloadRequest {
 pub struct PageQuery {
     /// Rows to return at most, 1 to 1000. With `limit` or `offset` set the answer carries
     /// `X-Total-Count`.
+    #[param(minimum = 1, maximum = 1000)]
     pub limit: Option<u32>,
     /// Rows to skip first; alone it returns everything after them.
     pub offset: Option<u32>,
@@ -88,8 +90,18 @@ pub struct DownloadRateEntry {
     pub connections: Option<u32>,
 }
 
-/// Live transfer rates: the queue as a whole, every entry that is moving, and every queued
-/// entry that waits for a connection to its host.
+/// How far one entry is that a runner works on right now (RD-1480-18).
+#[derive(Serialize, ToSchema)]
+pub struct DownloadProgressEntry {
+    pub id: rd_core::DownloadId,
+    pub state: rd_core::DownloadState,
+    pub committed_bytes: rd_core::ByteCount,
+    /// `None` while the size is not known.
+    pub total_bytes: Option<rd_core::ByteCount>,
+}
+
+/// Live transfer rates: the queue as a whole, every entry that is moving, how far every entry
+/// at work is, and every queued entry that waits for a connection to its host.
 ///
 /// Entries at rest are left out — their rate is zero and their remaining time is nothing, and
 /// saying so for every finished download in a long list is pure payload.
@@ -102,6 +114,11 @@ pub struct DownloadRatesResponse {
     /// Seconds until the queue is through, or `None` when no honest figure exists.
     pub eta_seconds: Option<u64>,
     pub downloads: Vec<DownloadRateEntry>,
+    /// Every entry a runner works on - resolving, downloading, verifying, repairing or
+    /// extracting - with its bytes, so a client that holds the list follows a transfer without
+    /// reading the list again. An entry missing here is no longer at work, and one whose `state`
+    /// differs from the client's copy changed state: both mean the list has to be read.
+    pub progress: Vec<DownloadProgressEntry>,
     /// Queued entries held back because their host has no free connection (RD-1130-02).
     /// They take no place among the files running at once meanwhile.
     pub waiting_for_host: Vec<DownloadHostWait>,

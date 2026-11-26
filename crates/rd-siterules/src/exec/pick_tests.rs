@@ -22,7 +22,7 @@ const DEVICE: &str = "0123456789abcdef0123456789abcdef";
 const HTML: &str = r#"<div id="list" data-mediaid="m1" data-mediatitle="The Show"
  data-captchasitekey="site-key-1"></div>"#;
 
-/// Three releases the way serienjunkies.org answers: two episodes and a season pack.
+/// Three releases the way a series page answers: two episodes and a season pack.
 const RELEASES: &str = r#"{"S1":{"items":[
 {"_id":"r1","name":"The.Show.S01E01.720p","season":1,"episode":1,"resolution":"720p","language":"GERMAN","hoster":["hoster-one"]},
 {"_id":"r2","name":"The.Show.S01E02.1080p","season":1,"episode":2,"resolution":"1080p","language":"GERMAN","hoster":["hoster-one"]},

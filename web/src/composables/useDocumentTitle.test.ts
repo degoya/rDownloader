@@ -1,9 +1,11 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { setLocale } from '@/i18n'
+import { router } from '@/router'
+import { SETTINGS_SECTIONS } from '@/settingsSections'
 import { setByteDisplay, setByteUnit } from '@/utils/byteDisplay'
 
-import { transferTitle } from './useDocumentTitle'
+import { transferTitle, viewName } from './useDocumentTitle'
 import { loadEveryLocale } from '@/test/locales'
 
 beforeAll(loadEveryLocale)
@@ -47,12 +49,30 @@ describe('browser tab title', () => {
     }
   })
 
+  it('names the view between the state and the application (WCAG 2.4.2)', () => {
+    const view = viewName('/downloads')
+    expect(transferTitle({ enabled: true, activeCount: 0, rate: 0, view })).toBe('Downloads · rDownloader')
+    expect(transferTitle({ enabled: false, activeCount: 4, rate: 5_242_880, view })).toBe('Downloads · rDownloader')
+    expect(transferTitle({ enabled: true, activeCount: 1, rate: 1_572_864, view })).toBe('1.5 MiB/s · 1 active · Downloads · rDownloader')
+  })
+
+  it('gives every view and every settings page a title of its own', () => {
+    const views = router.getRoutes().map(route => route.path).filter(path => !path.includes(':') && path !== '/' && path !== '/history')
+    const paths = [...views, ...SETTINGS_SECTIONS.map(section => `/settings/${section.value}`)]
+    const titles = paths.map(path => viewName(path).join(' · '))
+    expect(titles).not.toContain('')
+    expect(new Set(titles).size).toBe(titles.length)
+    expect(viewName('/settings/network')).toEqual(['Network', 'Settings'])
+    setLocale('de')
+    expect(viewName('/settings')).toEqual(['Einstellungen'])
+  })
+
   it('follows the language and the byte preferences', () => {
     setLocale('de')
     expect(transferTitle({ enabled: true, activeCount: 2, rate: 1_048_576 }))
-      .toBe('1.0 MiB/s · 2 aktiv · rDownloader')
+      .toBe('1,0 MiB/s · 2 aktiv · rDownloader')
     setByteDisplay('decimal')
     expect(transferTitle({ enabled: true, activeCount: 2, rate: 1_000_000 }))
-      .toBe('1.0 MB/s · 2 aktiv · rDownloader')
+      .toBe('1,0 MB/s · 2 aktiv · rDownloader')
   })
 })

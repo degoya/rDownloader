@@ -72,7 +72,7 @@ export function useAccountTests(error: Ref<string | null>, message: Ref<string |
       result.premium ? t('network.messages.premium_active') : t('network.messages.premium_inactive')
     ]
     if (result.traffic_left) parts.push(t('network.messages.traffic_left', { amount: formatBytes(result.traffic_left) }))
-    return `${account.label}: ${parts.join(' · ')}`
+    return t('common.text.labelled', { label: account.label, value: parts.join(' · ') })
   }
 
   return { testResults, testingAccountId, clearTestResult, testBadge, checkAfterSaving, testAccount }

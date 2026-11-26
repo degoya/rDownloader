@@ -11,6 +11,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { SeedingPolicyRequest, SeedingPolicyResponse } from '@/api/types'
 import NumberWithUnit from '@/components/NumberWithUnit.vue'
+import { formatRatio } from '@/utils/format'
 import { RATIO, WHOLE, orNull } from '@/utils/numberInput'
 
 const { t } = useI18n()
@@ -80,7 +81,7 @@ function save(): void {
       </div>
       <div class="flex items-baseline gap-2">
         <dt class="w-28 shrink-0 text-toned">{{ t('torrent.seeding.ratio') }}</dt>
-        <dd class="numeric flex-1">{{ effective.ratio.toFixed(2) }}</dd>
+        <dd class="numeric flex-1">{{ formatRatio(effective.ratio) }}</dd>
         <dd class="shrink-0 text-muted">{{ sourceLabel(effective.ratio_source) }}</dd>
       </div>
       <div class="flex items-baseline gap-2">

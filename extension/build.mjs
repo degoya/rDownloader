@@ -25,7 +25,7 @@ export const CHROME_MIN_VERSION = '153'
  *   downloads the add-on takes over (`websiteActivity`); and what a page or the person hands
  *   over with them (`websiteContent`) — selected text, Click'n'Load's encrypted links, key,
  *   package name and archive passwords, container and NZB/torrent files with the download's
- *   referrer and user agent;
+ *   referrer and user agent, and the answer to a captcha the person solved on a hoster's page;
  * - only with the optional consent, asked for in the same click as the `cookies` grant for one
  *   site (`src/data-collection.js`): the login cookies of a session share, a session handover
  *   or a site's file hand-over (`authenticationInfo`). Without it no cookie leaves Firefox.
@@ -46,6 +46,16 @@ export const FIREFOX_ONLY_PERMISSIONS = ['webRequestBlocking', 'webRequestFilter
  * port addresses, and the sites the person allowed. Firefox answers from its blocking listener.
  */
 export const CHROME_ONLY_PERMISSIONS = ['declarativeNetRequestWithHostAccess']
+
+/**
+ * A host permission as Firefox reads it: without the port. Firefox matches a pattern with a port
+ * against nothing (Mozilla bugs 1362809, 1468162), so `http://127.0.0.1:9666/*` granted nothing
+ * there: no Click'n'Load request was ever seen, and rDownloader on this computer was reached by
+ * its CORS headers alone (RD-1480-01). Chrome keeps the port, and with it the narrower grant.
+ */
+function withoutPort(pattern) {
+  return pattern.replace(/:\d+\//, '/')
+}
 
 export function archiveName(target) {
   return `rdownloader-${target}.zip`
@@ -78,10 +88,15 @@ export function manifestFor(target, base) {
         data_collection_permissions: FIREFOX_DATA_COLLECTION
       }
     }
+    // Firefox adds `upgrade-insecure-requests` to an MV3 add-on that names no policy, which turns
+    // every request to `http://nas.local:8710` into https. Plain http on a trusted LAN is the
+    // person's choice, and the options page warns about it (`sendsTokenInClear`).
+    manifest.content_security_policy = { extension_pages: "script-src 'self'" }
     // The response copy of RD-130-16: `filterResponseData` needs both, and a Manifest V3 add-on
     // the second one as well. Neither reaches a page without the host grant the person gives per
     // site. Chrome has no such API and refuses `webRequestBlocking` outside a policy install.
     manifest.permissions = [...manifest.permissions, ...FIREFOX_ONLY_PERMISSIONS]
+    manifest.host_permissions = [...new Set(manifest.host_permissions.map(withoutPort))]
   } else {
     throw new Error(`unknown target ${target}`)
   }
@@ -112,6 +127,8 @@ export function build(outDir = defaultOutDir, { archive: writeArchives = true } 
     const dir = join(outDir, target)
     mkdirSync(dir, { recursive: true })
     for (const entry of ['src', 'icons', '_locales']) cpSync(join(root, entry), join(dir, entry), { recursive: true })
+    // The GPL travels with the copy a person gets, not only with the repository (LIC-11).
+    cpSync(join(root, '..', 'LICENSE'), join(dir, 'LICENSE'))
     writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifestFor(target, base), null, 2))
     if (!writeArchives) continue
     const archive = join(outDir, archiveName(target))

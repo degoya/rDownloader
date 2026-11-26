@@ -15,17 +15,24 @@ import { fileURLToPath } from 'node:url'
 
 import { MESSAGE_TYPES } from '../src/captcha.js'
 
+import { fakeBrowser, loadIn, settle } from './fake-browser.mjs'
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-const registered = []
-const attempts = []
+const PAIRED = { server: 'http://127.0.0.1:8710', token: 'capture-token', interceptDownloads: true }
 const calls = []
-const session = {}
-const state = {
-  config: { server: 'http://127.0.0.1:8710', token: 'capture-token', interceptDownloads: true },
-  respond: async () => ({ ok: true, status: 201, json: async () => ({ candidates: [{}, {}] }) }),
-  notificationsWork: true
-}
+const state = { respond: async () => ({ ok: true, status: 201, json: async () => ({ candidates: [{}, {}] }) }) }
+
+// Chrome's build; `wiring.test.mjs` loads both. The fake answers on a later task, so a
+// registration that waits for an answer cannot slip into `atLoad`.
+const browser = fakeBrowser('chrome', {
+  calls,
+  local: PAIRED,
+  cookies: [{ name: 'session', value: 'abc', domain: '.hoster.test', path: '/', secure: true }],
+  keys: true,
+  respond: (url, init) => state.respond(url, init)
+})
+const registered = browser.listeners
 
 function handlerFor(name) {
   const entry = registered.find((candidate) => candidate.name === name)
@@ -37,97 +44,7 @@ function handlersFor(name) {
   return registered.filter((candidate) => candidate.name === name).map((candidate) => candidate.handler)
 }
 
-function event(name) {
-  return { addListener: (handler, ...rest) => registered.push({ name, handler, rest }) }
-}
-
-/**
- * Firefox refuses `extraHeaders` on these events, which cost a release once (RD-108-22). This
- * one refuses it too, so the retry in `addRequestListener` is walked at load rather than taken
- * on trust.
- */
-function pickyEvent(name) {
-  return {
-    addListener: (handler, filter, spec) => {
-      attempts.push({ name, spec })
-      if (spec?.includes('extraHeaders')) throw new Error('extraHeaders is not supported')
-      registered.push({ name, handler, rest: [filter, spec] })
-    }
-  }
-}
-
-/**
- * Every asynchronous browser call in this fake settles on a *later* task than module
- * evaluation. That is what makes the registration assertion deterministic: a registration that
- * waits for one of them cannot slip into the snapshot taken right after the import.
- */
-const later = (value) => new Promise((resolve) => setTimeout(() => resolve(value), 0))
-
-globalThis.fetch = async (url, init) => {
-  calls.push(['fetch', String(url)])
-  return state.respond(url, init)
-}
-
-globalThis.chrome = {
-  runtime: {
-    id: 'self',
-    getURL: (path) => `chrome-extension://self/${path}`,
-    openOptionsPage: () => calls.push(['openOptionsPage']),
-    onInstalled: event('runtime.onInstalled'),
-    onStartup: event('runtime.onStartup'),
-    onMessage: event('runtime.onMessage')
-  },
-  contextMenus: {
-    create: (options) => calls.push(['menu', options.id, options.title, options.contexts.join(',')]),
-    removeAll: (done) => { calls.push(['removeAllMenus']); done() },
-    onClicked: event('contextMenus.onClicked')
-  },
-  storage: {
-    local: { get: (defaults) => later({ ...defaults, ...state.config }), set: () => later() },
-    session: {
-      get: (defaults) => later(Object.fromEntries(Object.keys(defaults).map((key) => [key, session[key] ?? defaults[key]]))),
-      set: (values) => { Object.assign(session, values); return later() }
-    },
-    onChanged: event('storage.onChanged')
-  },
-  alarms: { create: () => later(), clear: () => later(), onAlarm: event('alarms.onAlarm') },
-  tabs: { create: () => later({ id: 1 }), update: () => later(), remove: () => later(), onUpdated: event('tabs.onUpdated'), onRemoved: event('tabs.onRemoved') },
-  downloads: { onCreated: event('downloads.onCreated') },
-  notifications: {
-    create: (options) => {
-      if (!state.notificationsWork) return Promise.reject(new Error('notifications are off'))
-      calls.push(['notify', options.title, options.message])
-      return later('n1')
-    },
-    clear: () => later(),
-    onButtonClicked: event('notifications.onButtonClicked'),
-    onClicked: event('notifications.onClicked')
-  },
-  webRequest: {
-    onBeforeRequest: event('webRequest.onBeforeRequest'),
-    onSendHeaders: pickyEvent('webRequest.onSendHeaders'),
-    onHeadersReceived: pickyEvent('webRequest.onHeadersReceived')
-  },
-  permissions: {
-    contains: () => later(true),
-    request: () => later(true),
-    remove: () => later(true),
-    onAdded: event('permissions.onAdded')
-  },
-  cookies: {
-    getAll: (query) => {
-      calls.push(['getAll', query.url ?? query.domain])
-      return later([{ name: 'session', value: 'abc', domain: '.hoster.test', path: '/', secure: true }])
-    }
-  },
-  action: {
-    setBadgeText: (options) => { calls.push(['badge', options.text]); return later() },
-    setBadgeBackgroundColor: () => later()
-  },
-  i18n: { getMessage: (key, substitutions) => (substitutions ? `${key}:${substitutions.join(',')}` : key) }
-}
-
-const background = await import('../src/background.js')
+const background = await loadIn(browser, 'background.js')
 const atLoad = registered.map((entry) => entry.name)
 // Drain the microtask queue and a macrotask: anything that waited for a browser answer lands here.
 await new Promise((resolve) => setTimeout(resolve, 5))
@@ -144,17 +61,6 @@ async function withLoggedErrors(work) {
     console.error = real
   }
   return logged
-}
-
-/**
- * Lets every dispatched handler finish before the assertions look at what it did.
- *
- * Each faked browser call settles on its own task, so a handler that makes eight of them in a
- * row needs eight turns of the loop; draining a fixed number of turns is what makes that
- * deterministic rather than a guess at a duration.
- */
-async function settle(turns = 40) {
-  for (let turn = 0; turn < turns; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
 test('every listener is registered while the worker script is first evaluated', () => {
@@ -183,36 +89,6 @@ test('the worker registers the events it has to be woken for', () => {
   assert.ok(!atLoad.includes('permissions.onAdded'), 'nothing re-registers a listener on a new grant')
 })
 
-test('without filterResponseData nothing is registered as blocking', () => {
-  // Chrome: the response copy of RD-130-16 does not exist there, and a blocking listener would
-  // be refused outright. `files.test.mjs` drives the Firefox half.
-  for (const entry of registered.filter((candidate) => candidate.name.startsWith('webRequest.'))) {
-    assert.ok(!(entry.rest[1] ?? []).includes('blocking'), `${entry.name} is registered as blocking`)
-  }
-})
-
-test('a browser that refuses extraHeaders still gets its listener', () => {
-  // The Firefox path RD-108-22 paid for: ask for `extraHeaders`, and register without it when
-  // the browser throws rather than losing the listener.
-  const tries = attempts.filter((attempt) => attempt.name === 'webRequest.onSendHeaders')
-  assert.deepEqual(tries.map((attempt) => attempt.spec), [
-    ['requestHeaders', 'extraHeaders'],
-    ['requestHeaders']
-  ])
-  assert.equal(registered.filter((entry) => entry.name === 'webRequest.onSendHeaders').length, 1)
-  // `onBeforeRequest` asks for nothing at all — no `extraHeaders`, and no request body.
-  const before = registered.find((entry) => entry.name === 'webRequest.onBeforeRequest')
-  assert.equal(before.rest[1], undefined)
-})
-
-test('Chrome reads Click\'n\'Load forms on port 9666 only, and without blocking', () => {
-  // RD-1260-10: the one listener with a request body is filtered to the agent's two addresses.
-  const forms = registered.filter((entry) => entry.name === 'webRequest.onBeforeRequest' && (entry.rest[1] ?? []).includes('requestBody'))
-  assert.equal(forms.length, 1)
-  assert.deepEqual(forms[0].rest[0], { urls: ['http://127.0.0.1:9666/*', 'http://localhost:9666/*'] })
-  assert.deepEqual(forms[0].rest[1], ['requestBody'])
-})
-
 test('no registration waits on a promise in the source either', () => {
   const source = readFileSync(join(root, 'src', 'background.js'), 'utf8')
   // A `.then(...)` in this file may only appear inside a handler, never around a registration.
@@ -227,8 +103,7 @@ test('installing rebuilds the context menu from scratch', async () => {
   calls.length = 0
   handlersFor('runtime.onInstalled')[0]()
   await settle()
-  assert.deepEqual(calls, [
-    ['removeAllMenus'],
+  assert.deepEqual(calls.filter(([name]) => name === 'menu'), [
     ['menu', 'rdownloader-link', 'menuLink', 'link'],
     ['menu', 'rdownloader-page', 'menuPage', 'page'],
     ['menu', 'rdownloader-selection', 'menuSelection', 'selection'],
@@ -241,6 +116,7 @@ test('installing rebuilds the context menu from scratch', async () => {
 
 test('each menu entry sends what it is about', async () => {
   const sent = []
+  const links = state.respond
   state.respond = async (_url, init) => {
     sent.push(JSON.parse(init.body))
     return { ok: true, status: 201, json: async () => ({ candidates: [{}] }) }
@@ -261,20 +137,15 @@ test('each menu entry sends what it is about', async () => {
 
   // The session entry goes to the sharer, not to the link intake.
   calls.length = 0
-  clicked({ menuItemId: 'rdownloader-session', pageUrl: 'https://hoster.test/' }, { title: 'A page' })
+  browser.gesture(() => clicked({ menuItemId: 'rdownloader-session', pageUrl: 'https://hoster.test/' }, { title: 'A page' }))
   await settle()
   assert.ok(calls.some(([name, url]) => name === 'fetch' && url.endsWith('/api/v1/capture/cookies')))
 
   // "Send file to rDownloader…" opens the extension's own page and sends nothing yet.
   calls.length = 0
-  const opened = []
-  const create = globalThis.chrome.tabs.create
-  globalThis.chrome.tabs.create = (options) => { opened.push(options.url); return create(options) }
   clicked({ menuItemId: 'rdownloader-file', pageUrl: 'https://hoster.test/' }, {})
   await settle()
-  globalThis.chrome.tabs.create = create
-  assert.deepEqual(opened, ['chrome-extension://self/src/send-file.html'])
-  assert.deepEqual(calls, [])
+  assert.deepEqual(calls, [['createTab', { url: 'chrome-extension://self/src/send-file.html' }]])
 
   // A menu entry with nothing to send sends nothing.
   calls.length = 0
@@ -282,7 +153,7 @@ test('each menu entry sends what it is about', async () => {
   clicked({ menuItemId: 'something-else', linkUrl: 'https://hoster.test/c' }, {})
   await settle()
   assert.deepEqual(calls, [])
-  state.respond = async () => ({ ok: true, status: 201, json: async () => ({ candidates: [{}, {}] }) })
+  state.respond = links
 })
 
 /** The popup as a popup: our own extension, no tab. */
@@ -309,7 +180,7 @@ test('a send is answered only for our own pages', async () => {
 test('a send reports the count, the token and a plain failure apart', async () => {
   const sendMessage = handlerFor('runtime.onMessage')
   const clicked = handlerFor('contextMenus.onClicked')
-  const notices = () => calls.filter(([name]) => name === 'notify').map(([, , body]) => body)
+  const notices = () => calls.filter(([name]) => name === 'notify').map(([, body]) => body)
 
   // RD-1270-05: the popup is answered with what really happened, and shows it itself -- one
   // notice per hand-over, so the background raises none for it.
@@ -361,7 +232,7 @@ test('a send reports the count, the token and a plain failure apart', async () =
 
 test('an unpaired extension opens its options instead of sending', async () => {
   calls.length = 0
-  state.config = { ...state.config, token: '' }
+  browser.stored.token = ''
   let answer = null
   handlerFor('runtime.onMessage')({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, (value) => { answer = value })
   await settle()
@@ -372,17 +243,18 @@ test('an unpaired extension opens its options instead of sending', async () => {
   calls.length = 0
   handlerFor('contextMenus.onClicked')({ menuItemId: 'rdownloader-link', linkUrl: 'https://hoster.test/a' }, {})
   await settle()
-  assert.ok(calls.some(([name, , body]) => name === 'notify' && body === 'notConfigured'))
-  state.config = { ...state.config, token: 'capture-token' }
+  assert.ok(calls.some(([name, body]) => name === 'notify' && body === 'notConfigured'))
+  browser.stored.token = PAIRED.token
 })
 
 test('a browser without notifications still does the work', async () => {
   calls.length = 0
-  state.notificationsWork = false
+  const create = browser.api.notifications.create
+  browser.api.notifications.create = async () => { throw new Error('notifications are off') }
   handlerFor('runtime.onMessage')({ type: 'rdownloader:send', text: 'https://hoster.test/a' }, POPUP, () => {})
   await settle()
   assert.ok(calls.some(([name]) => name === 'fetch'), 'the links still go out')
-  state.notificationsWork = true
+  browser.api.notifications.create = create
 })
 
 test('onMessage answers the types it owns and declines the rest', async () => {

@@ -89,26 +89,36 @@ fn every_shell_completes_every_command_and_never_the_hidden_one() {
 }
 
 /// The scripts are read by the shells themselves, so a syntax error would only show once
-/// somebody sourced one. Checked with the shell where it is installed, skipped where not.
+/// somebody sourced one.
+#[cfg(unix)]
+fn parses(shell: Shell, program: &str) {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let path = directory.path().join(format!("rdownloader.{program}"));
+    std::fs::write(&path, script(shell)).expect("write the script");
+    let output = std::process::Command::new(program)
+        .arg("-n")
+        .arg(&path)
+        .output()
+        .unwrap_or_else(|error| panic!("{program} did not start: {error}"));
+    assert!(
+        output.status.success(),
+        "{program} -n refused the script: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+/// Every system the tests run on has bash: the repository's own scripts need it.
 #[cfg(unix)]
 #[test]
-fn the_bash_and_zsh_scripts_parse() {
-    let directory = tempfile::tempdir().expect("tempdir");
-    for (shell, program) in [(Shell::Bash, "bash"), (Shell::Zsh, "zsh")] {
-        let path = directory.path().join(format!("rdownloader.{program}"));
-        std::fs::write(&path, script(shell)).expect("write the script");
-        let Ok(output) = std::process::Command::new(program)
-            .arg("-n")
-            .arg(&path)
-            .output()
-        else {
-            eprintln!("{program} is not installed; its script is not parsed");
-            continue;
-        };
-        assert!(
-            output.status.success(),
-            "{program} -n refused the script: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
+fn the_bash_script_parses() {
+    parses(Shell::Bash, "bash");
+}
+
+/// `#[ignore]` and a failure without zsh (RD-1480-14): the test passed unrun where it is missing.
+/// CI's Linux leg installs zsh and runs it (`scripts/ci-rust-tests.sh`).
+#[cfg(unix)]
+#[test]
+#[ignore = "needs zsh on PATH"]
+fn the_zsh_script_parses() {
+    parses(Shell::Zsh, "zsh");
 }

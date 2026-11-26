@@ -39,10 +39,13 @@ EOF
     printf 'package rdownloader:plugin@0.10.0;\n\nworld demo-plugin {\n}\n' \
         > "$TREE/crates/rd-plugin-api/wit/rdownloader.wit"
     cp "$TREE/crates/rd-plugin-api/wit/rdownloader.wit" "$TEMPLATE/wit/"
-    printf '[dependencies]\nwit-bindgen = "0.62"\n' > "$TEMPLATE/Cargo.toml"
+    printf '[package]\nlicense = "MIT"\n\n[dependencies]\nwit-bindgen = "0.62"\n' > "$TEMPLATE/Cargo.toml"
+    for licence in "$TREE/sdk" "$TREE/crates/rd-plugin-api/wit" "$TEMPLATE"; do
+        echo "MIT License" > "$licence/LICENSE"
+    done
     printf 'wit_bindgen::generate!({\n    path: "wit",\n    world: "demo-plugin",\n});\n' \
         > "$TEMPLATE/src/guest.rs"
-    printf 'api_version = "0.10.0"\nplugin_type = "demo"\n\n[metadata]\nmin_app_version = "1.10.0"\n' \
+    printf 'api_version = "0.10.0"\nplugin_type = "demo"\n\n[metadata]\nlicense = "MIT"\nmin_app_version = "1.10.0"\n' \
         > "$TEMPLATE/manifest.toml"
     echo "# Demo" > "$TEMPLATE/README.md"
     printf '# Changes\n\n## 0.1.0\n\nThe first release.\n' > "$TEMPLATE/CHANGES.md"
@@ -62,6 +65,24 @@ sed -i 's/demo-plugin/other-plugin/' "$TEMPLATE/src/guest.rs"
 check
 expect_status "a guest that generates another world: refused" 1
 expect_output "and named" "src/guest.rs does not generate world demo-plugin"
+
+fixture
+rm "$TEMPLATE/LICENSE"
+check
+expect_status "a template without its licence: refused" 1
+expect_output "naming the file" "sdk/templates/demo/LICENSE is not sdk/LICENSE"
+
+fixture
+echo other > "$TREE/crates/rd-plugin-api/wit/LICENSE"
+check
+expect_status "a contract under another licence: refused" 1
+expect_output "naming the file" "crates/rd-plugin-api/wit/LICENSE is not sdk/LICENSE"
+
+fixture
+sed -i 's/^license = .*/license = "GPL-3.0-or-later"/' "$TEMPLATE/manifest.toml"
+check
+expect_status "a template declaring another licence: refused" 1
+expect_output "and named" 'manifest.toml does not say license = "MIT"'
 
 fixture
 rm "$TEMPLATE/CHANGES.md"

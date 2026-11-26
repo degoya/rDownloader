@@ -21,9 +21,9 @@ vi.mock('@nuxt/ui/composables', () => toastMock())
 function page(id: string): CollectorPick {
   return {
     id,
-    rule: 'serienjunkies.org',
-    rule_id: 'serienjunkies',
-    address: 'https://serienjunkies.org/serie/the-show/',
+    rule: 'series.example',
+    rule_id: 'series',
+    address: 'https://series.example/serie/the-show/',
     package_name: 'The Show',
     created_at: '2026-10-08T20:00:00Z',
     running: false,
@@ -74,7 +74,7 @@ describe('SiteRulePickPanel', () => {
     const picks = useSitePicksStore()
     rendered.unmount()
     // Announced with no panel on screen, then the LinkGrabber is opened.
-    await picks.announced({ list: 'p1', entries: 1, rule: 'serienjunkies.org' })
+    await picks.announced({ list: 'p1', entries: 1, rule: 'series.example' })
     expect(picks.unseen).toBe(true)
     mountAgain()
     await settle()

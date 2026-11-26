@@ -146,7 +146,9 @@ Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT
 
 ## Licence
 
-rDownloader is licensed under the GNU General Public License v3.0 or later ([LICENSE](LICENSE)).
-Contributions are accepted under the same licence: by submitting one, you agree that it is
-licensed as GPL-3.0-or-later, like the rest of the project. There is no separate contributor
+rDownloader, the bundled plugins included, is licensed under the GNU General Public License v3.0 or
+later ([LICENSE](LICENSE)). The plugin templates and workflows under `sdk/` and the plugin contract
+`crates/rd-plugin-api/wit/rdownloader.wit` are under the MIT license ([sdk/LICENSE](sdk/LICENSE)).
+Contributions are accepted under the licence of what they change: by submitting one, you agree that
+it is licensed as GPL-3.0-or-later, or as MIT where it changes one of those. There is no separate contributor
 agreement and no sign-off requirement.

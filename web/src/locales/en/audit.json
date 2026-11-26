@@ -98,7 +98,7 @@
     "expand": "Show details",
     "collapse": "Hide details",
     "actor_id": "Actor id",
-    "retention": "Kept for {days} days or {records} records, whichever runs out first.",
+    "retention": "Kept for {days} day or {records} records, whichever runs out first. | Kept for {days} days or {records} records, whichever runs out first.",
     "via": "via {channel}"
   },
   "append_only": {

@@ -17,6 +17,7 @@ import type {
   TorrentPlanRequest
 } from '@/api/types'
 import { useRangeSelection } from '@/composables/useRangeSelection'
+import { compareText } from '@/utils/collation'
 import { formatBytes } from '@/utils/format'
 
 const { t } = useI18n()
@@ -93,7 +94,7 @@ const tree = computed<TreeNode>(() => {
 function sortTree(node: TreeNode): void {
   node.children.sort((left, right) => {
     if ((left.index === null) !== (right.index === null)) return left.index === null ? -1 : 1
-    return left.name.localeCompare(right.name)
+    return compareText(left.name, right.name)
   })
   for (const child of node.children) sortTree(child)
 }

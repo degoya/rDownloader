@@ -6,11 +6,8 @@
 //! its `vault://` reference; a profile shows only whether one is stored. A stored secret is
 //! bound to the host it was typed for, and every change to a profile is audited (RD-1190-20).
 
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path};
 use rd_core::{
     ObjectAddressing, ObjectCredentialSource, ObjectStorageProfile, ObjectStorageProfileId,
     ObjectStorageProvider,

@@ -3,7 +3,8 @@
 //! The answers carry no credential: the history keeps its sources masked and never an archive
 //! password, so what a caller reads here is what the History view shows.
 
-use axum::extract::{Path as AxumPath, State};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
 use serde::{Deserialize, Serialize};
 
@@ -94,7 +95,7 @@ impl RdMcpServer {
                 from: instant(params.from)?,
                 to: instant(params.to)?,
             };
-            let (headers, axum::Json(entries)) = history_handlers::list_download_history(
+            let (headers, Json(entries)) = history_handlers::list_download_history(
                 State(self.state.clone()),
                 rd_api_core::list_bounds::Page(PageQuery {
                     limit: Some(params.limit.unwrap_or(50)),
@@ -127,7 +128,7 @@ impl RdMcpServer {
                 AxumPath(params.id),
             )
             .await
-            .map(|(_, axum::Json(response))| response),
+            .map(|(_, Json(response))| response),
         )
     }
 
@@ -149,7 +150,7 @@ impl RdMcpServer {
             crate::data_reset_handlers::clear_download_history(
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
-                axum::Json(DataClearRequest {
+                Json(DataClearRequest {
                     confirmed: params.confirmed,
                 }),
             )

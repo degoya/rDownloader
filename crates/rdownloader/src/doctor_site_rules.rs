@@ -195,9 +195,9 @@ mod tests {
     #[test]
     fn the_table_names_every_rule_its_state_and_why() {
         let reports = [
-            report("scnlog", Verdict::Ok, None, 12),
+            report("sample", Verdict::Ok, None, 12),
             report(
-                "downmagaz",
+                "magazines",
                 Verdict::Structural,
                 Some("site_rules.structure"),
                 0,
@@ -207,10 +207,10 @@ mod tests {
         let table = render(&reports);
         let lines: Vec<&str> = table.lines().collect();
         assert_eq!(lines[0], "rule       state       links  reason");
-        assert_eq!(lines[1], "scnlog     ok          12     -");
+        assert_eq!(lines[1], "sample     ok          12     -");
         assert_eq!(
             lines[2],
-            "downmagaz  structural  0      site_rules.structure"
+            "magazines  structural  0      site_rules.structure"
         );
         assert_eq!(
             lines[3],
@@ -222,14 +222,14 @@ mod tests {
     #[test]
     fn a_run_in_which_every_rule_answered_exits_zero() {
         let reports = [
-            report("scnlog", Verdict::Ok, None, 12),
-            report("downmagaz", Verdict::Ok, None, 3),
+            report("sample", Verdict::Ok, None, 12),
+            report("magazines", Verdict::Ok, None, 3),
         ];
         assert_eq!(exit_code(&reports), 0);
         assert!(render(&reports).ends_with("2 rules checked, all ok\n"));
         assert_eq!(exit_code(&[]), 0);
         assert_eq!(render(&[]), "no rules to check\n");
-        let one = [report("scnlog", Verdict::Ok, None, 12)];
+        let one = [report("sample", Verdict::Ok, None, 12)];
         assert!(render(&one).ends_with("1 rule checked, all ok\n"));
     }
 
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn a_stored_row_carries_the_verdict_and_the_code() {
         let rows = rows(&[
-            report("scnlog", Verdict::Ok, None, 12),
+            report("sample", Verdict::Ok, None, 12),
             report("gpaste", Verdict::Dead, Some("site_rules.page_dead"), 0),
         ]);
         assert_eq!(rows[0].verdict, "ok");

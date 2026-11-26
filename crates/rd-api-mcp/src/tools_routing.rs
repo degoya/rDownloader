@@ -3,10 +3,8 @@
 //! Every tool builds the REST request body and hands it to the REST handler, so validation,
 //! the storage-root allowlist and the stable error codes are the ones the web UI gets.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

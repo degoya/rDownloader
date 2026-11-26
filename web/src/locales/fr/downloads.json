@@ -22,7 +22,7 @@
     "search_label": "Rechercher les téléchargements par nom de paquet ou de fichier",
     "search_placeholder": "Paquet ou fichier",
     "no_match_title": "Rien ne correspond au filtre et à la recherche",
-    "no_match_hint": "La file n'est pas vide : réinitialise le filtre pour tout voir.",
+    "no_match_hint": "La file n’est pas vide : réinitialise le filtre pour tout voir.",
     "reset": "Réinitialiser le filtre"
   },
   "toolbar": {
@@ -38,8 +38,8 @@
     "hint": "Collez une URL directe ci-dessus ou transférez des liens et des NZB depuis le LinkGrabber."
   },
   "notices": {
-    "path_copied": "Chemin copié : {path}",
-    "destination": "Dossier de destination : {path}",
+    "path_copied": "Chemin copié : {path}",
+    "destination": "Dossier de destination : {path}",
     "reorder_same_priority": "L’ordre ne peut être modifié qu’au sein du même niveau de priorité – définissez d’abord la priorité.",
     "nothing_to_pause": "Aucun transfert en cours ou en attente.",
     "nothing_to_resume": "Aucun transfert en pause ou bloqué.",
@@ -49,36 +49,36 @@
     "speed_limit_set": "Limite de vitesse fixée à {value} Mio/s.",
     "speed_limit_cleared": "Limite de vitesse retirée.",
     "remove_failed": "L’entrée n’a pas pu être retirée.",
-    "nothing_to_reset": "Rien dans la sélection ne peut être réinitialisé pour l'instant – les transferts actifs doivent d'abord être mis en pause",
-    "reorder_filter_active": "L’ordre ne peut être modifié que dans la liste non filtrée : les fichiers masqués seraient sinon mal classés.",
-    "cleared_packages": "Aucun paquet n'a été retiré. | {count} paquet a été retiré. | {count} paquets ont été retirés."
+    "nothing_to_reset": "Rien dans la sélection ne peut être réinitialisé pour l’instant – les transferts actifs doivent d’abord être mis en pause",
+    "reorder_filter_active": "L’ordre ne peut être modifié que dans la liste non filtrée : les fichiers masqués seraient sinon mal classés.",
+    "cleared_packages": "Aucun paquet n’a été retiré. | {count} paquet a été retiré. | {count} paquets ont été retirés."
   },
   "notifications": {
     "failed_title": "Téléchargement échoué",
-    "failed_body": "« {file} » n’a pas pu être téléchargé.",
+    "failed_body": "« {file} » n’a pas pu être téléchargé.",
     "queue_done_title": "Liste de téléchargements terminée",
     "queue_done_body": "Aucun fichier terminé. | {count} fichier terminé. | {count} fichiers terminés.",
-    "package_failed_title": "Échec de téléchargements : {package}",
-    "package_failed_body": "{count} fichiers sur {total} n'ont pas pu être téléchargés."
+    "package_failed_title": "Échec de téléchargements : {package}",
+    "package_failed_body": "{count} fichier sur {total} n’a pas pu être téléchargé. | {count} fichiers sur {total} n’ont pas pu être téléchargés."
   },
   "confirm": {
     "delete_package_title": "Supprimer le paquet",
-    "delete_package_description": "Retirer « {name} » avec tous ses fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés ; les fichiers terminés restent dans le dossier de destination.",
+    "delete_package_description": "Retirer « {name} » avec tous ses fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés ; les fichiers terminés restent dans le dossier de destination.",
     "delete_packages_title": "Supprimer les paquets",
-    "delete_packages_description": "Retirer {count} paquets avec tous leurs fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés. | Retirer {count} paquet avec tous ses fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés. | Retirer {count} paquets avec tous leurs fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés.",
+    "delete_packages_description": "Retirer {count} paquets avec tous leurs fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés. | Retirer {count} paquet avec tous ses fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés. | Retirer {count} paquets avec tous leurs fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés.",
     "delete_packages_label": "Supprimer {count} paquets | Supprimer {count} paquet | Supprimer {count} paquets",
     "remove_files_title": "Retirer les fichiers sélectionnés",
-    "remove_files_description": "Retirer {count} fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés. | Retirer {count} fichier de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés. | Retirer {count} fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés.",
+    "remove_files_description": "Retirer {count} fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés. | Retirer {count} fichier de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés. | Retirer {count} fichiers de la liste de téléchargement ? Les téléchargements actifs sont annulés et les fichiers incomplets supprimés.",
     "clear_title": "Vider la liste de téléchargement",
-    "clear_completed": "Vraiment retirer tous les paquets dont les fichiers sont terminés ? Un paquet encore en cours reste intact et les fichiers terminés restent dans le dossier de destination.",
-    "clear_failed": "Vraiment retirer tous les paquets terminés contenant un fichier en échec et effacer du disque tous leurs fichiers, terminés compris ? Un paquet encore en cours reste intact. La suppression des fichiers terminés se règle dans Paramètres → File d’attente et reprises.",
-    "clear_all": "Vraiment retirer tous les paquets qui ne travaillent plus, quel qu'en soit le résultat ? Un paquet avec des fichiers en cours, en attente ou en seed reste intact et les fichiers terminés restent dans le dossier de destination.",
+    "clear_completed": "Vraiment retirer tous les paquets dont les fichiers sont terminés ? Un paquet encore en cours reste intact et les fichiers terminés restent dans le dossier de destination.",
+    "clear_failed": "Vraiment retirer tous les paquets terminés contenant un fichier en échec et effacer du disque tous leurs fichiers, terminés compris ? Un paquet encore en cours reste intact. La suppression des fichiers terminés se règle dans Paramètres → File d’attente et reprises.",
+    "clear_all": "Vraiment retirer tous les paquets qui ne travaillent plus, quel qu’en soit le résultat ? Un paquet avec des fichiers en cours, en attente ou en seed reste intact et les fichiers terminés restent dans le dossier de destination.",
     "clear_label": "Retirer les paquets",
     "remove_download_title": "Retirer le téléchargement",
-    "remove_download_completed": "Retirer l’entrée de la liste de téléchargement ? Le fichier terminé est conservé.",
-    "remove_download_partial": "Retirer l’entrée de la liste de téléchargement ? Un fichier incomplet existant sera également supprimé.",
-    "delete_package_active": "« {name} » travaille encore. Le retirer quand même ? Ses téléchargements en cours sont annulés et leurs fichiers incomplets supprimés ; les fichiers terminés restent dans le dossier de destination.",
-    "delete_packages_active": "Retirer {count} paquet(s), dont {busy} travaillent encore ? Les téléchargements en cours sont annulés et leurs fichiers incomplets supprimés ; les fichiers terminés restent dans le dossier de destination."
+    "remove_download_completed": "Retirer l’entrée de la liste de téléchargement ? Le fichier terminé est conservé.",
+    "remove_download_partial": "Retirer l’entrée de la liste de téléchargement ? Un fichier incomplet existant sera également supprimé.",
+    "delete_package_active": "« {name} » travaille encore. Le retirer quand même ? Ses téléchargements en cours sont annulés et leurs fichiers incomplets supprimés ; les fichiers terminés restent dans le dossier de destination.",
+    "delete_packages_active": "Retirer {count} paquet, dont {busy} encore en cours ? Les téléchargements en cours sont annulés et leurs fichiers incomplets supprimés ; les fichiers terminés restent dans le dossier de destination. | Retirer {count} paquets, dont {busy} encore en cours ? Les téléchargements en cours sont annulés et leurs fichiers incomplets supprimés ; les fichiers terminés restent dans le dossier de destination."
   },
   "rename_file": {
     "title": "Renommer le fichier",
@@ -98,10 +98,10 @@
     "level_placeholder": "Post-traitement",
     "level_aria": "Niveau de post-traitement pour la sélection",
     "level_whole_packages": "Le niveau de post-traitement s’applique aux paquets entiers – sélectionnez tous les fichiers d’un paquet",
-    "level_packages_only": "Le niveau de post-traitement n'existe que pour les paquets de liens, pas pour les imports NZB.",
+    "level_packages_only": "Le niveau de post-traitement n’existe que pour les paquets de liens, pas pour les imports NZB.",
     "extract_no_archive": "La sélection ne contient aucun fichier d’archive terminé",
     "reset": "Réinitialiser {count} fichier | Réinitialiser {count} fichiers",
-    "reset_counts": "{count} fichier de la sélection qui n'est pas en cours | {count} fichiers de la sélection qui ne sont pas en cours",
+    "reset_counts": "{count} fichier de la sélection qui n’est pas en cours | {count} fichiers de la sélection qui ne sont pas en cours",
     "delete_packages_counts": "{count} paquet dont tous les fichiers sont sélectionnés | {count} paquets dont tous les fichiers sont sélectionnés"
   },
   "package": {
@@ -122,7 +122,7 @@
     "copy_path_aria": "Copier le chemin du dossier de destination",
     "extract_title": "Extraire les archives",
     "force_extract_aria": "Post-traiter quand même",
-    "force_extract_title": "Lancer le post-traitement une fois malgré l'échec de la vérification",
+    "force_extract_title": "Lancer le post-traitement une fois malgré l’échec de la vérification",
     "segments_aria": "Afficher les segments",
     "postprocess_aria": "Afficher le post-traitement",
     "edit_aria": "Modifier le paquet",
@@ -136,12 +136,12 @@
     "eta_aria": "Temps restant estimé de ce paquet {duration}",
     "extracted": "Extrait",
     "extracted_title": "Les archives ont été extraites avec succès",
-    "extract_failed": "Échec de l'extraction",
+    "extract_failed": "Échec de l’extraction",
     "actions_aria": "Actions du paquet",
-    "priority_value": "Priorité : {priority}",
+    "priority_value": "Priorité : {priority}",
     "storage_aria": "Collisions et doublons",
     "hand_over": "Confier à un fournisseur",
-    "hand_over_hint": "Le fournisseur récupère lui-même le NZB de ce paquet sur Usenet ; les fichiers terminés reviennent dans le LinkGrabber sous forme de liens. Le paquet reste ici.",
+    "hand_over_hint": "Le fournisseur récupère lui-même le NZB de ce paquet sur Usenet ; les fichiers terminés reviennent dans le LinkGrabber sous forme de liens. Le paquet reste ici.",
     "handed_over": "Confié à {provider}",
     "handed_over_hint": "Ouvrir les travaux distants",
     "waiting_for_parts": "En attente des fichiers manquants",
@@ -149,8 +149,8 @@
     "reset_failed": "Réinitialiser les échecs et les blocages",
     "reset_failed_hint": "{count} fichier de ce paquet | {count} fichiers de ce paquet",
     "connections_count": "{count} connexion | {count} connexions",
-    "connections_even": "{connections} : {files} fichier | {connections} : {files} fichiers en même temps, {per} chacun",
-    "connections_mixed": "{connections} : {files} fichiers en même temps ({split})",
+    "connections_even": "{connections} : {files} fichier | {connections} : {files} fichiers en même temps, {per} chacun",
+    "connections_mixed": "{connections} : {files} fichiers en même temps ({split})",
     "connections_full": "Les {limit} connexions autorisées par les serveurs sont toutes occupées.",
     "connections_room": "{busy} des {limit} connexions autorisées par les serveurs sont occupées.",
     "reset_all": "Réinitialiser entièrement le paquet",
@@ -158,7 +158,7 @@
   },
   "transfer": {
     "actions_aria": "Actions du fichier",
-    "attempts": "Tentatives :",
+    "attempts": "Tentatives :",
     "auth_profile": "Authentification",
     "auth_profile_auto": "Automatique (par domaine)",
     "auth_profile_none": "Aucune",
@@ -171,17 +171,17 @@
     "resume_cancelled_aria": "Relancer le téléchargement annulé",
     "select_aria": "Sélectionner le fichier",
     "show_details": "Afficher les détails",
-    "stop_recording": "Arrêter l'enregistrement",
+    "stop_recording": "Arrêter l’enregistrement",
     "stop_seeding": "Arrêter le seed",
     "drag_title": "Glisser pour modifier l’ordre au sein du paquet",
     "trial_staged": "Tester avec {name} v{version}",
     "sources": {
       "title": "Sources ({count})",
-      "pieces": "Vérifié en {count} morceaux de {size} ({algorithm})",
-      "no_pieces": "Pas d'empreintes par morceau ; l'empreinte du fichier entier est vérifiée avant la fin s'il y en a une.",
+      "pieces": "Vérifié en {count} morceau de {size} ({algorithm}) | Vérifié en {count} morceaux de {size} ({algorithm})",
+      "no_pieces": "Pas d’empreintes par morceau ; l’empreinte du fichier entier est vérifiée avant la fin s’il y en a une.",
       "priority": "Priorité {value}",
       "delivered": "{size} livrés",
-      "failures": "{count} échecs",
+      "failures": "{count} échec | {count} échecs",
       "retry_after": "à nouveau à partir de {time}",
       "state": {
         "ready": "Prête",
@@ -192,13 +192,13 @@
       "isolated_reason": {
         "piece": "A livré des données qui ne correspondent pas à leur empreinte.",
         "size": "Propose une autre taille de fichier.",
-        "other": "N'est plus utilisée pour ce fichier.",
+        "other": "N’est plus utilisée pour ce fichier.",
         "internal": "Pointe vers votre propre machine ou vers un réseau que cette liste de sources ne peut pas atteindre."
       },
       "unsupported_hint": "Les sources dont ce service ne sait pas récupérer le protocole sont affichées mais pas utilisées."
     },
     "next_attempt": "Prochaine tentative à {time}",
-    "waiting_for_host": "En attente d'une connexion à {host}",
+    "waiting_for_host": "En attente d’une connexion à {host}",
     "connections_title": "{count} connexion travaille pour ce fichier | {count} connexions travaillent pour ce fichier"
   },
   "summary": {
@@ -241,21 +241,21 @@
     "description": "Nom et mot de passe d’archive pour l’extraction.",
     "name": "Nom du paquet",
     "password": "Mot de passe d’archive",
-    "password_stored": "Le mot de passe enregistré est affiché ici et peut être modifié ; le vider le supprime.",
-    "password_optional": "Facultatif ; la liste de mots de passe (passwords.txt) est également essayée.",
+    "password_stored": "Le mot de passe enregistré est affiché ici et peut être modifié ; le vider le supprime.",
+    "password_optional": "Facultatif ; la liste de mots de passe (passwords.txt) est également essayée.",
     "clear_password": "Retirer le mot de passe enregistré",
     "postprocess_level": "Post-traitement",
-    "postprocess_level_hint": "« Hériter » utilise la valeur de la catégorie ou la valeur globale.",
+    "postprocess_level_hint": "« Hériter » utilise la valeur de la catégorie ou la valeur globale.",
     "script": "Script",
-    "script_hint": "Exécuté après le post-traitement ; « Hériter » utilise la valeur de la catégorie ou la valeur globale.",
+    "script_hint": "Exécuté après le post-traitement ; « Hériter » utilise la valeur de la catégorie ou la valeur globale.",
     "script_empty": "Aucun script trouvé dans le dossier des scripts.",
     "script_inherit": "Hériter",
     "password_placeholder": "Aucun mot de passe",
     "rename_folder": "Renommer aussi le dossier",
     "rename_folder_hint": "Déplace les fichiers sur le disque. Un dossier portant déjà ce nom est refusé.",
     "speed_limit": "Limite de vitesse de ce paquet",
-    "speed_limit_hint": "Vide = pas de limite propre. Les limites globale et du profil s’appliquent toujours ; la plus stricte l’emporte.",
-    "speed_limit_unsupported": "Un paquet contenant un torrent ne prend pas de limite propre : le moteur torrent ne peut pas limiter un torrent seul.",
+    "speed_limit_hint": "Vide = pas de limite propre. Les limites globale et du profil s’appliquent toujours ; la plus stricte l’emporte.",
+    "speed_limit_unsupported": "Un paquet contenant un torrent ne prend pas de limite propre : le moteur torrent ne peut pas limiter un torrent seul.",
     "speed_limit_aria": "Limite de vitesse du paquet en Mio/s"
   },
   "postprocess": {
@@ -324,37 +324,37 @@
     "eta": "encore {duration}",
     "eta_title": "Temps restant estimé au rythme actuel",
     "selection_title": "{selection}, {size} au total",
-    "selection_partial_title": "{selection}, au moins {size} au total – la taille de {unknown} n'est pas encore connue",
+    "selection_partial_title": "{selection}, au moins {size} au total – la taille de {unknown} n’est pas encore connue",
     "selection_unknown_title": "{selection}, taille encore inconnue",
     "parallel_max": "max",
     "parallel_limit_aria": "Nombre maximal de téléchargements simultanés",
-    "parallel_limit_title": "Combien de téléchargements peuvent tourner en même temps ({min}–{max}) ; s’applique aussitôt, sans redémarrage",
+    "parallel_limit_title": "Combien de téléchargements peuvent tourner en même temps ({min}–{max}) ; s’applique aussitôt, sans redémarrage",
     "parallel_failed": "Téléchargements simultanés non enregistrés",
     "parallel_range": "Entre {min} et {max} téléchargements peuvent tourner en même temps."
   },
   "media": {
-    "variant": "Variante :",
+    "variant": "Variante :",
     "open_page": "Ouvrir la page du média"
   },
   "free_download": "Gratuit/Direct",
   "free_download_hint": "Aucun compte fournisseur – le fichier est récupéré en téléchargement gratuit/direct",
   "capacity": {
-    "title": "« {name} » n'a plus d'espace",
-    "description": "{free} libres, {required} nécessaires. Les téléchargements de cette destination sont en pause ; toutes les autres continuent.",
-    "unknown_size": "Le prochain transfert n'annonce aucune taille, la marge configurée s'applique donc.",
+    "title": "« {name} » n’a plus d’espace",
+    "description": "{free} libres, {required} nécessaires. Les téléchargements de cette destination sont en pause ; toutes les autres continuent.",
+    "unknown_size": "Le prochain transfert n’annonce aucune taille, la marge configurée s’applique donc.",
     "resume": "Reprendre",
-    "manual_hint": "La reprise automatique est désactivée : cette destination reste en pause jusqu'à une reprise manuelle ici."
+    "manual_hint": "La reprise automatique est désactivée : cette destination reste en pause jusqu’à une reprise manuelle ici."
   },
   "reset": {
-    "title": "Réinitialiser {count} téléchargement ? | Réinitialiser {count} téléchargements ?",
-    "description": "Tout ce qui a été téléchargé jusqu'ici est supprimé et le transfert reprend depuis le début.",
+    "title": "Réinitialiser {count} téléchargement ? | Réinitialiser {count} téléchargements ?",
+    "description": "Tout ce qui a été téléchargé jusqu’ici est supprimé et le transfert reprend depuis le début.",
     "more_files": "et {count} autre fichier | et {count} autres fichiers",
     "delete_files": "Supprimer aussi les fichiers terminés",
     "delete_files_hint": "Irréversible. Désactivé, le fichier terminé est conservé et la nouvelle tentative se place à côté.",
     "confirm": "Réinitialiser"
   },
   "list": {
-    "aria": "File d'attente, {count} lignes"
+    "aria": "File d’attente, {count} ligne | File d’attente, {count} lignes"
   },
   "collision": {
     "policies": {
@@ -365,10 +365,10 @@
       "ask": "Demander"
     },
     "hints": {
-      "rename": "Le nouveau fichier est placé à côté de l’existant sous « nom (1) » ; rien n’est perdu.",
-      "skip": "Le nouveau fichier n’est pas écrit ; l’existant reste tel quel et le téléchargement se termine avec une note.",
+      "rename": "Le nouveau fichier est placé à côté de l’existant sous « nom (1) » ; rien n’est perdu.",
+      "skip": "Le nouveau fichier n’est pas écrit ; l’existant reste tel quel et le téléchargement se termine avec une note.",
       "overwrite": "Le nouveau fichier remplace l’existant. Consigné dans le journal d’audit, et jamais sur un fichier en cours de transfert ou de seed.",
-      "compare": "Les contenus sont comparés : des octets identiques adoptent le fichier existant, des différents sont renommés.",
+      "compare": "Les contenus sont comparés : des octets identiques adoptent le fichier existant, des différents sont renommés.",
       "ask": "Le téléchargement attend une décision. Seul ce téléchargement attend, et la question survit à un redémarrage."
     },
     "decisions": {
@@ -377,14 +377,14 @@
       "overwrite": "Écraser"
     },
     "prompts": {
-      "title": "« {name} » existe déjà",
-      "before_transfer": "Paquet {package} : un fichier de ce nom se trouve déjà à la destination ({size}). Rien n’a encore été téléchargé.",
-      "after_transfer": "Paquet {package} : le nom a été pris pendant le transfert ({size}). Le fichier vérifié attend dans le dossier temporaire.",
-      "only_this": "Seul ce téléchargement attend ; le reste de la file continue.",
+      "title": "« {name} » existe déjà",
+      "before_transfer": "Paquet {package} : un fichier de ce nom se trouve déjà à la destination ({size}). Rien n’a encore été téléchargé.",
+      "after_transfer": "Paquet {package} : le nom a été pris pendant le transfert ({size}). Le fichier vérifié attend dans le dossier temporaire.",
+      "only_this": "Seul ce téléchargement attend ; le reste de la file continue.",
       "failed": "La décision n’a pas pu être enregistrée."
     },
     "inherit": "Hériter",
-    "inherit_from": "Hériter : {policy} ({level})",
+    "inherit_from": "Hériter : {policy} ({level})",
     "levels": {
       "package": "paquet",
       "category": "catégorie",
@@ -392,8 +392,8 @@
     },
     "label": "En cas de collision de noms",
     "package_description": "S’applique aux fichiers de ce paquet avant la catégorie et le réglage global.",
-    "effective": "En vigueur : {policy} (niveau : {level})",
-    "saved": "Enregistré. En vigueur : {policy}."
+    "effective": "En vigueur : {policy} (niveau : {level})",
+    "saved": "Enregistré. En vigueur : {policy}."
   },
   "duplicates": {
     "file": "Fichier",
@@ -414,26 +414,26 @@
     "content_title": "Même contenu",
     "basis": {
       "verified_hash": "Les mêmes octets sont déjà sur le disque – reconnus par le SHA-256 vérifié du fichier terminé.",
-      "stated_checksum": "Pas encore terminé : comparé au SHA-256 indiqué par la source.",
-      "none": "Aucun hachage connu pour l’instant : les doublons de contenu apparaissent une fois le fichier terminé et vérifié."
+      "stated_checksum": "Pas encore terminé : comparé au SHA-256 indiqué par la source.",
+      "none": "Aucun hachage connu pour l’instant : les doublons de contenu apparaissent une fois le fichier terminé et vérifié."
     },
     "missing": "manquant",
     "link": "Remplacer par un lien",
     "link_title": "Remplace le fichier choisi par un lien physique vers ce fichier identique. Les deux sont hachés au préalable.",
     "other_file_system": "autre système de fichiers – aucun lien possible",
-    "linked": "Lié ; {size} ne sont plus stockés en double."
+    "linked": "Lié ; {size} ne sont plus stockés en double."
   },
   "storage_modal": {
-    "title": "Collisions et doublons : {name}",
+    "title": "Collisions et doublons : {name}",
     "description": "Ce qui se passe quand un nom de fichier est pris, et quels fichiers du paquet existent déjà."
   },
   "clear_everything": {
-    "title": "Vider toute la liste ?",
+    "title": "Vider toute la liste ?",
     "description": "Retire {count} paquet de la liste de téléchargement. | Retire les {count} paquets de la liste de téléchargement.",
-    "active": "Plus aucun paquet n'est actif. | {count} d'entre eux est encore actif : les téléchargements en cours et en attente sont annulés et le seed s'arrête. | {count} d'entre eux sont encore actifs : les téléchargements en cours et en attente sont annulés et le seed s'arrête.",
+    "active": "Plus aucun paquet n’est actif. | {count} d’entre eux est encore actif : les téléchargements en cours et en attente sont annulés et le seed s’arrête. | {count} d’entre eux sont encore actifs : les téléchargements en cours et en attente sont annulés et le seed s’arrête.",
     "kept": "Les fichiers terminés restent dans leur dossier de destination. Un paquet en cours de post-traitement reste dans la liste.",
     "delete_partial": "Supprimer aussi les fichiers partiellement téléchargés",
-    "delete_partial_hint": "Irréversible : données de torrent inachevées et fragments à côté du fichier cible. Les fichiers incomplets du dossier temporaire sont toujours supprimés.",
+    "delete_partial_hint": "Irréversible : données de torrent inachevées et fragments à côté du fichier cible. Les fichiers incomplets du dossier temporaire sont toujours supprimés.",
     "confirm": "Vider la liste"
   },
   "pause": {
@@ -443,7 +443,7 @@
     "for_3h": "Mettre en pause 3 heures",
     "until": "Mettre en pause jusqu’à…",
     "until_title": "Mettre en pause jusqu’à",
-    "until_hint": "Les téléchargements reprennent d’eux-mêmes à cette heure : aujourd’hui, ou demain si elle est déjà passée.",
+    "until_hint": "Les téléchargements reprennent d’eux-mêmes à cette heure : aujourd’hui, ou demain si elle est déjà passée.",
     "until_time": "Heure",
     "paused_until": "En pause jusqu’à {time}",
     "remaining_title": "La file reprend dans {duration}. Cliquez pour reprendre maintenant.",
@@ -454,14 +454,14 @@
   },
   "kill_switch": {
     "title": "Torrents mis en pause par le coupe-circuit",
-    "description": "L’interface liée {name} a disparu. Les torrents restent en pause jusqu’à son retour ; les autres téléchargements continuent.",
+    "description": "L’interface liée {name} a disparu. Les torrents restent en pause jusqu’à son retour ; les autres téléchargements continuent.",
     "open": "État du réseau"
   },
   "traffic": {
     "one": "Trafic de {account} épuisé · prochaine vérification {time}",
     "many": "Trafic de {count} comptes épuisé · prochaine vérification {time}",
-    "queue_paused": "File d’attente en pause : trafic de {account} épuisé · prochaine vérification {time}",
-    "entry": "{account} : attend au plus tard jusqu’à {until}",
+    "queue_paused": "File d’attente en pause : trafic de {account} épuisé · prochaine vérification {time}",
+    "entry": "{account} : attend au plus tard jusqu’à {until}",
     "title": "L’hébergeur signale que le quota de trafic est épuisé. Les téléchargements attendent et reprennent dès qu’une vérification retrouve du trafic ou que l’attente se termine.",
     "continue": "Reprendre quand même"
   },
@@ -475,7 +475,7 @@
   },
   "view_sort": {
     "title": "Affichage trié – file inchangée",
-    "description": "Par « {column} », {direction}. Les téléchargements suivent toujours l’ordre de la file ; le glisser pour réordonner est désactivé tant que l’affichage est trié.",
+    "description": "Par « {column} », {direction}. Les téléchargements suivent toujours l’ordre de la file ; le glisser pour réordonner est désactivé tant que l’affichage est trié.",
     "asc": "croissant",
     "desc": "décroissant",
     "category": "Catégorie",
@@ -484,7 +484,7 @@
   },
   "reresolve": {
     "action": "Résoudre à nouveau",
-    "hint": "Résoudre maintenant avec la version du plugin installée et récupérer la taille et le nom sans lancer le téléchargement ; les fichiers en cours sont brièvement mis en pause",
+    "hint": "Résoudre maintenant avec la version du plugin installée et récupérer la taille et le nom sans lancer le téléchargement ; les fichiers en cours sont brièvement mis en pause",
     "done": "{count} fichier sera résolu à nouveau à son prochain démarrage | {count} fichiers seront résolus à nouveau à leur prochain démarrage",
     "failed": "La nouvelle résolution a échoué",
     "checked": "{resolved} résolus, {failed} en échec",
@@ -493,11 +493,11 @@
   },
   "stop_mark": {
     "set": "Placer la marque d’arrêt ici",
-    "set_hint": "Une fois ceci terminé, la file se met en pause ; ce qui est en cours se termine.",
+    "set_hint": "Une fois ceci terminé, la file se met en pause ; ce qui est en cours se termine.",
     "clear": "Retirer la marque d’arrêt",
     "glyph": "Marque d’arrêt",
-    "glyph_title": "Marque d’arrêt : une fois ceci terminé, la file se met en pause.",
-    "rail_title": "Marque d’arrêt après « {name} » : la file se met en pause une fois terminé.",
+    "glyph_title": "Marque d’arrêt : une fois ceci terminé, la file se met en pause.",
+    "rail_title": "Marque d’arrêt après « {name} » : la file se met en pause une fois terminé.",
     "set_failed": "La marque d’arrêt n’a pas pu être placée",
     "clear_failed": "La marque d’arrêt n’a pas pu être retirée"
   },
@@ -508,10 +508,10 @@
     "glyph": "Démarre plus tard",
     "glyph_title": "Ne démarre pas avant {time}",
     "title": "Démarrer le paquet plus tard",
-    "description": "Les fichiers en attente de « {name} » ne démarrent pas avant ce moment. Ce qui tourne déjà continue.",
+    "description": "Les fichiers en attente de « {name} » ne démarrent pas avant ce moment. Ce qui tourne déjà continue.",
     "day": "Jour",
     "time": "Heure",
-    "not_ahead": "Choisis un moment dans le futur.",
+    "not_ahead": "Choisissez un moment dans le futur.",
     "set_done": "Ne démarre pas avant {time}",
     "cleared": "Heure de début retirée",
     "failed": "L’heure de début n’a pas pu être enregistrée"
@@ -520,34 +520,34 @@
     "menu": "Plage de téléchargement …",
     "menu_hint": "Quand ce paquet peut télécharger",
     "title": "Plage de téléchargement",
-    "description": "Quand « {name} » peut télécharger. Les heures sont lues dans le fuseau horaire du planning de bande passante ({zone}).",
+    "description": "Quand « {name} » peut télécharger. Les heures sont lues dans le fuseau horaire du planning de bande passante ({zone}).",
     "own_label": "Plage propre",
-    "own_off_category": "Désactivée : le paquet suit la plage de sa catégorie ({window}).",
-    "own_off_schedule": "Désactivée : le paquet suit uniquement le planning de bande passante.",
+    "own_off_category": "Désactivée : le paquet suit la plage de sa catégorie ({window}).",
+    "own_off_schedule": "Désactivée : le paquet suit uniquement le planning de bande passante.",
     "add": "Ajouter une plage horaire",
-    "anytime": "Aucune plage horaire : télécharge à toute heure, seul l'interrupteur ci-dessous compte.",
+    "anytime": "Aucune plage horaire : télécharge à toute heure, seul l’interrupteur ci-dessous compte.",
     "ignore_label": "Ignorer la pause du planning",
-    "ignore_description": "Télécharge même lorsqu'un profil de bande passante met les téléchargements en pause – par exemple un téléchargement urgent en journée.",
-    "rates_hint": "Un paquet n'est jamais plus rapide que la limite globale, celle du profil ou celle fixée à la main : la plus stricte s'applique toujours.",
+    "ignore_description": "Télécharge même lorsqu’un profil de bande passante met les téléchargements en pause – par exemple un téléchargement urgent en journée.",
+    "rates_hint": "Un paquet n’est jamais plus rapide que la limite globale, celle du profil ou celle fixée à la main : la plus stricte s’applique toujours.",
     "saved": "Plage de téléchargement enregistrée",
     "cleared": "Le paquet suit de nouveau sa catégorie et le planning",
     "failed": "Plage de téléchargement non enregistrée",
     "glyph": "Plage de téléchargement",
-    "glyph_closed": "Hors de sa plage de téléchargement, en attente : {window}",
-    "glyph_open": "Ne télécharge que dans sa plage : {window}",
+    "glyph_closed": "Hors de sa plage de téléchargement, en attente : {window}",
+    "glyph_open": "Ne télécharge que dans sa plage : {window}",
     "glyph_bypass": "Ignore la pause du planning"
   },
   "schedule_pause": {
-    "label": "En pause selon le planning jusqu'à {time}",
+    "label": "En pause selon le planning jusqu’à {time}",
     "label_open": "En pause selon le planning",
-    "title": "Le profil de bande passante « {profile} » met les téléchargements en pause. Les paquets qui ignorent la pause du planning continuent ; Paramètres › Bande passante permet de passer à un autre profil.",
+    "title": "Le profil de bande passante « {profile} » met les téléchargements en pause. Les paquets qui ignorent la pause du planning continuent ; Paramètres → Bande passante permet de passer à un autre profil.",
     "open_settings": "Changer de profil"
   },
   "package_reset": {
-    "title": "Réinitialiser entièrement le paquet ?",
-    "description": "« {name} » : {count} fichier et tout ce que l’extraction en a tiré sont supprimés du disque. Le paquet est ensuite téléchargé à nouveau depuis le début. Les autres fichiers du dossier restent. | « {name} » : {count} fichiers et tout ce que l’extraction en a tiré sont supprimés du disque. Le paquet est ensuite téléchargé à nouveau depuis le début. Les autres fichiers du dossier restent.",
-    "description_keep": "« {name} » : {count} fichier est supprimé du disque ; ce que l’extraction a produit reste. Le paquet est ensuite téléchargé à nouveau depuis le début. | « {name} » : {count} fichiers sont supprimés du disque ; ce que l’extraction a produit reste. Le paquet est ensuite téléchargé à nouveau depuis le début.",
+    "title": "Réinitialiser entièrement le paquet ?",
+    "description": "« {name} » : {count} fichier et tout ce que l’extraction en a tiré sont supprimés du disque. Le paquet est ensuite téléchargé à nouveau depuis le début. Les autres fichiers du dossier restent. | « {name} » : {count} fichiers et tout ce que l’extraction en a tiré sont supprimés du disque. Le paquet est ensuite téléchargé à nouveau depuis le début. Les autres fichiers du dossier restent.",
+    "description_keep": "« {name} » : {count} fichier est supprimé du disque ; ce que l’extraction a produit reste. Le paquet est ensuite téléchargé à nouveau depuis le début. | « {name} » : {count} fichiers sont supprimés du disque ; ce que l’extraction a produit reste. Le paquet est ensuite téléchargé à nouveau depuis le début.",
     "confirm": "Réinitialiser et supprimer",
-    "done": "Paquet réinitialisé : {count} fichier est téléchargé à nouveau | Paquet réinitialisé : {count} fichiers sont téléchargés à nouveau"
+    "done": "Paquet réinitialisé : {count} fichier est téléchargé à nouveau | Paquet réinitialisé : {count} fichiers sont téléchargés à nouveau"
   }
 }

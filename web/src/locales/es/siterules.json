@@ -142,7 +142,7 @@
     "import_unreadable": "Ese archivo no es una exportación de reglas.",
     "imported": "Importadas: {stored} nuevas, {replaced} sustituidas, de {total} reglas del archivo.",
     "refused_one": "{name} fue rechazada",
-    "export_selected": "Exportar {count} reglas",
+    "export_selected": "Exportar {count} regla | Exportar {count} reglas",
     "export_hint": "Escribe en un archivo las reglas marcadas o, si no hay ninguna marcada, todas, cada una con su interruptor. Otra instalación importa el archivo sin retoques.",
     "select": "Seleccionar {name} para la exportación"
   },
@@ -202,13 +202,13 @@
   "clear": {
     "button": "Eliminar todas",
     "title": "¿Eliminar todas las reglas de sitios?",
-    "description": "Las {count} reglas se eliminan de esta instalación junto con sus resultados de comprobación. Expórtalas antes si quieres conservarlas. Los interruptores de grupo se mantienen.",
+    "description": "{count} regla se elimina de esta instalación junto con sus resultados de comprobación. Expórtala antes si quieres conservarla. Los interruptores de grupo se mantienen. | Las {count} reglas se eliminan de esta instalación junto con sus resultados de comprobación. Expórtalas antes si quieres conservarlas. Los interruptores de grupo se mantienen.",
     "confirm": "Eliminar todas",
-    "done": "{count} reglas eliminadas."
+    "done": "{count} regla eliminada. | {count} reglas eliminadas."
   },
   "examples": {
     "restore": "Restaurar reglas incluidas",
-    "restored": "{count} reglas incluidas restauradas, desactivadas.",
+    "restored": "{count} regla incluida restaurada, desactivada. | {count} reglas incluidas restauradas, desactivadas.",
     "none_missing": "Todas las reglas incluidas ya están."
   },
   "bundled": {

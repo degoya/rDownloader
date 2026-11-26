@@ -250,7 +250,7 @@ defineExpose({ edit, reset, dirty: baseline.dirty })
       :title="editing ? t('subscriptions.form.edit') : t('subscriptions.form.form_new')"
     />
     <div v-if="refusal" ref="refusalElement" class="mb-4 scroll-mt-4" data-testid="subscription-refusal">
-      <UAlert color="error" icon="i-lucide-circle-alert" :description="refusal" />
+      <UAlert color="error" role="alert" icon="i-lucide-circle-alert" :description="refusal" />
     </div>
     <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
       <!-- First: the type decides which fields follow (script, address, schedule, filters). -->

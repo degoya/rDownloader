@@ -127,7 +127,7 @@ describe('the rule body a draft describes', () => {
 })
 
 describe('a rule with one package per entry (RD-1170-02)', () => {
-  /** The warez.cx rule's shape: releases from the rule's steps, one package per release. */
+  /** A release page's rule: releases from the rule's steps, one package per release. */
   function grouped() {
     const draft = filled()
     draft.grouped = true
@@ -210,9 +210,9 @@ describe('a rule with one package per entry (RD-1170-02)', () => {
 
 describe('a copy of a rule (RD-130-07)', () => {
   it('takes the first free identifier after the original', () => {
-    expect(copyId('scnlog', ['scnlog'])).toBe('scnlog-copy')
-    expect(copyId('scnlog', ['scnlog', 'scnlog-copy'])).toBe('scnlog-copy-2')
-    expect(copyId('scnlog', ['scnlog', 'scnlog-copy', 'scnlog-copy-2'])).toBe('scnlog-copy-3')
+    expect(copyId('releases', ['releases'])).toBe('releases-copy')
+    expect(copyId('releases', ['releases', 'releases-copy'])).toBe('releases-copy-2')
+    expect(copyId('releases', ['releases', 'releases-copy', 'releases-copy-2'])).toBe('releases-copy-3')
   })
 
   it('shortens the original rather than the suffix, and never ends on a hyphen', () => {
@@ -255,13 +255,13 @@ describe('a copy of a rule (RD-130-07)', () => {
 })
 
 describe('a two-stage rule (RD-1170-03)', () => {
-  /** The serienjunkies.org rule's second half, in the shape the payload carries it. */
+  /** A series page's rule, its second half, in the shape the payload carries it. */
   const body = {
-    id: 'serienjunkies',
-    name: 'serienjunkies.org',
+    id: 'series',
+    name: 'series.example',
     group: 'board',
     version: 1,
-    match: { hosts: ['serienjunkies.org'], paths: ['^/serie/[0-9A-Za-z_-]+/?$'] },
+    match: { hosts: ['series.example'], paths: ['^/serie/[0-9A-Za-z_-]+/?$'] },
     steps: [
       { kind: 'fetch' },
       { kind: 'regex', pattern: '(\\{"_id":"[^{}]*\\})', into: 'releases', all: true }
@@ -272,12 +272,12 @@ describe('a two-stage rule (RD-1170-03)', () => {
       pick: { attributes: { episode: '"episode":(\\d+)', season: '"season":(\\d+)' } },
       steps: [
         { kind: 'captcha', challenge: 'recaptcha-v2', sitekey: '${sitekey}', into: 'token', page: '${url}', invisible: true },
-        { kind: 'form', url: 'https://serienjunkies.org/api/releases/${release}', fields: { recaptchaToken: '${token}' }, into: 'answer', json: true },
+        { kind: 'form', url: 'https://series.example/api/releases/${release}', fields: { recaptchaToken: '${token}' }, into: 'answer', json: true },
         { kind: 'regex', pattern: '"url":"([^"]+)"', from: 'answer', into: 'links', all: true }
       ],
       package: { from: 'regex', pattern: '"name":"([^"]+)"', source: 'entry' }
     },
-    probe: 'https://serienjunkies.org/serie/the-show/',
+    probe: 'https://series.example/serie/the-show/',
     checked: '2026-10-07'
   }
 

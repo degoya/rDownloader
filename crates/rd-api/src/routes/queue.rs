@@ -2,7 +2,7 @@
 
 use axum::{
     Router,
-    routing::{delete, get, post},
+    routing::{get, post},
 };
 use utoipa::OpenApi;
 
@@ -53,7 +53,9 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/downloads/{id}",
-            delete(download_handlers::delete_download).patch(download_handlers::rename_download),
+            get(rd_api_queue::single_reads::get_download)
+                .delete(download_handlers::delete_download)
+                .patch(download_handlers::rename_download),
         )
         .route(
             "/api/v1/downloads/{id}/pause",
@@ -114,7 +116,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/packages/{id}",
-            axum::routing::patch(package_handlers::update_package)
+            get(rd_api_queue::single_reads::get_package)
+                .patch(package_handlers::update_package)
                 .delete(package_handlers::delete_package),
         )
         .route(
@@ -225,5 +228,7 @@ pub(crate) fn routes() -> Router<AppState> {
     download_sources::list_download_sources,
     package_export::export_packages,
     download_handlers::reresolve_downloads,
+    rd_api_queue::single_reads::get_download,
+    rd_api_queue::single_reads::get_package,
 ))]
 pub(crate) struct Doc;

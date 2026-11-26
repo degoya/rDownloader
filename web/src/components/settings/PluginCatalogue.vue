@@ -176,9 +176,9 @@ async function onInstalled(text: string): Promise<void> {
       :description="t('plugins.updates.automatic_all_hint')"
       @update:model-value="setAutomaticForAll"
     />
-    <UAlert v-if="settingsError" class="mb-4" color="error" data-automatic-all-error :description="settingsError" />
+    <UAlert v-if="settingsError" class="mb-4" color="error" role="alert" data-automatic-all-error :description="settingsError" />
     <UAlert v-if="message" class="mb-4" color="success" :description="message" />
-    <UAlert v-if="error" class="mb-4" color="error" :description="error" />
+    <UAlert v-if="error" class="mb-4" color="error" role="alert" :description="error" />
     <URadioGroup
       v-if="everything.length"
       v-model="show"

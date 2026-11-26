@@ -100,6 +100,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('interface.language', 'interface', 'common.preferences.language', { tab: 'browser', descriptionKey: 'settings.appearance.language_description', terms: ['Deutsch', 'English', 'Español', 'Français'] }),
   field('interface.theme', 'interface', 'common.preferences.theme', { tab: 'browser', descriptionKey: 'settings.appearance.theme_description', keywordsKey: `${K}.theme` }),
   field('interface.palette', 'interface', 'settings.appearance.palette.label', { tab: 'browser', descriptionKey: 'settings.appearance.palette.description' }),
+  field('interface.shortcuts', 'interface', 'settings.appearance.shortcuts.label', { tab: 'browser', descriptionKey: 'settings.appearance.shortcuts.description' }),
   field('interface.byte_display', 'interface', 'settings.appearance.byte_display.label', { tab: 'display', descriptionKey: 'settings.appearance.byte_display.description' }),
   field('interface.title_status', 'interface', 'settings.appearance.title_status.label', { tab: 'display', descriptionKey: 'settings.appearance.title_status.description' }),
   field('interface.browser_notifications', 'interface', 'settings.notifications.label', { tab: 'browser', descriptionKey: 'settings.notifications.description' }),
@@ -215,6 +216,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   // Notifications
   card('notifications.targets', 'notifications', 'notifications.target.title', { tab: 'targets', descriptionKey: 'notifications.target.description', terms: ['ntfy', 'Gotify', 'Telegram', 'Apprise', 'SMTP', 'webhook'] }),
   card('notifications.rules', 'notifications', 'notifications.rule.title', { tab: 'targets', descriptionKey: 'notifications.rule.description' }),
+  card('notifications.language', 'notifications', 'notifications.language.title', { tab: 'targets', descriptionKey: 'notifications.language.description' }),
   card('notifications.history', 'notifications', 'notifications.history.title', { tab: 'history' }),
   // Clients & API
   card('clients.desktop', 'clients', 'system.pairing.title', { tab: 'desktop', keywordsKey: `${K}.desktop` }),

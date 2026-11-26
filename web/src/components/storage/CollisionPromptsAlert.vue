@@ -1,21 +1,28 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { COLLISION_DECISIONS, decideCollision, listCollisionPrompts, type CollisionDecision, type CollisionPrompt } from '@/api/storage'
 import { translateServerMessage } from '@/i18n/server'
+import { useTransfersStore } from '@/stores/transfers'
 import { formatBytes } from '@/utils/format'
 
 /**
  * The downloads waiting for a collision decision (RD-150-01). Each one waits alone: the rest of
- * the queue keeps running, and the question survives a restart because it is a row. Polled like
- * the capacity alert beside it.
+ * the queue keeps running, and the question survives a restart because it is a row. A download
+ * that asks is blocked and one that was answered no longer is, so the questions are read again
+ * whenever the blocked files change; polling asked every five seconds (RD-1480-18).
  */
 const { t } = useI18n()
 const prompts = ref<CollisionPrompt[]>([])
 const error = ref<string | null>(null)
 const deciding = ref<string | null>(null)
-let timer: ReturnType<typeof setInterval> | null = null
+const transfers = useTransfersStore()
+// With the moment of the change: a file asked again between two reads of the queue stays blocked.
+const blocked = computed(() => transfers.downloads
+  .filter(file => file.state === 'blocked')
+  .map(file => `${file.id}@${file.updated_at}`)
+  .join(' '))
 
 async function load(): Promise<void> {
   const answer = await listCollisionPrompts()
@@ -40,20 +47,15 @@ const DECISION_ICONS: Record<CollisionDecision, string> = {
   overwrite: 'i-lucide-file-pen-line'
 }
 
-onMounted(() => {
-  void load()
-  timer = setInterval(() => void load(), 5000)
-})
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
-})
+onMounted(() => void load())
+watch(blocked, () => void load())
 
 defineExpose({ reload: load })
 </script>
 
 <template>
   <div v-if="prompts.length" class="flex flex-col gap-2" data-testid="collision-prompts">
-    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
     <UAlert
       v-for="prompt in prompts"
       :key="prompt.download_id"

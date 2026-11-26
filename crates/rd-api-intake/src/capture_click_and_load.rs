@@ -13,7 +13,8 @@
 
 use std::time::Instant;
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::Json;
 use rd_cnl::{Refusal, RefusalKind, pace};
 use serde::Deserialize;
 use utoipa::ToSchema;
@@ -104,11 +105,13 @@ pub async fn capture_click_and_load(
     Json(request): Json<ClickAndLoadRequest>,
 ) -> Result<(StatusCode, Json<CollectorIntakeResponse>), ApiError> {
     let intake = read(request).await?;
-    if !pace::SHARED.admit(Instant::now()) {
+    let now = Instant::now();
+    if !pace::SHARED.admit(now) {
         return Err(refused(Refusal::new(
             RefusalKind::RateLimited,
             anyhow::anyhow!("more Click'n'Load hand-overs than the service accepts per minute"),
-        )));
+        ))
+        .with_param("seconds", pace::SHARED.retry_after_seconds(now)));
     }
     // The extension's route: it tells the person itself (RD-1270-05).
     rd_db::intake_notice::announced_by_extension(crate::collector_handlers::capture_intake(

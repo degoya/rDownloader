@@ -6,8 +6,8 @@ type Translate = (key: string, params?: Record<string, unknown>) => string
  * An automation's condition as one line of text, for the version history (RD-190-22).
  *
  * The editor draws a condition as a tree of fields; the history only has to say what a version
- * checked, so it reads the same tree as words in reading order: "All of (Name contains "x";
- * Not (Extension equals "nfo"))".
+ * checked, so it reads the same tree as words in reading order: "All of (Name contains “x”;
+ * Not (Extension equals “nfo”))".
  */
 export function describeCondition(node: AutomationCondition, t: Translate): string {
   switch (node.type) {
@@ -15,7 +15,11 @@ export function describeCondition(node: AutomationCondition, t: Translate): stri
       return t('automation.condition.always')
     case 'predicate': {
       const { field, operator, value } = node.predicate
-      return `${t(`automation.field.${field}`)} ${t(`automation.operator.${operator}`)} "${value}"`
+      return t('automation.condition.comparison', {
+        field: t(`automation.field.${field}`),
+        operator: t(`automation.operator.${operator}`),
+        value
+      })
     }
     case 'all':
     case 'any':
@@ -28,14 +32,17 @@ export function describeCondition(node: AutomationCondition, t: Translate): stri
 /** One action as text: its kind and, where it points somewhere, the name of what it points at. */
 export function describeAction(action: AutomationAction, t: Translate, names: (id: string) => string | undefined): string {
   const kind = t(`automation.action.${action.kind}`)
-  if (action.kind === 'script') return `${kind}: ${action.name}`
-  if (action.kind === 'set_category') return `${kind}: ${names(action.category_id) ?? action.category_id}`
-  if (action.kind === 'webhook') return `${kind}: ${names(action.target_id) ?? action.target_id}`
-  if (action.kind === 'set_priority') return `${kind}: ${t(`automation.action.priority_value.${action.priority}`)}`
-  if (action.kind === 'notify') return `${kind}: ${names(action.target_id) ?? action.target_id} "${action.message}"`
+  const labelled = (value: string): string => t('common.text.labelled', { label: kind, value })
+  if (action.kind === 'script') return labelled(action.name)
+  if (action.kind === 'set_category') return labelled(names(action.category_id) ?? action.category_id)
+  if (action.kind === 'webhook') return labelled(names(action.target_id) ?? action.target_id)
+  if (action.kind === 'set_priority') return labelled(t(`automation.action.priority_value.${action.priority}`))
+  if (action.kind === 'notify') {
+    return labelled(`${names(action.target_id) ?? action.target_id} ${t('common.text.quoted', { text: action.message })}`)
+  }
   if (action.kind === 'add_links') {
     const destination = t(`automation.action.destination_value.${action.destination ?? 'link_grabber'}`)
-    return `${kind}: ${t('automation.action.link_count', { count: action.links.length })} → ${destination}`
+    return labelled(`${t('automation.action.link_count', { count: action.links.length })} → ${destination}`)
   }
   return kind
 }
@@ -49,7 +56,7 @@ function describeSchedule(schedule: AutomationSchedule, t: Translate): string {
 /** The trigger as text; a time trigger says when (RD-1240-10). */
 export function describeTrigger(trigger: string, schedule: AutomationSchedule | null | undefined, t: Translate): string {
   const name = t(`automation.trigger.${trigger}`)
-  return trigger === 'schedule' && schedule ? `${name}: ${describeSchedule(schedule, t)}` : name
+  return trigger === 'schedule' && schedule ? t('common.text.labelled', { label: name, value: describeSchedule(schedule, t) }) : name
 }
 
 /** Which parts of `version` differ from the version saved before it; nothing for the first. */

@@ -13,7 +13,11 @@
 //! 2026-09-28), and the trailing backslash has to arrive whole.
 //!
 //! It needs 7-Zip 25.00 or later, the service's floor (`rd_tools::compat::ARCHIVE_TOOL_FLOORS`):
-//! `RD_TEST_7Z` names it, otherwise `7z` on `PATH`. Without one the test says why and passes.
+//! `RD_TEST_7Z` names it, otherwise `7z` on `PATH`. The test is `#[ignore]` and fails without one
+//! (RD-1480-14): it used to say why and pass, so it ran nowhere and looked green. CI's
+//! `clamav-live` job runs it with a pinned 7-Zip; by hand:
+//! `RD_TEST_7Z=<7zz> cargo nextest run -p rd-postprocess --lib --run-ignored only -E
+//! 'test(/a_real_seven_zip/)'`.
 
 use std::{
     io::{Cursor, Write},
@@ -45,40 +49,28 @@ fn version_of(token: &str) -> Option<(u32, u32)> {
     Some((major.parse().ok()?, minor.parse().ok()?))
 }
 
-/// The 7-Zip to measure and the version its banner states, or `None` with the reason printed.
-fn seven_zip() -> Option<(PathBuf, String)> {
+/// The 7-Zip to measure and the version its banner states.
+fn seven_zip() -> (PathBuf, String) {
     let explicit = std::env::var("RD_TEST_7Z").ok();
-    let Some(tool) = rd_core::locate_tool(explicit.as_deref(), None, "7z") else {
-        eprintln!("skipped: no 7z (set RD_TEST_7Z)");
-        return None;
-    };
-    let banner = match std::process::Command::new(&tool.path).arg("i").output() {
-        Ok(output) => String::from_utf8_lossy(&output.stdout).into_owned(),
-        Err(error) => {
-            eprintln!("skipped: {} did not start: {error}", tool.path.display());
-            return None;
-        }
-    };
-    let Some(version) = banner
+    let tool = rd_core::locate_tool(explicit.as_deref(), None, "7z")
+        .expect("no 7z; set RD_TEST_7Z to one of 25.00 or later");
+    let output = std::process::Command::new(&tool.path)
+        .arg("i")
+        .output()
+        .unwrap_or_else(|error| panic!("{} did not start: {error}", tool.path.display()));
+    let banner = String::from_utf8_lossy(&output.stdout).into_owned();
+    let version = banner
         .lines()
         .filter(|line| line.contains("7-Zip"))
         .flat_map(str::split_whitespace)
         .find(|token| version_of(token).is_some())
-    else {
-        eprintln!(
-            "skipped: {} states no version in its banner",
-            tool.path.display()
-        );
-        return None;
-    };
-    if version_of(version).is_some_and(|found| found < (25, 0)) {
-        eprintln!(
-            "skipped: {} is 7-Zip {version}, below the 25.00 floor (set RD_TEST_7Z)",
-            tool.path.display()
-        );
-        return None;
-    }
-    Some((tool.path, version.to_owned()))
+        .unwrap_or_else(|| panic!("{} states no version", tool.path.display()));
+    assert!(
+        version_of(version).is_some_and(|found| found >= (25, 0)),
+        "{} is 7-Zip {version}, below the 25.00 floor; set RD_TEST_7Z",
+        tool.path.display()
+    );
+    (tool.path, version.to_owned())
 }
 
 /// Writes `secret.zip.001` and `.002` into `folder`: one ZIP holding [`MEMBER`], AES-256 with
@@ -100,10 +92,9 @@ fn split_zip(folder: &Path, password: &str) -> Vec<PathBuf> {
 }
 
 #[tokio::test]
+#[ignore = "needs 7-Zip 25.00 or later, named by RD_TEST_7Z or on PATH"]
 async fn a_real_seven_zip_gets_a_password_with_a_quote_or_a_trailing_backslash() {
-    let Some((executable, version)) = seven_zip() else {
-        return;
-    };
+    let (executable, version) = seven_zip();
     let platform = std::env::consts::OS;
     for (label, password) in PASSWORDS {
         let temp = tempfile::tempdir().expect("temporary directory");

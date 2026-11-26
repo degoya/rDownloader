@@ -6,10 +6,10 @@
     "select_entry": "Sélectionner {name}",
     "excluded_by_pattern": "Exclu par le motif {pattern}",
     "loading": "Lecture de la liste des fichiers…",
-    "empty": "Ce torrent n'a pas encore de liste de fichiers."
+    "empty": "Ce torrent n’a pas encore de liste de fichiers."
   },
   "errors": {
-    "metadata_failed": "Les métadonnées du torrent n'ont pas pu être résolues."
+    "metadata_failed": "Les métadonnées du torrent n’ont pas pu être résolues."
   },
   "priority": {
     "high": "Élevée",
@@ -17,11 +17,11 @@
     "low": "Basse",
     "skip": "Ignorer",
     "select": "Priorité de {name}",
-    "emulated_hint": "Les priorités sont appliquées par paliers : le moteur ouvre le palier suivant dès que l'actuel est terminé. Le téléchargement séquentiel n'est pas pris en charge par ce moteur."
+    "emulated_hint": "Les priorités sont appliquées par paliers : le moteur ouvre le palier suivant dès que l’actuel est terminé. Le téléchargement séquentiel n’est pas pris en charge par ce moteur."
   },
   "patterns": {
-    "label": "Motifs d'exclusion",
-    "description": "Motifs séparés par des virgules comme *.nfo ou extras/*. Ils n'affectent que les fichiers que vous n'avez pas décidés vous-même.",
+    "label": "Motifs d’exclusion",
+    "description": "Motifs séparés par des virgules comme *.nfo ou extras/*. Ils n’affectent que les fichiers que vous n’avez pas décidés vous-même.",
     "placeholder": "*.nfo, sample/*"
   },
   "tabs": {
@@ -35,7 +35,7 @@
     "counters_hint": "Seeders / leechers / terminés",
     "scrape": "Scraper",
     "reannounce": "Réannoncer",
-    "empty": "Ce torrent n'a aucun tracker.",
+    "empty": "Ce torrent n’a aucun tracker.",
     "stale": "Ces chiffres datent de plus de 15 minutes.",
     "stale_badge": "Obsolète",
     "failed": "Échec",
@@ -52,27 +52,27 @@
   "peers": {
     "title": "Pairs",
     "count": "{count} connectés",
-    "empty": "Aucun pair connecté pour l'instant.",
-    "offline": "Ce torrent n'est pas dans la session, aucun pair ne peut être listé.",
+    "empty": "Aucun pair connecté pour l’instant.",
+    "offline": "Ce torrent n’est pas dans la session, aucun pair ne peut être listé.",
     "downloaded": "Téléchargé depuis ce pair",
     "uploaded": "Envoyé à ce pair",
     "more": "Afficher plus"
   },
   "pieces": {
     "title": "Disponibilité des pièces",
-    "count": "{count} pièces",
+    "count": "{count} pièce | {count} pièces",
     "empty": "Aucune information sur les pièces."
   },
   "web_seeds": {
     "title": "Web seeds",
-    "unsupported": "Ce torrent propose des web seeds. Le moteur ne peut pas les utiliser ; ils ne sont affichés qu'à titre indicatif."
+    "unsupported": "Ce torrent propose des web seeds. Le moteur ne peut pas les utiliser ; ils ne sont affichés qu’à titre indicatif."
   },
   "seeding": {
     "enabled": "Seed",
     "ratio": "Ratio cible",
     "time": "Durée de seed",
     "unlimited": "Illimitée",
-    "minutes": "{count} minutes",
+    "minutes": "{count} minute | {count} minutes",
     "inherit": "Hériter",
     "override_enabled": "Remplacer le seed",
     "override_ratio": "Remplacer le ratio",
@@ -87,23 +87,23 @@
   },
   "actions": {
     "recheck": "Revérifier",
-    "move": "Changer l'emplacement…"
+    "move": "Changer l’emplacement…"
   },
   "move": {
-    "title": "Changer l'emplacement",
-    "description": "Les fichiers rejoignent le nouvel emplacement avec le dossier du paquet, et le torrent continue d'être partagé depuis là. Si le déplacement échoue, tout reste où c'était.",
+    "title": "Changer l’emplacement",
+    "description": "Les fichiers rejoignent le nouvel emplacement avec le dossier du paquet, et le torrent continue d’être partagé depuis là. Si le déplacement échoue, tout reste où c’était.",
     "root": "Racine de stockage",
-    "path": "Dossier à l'intérieur",
+    "path": "Dossier à l’intérieur",
     "path_placeholder": "p. ex. Archives/Séries",
     "submit": "Déplacer",
-    "no_roots": "Ajoute d'abord une racine de stockage dans Paramètres › Routage.",
+    "no_roots": "Ajoutez d’abord une racine de stockage dans Paramètres → Stockage et règles.",
     "running": "Déplacement vers {path}…",
-    "taken_back": "Déplacement annulé : {reason}"
+    "taken_back": "Déplacement annulé : {reason}"
   },
   "recheck": {
     "checking": "Vérification des données… {percent} %",
     "pending": "Vérification demandée",
-    "complete": "Vérifié : toutes les données sont intactes",
-    "incomplete": "Vérifié : {verified} sur {total} intacts, le reste est retéléchargé"
+    "complete": "Vérifié : toutes les données sont intactes",
+    "incomplete": "Vérifié : {verified} sur {total} intacts, le reste est retéléchargé"
   }
 }

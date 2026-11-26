@@ -255,8 +255,8 @@ function openNzbHistory(): void {
       <div data-tour="grabber-body" class="flex w-full flex-col gap-4">
         <!-- Behind the navbar button and `f` (RD-1230-02); without an indexer it says where to add one. -->
         <IndexerSearchDrawer ref="indexerSearch" />
-        <UAlert v-if="collector.error" color="error" :description="collector.error" />
-        <UAlert v-if="nzb.error" color="error" :description="nzb.error" />
+        <UAlert v-if="collector.error" color="error" role="alert" :description="collector.error" />
+        <UAlert v-if="nzb.error" color="error" role="alert" :description="nzb.error" />
         <UAlert v-if="notice" color="info" icon="i-lucide-info" :description="notice" />
         <SiteRulePickPanel />
         <CollectorHosterFilter

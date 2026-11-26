@@ -23,7 +23,6 @@ name: Installers
 # docs/roadmap/jobs/archive/180-05-linux-arm64-und-installer.md).
 #
 #   gh workflow run installers.yml --ref <branch>
-#
 # The release candidate dispatches it before the tag, beside ci.yml, and a red run holds the tag
 # (owner, 2026-10-06, replacing "no tag runs" of 2026-10-04; the `public-ci` step,
 # scripts/lib/release-steps-publish.sh).
@@ -43,6 +42,7 @@ on:
       - scripts/package-msi.sh
       - scripts/release-assets.sh
       - scripts/lib/archive-layout.sh
+      - scripts/lib/third_party_notices.py
       - scripts/lib/version-file.sh
       - scripts/windows/**
       - crates/rd-autostart/**
@@ -86,7 +86,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - &checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # rust-embed compiles web/dist into the binary.
       - uses: ./.github/actions/setup-web
       - name: Build the web UI
@@ -94,9 +97,7 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
-      # ci.yml's `rust-tests` cache, read only (RD-1120-07): the dependencies of a debug build
-      # with the same linkers. The `installers` cache these jobs saved (964 MB on Windows alone)
-      # was read by nothing but their next run on main.
+      # ci.yml's `rust-tests` cache, read only (RD-1120-07): a debug build with the same linkers.
       - uses: ./.github/actions/rust-tests-cache
         with:
           nextest: false
@@ -110,7 +111,7 @@ jobs:
           source scripts/lib/version-file.sh
           source scripts/lib/archive-layout.sh
           mkdir -p stage/plugins
-          cp target/debug/rdownloader target/debug/rdownloader-capture LICENSE README.md stage/
+          cp target/debug/rdownloader target/debug/rdownloader-capture LICENSE README.md crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt stage/
           cp scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh \
             scripts/linux/start-capture.sh scripts/linux/stop-capture.sh stage/
           rd_write_version_file stage "$(scripts/set-version.sh)" "linux ${ARCH}" debug
@@ -166,9 +167,8 @@ jobs:
             fi
           }
           trap 'status=$?; [[ ${status} -eq 0 ]] || diagnose' EXIT
-          # Five minutes: the stage holds debug binaries, and a debug build's first start
-          # compiles every bundled plugin with an unoptimised Cranelift — over four CPU minutes,
-          # more than a four-core runner does in the one minute this waited before.
+          # Five minutes: the stage holds debug binaries, and a debug build's first start compiles
+          # every bundled plugin with an unoptimised Cranelift, over four CPU minutes.
           serve() {
             systemctl --user daemon-reload
             systemctl --user start rdownloader
@@ -241,7 +241,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - *checkout
       - uses: ./.github/actions/setup-web
       - name: Build the web UI
         working-directory: web
@@ -261,7 +261,7 @@ jobs:
           set -euo pipefail
           source scripts/lib/version-file.sh
           mkdir -p stage/plugins
-          cp target/debug/rdownloader.exe target/debug/rdownloader-capture.exe LICENSE README.md stage/
+          cp target/debug/rdownloader.exe target/debug/rdownloader-capture.exe LICENSE README.md crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt stage/
           cp scripts/windows/start-rdownloader.bat scripts/windows/stop-rdownloader.bat \
             scripts/windows/start-capture.bat scripts/windows/stop-capture.bat stage/
           rd_write_version_file stage "$(scripts/set-version.sh)" "windows x86_64" debug
@@ -465,7 +465,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - *checkout
       # `rust-tests`, read only, as in `linux`.
       - uses: ./.github/actions/rust-tests-cache
         with:

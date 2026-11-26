@@ -97,6 +97,8 @@ jobs:
       RDOWNLOADER_NO_PAUSE: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # The migration check reads the database with Python; windows-2025 has only the Store stub.
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         id: python
@@ -274,6 +276,8 @@ jobs:
       - name: Install namcap and git
         run: pacman -Syu --noconfirm --needed git namcap python
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # The runner's SHA256SUMS through the release's public download URL: no gh in the container.
       - name: Render the package of the release
         shell: bash

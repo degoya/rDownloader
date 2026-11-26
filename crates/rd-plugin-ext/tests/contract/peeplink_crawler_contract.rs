@@ -203,7 +203,7 @@ async fn only_entry_addresses_of_the_two_live_domains_are_claimed_and_deciding_r
         "https://alfalink.info/02489255ba1048ae9d1328",
         // Somebody else's address in the same shape.
         "https://example.org/0004ae96cef6",
-        "https://filecrypt.cc/Container/ABCDEF0123.html",
+        "https://container.example/Container/ABCDEF0123.html",
     ] {
         assert!(
             !crawler.claims(left_alone).await.expect("claims"),

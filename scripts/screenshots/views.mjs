@@ -100,6 +100,11 @@ export const VIEWS = [
   }),
   view('main', '20-audit-log', '/audit'),
   view('main', '21-shortcuts-help', '/downloads', async (page) => {
+    // The shortcuts are off by default (RD-1480-17): on for this shot only.
+    await page.evaluate(() => localStorage.setItem('rd-keyboard-shortcuts', 'true'))
+    await page.reload()
+    await page.locator('[data-testid="downloads-title"]').waitFor({ timeout: 10000 })
+    await page.evaluate(() => localStorage.removeItem('rd-keyboard-shortcuts'))
     await page.keyboard.press('Shift+Slash')
     await page.waitForTimeout(600)
   }),

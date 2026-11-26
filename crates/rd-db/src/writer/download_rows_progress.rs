@@ -98,6 +98,19 @@ impl Writer {
         ));
     }
 
+    /// Announces that a row changed in something other than its state or its bytes.
+    ///
+    /// Broadcast only, like the torrent bookkeeping (`torrent_store::set_download_state`): a
+    /// client holding the list reads progress as figures alone (RD-1480-18), so a name settled
+    /// while a transfer runs would otherwise stay wrong until the next state change. The payload
+    /// carries no `state`/`previous` pair and is therefore no lifecycle moment for anyone.
+    pub(in crate::writer) fn broadcast_row_changed(&self, id: DownloadId, what: &str) {
+        let _ = self.events.send(EventEnvelope::new(
+            EventKind::DownloadState,
+            serde_json::json!({ "download_id": id, what: true }),
+        ));
+    }
+
     /// Writes one finished provider-chunk MAC (RD-103-02, ADR 0011).
     ///
     /// The fingerprint is stored with it and every row of another description is removed in

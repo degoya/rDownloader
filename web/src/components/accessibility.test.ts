@@ -103,7 +103,7 @@ describe('accessibility', () => {
       props: {
         busy: false,
         page: {
-          id: 'p1', rule: 'serienjunkies.org', rule_id: 'serienjunkies', address: 'https://serienjunkies.org/serie/the-show/',
+          id: 'p1', rule: 'series.example', rule_id: 'series', address: 'https://series.example/serie/the-show/',
           package_name: 'The Show', created_at: '2026-10-07T20:00:00Z', running: true, total: 2, finished: 1, waiting_for_captcha: true,
           entries: [
             release(1, { season: '1', episode: '1', resolution: '720p', language: 'GERMAN', hoster: 'ddownload' }, 'done'),

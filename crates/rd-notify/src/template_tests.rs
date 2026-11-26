@@ -312,11 +312,12 @@ fn a_filled_template_fits_every_destination() {
 #[test]
 fn the_webhook_body_keeps_its_structure() {
     let filled = values(NotificationEvent::PackageCompleted).with(Placeholder::Package, "Photos");
-    let (title, body) = rule(Some("{package} done at {time}"), Some("{message}")).wording(
-        "Package finished: Photos",
-        "Photos (completed)",
-        &filled,
-    );
+    let built_in = ("Package finished: Photos", "Photos (completed)");
+    let (title, body) = rule(
+        Some("{package} done at {time}"),
+        Some("{message}: {package}"),
+    )
+    .wording(built_in.0, built_in.1, &filled);
     let now = Timestamp::now();
     let delivery = Delivery {
         id: NotificationDeliveryId::new(),
@@ -334,14 +335,37 @@ fn the_webhook_body_keeps_its_structure() {
         created_at: now,
         updated_at: now,
         package_path: None,
+        subject: crate::Subject::default(),
     };
-    let payload = message_of(&delivery).payload;
+    let mut payload = message_of(&delivery).payload;
     let mut keys: Vec<&String> = payload.as_object().expect("an object").keys().collect();
     keys.sort();
-    assert_eq!(keys, ["body", "event", "idempotency_key", "title"]);
+    assert_eq!(
+        keys,
+        [
+            "body",
+            "download_id",
+            "event",
+            "idempotency_key",
+            "occurred_at",
+            "package_id",
+            "title",
+            "version"
+        ]
+    );
     assert_eq!(payload["title"], "Photos done at 14:32");
-    assert_eq!(payload["body"], "Photos (completed)");
+    assert_eq!(payload["body"], "Photos (completed): Photos");
     assert_eq!(payload["event"], "package_completed");
+    // Every other field is what the built-in wording sends.
+    let untouched = message_of(&Delivery {
+        title: built_in.0.to_owned(),
+        body: built_in.1.to_owned(),
+        ..delivery
+    })
+    .payload;
+    payload["title"] = built_in.0.into();
+    payload["body"] = built_in.1.into();
+    assert_eq!(payload, untouched);
 }
 
 #[test]

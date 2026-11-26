@@ -186,7 +186,10 @@ function runError(run: BackupRun): string | null {
 function destinationErrors(run: BackupRun): string[] {
   return run.destinations
     .filter(row => row.error_code && row.state !== 'succeeded')
-    .map(row => `${row.destination}: ${translateServerMessage({ code: row.error_code ?? '', message: row.error_detail ?? row.error_code ?? '' })}`)
+    .map(row => t('common.text.labelled', {
+      label: row.destination,
+      value: translateServerMessage({ code: row.error_code ?? '', message: row.error_detail ?? row.error_code ?? '' })
+    }))
 }
 
 function pruned(run: BackupRun): number {
@@ -212,7 +215,7 @@ onUnmounted(() => {
       :title="t('system.backup.full.title')"
       :description="t('system.backup.full.description')"
     />
-    <UAlert v-if="error" class="mt-5" color="error" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" class="mt-5" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
 
     <DataState :loading="loading" :error="loadError" class="mt-5" />
     <template v-if="!loading && !loadError">

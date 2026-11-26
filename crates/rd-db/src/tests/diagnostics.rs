@@ -101,6 +101,7 @@ async fn notifications_are_read_without_wording_within_their_window_and_limit() 
                 title: "title-canary".to_owned(),
                 body: "body-canary".to_owned(),
                 package_path: Some("/srv/path-canary".to_owned()),
+                subject: rd_notify::Subject::default(),
             })
             .await
             .expect("queue delivery");

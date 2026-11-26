@@ -15,6 +15,10 @@ import { SHORTCUT_DEFINITIONS, hasOpenDialog, registeredShortcuts, setClearCompl
 import { sidebarCollapsed } from './sidebarCollapse'
 import english from '@/locales/en/common.json'
 import { router } from '@/router'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
+
+// Off by default (RD-1480-17); these tests are about the keys.
+shortcutsEnabled.value = true
 
 function resolvePath(root: unknown, path: string): unknown {
   return path.split('.').reduce<unknown>((node, segment) => {

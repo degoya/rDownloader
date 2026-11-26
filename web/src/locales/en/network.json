@@ -80,7 +80,7 @@
   },
   "delete": {
     "title": "Delete provider account",
-    "description": "The account \"{label}\" and its encrypted credentials will be deleted. Unfinished downloads protect the account from deletion.",
+    "description": "The account “{label}” and its encrypted credentials will be deleted. Unfinished downloads protect the account from deletion.",
     "confirm": "Delete account"
   },
   "proxy": {

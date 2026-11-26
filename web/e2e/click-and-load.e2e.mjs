@@ -10,26 +10,22 @@
 // site is allowed in the popup with a click and a browser prompt no automation can answer, so the
 // run loads a copy of the extension whose manifest grants `*://hoster.test/*` at install, and
 // records the consent in storage as the popup would. Everything else is the shipped build.
-// Firefox cannot load an unpacked extension under Playwright; its half is the live checklist in
-// docs/development.md.
+// Firefox's half is firefox.e2e.mjs.
 import assert from 'node:assert/strict'
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { createCipheriv } from 'node:crypto'
-import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { after, before, test } from 'node:test'
 
 import { chromium } from 'playwright'
 
+import { CNL_PORT, encrypt, hosterPage, startAgent, startHoster } from './lib/click-and-load.mjs'
 import { BUDGET_MS, Session, assertPortFree, marker, startService, stop, within } from './lib/service.mjs'
 
 const SERVER = process.env.RD_E2E_SERVER
 const EXTENSION = process.env.RD_E2E_EXTENSION && resolve(process.env.RD_E2E_EXTENSION)
 const WORK = process.env.RD_E2E_WORK || mkdtempSync(join(tmpdir(), 'rd-e2e-cnl-'))
 const PORT = 8710
-const CNL_PORT = 9666
-const KEY = 'abababababababababababababababab'
 
 let service
 let session
@@ -38,66 +34,6 @@ let extensionId
 let hoster
 let agent
 const problems = []
-
-/** The links a page encrypts for Click'n'Load: AES-128-CBC with the key as its own IV. */
-function encrypt(text) {
-  const key = Buffer.from(KEY, 'hex')
-  const cipher = createCipheriv('aes-128-cbc', key, key)
-  return Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]).toString('base64')
-}
-
-/** A hoster page as they are written: the check script, then a form the button submits. */
-function hosterPage({ crypted, packageName, password }) {
-  return `<!doctype html>
-<meta charset="utf-8"><title>Click'n'Load test</title>
-<script>var jdownloader = false</script>
-<script src="http://127.0.0.1:${CNL_PORT}/jdcheck.js"></script>
-<form id="cnl" action="http://127.0.0.1:${CNL_PORT}/flash/addcrypted2" method="post" target="sink">
-  <input type="hidden" name="crypted" value="${crypted}">
-  <input type="hidden" name="jk" value="function f(){ return '${KEY}'; }">
-  <input type="hidden" name="passwords" value="${password}">
-  <input type="hidden" name="package" value="${packageName}">
-  <input type="hidden" name="source" value="http://hoster.test/">
-  <button id="cnl-button" hidden>Click'n'Load</button>
-</form>
-<iframe name="sink"></iframe>
-<script>if (window.jdownloader === true) document.getElementById('cnl-button').hidden = false</script>`
-}
-
-/** Serves whatever page the current step put there. */
-async function startHoster() {
-  let page = ''
-  const server = createServer((request, response) => {
-    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-    response.end(page)
-  })
-  await new Promise((done) => server.listen(0, '127.0.0.1', done))
-  return {
-    port: server.address().port,
-    serve: (html) => {
-      page = html
-    },
-    close: () => new Promise((done) => server.close(done))
-  }
-}
-
-/** A stand-in for the desktop agent on its port: it answers the check and keeps what it is sent. */
-async function startAgent() {
-  const received = []
-  const server = createServer((request, response) => {
-    let body = ''
-    request.on('data', (chunk) => {
-      body += chunk
-    })
-    request.on('end', () => {
-      if (request.url.startsWith('/flash/add')) received.push(body)
-      response.writeHead(200, { 'access-control-allow-origin': '*' })
-      response.end(request.url === '/jdcheck.js' ? "jdownloader=true; var version='agent';" : 'success')
-    })
-  })
-  await new Promise((done) => server.listen(CNL_PORT, '127.0.0.1', done))
-  return { received, close: () => new Promise((done) => server.close(done)) }
-}
 
 /** The shipped Chrome build, granted the test hoster at install. */
 function extensionCopy() {

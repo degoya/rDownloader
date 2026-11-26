@@ -25,6 +25,7 @@ mod commands;
 mod config_store;
 mod database_size;
 mod diagnostics_store;
+mod download_figures;
 mod download_sources_store;
 mod download_window_store;
 mod error;

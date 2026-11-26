@@ -15,6 +15,10 @@ import { mountComponent, uiStubs } from '@/test/mount'
 import LinkGrabberNavbar from './LinkGrabberNavbar.vue'
 import NavbarAction from './NavbarAction.vue'
 import QueueResetFailedMenu from './QueueResetFailedMenu.vue'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
+
+// Off by default (RD-1480-17); these tests are about the keys.
+shortcutsEnabled.value = true
 
 const navbar = { template: '<header><slot name="right" /></header>' }
 
@@ -82,6 +86,16 @@ describe('the LinkGrabber navbar', () => {
     const buttons = screen.getAllByRole('button').filter(button => !button.closest('[data-menu-items]'))
     expect(buttons.map(button => [button.getAttribute('aria-label'), button.getAttribute('title')])).toEqual(expected)
     for (const button of buttons) expect(button.textContent?.trim()).toBe('')
+  })
+
+  it('names no key in any tooltip while the shortcuts are off', () => {
+    shortcutsEnabled.value = false
+    mountNavbar()
+    for (const button of screen.getAllByRole('button')) {
+      expect(button.getAttribute('title') ?? '').not.toMatch(/\([A-Z0-9]\)$/)
+      expect(button.getAttribute('aria-keyshortcuts')).toBeNull()
+    }
+    shortcutsEnabled.value = true
   })
 
   it('renders without an axe violation', async () => {

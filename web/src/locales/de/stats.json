@@ -21,7 +21,7 @@
     "turnaround": "Durchlaufzeit",
     "turnaround_hint": "Mittel von Anlage bis Abschluss",
     "all_time": "Seit Beginn",
-    "all_time_hint": "{completed} Übertragungen, nie verdichtet",
+    "all_time_hint": "{completed} Übertragung, nie verdichtet | {completed} Übertragungen, nie verdichtet",
     "turnaround_under_second": "unter 1 s"
   },
   "chart": {
@@ -46,7 +46,7 @@
     "title": "Metriken abrufen",
     "description": "Der Dienst stellt seine Betriebsmetriken im Prometheus-Textformat bereit. Ein Token mit dem Bereich „Metriken“ erreicht diese eine Route und sonst nichts.",
     "endpoint": "Adresse",
-    "scope_hint": "Token unter Einstellungen → API & MCP anlegen, Bereich „Metriken“."
+    "scope_hint": "Token unter Einstellungen → Clients & API → API & MCP anlegen, Bereich „Metriken“."
   },
   "retention": {
     "eyebrow": "Aufbewahrung",

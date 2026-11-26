@@ -1,10 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import type { AutomationVersion } from '@/api/types'
+import { i18n, setLocale } from '@/i18n'
+import { loadEveryLocale } from '@/test/locales'
 
 import { changedParts, describeAction, describeCondition, describeTrigger } from './automationText'
 
-const t = (key: string, params?: Record<string, unknown>) => (params ? `<${key} ${JSON.stringify(params)}>` : `<${key}>`)
+const t = (key: string, params?: Record<string, unknown>) => {
+  if (key === 'common.text.labelled') return `${String(params?.label)}: ${String(params?.value)}`
+  if (key === 'common.text.quoted') return `“${String(params?.text)}”`
+  return params ? `<${key} ${JSON.stringify(params)}>` : `<${key}>`
+}
 
 function version(number: number, part: Partial<AutomationVersion>): AutomationVersion {
   return {
@@ -27,8 +33,8 @@ describe('describeCondition', () => {
         { type: 'predicate', predicate: { field: 'name', operator: 'contains', value: 'x' } },
         { type: 'not', node: { type: 'predicate', predicate: { field: 'extension', operator: 'equals', value: 'nfo' } } }
       ]
-    }, t)).toBe('<automation.condition.all> (<automation.field.name> <automation.operator.contains> "x"; '
-      + '<automation.condition.not> (<automation.field.extension> <automation.operator.equals> "nfo"))')
+    }, t)).toBe('<automation.condition.all> (<automation.condition.comparison {"field":"<automation.field.name>","operator":"<automation.operator.contains>","value":"x"}>; '
+      + '<automation.condition.not> (<automation.condition.comparison {"field":"<automation.field.extension>","operator":"<automation.operator.equals>","value":"nfo"}>))')
     expect(describeCondition({ type: 'always' }, t)).toBe('<automation.condition.always>')
   })
 })
@@ -47,10 +53,27 @@ describe('describeAction', () => {
     expect(describeAction({ kind: 'set_priority', priority: 'high' }, t, names))
       .toBe('<automation.action.set_priority>: <automation.action.priority_value.high>')
     expect(describeAction({ kind: 'notify', target_id: 't1', message: 'Started' }, t, names))
-      .toBe('<automation.action.notify>: Ops "Started"')
+      .toBe('<automation.action.notify>: Ops “Started”')
     expect(describeAction({ kind: 'add_links', links: ['https://a.example/x', 'https://b.example/y'], destination: 'downloads' }, t, names))
       .toBe('<automation.action.add_links>: <automation.action.link_count {"count":2}> → <automation.action.destination_value.downloads>')
     expect(describeAction({ kind: 'start_queue' }, t, names)).toBe('<automation.action.start_queue>')
+  })
+})
+
+describe('the quotes and colons of a sentence', () => {
+  beforeAll(loadEveryLocale)
+  afterEach(() => setLocale('en'))
+
+  it.each([
+    ['en', '“x”', /\w: tidy\.sh$/],
+    ['de', '„x“', /\w: tidy\.sh$/],
+    ['es', '«x»', /\w: tidy\.sh$/],
+    ['fr', '«\u00a0x\u00a0»', /\w\s: tidy\.sh$/]
+  ])('are those of %s', async (locale, quoted, action) => {
+    await setLocale(locale)
+    const translate = i18n.global.t as (key: string, params?: Record<string, unknown>) => string
+    expect(describeCondition({ type: 'predicate', predicate: { field: 'name', operator: 'contains', value: 'x' } }, translate)).toMatch(new RegExp(`${quoted}$`))
+    expect(describeAction({ kind: 'script', name: 'tidy.sh' }, translate, () => undefined)).toMatch(action)
   })
 })
 

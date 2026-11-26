@@ -7,7 +7,8 @@
 //! a placeholder where the key stands -- and a grab ends as an NZB import or a LinkGrabber
 //! package waiting for review, exactly like `import_nzb` or a pasted magnet.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
 use serde::Deserialize;
 

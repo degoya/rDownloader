@@ -5,6 +5,7 @@ import type { BadgeProps } from '@nuxt/ui'
 import type { Download, DownloadPriority, DownloadState, PostprocessLevel, PostprocessStage } from '@/api/types'
 import { i18n } from '@/i18n'
 import { byteDisplay, fixedUnitIndex } from '@/utils/byteDisplay'
+import { BINARY_UNITS, DECIMAL_UNITS, unitName } from '@/utils/units'
 
 /** The two step sizes a form ever edits a byte count in. */
 export const MIB = 1024 ** 2
@@ -44,9 +45,25 @@ export function byteModel(
   })
 }
 
-/** IEC (1024) and SI (1000) unit ladders; which one is used is a settings choice. */
-const BINARY_UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'] as const
-const DECIMAL_UNITS = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'] as const
+/**
+ * A figure with exactly `digits` decimals in the interface language (RD-1480-16): `1.4` is `1,4`
+ * in German, French and Spanish, as in the fields a size is typed into. `toFixed` is the point in
+ * every language. vue-i18n keeps one `Intl.NumberFormat` per language and shape, so the figures
+ * of a running queue build none.
+ */
+export function formatFixed(value: number, digits: 0 | 1 | 2 | 3): string {
+  return i18n.global.n(value, `fixed${digits}`)
+}
+
+/** A whole percentage of a value from 0 to 100: `45%`, in German, French and Spanish `45 %`. */
+export function formatPercent(value: number): string {
+  return i18n.global.n(value / 100, 'percent')
+}
+
+/** A seed ratio, two decimals. */
+export function formatRatio(value: number): string {
+  return formatFixed(value, 2)
+}
 
 export function toBytes(value: string | bigint): bigint | null {
   try {
@@ -70,10 +87,10 @@ const FIXED_FLOOR = 0.001
  */
 function fixedValue(scaled: number): string {
   if (scaled === 0) return '0'
-  if (scaled >= 100) return scaled.toFixed(0)
-  if (scaled >= 10) return scaled.toFixed(1)
-  if (scaled >= 1) return scaled.toFixed(2)
-  return scaled < FIXED_FLOOR ? `<${FIXED_FLOOR.toFixed(3)}` : scaled.toFixed(3)
+  if (scaled >= 100) return formatFixed(scaled, 0)
+  if (scaled >= 10) return formatFixed(scaled, 1)
+  if (scaled >= 1) return formatFixed(scaled, 2)
+  return scaled < FIXED_FLOOR ? `<${formatFixed(FIXED_FLOOR, 3)}` : formatFixed(scaled, 3)
 }
 
 /** Splits a byte count into its scaled number and unit so callers can share a unit label. */
@@ -87,14 +104,14 @@ function scaleBytes(bytes: bigint): { value: string, unit: string } {
   const fixed = fixedUnitIndex()
   if (fixed !== null) {
     const index = Math.min(fixed, units.length - 1)
-    return { value: fixedValue(scaled / divisor ** index), unit: units[index] ?? 'B' }
+    return { value: fixedValue(scaled / divisor ** index), unit: unitName(units[index] ?? 'B') }
   }
   let unit = 0
   while (scaled >= divisor && unit < units.length - 1) {
     scaled /= divisor
     unit += 1
   }
-  return { value: scaled >= 100 || unit === 0 ? scaled.toFixed(0) : scaled.toFixed(1), unit: units[unit] ?? 'B' }
+  return { value: formatFixed(scaled, scaled >= 100 || unit === 0 ? 0 : 1), unit: unitName(units[unit] ?? 'B') }
 }
 
 export function formatBytes(value: string | bigint | null | undefined): string {
@@ -129,7 +146,7 @@ export function formatByteProgress(
 
 export function formatRate(bytesPerSecond: number | null | undefined): string {
   if (bytesPerSecond === null || bytesPerSecond === undefined || !Number.isFinite(bytesPerSecond)) {
-    return '— B/s'
+    return `— ${unitName('B/s')}`
   }
   return `${formatBytes(BigInt(Math.max(0, Math.round(bytesPerSecond))))}/s`
 }

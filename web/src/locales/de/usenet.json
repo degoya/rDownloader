@@ -23,7 +23,7 @@
     "proxy": "SOCKS5-Proxy",
     "proxy_direct": "Direkte Verbindung",
     "connections": "Provider-Verbindungen",
-    "connections_hint": "Maximale Verbindungen dieses NNTP-Providers über alle Anfragen; die gleichzeitig laufenden Usenet-Dateien teilen sie sich, sofern die allgemeinen Einstellungen die Zahl je Server nicht senken",
+    "connections_hint": "Maximale Verbindungen dieses NNTP-Providers über alle Anfragen; die gleichzeitig laufenden Usenet-Dateien teilen sie sich, sofern „NNTP-Verbindungen und Dateien“ die Zahl je Server nicht senkt",
     "enabled": "Server aktiv",
     "clear_password": "Gespeichertes Passwort löschen",
     "save_changes": "Änderungen speichern",
@@ -88,7 +88,7 @@
       "created": "Indexer angelegt",
       "updated": "Indexer gespeichert",
       "deleted": "{name} gelöscht",
-      "tested": "{server} antwortet: {count} Kategorien"
+      "tested": "{server} antwortet: {count} Kategorie | {server} antwortet: {count} Kategorien"
     },
     "list_style": "Listenstil der Suche",
     "list_style_hint": "Wie die Treffer dieses Indexers in der Suche im LinkGrabber erscheinen.",
@@ -109,7 +109,7 @@
     "resets_on": "Wird am {date} zurückgesetzt",
     "edit": "Kontingent festlegen",
     "limit": "Volumen",
-    "limit_hint": "Die Datenmenge, die dieser Server liefern darf, etwa das Volumen eines Block-Accounts.",
+    "limit_hint": "Die Datenmenge, die dieser Server liefern darf, etwa das Volumen eines Block-Kontos.",
     "action": "Wenn verbraucht",
     "action_backup": "Nur noch als Backup nutzen",
     "action_pause": "Server pausieren",

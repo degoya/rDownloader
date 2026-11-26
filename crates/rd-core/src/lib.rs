@@ -127,8 +127,8 @@ pub use diagnostics::{
     LOG_RETENTION_RECORDS_RANGE, LogLevel, LogRetentionSettings,
 };
 pub use download::{
-    DownloadFile, DownloadKind, DownloadPackage, DownloadPriority, DownloadState, ExpectedChecksum,
-    is_recovery_volume,
+    DownloadFigures, DownloadFile, DownloadKind, DownloadPackage, DownloadPriority, DownloadState,
+    ExpectedChecksum, is_recovery_volume,
 };
 pub use download_window::{DownloadWindow, MAX_DOWNLOAD_WINDOW_SPANS, WeeklyWindow};
 pub use event::{EventEnvelope, EventKind};

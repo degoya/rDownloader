@@ -100,7 +100,7 @@
     "go_downloads": "Zu Downloads wechseln",
     "go_linkgrabber": "Zu LinkGrabber wechseln",
     "go_streams": "Zu Streams wechseln",
-    "go_subscriptions": "Zu Abonnements",
+    "go_subscriptions": "Zu Abos",
     "go_remote_jobs": "Zu entfernten Aufträgen",
     "go_automation": "Zu Automation",
     "go_settings": "Zu Einstellungen wechseln",
@@ -130,7 +130,9 @@
     "skip_to_content": "Zum Inhalt springen",
     "main_navigation": "Hauptnavigation",
     "queue_status": "{active} von {total} Paketen werden geladen",
-    "reorder_keys": "Pfeiltasten hoch und runter verschieben den Eintrag ohne Maus"
+    "reorder_keys": "Pfeiltasten hoch und runter verschieben den Eintrag ohne Maus",
+    "progress_of": "Fortschritt: {name}",
+    "usage_of": "Belegung: {name}"
   },
   "backup": {
     "export": "Exportieren",
@@ -139,7 +141,7 @@
     "invalid_file": "Diese Datei ist kein rDownloader-Bundle",
     "confirm_title": "Bundle importieren?",
     "confirm": "Importieren",
-    "confirm_description": "Die Datei enthält {count} Einträge. Vorhandene gleichen Namens bleiben unverändert.",
+    "confirm_description": "Die Datei enthält {count} Eintrag. Vorhandene gleichen Namens bleiben unverändert. | Die Datei enthält {count} Einträge. Vorhandene gleichen Namens bleiben unverändert.",
     "import_success": "Import abgeschlossen",
     "import_summary": "{created} übernommen, {skipped} übersprungen"
   },
@@ -240,5 +242,23 @@
   "selection": {
     "detail": "{items} in {packages}",
     "summary": "{figures} ausgewählt"
+  },
+  "byte_units": {
+    "kib": "KiB",
+    "mib": "MiB",
+    "gib": "GiB",
+    "tib": "TiB",
+    "pib": "PiB",
+    "b": "B",
+    "kb": "kB",
+    "mb": "MB",
+    "gb": "GB",
+    "tb": "TB",
+    "pb": "PB"
+  },
+  "text": {
+    "labelled": "{label}: {value}",
+    "label": "{label}:",
+    "quoted": "„{text}“"
   }
 }

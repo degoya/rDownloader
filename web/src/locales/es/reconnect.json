@@ -14,7 +14,7 @@
   "checks_description": "Una dirección por línea, consultadas en orden. Déjalo vacío para la lista integrada. Estas peticiones salen del equipo.",
   "checks_placeholder": "https://api.ipify.org",
   "abort_label": "Interrumpir transferencias en curso",
-  "abort_description": "Desactivado, el intento espera a que no haya transferencias. Activado, se pausan y se reanudan alrededor.",
+  "abort_description": "Desactivado: el intento espera a que no haya transferencias. Activado: las transferencias se pausan antes y se reanudan después.",
   "windows_label": "Horarios permitidos",
   "windows_description": "Déjalo vacío para permitir cualquier hora.",
   "window_add": "Añadir franja",

@@ -2,7 +2,7 @@
 
 use axum::{
     Router,
-    routing::{delete, get, patch, post, put},
+    routing::{delete, get, post, put},
 };
 use utoipa::OpenApi;
 
@@ -25,7 +25,7 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/plugins/{id}",
-            axum::routing::patch(plugin_handlers::set_plugin_enabled),
+            get(rd_api_admin::single_reads::get_plugin).patch(plugin_handlers::set_plugin_enabled),
         )
         // Every superseded version at once (RD-1140-04). Static segments beat `/{id}` and
         // `{version}` in matchit, and neither a plugin id nor a version is ever this word.
@@ -130,7 +130,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/plugins/repositories/{id}",
-            patch(plugin_repository_handlers::update_plugin_repository)
+            get(rd_api_admin::single_reads::get_plugin_repository)
+                .patch(plugin_repository_handlers::update_plugin_repository)
                 .delete(plugin_repository_handlers::remove_plugin_repository),
         )
         .route(
@@ -180,5 +181,7 @@ pub(crate) fn routes() -> Router<AppState> {
     plugin_repository_handlers::preview_plugin_package,
     plugin_repository_handlers::preview_repository_package,
     plugin_repository_handlers::install_repository_package,
+    rd_api_admin::single_reads::get_plugin,
+    rd_api_admin::single_reads::get_plugin_repository,
 ))]
 pub(crate) struct Doc;

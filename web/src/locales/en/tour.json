@@ -32,11 +32,12 @@
     },
     "settings": {
       "title": "Settings",
-      "description": "Each area is a sub-page of its own: routing decides where files land, accounts and Usenet hold the credentials, post-processing does the repair and unpacking, the desktop client and MCP connect the outside world, and backup and restore keeps the configuration safe."
+      "description": "Each area is a sub-page of its own: “Storage & rules” decides where files land, “Accounts” and “Usenet” hold the credentials, “Post-processing” does the repair and unpacking, “Clients & API” connects the desktop agent, the browser extension and MCP, and “Backup & restore” keeps the configuration safe."
     },
     "done": {
       "title": "Ready",
-      "description": "Press ? at any time for the keyboard shortcuts. This tour and the setup wizard start again under Settings, System — which also says whether the setup is complete."
+      "description": "Press ? at any time for the keyboard shortcuts. This tour and the setup wizard start again under Settings → System — which also says whether the setup is complete.",
+      "description_shortcuts_off": "Keyboard shortcuts are switched on under Settings → Interface. This tour and the setup wizard start again under Settings → System — which also says whether the setup is complete."
     }
   }
 }

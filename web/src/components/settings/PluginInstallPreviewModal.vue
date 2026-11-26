@@ -148,7 +148,7 @@ const added = computed(() => {
     <template #body>
       <div v-if="source" class="space-y-4">
         <p v-if="loading" class="text-sm text-muted">{{ t('common.data.loading') }}</p>
-        <UAlert v-if="error" color="error" :description="error" />
+        <UAlert v-if="error" color="error" role="alert" :description="error" />
         <template v-if="preview">
           <div>
             <div class="flex flex-wrap items-center gap-2">

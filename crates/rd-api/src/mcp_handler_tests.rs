@@ -5,14 +5,13 @@
 //! its price would still read right. This reads the tools' sources and the OpenAPI document --
 //! whose operation ids are the handlers' names -- and holds each tool's body to its route's
 //! handler. The few tools that reach the same work another way share a named function with that
-//! handler instead, and the handler is held to calling it too; one reads a row of the table its
-//! list route reads, and says so.
+//! handler instead, and the handler is held to calling it too.
 
 use std::path::{Path, PathBuf};
 
 /// Tools that do not call their route's handler, and the function both of them call instead.
 const SHARED: &[(&str, &str)] = &[
-    ("add_downloads", "create_download_as("),
+    ("add_downloads", "create_download_once("),
     ("check_links", "link_check.check("),
     ("control_downloads", "apply_download_action_to("),
     ("create_notification_target", "save_target("),
@@ -21,12 +20,6 @@ const SHARED: &[(&str, &str)] = &[
     ("update_notification_target", "save_target("),
     ("update_settings", "save_settings("),
 ];
-
-/// Tools that read the store directly, and why the route that prices them is still the right one.
-const READS_THE_STORE: &[(&str, &str)] = &[(
-    "get_download",
-    "one row, by id, of the table GET /api/v1/downloads lists; that route has no single-row form",
-)];
 
 /// The crates directory, read at run time like every other source-reading test.
 fn crates_dir() -> PathBuf {
@@ -139,9 +132,6 @@ fn every_tool_calls_the_handler_of_the_route_it_is_priced_by() {
         let handler = operation_id(&document, entry.path, entry.method.as_str());
         let body = tool_body(&modules, entry.tool);
         assert!(!body.is_empty(), "no source for the tool {}", entry.tool);
-        if READS_THE_STORE.iter().any(|(tool, _)| *tool == entry.tool) {
-            continue;
-        }
         if let Some((_, shared)) = SHARED.iter().find(|(tool, _)| *tool == entry.tool) {
             if calls(&body, &handler) {
                 failures.push(format!(
@@ -170,11 +160,7 @@ fn every_tool_calls_the_handler_of_the_route_it_is_priced_by() {
 
 #[test]
 fn every_exception_names_a_priced_tool() {
-    for tool in SHARED
-        .iter()
-        .map(|(tool, _)| tool)
-        .chain(READS_THE_STORE.iter().map(|(tool, _)| tool))
-    {
+    for (tool, _) in SHARED {
         assert!(
             rd_api_mcp::TOOL_POLICY
                 .iter()

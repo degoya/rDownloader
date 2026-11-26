@@ -97,8 +97,8 @@ mod tests {
 
     #[test]
     fn a_slug_is_lowercase_kebab_case_within_its_length() {
-        assert!(is_slug("scnlog", MAX_ID_LENGTH));
-        assert!(is_slug("scene-rls-2", MAX_ID_LENGTH));
+        assert!(is_slug("releases", MAX_ID_LENGTH));
+        assert!(is_slug("release-list-2", MAX_ID_LENGTH));
         assert!(!is_slug("", MAX_ID_LENGTH));
         assert!(!is_slug("-lead", MAX_ID_LENGTH));
         assert!(!is_slug("trail-", MAX_ID_LENGTH));
@@ -119,14 +119,14 @@ mod tests {
 
     #[test]
     fn a_host_needs_two_labels_and_nothing_but_lowercase_dns_characters() {
-        assert!(is_host("scnlog.me"));
+        assert!(is_host("releases.example"));
         assert!(is_host("xn--bcher-kva.example"));
         assert!(!is_host("localhost"));
-        assert!(!is_host("Scnlog.me"));
-        assert!(!is_host("https://scnlog.me"));
-        assert!(!is_host("scnlog.me/path"));
-        assert!(!is_host("scnlog.me:8080"));
-        assert!(!is_host("scnlog..me"));
+        assert!(!is_host("Releases.example"));
+        assert!(!is_host("https://releases.example"));
+        assert!(!is_host("releases.example/path"));
+        assert!(!is_host("releases.example:8080"));
+        assert!(!is_host("releases..example"));
         assert!(!is_host("-a.me"));
     }
 
@@ -139,8 +139,8 @@ mod tests {
         assert!(host_matches("*.pastebin.com", "www.pastebin.com"));
         assert!(host_matches("*.pastebin.com", "a.b.pastebin.com"));
         assert!(!host_matches("*.pastebin.com", "notpastebin.com"));
-        assert!(host_matches("scnlog.me", "scnlog.me"));
-        assert!(!host_matches("scnlog.me", "www.scnlog.me"));
+        assert!(host_matches("releases.example", "releases.example"));
+        assert!(!host_matches("releases.example", "www.releases.example"));
     }
 
     #[test]

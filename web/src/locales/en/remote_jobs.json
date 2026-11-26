@@ -67,7 +67,7 @@
     "wrong_type": "Only .torrent and .nzb files can be handed over",
     "unreadable": "The file could not be read",
     "summary": "{done} of {total} files handed over.",
-    "summary_failed": "{failed} of {total} files could not be handed over; each says why. The others went ahead.",
+    "summary_failed": "{failed} of {total} files could not be handed over; it says why. The others went ahead. | {failed} of {total} files could not be handed over; each says why. The others went ahead.",
     "states": {
       "waiting": "Waiting",
       "sending": "Being handed over",

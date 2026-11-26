@@ -37,10 +37,10 @@
     "rule": "mindestens 10 Zeichen",
     "submit": "Passwort setzen",
     "configured": "Passwort bereits eingerichtet",
-    "configured_hint": "Das Administrator-Passwort ist gesetzt. Du kannst es jederzeit unter Einstellungen → Allgemein ändern."
+    "configured_hint": "Das Administrator-Passwort ist gesetzt. Du kannst es jederzeit unter Einstellungen → Sicherheit ändern."
   },
   "pairing": {
-    "intro": "Das Pairing ist optional — Links lassen sich immer auch von Hand hinzufügen. Ein verbundener Client schickt erfasste Links, Click'n'Load und .nzb-Dateien direkt in die Warteschlange."
+    "intro": "Das Pairing ist optional — Links lassen sich immer auch von Hand hinzufügen. Ein verbundener Client schickt erfasste Links, Click'n'Load und .nzb-Dateien in den LinkGrabber."
   },
   "storage": {
     "intro": "Ein Speicherort ist das Basisverzeichnis, in das Downloads geschrieben werden. Pfade müssen absolut sein und werden angelegt, falls sie noch nicht existieren — in einem Container übersteht nur ein Pfad auf einem eingebundenen Volume das Neuerstellen.",

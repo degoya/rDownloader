@@ -1,8 +1,8 @@
 use axum::{
-    Json,
-    extract::{Path, State},
+    extract::State,
     http::{HeaderMap, StatusCode},
 };
+use rd_api_core::extract::{Json, Path};
 use rd_core::DownloadId;
 use rd_db::StoreErrorKind;
 use url::Url;
@@ -11,9 +11,9 @@ use crate::{
     ApiError, AppState,
     dto::{
         CreateDownloadRequest, DownloadBulkAction, DownloadBulkRequest, DownloadBulkResponse,
-        DownloadExtractRequest, DownloadHostWait, DownloadRateEntry, DownloadRatesResponse,
-        DownloadRenameRequest, DownloadSummaryResponse, MessageResponse, PageQuery, StorageSpace,
-        UsenetServerConnections,
+        DownloadExtractRequest, DownloadHostWait, DownloadProgressEntry, DownloadRateEntry,
+        DownloadRatesResponse, DownloadRenameRequest, DownloadSummaryResponse, MessageResponse,
+        PageQuery, StorageSpace, UsenetServerConnections,
     },
     error_codes::parse_id,
 };

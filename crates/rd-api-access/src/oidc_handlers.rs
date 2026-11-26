@@ -15,10 +15,11 @@
 //! an ordinary session, opened by `open_session` like a password sign-in.
 
 use axum::{
-    extract::{Query, State},
+    extract::State,
     http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
 };
+use rd_api_core::extract::Query;
 use rd_api_core::oidc_client::{self, ProviderConfig, ProviderFailure};
 use rd_authn::oidc::{self, Flow, FlowPurpose};
 use secrecy::ExposeSecret;

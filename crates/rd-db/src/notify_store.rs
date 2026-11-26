@@ -58,6 +58,8 @@ pub struct NewDelivery {
     pub body: String,
     /// The finished package's folder, for `package_completed` only (RD-1250-01).
     pub package_path: Option<String>,
+    /// When it happened and to which package or file (RD-1480-11).
+    pub subject: rd_notify::Subject,
 }
 
 #[derive(FromRow)]
@@ -136,6 +138,9 @@ struct DeliveryRow {
     created_at: Timestamp,
     updated_at: Timestamp,
     package_path: Option<String>,
+    occurred_at: Option<Timestamp>,
+    package_id: Option<String>,
+    download_id: Option<String>,
 }
 
 impl TryFrom<DeliveryRow> for Delivery {
@@ -160,6 +165,11 @@ impl TryFrom<DeliveryRow> for Delivery {
             created_at: row.created_at,
             updated_at: row.updated_at,
             package_path: row.package_path,
+            subject: rd_notify::Subject {
+                occurred_at: row.occurred_at,
+                package_id: row.package_id.as_deref().map(parse_id).transpose()?,
+                download_id: row.download_id.as_deref().map(parse_id).transpose()?,
+            },
         })
     }
 }
@@ -178,7 +188,7 @@ const RULE_COLUMNS: &str = "id, name, enabled, target_id, events_json, category_
      title_template, body_template";
 const DELIVERY_COLUMNS: &str = "id, rule_id, target_id, idempotency_key, event, title, body, \
      state, attempt, next_attempt_at, response_status, response_excerpt, created_at, updated_at, \
-     package_path";
+     package_path, occurred_at, package_id, download_id";
 
 pub(crate) async fn list_targets(pool: &SqlitePool) -> Result<Vec<NotificationTarget>> {
     sqlx::query_as::<_, TargetRow>(sqlx::AssertSqlSafe(format!(

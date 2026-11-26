@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, responseError, resultMessage } from '@/api/client'
+import { patchSettings } from '@/api/settingsDocument'
 import type { Category, CreateHotFolder, HotFolder, Settings } from '@/api/types'
 import DataState from '@/components/DataState.vue'
 import FormActions from '@/components/FormActions.vue'
@@ -82,8 +83,8 @@ const { editingId, pending, error } = list
 
 /**
  * The poll interval is saved on its own, like everything else on this tab, and never through
- * the shared save bar: it is read fresh and written back with only this field changed, so an
- * unsaved edit on another tab is neither saved nor lost by it.
+ * the shared save bar: only this field is sent, so an unsaved edit on another tab is neither
+ * saved nor lost by it.
  */
 const pollSeconds = ref(settings.value.hotfolder_poll_seconds)
 const pollPending = ref(false)
@@ -95,15 +96,7 @@ async function savePollInterval(): Promise<void> {
   pollPending.value = true
   pollMessage.value = null
   pollError.value = null
-  const current = await api.GET('/api/v1/settings')
-  if (!current.data) {
-    pollPending.value = false
-    pollError.value = responseError(current)
-    return
-  }
-  const response = await api.PUT('/api/v1/settings', {
-    body: { ...current.data, hotfolder_poll_seconds: pollSeconds.value }
-  })
+  const response = await patchSettings({ hotfolder_poll_seconds: pollSeconds.value })
   pollPending.value = false
   if (response.data) {
     settings.value.hotfolder_poll_seconds = response.data.hotfolder_poll_seconds

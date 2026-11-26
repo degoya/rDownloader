@@ -2,11 +2,8 @@
 
 use std::collections::HashSet;
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::HeaderMap,
-};
+use axum::{extract::State, http::HeaderMap};
+use rd_api_core::extract::{Json, Path, Query};
 use rd_core::{CategoryId, DownloadPriority, DownloadState, PackageId};
 use rd_db::{CategoryAssignment, PackageChange};
 

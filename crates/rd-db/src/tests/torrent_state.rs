@@ -131,3 +131,32 @@ async fn an_edit_of_a_missing_row_fails() {
         .await;
     assert!(missing.is_err());
 }
+
+/// The seeding sweep starts every seed's clock in every pass; only the first time is a change
+/// (RD-1480-18).
+#[tokio::test]
+async fn an_edit_that_changes_nothing_is_not_announced() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let database = temp_database(directory.path()).await;
+    let id = torrent_row(&database, directory.path()).await;
+    let mut events = database.subscribe();
+    let started = rd_core::Timestamp::now();
+    let start = |at: rd_core::Timestamp| {
+        database.update_download_torrent_state(id, move |state| {
+            state.seed.start(at);
+            Ok::<_, ()>(())
+        })
+    };
+
+    start(started).await.expect("database").expect("edit");
+    let event = events.try_recv().expect("the clock started");
+    assert_eq!(event.kind, rd_core::EventKind::DownloadState);
+    for seconds in [30, 60] {
+        let (state, ()) = start(started + rd_core::SignedDuration::from_secs(seconds))
+            .await
+            .expect("database")
+            .expect("edit");
+        assert_eq!(state.seed.started_at, Some(started));
+    }
+    assert!(events.try_recv().is_err(), "it runs; nothing changed");
+}

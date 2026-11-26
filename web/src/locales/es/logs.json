@@ -24,10 +24,10 @@
     "shown": "{shown} de {total} entradas",
     "full_page": "Esta es una página completa: hay entradas más antiguas detrás.",
     "older": "Cargar anteriores",
-    "dropped": "Se descartaron {count} entradas porque el almacén no dio abasto.",
+    "dropped": "Se descartó {count} entrada porque el almacén no dio abasto. | Se descartaron {count} entradas porque el almacén no dio abasto.",
     "expand": "Mostrar campos",
     "collapse": "Ocultar campos",
-    "retention": "Se conservan {days} días o {records} entradas, lo que se agote primero."
+    "retention": "Se conservan {days} día o {records} entradas, lo que se agote primero. | Se conservan {days} días o {records} entradas, lo que se agote primero."
   },
   "bundle": {
     "title": "Paquete de diagnóstico",
@@ -37,7 +37,7 @@
     "create": "Crear paquete",
     "directory": "Guardado en {directory}",
     "entries": "Contenido",
-    "items": "{count} elementos",
+    "items": "{count} elemento | {count} elementos",
     "redactions": "Depuraciones",
     "excluded": "Nunca se incluye",
     "created": "Paquete escrito: {file}",
@@ -67,7 +67,7 @@
           "description": "destinos y reglas de notificación sin puntos de conexión ni textos, entregas de los últimos 7 días por evento y estado, y las 50 entregas más recientes"
         },
         "queue": {
-          "description": "paquetes por estado y fase de posprocesamiento, los 50 cambios de estado de paquetes más recientes, descargas por estado y código de error"
+          "description": "paquetes por estado y fase de posprocesado, los 50 cambios de estado de paquetes más recientes, descargas por estado y código de error"
         }
       },
       "redaction": {
@@ -104,7 +104,7 @@
     "plugin_label": "Plugin",
     "plugin_all": "Todos los plugins",
     "minutes_label": "Duración",
-    "minutes_option": "{count} minutos",
+    "minutes_option": "{count} minuto | {count} minutos",
     "start": "Iniciar depuración",
     "active": "{area} está en depuración hasta las {until}.",
     "stop": "Terminar ahora",

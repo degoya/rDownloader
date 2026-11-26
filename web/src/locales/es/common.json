@@ -130,7 +130,9 @@
     "skip_to_content": "Ir al contenido",
     "main_navigation": "Navegación principal",
     "queue_status": "{active} de {total} paquetes descargándose",
-    "reorder_keys": "Las flechas arriba y abajo mueven la entrada sin ratón"
+    "reorder_keys": "Las flechas arriba y abajo mueven la entrada sin ratón",
+    "progress_of": "Progreso: {name}",
+    "usage_of": "Espacio usado: {name}"
   },
   "backup": {
     "export": "Exportar",
@@ -139,7 +141,7 @@
     "invalid_file": "Este archivo no es un paquete de rDownloader",
     "confirm_title": "¿Importar el paquete?",
     "confirm": "Importar",
-    "confirm_description": "El archivo contiene {count} entradas. Las existentes con el mismo nombre no se modifican.",
+    "confirm_description": "El archivo contiene {count} entrada. Las existentes con el mismo nombre no se modifican. | El archivo contiene {count} entradas. Las existentes con el mismo nombre no se modifican.",
     "import_success": "Importación finalizada",
     "import_summary": "{created} importadas, {skipped} omitidas"
   },
@@ -240,5 +242,23 @@
   "selection": {
     "detail": "{items} en {packages}",
     "summary": "Selección: {figures}"
+  },
+  "byte_units": {
+    "kib": "KiB",
+    "mib": "MiB",
+    "gib": "GiB",
+    "tib": "TiB",
+    "pib": "PiB",
+    "b": "B",
+    "kb": "kB",
+    "mb": "MB",
+    "gb": "GB",
+    "tb": "TB",
+    "pb": "PB"
+  },
+  "text": {
+    "labelled": "{label}: {value}",
+    "label": "{label}:",
+    "quoted": "«{text}»"
   }
 }

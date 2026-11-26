@@ -1,5 +1,5 @@
 {
-  "intro": "Tout ce qui s’est terminé ou a échoué définitivement, même après que le paquet a été retiré de la liste ou nettoyé automatiquement. Les adresses sont conservées sans mots de passe ni jetons ; les mots de passe d’archive ne sont jamais enregistrés.",
+  "intro": "Tout ce qui s’est terminé ou a échoué définitivement, même après que le paquet a été retiré de la liste ou nettoyé automatiquement. Les adresses sont conservées sans mots de passe ni jetons ; les mots de passe d’archive ne sont jamais enregistrés.",
   "filters": {
     "search": "Rechercher",
     "search_placeholder": "Nom ou adresse",
@@ -49,7 +49,7 @@
   },
   "readd": {
     "button": "Ajouter à nouveau",
-    "done": "« {name} » est de nouveau dans le LinkGrabber",
+    "done": "« {name} » est de nouveau dans le LinkGrabber",
     "open": "Ouvrir le LinkGrabber",
     "no_sources": "Aucune adresse source qui puisse être ajoutée à nouveau (un NZB importé, par exemple)."
   },

@@ -13,6 +13,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { ResolvedRemoteListing } from '@/api/types'
 import { useRangeSelection } from '@/composables/useRangeSelection'
+import { compareText } from '@/utils/collation'
 import { formatBytes } from '@/utils/format'
 
 const { t } = useI18n()
@@ -129,7 +130,7 @@ const totalFiles = computed(() => props.listing.entries.filter(entry => !entry.i
 const rows = computed(() => {
   const out: Array<{ node: TreeNode, depth: number }> = []
   const walk = (nodes: TreeNode[], depth: number): void => {
-    for (const node of [...nodes].sort((a, b) => Number(b.isDir) - Number(a.isDir) || a.name.localeCompare(b.name))) {
+    for (const node of [...nodes].sort((a, b) => Number(b.isDir) - Number(a.isDir) || compareText(a.name, b.name))) {
       out.push({ node, depth })
       if (node.isDir && !collapsed.value.has(node.path)) walk(node.children, depth + 1)
     }

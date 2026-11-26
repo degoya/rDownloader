@@ -21,7 +21,7 @@
     "turnaround": "Tiempo de ciclo",
     "turnaround_hint": "media desde la creación hasta el final",
     "all_time": "Desde el inicio",
-    "all_time_hint": "{completed} transferencias, nunca reducidas",
+    "all_time_hint": "{completed} transferencia, nunca reducida | {completed} transferencias, nunca reducidas",
     "turnaround_under_second": "menos de 1 s"
   },
   "chart": {
@@ -46,7 +46,7 @@
     "title": "Recoger las métricas",
     "description": "El servicio expone sus métricas operativas en el formato de texto de Prometheus. Un token con el área «Métricas» alcanza esta única ruta y nada más.",
     "endpoint": "Dirección",
-    "scope_hint": "Crea el token en Ajustes → API y MCP con el área «Métricas»."
+    "scope_hint": "Crea el token en Ajustes → Clientes y API → API y MCP con el área «Métricas»."
   },
   "retention": {
     "eyebrow": "Retención",

@@ -41,6 +41,8 @@ jobs:
       jobs: ${{ steps.jobs.outputs.jobs }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: The jobs still to run
         id: jobs
         shell: bash
@@ -62,6 +64,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Free runner disk
         uses: ./.github/actions/free-runner-disk
       # rust-embed compiles web/dist into rd-api. These cases never open the interface, so a

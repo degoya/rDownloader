@@ -6,7 +6,8 @@
 //! again, and is closed by the filter's own timer at its end. With `RUST_LOG` set the filter is
 //! the environment's: the routes that would change it answer `diagnostics.log_level_locked`.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_core::{
     LOG_DEBUG_MINUTES, LogDebugArea, LogDebugWindow, ServiceLogLevel, SignedDuration, Timestamp,
 };
@@ -115,9 +116,12 @@ pub async fn change_log_level(
     level: ServiceLogLevel,
 ) -> Result<LogLevelResponse, ApiError> {
     refuse_when_locked()?;
-    let mut settings = read_settings(state).await?;
-    settings.log_level = level;
-    crate::settings_handlers::save_settings(state, audit, holds_admin, settings).await?;
+    let edit = crate::settings_handlers::SettingsEdit::begin(state).await?;
+    let settings = crate::dto::SettingsResponse {
+        log_level: level,
+        ..edit.current().clone()
+    };
+    edit.save_settings(audit, holds_admin, settings).await?;
     log_level_state(state).await
 }
 

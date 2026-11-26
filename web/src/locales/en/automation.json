@@ -11,7 +11,7 @@
   "empty": "No automations yet.",
   "no_runs": "Not run yet.",
   "version": "Version {version}",
-  "action_count": "{count} action(s)",
+  "action_count": "{count} action | {count} actions",
   "remove": {
     "title": "Delete automation",
     "description": "“{name}” and its run history are removed. Runs already in flight finish.",
@@ -29,7 +29,8 @@
     "predicate": "Comparison",
     "all": "All of",
     "any": "Any of",
-    "not": "Not"
+    "not": "Not",
+    "comparison": "{field} {operator} “{value}”"
   },
   "action": {
     "heading": "Actions",
@@ -40,7 +41,7 @@
     "no_scripts": "No script in the scripts folder yet. Put one there and reopen this.",
     "category": "Category",
     "target": "Notification target",
-    "no_targets": "No notification target exists yet. Create one under Settings, Notifications.",
+    "no_targets": "No notification target exists yet. Create one under Settings → Notifications.",
     "at_least_once": "Actions run at least once: an automation starts once per event, but an action interrupted after it took effect is tried again.",
     "webhook": "Call webhook",
     "script": "Run script",
@@ -65,7 +66,7 @@
       "link_grabber": "LinkGrabber",
       "downloads": "Downloads"
     },
-    "link_count": "{count} links",
+    "link_count": "{count} link | {count} links",
     "pause_queue": "Pause queue"
   },
   "dry_run": {
@@ -160,7 +161,7 @@
     "help": "Read in the service's time zone. A time the service missed by more than two minutes, for example because it was off, is not caught up.",
     "interval_help": "Counted from midnight: 60 runs on the hour, at most 1440 (one day).",
     "cron_help": "Minute hour day month weekday, for example “0 6 * * 1-5” for weekdays at six.",
-    "every_minutes": "every {minutes} minutes",
+    "every_minutes": "every {minutes} min",
     "no_package": "A schedule names no package: package actions are not available here."
   },
   "storage_threshold_help": "Runs when a storage root falls below its free-space reserve. To run when there is room again, add the condition “Storage change” equals “released”. To run for one storage root only, pick it under “Storage target”.",

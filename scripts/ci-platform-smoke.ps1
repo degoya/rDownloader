@@ -95,7 +95,7 @@ function New-ScoopZip {
     New-Item -ItemType Directory -Force -Path $stage | Out-Null
     Copy-Item target/debug/rdownloader.exe,target/debug/rdownloader-capture.exe $stage
     Copy-Item scripts/windows/start-rdownloader.bat,scripts/windows/stop-rdownloader.bat,scripts/windows/start-capture.bat,scripts/windows/stop-capture.bat $stage
-    Copy-Item LICENSE, README.md $stage
+    Copy-Item LICENSE, README.md, crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt $stage
     Compress-Archive -Path "$stage/*" -DestinationPath (Join-Path $fixture 'rdownloader-windows-x86_64.zip')
 }
 

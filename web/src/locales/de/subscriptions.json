@@ -1,5 +1,5 @@
 {
-  "title": "Abonnements",
+  "title": "Abos",
   "kinds": {
     "media": "Kanal oder Playlist",
     "gallery": "Galerieprofil",
@@ -31,11 +31,11 @@
     "too_old": "Vor dem Stichtag veröffentlicht",
     "language_not_wanted": "Sprache gehört nicht zu den gewünschten",
     "resolution_too_low": "Unter der Mindestauflösung",
-    "backlog": "Existierte schon beim Einschalten des Abonnements",
+    "backlog": "Existierte schon beim Einschalten des Abos",
     "asset_not_wanted": "Datei passt nicht zu Plattform, Architektur oder Namensmuster"
   },
   "form": {
-    "edit": "Abonnement bearbeiten",
+    "edit": "Abo bearbeiten",
     "name": "Name",
     "url": "Adresse",
     "kind": "Typ",
@@ -49,12 +49,12 @@
     "title_contains": "Titel muss enthalten",
     "title_excludes": "Titel darf nicht enthalten",
     "patterns_hint": "Kommagetrennt. Ein Muster in Schrägstrichen — /^S0\\d/ — ist ein regulärer Ausdruck, alles andere wird als Text verglichen.",
-    "api_key": "API-Key",
+    "api_key": "API-Schlüssel",
     "api_key_hint": "Wird verschlüsselt gespeichert und nie wieder angezeigt.",
     "api_key_keep": "Leer lassen, um den gespeicherten Key zu behalten",
     "add_mapping": "Kategoriezuordnung hinzufügen",
     "source_category": "Indexer-Kategorie-ID",
-    "caps_summary": "{count} Kategorien, unterstützt: {types}",
+    "caps_summary": "{count} Kategorie, unterstützt: {types} | {count} Kategorien, unterstützt: {types}",
     "regex_editor": "Als regulären Ausdruck bearbeiten",
     "source_categories": "Abzurufende Kategorien",
     "source_categories_description": "Nur diese Kategorien werden beim Indexer abgefragt. Ohne Auswahl wird alles abgerufen und erst danach gefiltert.",
@@ -83,8 +83,8 @@
     "script_arguments_empty": "leer",
     "script_arguments_unclosed": "Ein Anführungszeichen ist nicht geschlossen",
     "script_missing": "{name} (nicht mehr im Skriptordner)",
-    "create": "Abonnement anlegen",
-    "form_new": "Neues Abonnement",
+    "create": "Abo anlegen",
+    "form_new": "Neues Abo",
     "indexer": "Angelegten Indexer übernehmen",
     "indexer_description": "Übernimmt beim Speichern Adresse, Standard-Kategorien und eine Kopie des API-Schlüssels – eine Kopie, keine Verknüpfung",
     "indexer_none": "Keinen – Adresse und Schlüssel selbst eintragen",
@@ -120,8 +120,8 @@
     "git_token_keep": "Leer lassen, um das gespeicherte Token zu behalten"
   },
   "list": {
-    "title": "Abonnements",
-    "empty": "Noch keine Abonnements.",
+    "title": "Abos",
+    "empty": "Noch keine Abos.",
     "last_run": "Zuletzt geprüft {at}"
   },
   "items": {
@@ -160,8 +160,8 @@
     "dismiss": "Verwerfen",
     "test": "Testen und Kategorien laden",
     "hide_details": "Details ausblenden",
-    "enable": "Abonnement aktivieren",
-    "disable": "Abonnement deaktivieren",
+    "enable": "Abo aktivieren",
+    "disable": "Abo deaktivieren",
     "menu": "Aktionen für das Abo",
     "requeue": "Erneut einreihen",
     "requeue_selected": "Ausgewählte erneut einreihen ({count})",
@@ -169,25 +169,25 @@
     "select_page": "Alle Einträge dieser Seite auswählen, die sich erneut einreihen lassen"
   },
   "remove": {
-    "title": "Abonnement löschen?",
-    "description": "„{name}\" wird mit allen Filtern, Kategoriezuordnungen und dem Verlauf des bereits Gesehenen entfernt."
+    "title": "Abo löschen?",
+    "description": "„{name}“ wird mit allen Filtern, Kategoriezuordnungen und dem Verlauf des bereits Gesehenen entfernt."
   },
   "history": {
     "action": "Erledigten Verlauf löschen",
     "title": "Erledigten Verlauf von „{name}“ löschen?",
-    "description": "{count} erledigte Treffer und {runs} Prüfprotokolle werden endgültig gelöscht. Offene Treffer bleiben erhalten. Gelöschte Treffer können bei einer späteren Prüfung erneut erscheinen.",
-    "done": "{deleted_items} erledigte Treffer und {deleted_runs} Prüfprotokolle gelöscht."
+    "description": "Erledigte Treffer ({count}) und Prüfprotokolle ({runs}) werden endgültig gelöscht. Offene Treffer bleiben erhalten. Gelöschte Treffer können bei einer späteren Prüfung erneut erscheinen.",
+    "done": "Gelöscht – erledigte Treffer: {deleted_items}, Prüfprotokolle: {deleted_runs}."
   },
   "notices": {
-    "poll_started": "Prüfung von „{name}\" wurde angestoßen. Das Ergebnis erscheint hier, sobald sie fertig ist.",
-    "poll_start_failed": "Die Prüfung von „{name}\" ließ sich nicht anstoßen: {error}",
-    "poll_finished": "Prüfung von „{name}\" fertig: {found} gefunden, {accepted} angenommen, {skipped} übersprungen.",
-    "poll_failed": "Prüfung von „{name}\" fehlgeschlagen: {error}"
+    "poll_started": "Prüfung von „{name}“ wurde angestoßen. Das Ergebnis erscheint hier, sobald sie fertig ist.",
+    "poll_start_failed": "Die Prüfung von „{name}“ ließ sich nicht anstoßen: {error}",
+    "poll_finished": "Prüfung von „{name}“ fertig: {found} gefunden, {accepted} angenommen, {skipped} übersprungen.",
+    "poll_failed": "Prüfung von „{name}“ fehlgeschlagen: {error}"
   },
   "requeue": {
     "no_source": "Zu diesem Eintrag ist kein Link und keine NZB gespeichert",
     "duplicate_title": "Schon im LinkGrabber oder in der Liste",
-    "duplicate_description": "{count} Eintrag ist noch im LinkGrabber oder in der Download-Liste. Trotzdem erneut einreihen? Der LinkGrabber markiert ihn dann als Duplikat. | {count} Einträge sind noch im LinkGrabber oder in der Download-Liste. Trotzdem erneut einreihen? Der LinkGrabber markiert sie dann als Duplikate.",
+    "duplicate_description": "{count} Eintrag ist noch im LinkGrabber oder in der Downloadliste. Trotzdem erneut einreihen? Der LinkGrabber markiert ihn dann als Duplikat. | {count} Einträge sind noch im LinkGrabber oder in der Downloadliste. Trotzdem erneut einreihen? Der LinkGrabber markiert sie dann als Duplikate.",
     "duplicate_confirm": "Trotzdem einreihen",
     "done": "{count} Eintrag erneut eingereiht. | {count} Einträge erneut eingereiht.",
     "partial": "{requeued} erneut eingereiht, {refused} nicht: {reason}"

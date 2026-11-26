@@ -74,7 +74,7 @@ pub async fn remove_superseded_plugin_versions(
     params(("id" = String, Path, description = "Plugin id")),
     responses(
         (status = 200, body = SupersededRemovalResponse),
-        (status = 404, body = MessageResponse)
+        (status = 404, body = crate::error::ErrorBody)
     )
 )]
 pub async fn remove_superseded_versions_of_plugin(

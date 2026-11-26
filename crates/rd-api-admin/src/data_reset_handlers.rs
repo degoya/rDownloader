@@ -34,7 +34,8 @@
 //! that operation is under way and will write its outcome into it. Clearing the content index
 //! deletes its rows and nothing else — no file on disk, no download.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

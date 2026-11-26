@@ -97,7 +97,7 @@ function entryNote(code: string | null | undefined): string {
         :data-testid="`sorting-${kind}`"
       />
     </UFormField>
-    <UAlert v-if="failure && !failure.kind" color="error" :description="failure.message" />
+    <UAlert v-if="failure && !failure.kind" color="error" role="alert" :description="failure.message" />
     <UFormField :label="t('routing.category.sorting_preview_label')" :description="t('routing.category.sorting_preview_description')">
       <UTextarea v-model="names" :rows="4" autoresize class="w-full font-mono text-xs" :aria-label="t('routing.category.sorting_preview_label')" />
     </UFormField>

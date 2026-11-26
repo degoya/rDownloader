@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # The breaking-change gate (RD-170-08): scripts/lib/compat-check.py against the fixture contract
-# in scripts/tests/fixtures/compat/ — one small OpenAPI document and one WIT file — changed one
-# rule at a time. Each break has to be found under its exact finding string and exit 1; an
+# in scripts/tests/fixtures/compat/ — one small OpenAPI document, one WIT file, and a tree with the
+# sources the named contracts are read from (RD-1480-10) — changed one rule at a time. Each break has to be found under its exact finding string and exit 1; an
 # addition has to pass; an acknowledged break and a WIT break under a large enough version bump
 # have to pass. Then scripts/compat-check.sh in a scratch repository: the base it picks, the
 # acknowledgement file it reads, and the refusal without a tag.
@@ -81,6 +81,18 @@ breaks "REST: a new required request property" "rest:request-property-required:s
 openapi 'd["paths"]["/api/v1/items"]["get"]["parameters"][0]["required"] = True'
 rest
 breaks "REST: a parameter made required" "rest:parameter-required:GET /api/v1/items query.limit"
+
+openapi 'd["paths"]["/api/v1/items"]["get"]["responses"]["200"].pop("headers")'
+rest
+breaks "REST: a removed response header" "rest:response-header-removed:GET /api/v1/items 200 x-total-count"
+
+openapi 'd["paths"]["/api/v1/items"]["post"]["responses"]["201"]["headers"] = {"location": {"schema": {"type": "string"}}}'
+rest
+expect_status "REST: a new response header passes" 0
+
+openapi 'd["paths"]["/api/v1/items"]["get"]["parameters"][0]["schema"].update(minimum=1, maximum=1000)'
+rest
+expect_status "REST: the bounds a parameter always had pass" 0
 
 openapi 'schemas["ItemState"]["enum"].remove("done")'
 rest
@@ -233,6 +245,83 @@ run_status python3 "$ROOT/scripts/lib/compat-check.py" --base-version 1.0.0 \
     --old-wit "$SCRATCH/one.wit" --new-wit "$SCRATCH/new.wit"
 expect_status "WIT: after 1.0 a major bump versions the break" 0
 
+# --- the names clients hold on to ---------------------------------------------------------------
+
+# names <path in the tree> <sed script>: the fixture tree, changed, as new-tree.
+names() {
+    rm -rf "$SCRATCH/new-tree"
+    cp -r "$FIXTURES/tree" "$SCRATCH/new-tree"
+    sed -i "$2" "$SCRATCH/new-tree/$1"
+}
+named() {
+    run_status python3 "$ROOT/scripts/lib/compat-check.py" --base-version 1.0.0 \
+        --old-tree "$FIXTURES/tree" --new-tree "$SCRATCH/new-tree" "$@"
+}
+CATALOGUE=web/src/locales/en/server.json
+STREAM=crates/rd-api/src/event_stream.rs
+
+names "$CATALOGUE" ''
+named
+expect_status "names: an unchanged tree passes" 0
+expect_output "and says so" "0 break(s) against 1.0.0, 0 unacknowledged"
+
+names "$CATALOGUE" '/"item.gone"/d'
+named
+breaks "names: a removed error code" "rest:code-removed:item.gone"
+
+names "$CATALOGUE" '/"item.kept"/d'
+named
+expect_status "names: a code a crate still writes is not removed with its text" 0
+
+names "$CATALOGUE" 's/"item.gone"/"item.new": "New",\n    &/'
+named
+expect_status "names: a new error code passes" 0
+
+names "$STREAM" 's/"item.changed"/"items.changed"/'
+named
+breaks "names: a renamed event" "events:event-removed:item.changed"
+
+names "$STREAM" 's/"stream.lagged"/"stream.behind"/'
+named
+breaks "names: a renamed marker of the stream" "events:event-removed:stream.lagged"
+
+names crates/rd-notify/src/summary.rs '/"title": delivery.title/d'
+named
+breaks "names: a removed webhook field" "webhook:field-removed:notification.title"
+
+names crates/rd-notify/src/subject.rs '/body\["version"\]/d'
+named
+breaks "names: a field every message carries" "webhook:field-removed:automation.version"
+expect_output "named for each message" "BREAK      webhook:field-removed:notification.version"
+
+names crates/rd-notify/src/delivery.rs 's/X-Item-Signature/X-Signature/'
+named
+breaks "names: a renamed webhook header" "webhook:header-removed:X-Item-Signature"
+
+names crates/rd-api-mcp/src/policy.rs '/"get_item"/d'
+named
+breaks "names: a removed MCP tool" "mcp:tool-removed:get_item"
+
+cat > "$SCRATCH/acks.toml" <<'EOF'
+[[break]]
+release = "1.1.0"
+finding = "mcp:tool-removed:get_item"
+reason = "Read from list_items."
+EOF
+named --acks "$SCRATCH/acks.toml"
+expect_status "names: an acknowledged break passes" 0
+
+names crates/rd-api-mcp/src/policy.rs 's/tool(/entry(/'
+named
+expect_status "names: a list that can no longer be read is refused, not passed" 2
+expect_output "naming it" "the working tree names no MCP tools"
+
+rm -rf "$SCRATCH/no-tree" && mkdir "$SCRATCH/no-tree"
+run_status python3 "$ROOT/scripts/lib/compat-check.py" --base-version 1.0.0 \
+    --old-tree "$SCRATCH/no-tree" --new-tree "$FIXTURES/tree"
+expect_status "names: a base without the lists is not compared" 0
+expect_output "and says so" "note: the base names no events"
+
 # --- scripts/compat-check.sh in a repository ----------------------------------------------------
 
 export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid
@@ -240,8 +329,9 @@ export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/scripts/lib" "$TREE/web" "$TREE/crates/rd-plugin-api/wit"
 cp "$ROOT/scripts/compat-check.sh" "$TREE/scripts/"
-cp "$ROOT/scripts/lib/"{compat-check,compat_rest,compat_wit}.py "$ROOT/scripts/lib/release-tag.sh" \
+cp "$ROOT/scripts/lib/"{compat-check,compat_names,compat_rest,compat_wit}.py "$ROOT/scripts/lib/release-tag.sh" \
     "$ROOT/scripts/lib/workspace-version.sh" "$TREE/scripts/lib/"
+cp -r "$FIXTURES/tree/." "$TREE/"
 cp "$FIXTURES/base.json" "$TREE/web/openapi.json"
 cp "$FIXTURES/base.wit" "$TREE/crates/rd-plugin-api/wit/rdownloader.wit"
 cargo_version() { printf '[workspace.package]\nversion = "%s"\n' "$1" > "$TREE/Cargo.toml"; }
@@ -278,5 +368,9 @@ reason = "Items are read from the list only."
 EOF
 run_status "$TREE/scripts/compat-check.sh"
 expect_status "the acknowledgement file under scripts/ is read" 0
+
+sed -i '/"get_item"/d' "$TREE/crates/rd-api-mcp/src/policy.rs"
+run_status "$TREE/scripts/compat-check.sh"
+breaks "the named contracts are read at the base and in the tree" "mcp:tool-removed:get_item"
 
 finish_tests compat-check

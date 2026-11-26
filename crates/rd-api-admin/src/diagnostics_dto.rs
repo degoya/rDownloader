@@ -30,6 +30,7 @@ pub struct LogQueryParams {
     /// Records older than this id, for paging backwards.
     pub before_id: Option<i64>,
     /// Newest rows to return (1-500).
+    #[param(minimum = 1, maximum = 500)]
     pub limit: Option<u32>,
 }
 

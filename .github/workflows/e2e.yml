@@ -5,10 +5,10 @@ name: E2E
 # `rdownloader://` handler and one through Click'n'Load, both asserted in the LinkGrabber, and
 # the autostart entry installed and removed — and on Linux the built Chrome extension in
 # Chromium, paired through its options page, sending a page from its popup, and taking a hoster
-# page's Click'n'Load without an agent and leaving it to one (RD-1260-10). The same test files
-# run locally through scripts/e2e.sh. Firefox cannot load an unpacked extension under Playwright;
-# its build is linted by ci.yml (`web-ext lint`) and its run is a live-checklist item in
-# docs/development.md.
+# page's Click'n'Load without an agent and leaving it to one (RD-1260-10); the same extension in
+# the runner's Firefox through its geckodriver (RD-1480-04); and the web interface itself in
+# Chromium, from a link to the finished download, with axe in light and dark (RD-1480-25). The
+# same test files run locally through scripts/e2e.sh.
 #
 # Each step has a time budget (web/e2e/lib/service.mjs, BUDGET_MS); a step over it fails the run.
 #
@@ -27,6 +27,7 @@ on:
       - "crates/rd-api*/**"
       - "crates/rd-autostart/**"
       - "crates/rd-capture/**"
+      - "crates/rd-cnl/**"
       - "crates/rd-collector/**"
       - "crates/rd-core/**"
       - "crates/rd-db/**"
@@ -36,6 +37,7 @@ on:
       - "web/e2e/**"
       - "web/package.json"
       - "web/pnpm-lock.yaml"
+      - "web/src/**"
   # The same list as above; keep the two in step.
   pull_request:
     paths:
@@ -45,6 +47,7 @@ on:
       - "crates/rd-api*/**"
       - "crates/rd-autostart/**"
       - "crates/rd-capture/**"
+      - "crates/rd-cnl/**"
       - "crates/rd-collector/**"
       - "crates/rd-core/**"
       - "crates/rd-db/**"
@@ -54,6 +57,7 @@ on:
       - "web/e2e/**"
       - "web/package.json"
       - "web/pnpm-lock.yaml"
+      - "web/src/**"
   # By hand for any ref, optionally on fewer runners:
   #   gh workflow run e2e.yml --ref <branch> -f platforms='["ubuntu-24.04"]'
   workflow_dispatch:
@@ -91,6 +95,8 @@ jobs:
       check: ${{ steps.platforms.outputs.check }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: The runner images still to check
         id: platforms
         shell: bash
@@ -112,6 +118,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-web
       - run: pnpm install --frozen-lockfile
         working-directory: web
@@ -128,6 +136,12 @@ jobs:
         with:
           name: e2e-chrome-extension
           path: artifacts/browser-extensions/chrome
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-firefox-extension
+          path: artifacts/browser-extensions/firefox
           if-no-files-found: error
           retention-days: 1
 
@@ -152,6 +166,8 @@ jobs:
       EXE: ${{ startsWith(matrix.os, 'windows') && '.exe' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: e2e-web-dist
@@ -237,6 +253,26 @@ jobs:
           RD_E2E_EXTENSION: ${{ runner.temp }}/chrome-extension
           RD_E2E_WORK: ${{ runner.temp }}/e2e-click-and-load
         run: node --test --test-reporter=spec web/e2e/click-and-load.e2e.mjs
+      # RD-1480-25: the interface the binary embeds, a link from the LinkGrabber to the disk.
+      - name: The web interface end to end
+        if: runner.os == 'Linux'
+        env:
+          RD_E2E_SERVER: ${{ github.workspace }}/target/debug/rdownloader
+          RD_E2E_WORK: ${{ runner.temp }}/e2e-web-ui
+        run: node --test --test-reporter=spec web/e2e/web-ui.e2e.mjs
+      # RD-1480-04: Firefox and geckodriver are the runner image's. A run without them fails.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: runner.os == 'Linux'
+        with:
+          name: e2e-firefox-extension
+          path: ${{ runner.temp }}/firefox-extension
+      - name: Firefox extension end to end
+        if: runner.os == 'Linux'
+        env:
+          RD_E2E_SERVER: ${{ github.workspace }}/target/debug/rdownloader
+          RD_E2E_FIREFOX_EXTENSION: ${{ runner.temp }}/firefox-extension
+          RD_E2E_WORK: ${{ runner.temp }}/e2e-firefox
+        run: node --test --test-reporter=spec web/e2e/firefox.e2e.mjs
 
       # Logs only: the work directories also hold the throwaway vault key and capture token.
       - name: Upload the service and agent logs

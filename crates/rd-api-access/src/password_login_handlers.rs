@@ -8,7 +8,8 @@
 //! token can turn it back on, so a provider that is down or deleted locks out nobody who can
 //! reach the machine (O-LOCK). The password stays the step-up credential while the form is off.
 
-use axum::{Json, extract::State, http::HeaderMap};
+use axum::{extract::State, http::HeaderMap};
+use rd_api_core::extract::Json;
 use rd_api_core::oidc_client;
 
 use crate::{ApiError, AppState, audit::AuditContext, dto::MessageResponse};

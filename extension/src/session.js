@@ -114,26 +114,27 @@ export function createSessionSharer({ api, loadConfig, submit = submitCookies, m
   /**
    * Asks for permission for exactly one origin, reads that origin's cookies and hands them
    * to the server. Returns { ok, code } without ever surfacing a cookie value.
+   *
+   * The request is the first thing the click does: nothing is awaited before it, the settings
+   * included, or Firefox refuses it (RD-1480-01). An unpaired extension is therefore asked for
+   * too; it reads nothing, gives the grant back and says what is missing.
    */
   async function share(target, { includeSubdomains = true, name } = {}) {
     const url = scopeUrl(target)
     if (!url) return { ok: false, code: 'scope' }
     const host = url.hostname
-    const config = await loadConfig()
-    if (!config?.token) {
-      await notify?.(message('sessionUnconfigured'))
-      return { ok: false, code: 'unconfigured' }
-    }
-
     const pattern = originPattern(host, { includeSubdomains })
     const permissions = withCookieData(api, { permissions: ['cookies'], origins: [pattern] })
     let granted = false
     try {
       granted = await api.permissions.request(permissions)
-    } catch {
-      granted = false
+    } catch (error) {
+      console.warn('rDownloader: the permission request failed', error)
     }
-    if (!granted) return { ok: false, code: 'denied' }
+    if (!granted) {
+      await notify?.(message('handoverDenied', [host]))
+      return { ok: false, code: 'denied' }
+    }
     // The permission is only needed for the read itself; holding it afterwards would be a
     // standing grant the user never asked for — unless a site the person allowed to hand files
     // over stands on it (RD-130-16): then `cookies` stays, and so does that site's own grant.
@@ -149,12 +150,20 @@ export function createSessionSharer({ api, loadConfig, submit = submitCookies, m
     // Firefox: without the `authenticationInfo` consent no cookie is read, let alone sent.
     if (!(await holdsCookieData(api))) {
       await giveBack()
+      await notify?.(message('handoverDenied', [host]))
       return { ok: false, code: 'denied' }
+    }
+    const config = await loadConfig()
+    if (!config?.token) {
+      await giveBack()
+      await notify?.(message('sessionUnconfigured'))
+      return { ok: false, code: 'unconfigured' }
     }
 
     const cookies = await readCookies(url, includeSubdomains)
     const content = toNetscape(cookies, host)
     if (!content) {
+      await giveBack()
       await notify?.(message('sessionEmpty'))
       return { ok: false, code: 'empty' }
     }

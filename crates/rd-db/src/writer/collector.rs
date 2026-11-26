@@ -69,7 +69,10 @@ impl Writer {
             CollectorCommand::SetCandidateEnrichment { id, fields, reply } => {
                 let result =
                     crate::collector_store::set_enrichment(&mut self.connection, id, &fields).await;
-                send(reply, result);
+                if let Ok(Some(download)) = &result {
+                    self.broadcast_row_changed(*download, "enrichment");
+                }
+                send(reply, result.map(|_| ()));
             }
             CollectorCommand::SetCandidateMediaInventory { id, state, reply } => {
                 let result =

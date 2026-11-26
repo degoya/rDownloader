@@ -9,8 +9,7 @@
 //
 // The service listens on 127.0.0.1:8710 because that is the address the manifest grants at
 // install time; any other port makes Save ask for a host permission, and that prompt is browser
-// chrome no automation can answer. Firefox cannot load an unpacked extension under Playwright;
-// its half is `web-ext lint` in CI and the live checklist in docs/development.md.
+// chrome no automation can answer. Firefox's half is firefox.e2e.mjs.
 import assert from 'node:assert/strict'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,8 +34,11 @@ let extensionId
 const problems = []
 
 /** The extension's own text for `key`, so the assertions hold in whatever locale runs them. */
-function localized(page, key, substitutions) {
-  return page.evaluate(([name, values]) => chrome.i18n.getMessage(name, values), [key, substitutions])
+async function localized(page, key, substitutions) {
+  const text = await page.evaluate(([name, values]) => chrome.i18n.getMessage(name, values), [key, substitutions])
+  // A key the catalogue no longer has reads as '', which every empty status line matches at once.
+  assert.ok(text, `no message ${key}`)
+  return text
 }
 
 before(async () => {
@@ -127,9 +129,11 @@ test('the extension pairs through its options page and sends a page from the pop
     // A dispatched click, not a pointer one: the popup is a background tab now, and Playwright's
     // actionability wait needs animation frames a background tab does not get.
     await popup.locator('#page').dispatchEvent('click')
-    const sent = await localized(popup, 'sentFromPopup')
+    const sent = await localized(popup, 'sentLinksOne', ['1'])
+    // For the same reason polled by time rather than by frame.
     await popup.waitForFunction((text) => document.getElementById('status')?.textContent === text, sent, {
-      timeout: BUDGET_MS.linkArrival
+      timeout: BUDGET_MS.linkArrival,
+      polling: 100
     })
     const { value, elapsedMs } = await session.awaitCandidate(id)
     assert.equal(value.url, address)

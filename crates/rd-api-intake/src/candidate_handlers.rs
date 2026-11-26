@@ -1,10 +1,10 @@
 //! The LinkGrabber's batches and single links: listing, removing and enqueueing one.
 
 use axum::{
-    Json,
-    extract::{Path, State},
+    extract::State,
     http::{HeaderMap, StatusCode},
 };
+use rd_api_core::extract::{Json, Path};
 use rd_api_core::list_bounds::total_header;
 use rd_core::CandidateId;
 use rd_db::StoreErrorKind;

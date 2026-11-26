@@ -31,7 +31,7 @@
     "extension_connected": "The browser extension is connected: it announces this captcha and opens {host} in a tab of your browser.",
     "extension_missing": "No browser extension is connected, and without one only a solver service can answer this captcha. Install and pair the extension to answer it yourself, in your own browser.",
     "extension_setup": "Set up the browser extension",
-    "hint": "Connect the browser extension and answer the captcha in the tab it opens, set up a solver service in the network settings, or decline this captcha and let the download fail. There is no other way: a widget is bound to the hoster's own domain, so neither this interface nor the desktop agent can show it.",
+    "hint": "Connect the browser extension and answer the captcha in the tab it opens, set up a solver service under Settings → Captcha & solver, or decline this captcha and let the download fail. There is no other way: a widget is bound to the hoster's own domain, so neither this interface nor the desktop agent can show it.",
     "configure": "Captcha settings"
   },
   "settings": {

@@ -1,13 +1,11 @@
 //! Post-processing pipeline endpoints: queue view, script catalogue, category defaults.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
 use rd_core::{CategoryId, PackageState, PostprocessLevel};
 use serde::Serialize;
 use utoipa::ToSchema;
 
+use crate::extract::{Json, Path};
 use crate::object_upload_target::check_object_upload_target;
 use crate::{
     ApiError, AppState,

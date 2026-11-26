@@ -97,21 +97,21 @@ mod tests {
     fn a_user_rule_never_takes_a_shipped_id() {
         let mut catalogue = Catalogue::new(vec![example()]);
         let refused = catalogue
-            .add_user_rule(user("scnlog"))
+            .add_user_rule(user("releases"))
             .expect_err("refused");
         assert_eq!(refused.code(), "site_rules.id_taken");
         assert_eq!(catalogue.user().len(), 0);
-        assert_eq!(catalogue.get("scnlog").map(|rule| rule.version), Some(1));
+        assert_eq!(catalogue.get("releases").map(|rule| rule.version), Some(1));
     }
 
     #[test]
     fn a_user_rule_with_its_own_id_sits_beside_the_shipped_one() {
         let mut catalogue = Catalogue::new(vec![example()]);
         catalogue
-            .add_user_rule(user("my-scnlog"))
+            .add_user_rule(user("my-releases"))
             .expect("admitted");
         let ids: Vec<_> = catalogue.rules().map(|rule| rule.id.as_str()).collect();
-        assert_eq!(ids, ["scnlog", "my-scnlog"]);
+        assert_eq!(ids, ["releases", "my-releases"]);
     }
 
     #[test]

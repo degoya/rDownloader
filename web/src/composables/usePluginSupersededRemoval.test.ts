@@ -95,7 +95,7 @@ describe('removing every superseded plugin version', () => {
     ]])
     expect(add).toHaveBeenCalledWith({
       title: 'plugins.remove.superseded_done {"removed":1,"kept":1}',
-      description: 'Resolver v0.9.0: [plugin.version_in_use]',
+      description: 'common.text.labelled {"label":"Resolver v0.9.0","value":"[plugin.version_in_use]"}',
       color: 'warning',
       icon: 'i-lucide-circle-alert'
     })

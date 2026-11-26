@@ -24,7 +24,7 @@ async fn a_result_is_still_there_after_a_restart_and_names_a_rule_with_no_row_of
         let database = rd_testkit::temp_database(directory.path()).await;
         database
             .record_site_rule_checks(vec![
-                check("scnlog", "ok", None),
+                check("releases", "ok", None),
                 check("gpaste", "dead", Some("site_rules.page_dead")),
             ])
             .await
@@ -36,7 +36,7 @@ async fn a_result_is_still_there_after_a_restart_and_names_a_rule_with_no_row_of
     assert_eq!(stored[0].rule_id, "gpaste");
     assert_eq!(stored[0].verdict, "dead");
     assert_eq!(stored[0].code.as_deref(), Some("site_rules.page_dead"));
-    assert_eq!(stored[1].rule_id, "scnlog");
+    assert_eq!(stored[1].rule_id, "releases");
     assert_eq!(stored[1].verdict, "ok");
     assert_eq!(stored[1].code, None);
     assert_eq!(stored[1].links, 7);
@@ -50,12 +50,12 @@ async fn a_later_run_replaces_what_an_earlier_one_said() {
     let directory = tempfile::tempdir().expect("tempdir");
     let database = rd_testkit::temp_database(directory.path()).await;
     database
-        .record_site_rule_checks(vec![check("scnlog", "ok", None)])
+        .record_site_rule_checks(vec![check("releases", "ok", None)])
         .await
         .expect("record");
     database
         .record_site_rule_checks(vec![check(
-            "scnlog",
+            "releases",
             "structural",
             Some("site_rules.structure"),
         )])

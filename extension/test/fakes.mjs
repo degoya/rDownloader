@@ -10,6 +10,8 @@
 import { createInterceptor } from '../src/downloads.js'
 import { createCaptchaAnswerer } from '../src/captcha.js'
 
+import { crossBoundary } from './boundary.mjs'
+
 export const SERVER = 'http://127.0.0.1:8710'
 export const CONFIG = { server: SERVER, token: 'capture-token' }
 
@@ -50,9 +52,11 @@ export function clock(start = 1_000) {
 /**
  * One fake browser, recording every call into `calls`.
  *
- * `messageRouter` is what makes a `runtime.sendMessage` a real boundary: the payload is cloned
- * on the way, exactly as a browser would serialise it, so a payload that cannot cross does not
- * cross here either.
+ * `messageRouter` is what makes a `runtime.sendMessage` a real boundary: the payload travels as
+ * Chrome carries it, so a payload that does not arrive as it was sent does not cross here either.
+ *
+ * The flows over this one ask the browser for nothing it could refuse. A suite about permissions,
+ * match patterns or the wiring uses `fake-browser.mjs`, which keeps the browsers' rules.
  */
 export function fakeApi(calls, {
   pause = async () => {},
@@ -76,8 +80,8 @@ export function fakeApi(calls, {
       getURL: (path) => `chrome-extension://self/${path}`,
       sendMessage: async (payload) => {
         calls.push(['sendMessage', payload?.type])
-        // structuredClone is what a real message boundary does; it throws on what cannot cross.
-        const delivered = structuredClone(payload)
+        // Chrome's boundary: JSON, and a payload JSON would change throws (`boundary.mjs`).
+        const delivered = crossBoundary('chrome', payload)
         if (!api.messageRouter) return undefined
         return api.messageRouter(delivered, POPUP)
       }
@@ -90,9 +94,9 @@ export function fakeApi(calls, {
         // nothing could be lost — and hid RD-109-23's second finding completely.
         get: async (defaults) =>
           Object.fromEntries(Object.keys(defaults).map(
-            (key) => [key, session[key] === undefined ? defaults[key] : structuredClone(session[key])]
+            (key) => [key, session[key] === undefined ? defaults[key] : crossBoundary('chrome', session[key])]
           )),
-        set: async (values) => Object.assign(session, structuredClone(values))
+        set: async (values) => Object.assign(session, crossBoundary('chrome', values))
       }
     },
     permissions: {

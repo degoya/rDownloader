@@ -7,11 +7,8 @@
 //! decline one. None of it is reachable over MCP (`rd-api/src/mcp_coverage.rs`): it carries a
 //! credential.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path};
 use serde::Deserialize;
 use url::Url;
 use utoipa::ToSchema;

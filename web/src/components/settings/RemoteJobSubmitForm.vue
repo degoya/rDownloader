@@ -168,7 +168,7 @@ async function submitFiles(): Promise<void> {
     return void emit('message', t(outcomes[0] === 'already_running' ? 'remote_jobs.submit.already_running' : 'remote_jobs.submit.started'))
   }
   const summary = { done: queue.length - failed, total: queue.length, failed }
-  if (failed) emit('error', t('remote_jobs.files.summary_failed', summary))
+  if (failed) emit('error', t('remote_jobs.files.summary_failed', summary, failed))
   else emit('message', t('remote_jobs.files.summary', summary))
 }
 

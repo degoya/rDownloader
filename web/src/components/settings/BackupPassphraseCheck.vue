@@ -74,7 +74,7 @@ async function check(): Promise<void> {
   >
     <template #body>
       <form class="space-y-3" data-testid="backup-passphrase-check-form" @submit.prevent="check">
-        <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
+        <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
         <UAlert v-if="opened" color="success" icon="i-lucide-circle-check" :description="opened" />
         <UFormField
           name="backup-passphrase-check"

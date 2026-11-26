@@ -104,7 +104,7 @@ describe('StorageActivityCard clearing', () => {
     counts(0, 40)
     mountComponent(StorageActivityCard, { messages: { settings } })
     await fireEvent.click(await screen.findByText('Check the content index'))
-    await screen.findByText(/Content index checked: 40 entries/)
+    await screen.findByText(/Content index checked – entries: 40/)
 
     counts(0, 0)
     await fireEvent.click(screen.getByTestId('data-reset-content_index'))

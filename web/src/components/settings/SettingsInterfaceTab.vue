@@ -11,6 +11,7 @@ import type { IndexerHandOverSettings } from '@/api/subscriptionHandOver'
 import type { Settings } from '@/api/types'
 import SectionHeader from '@/components/SectionHeader.vue'
 import { paletteSwatch, useColorPalette } from '@/composables/useColorPalette'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
 import { useNotifications } from '@/composables/useNotifications'
 import { useTheme, type ThemeMode } from '@/composables/useTheme'
 import { languageItems, setLocale, type AppLocale } from '@/i18n'
@@ -128,6 +129,9 @@ async function toggleNotifications(value: boolean): Promise<void> {
               </USelect>
             </UFormField>
           </div>
+          <UFormField data-settings-anchor="interface.shortcuts" :label="t('settings.appearance.shortcuts.label')" :description="t('settings.appearance.shortcuts.description')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
+            <USwitch v-model="shortcutsEnabled" data-testid="interface-shortcuts" />
+          </UFormField>
           <UFormField data-settings-anchor="interface.browser_notifications" :label="t('settings.notifications.label')" orientation="horizontal" class="mt-4 border-t border-muted pt-4">
             <template #description>
               {{ t('settings.notifications.description') }}

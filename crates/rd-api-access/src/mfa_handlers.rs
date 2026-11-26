@@ -18,10 +18,8 @@
 //! changes any of this, never a bearer token, and adding or removing a factor asks for the
 //! password again — see [`crate::step_up`].
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

@@ -23,7 +23,7 @@
     },
     "media": {
       "eyebrow": "Herramientas externas",
-      "title": "Medios, galerías y streams",
+      "title": "Multimedia, galerías y streams",
       "description": "Rutas y límites de yt-dlp, gallery-dl y streamlink, los ayudantes externos que convierten enlaces en descargas."
     },
     "postprocess": {
@@ -59,7 +59,7 @@
     "security": {
       "eyebrow": "Quién entra",
       "title": "Seguridad",
-      "description": "Segundo factor y passkeys para el inicio de sesión, las sesiones abiertas ahora mismo y el proxy inverso en el que este servicio puede confiar."
+      "description": "Segundo factor y claves de acceso para el inicio de sesión, las sesiones abiertas ahora mismo y el proxy inverso en el que este servicio puede confiar."
     },
     "hotfolders": {
       "eyebrow": "Carpetas vigiladas",
@@ -124,7 +124,7 @@
     "description": "0 = tantas como permitan los servidores; un valor menor reduce las conexiones por servidor que comparten todos los archivos de Usenet que se descargan a la vez",
     "follows_servers": "Los archivos simultáneos comparten las conexiones de los proveedores ({largest} en el mayor).",
     "capped": "El mayor servidor activo permite {largest} conexiones; los archivos simultáneos reciben juntos como máximo {cap} por servidor. Con 0 las usan todas.",
-    "not_binding": "No se aplica: ningún servidor activo permite más de {largest} conexiones.",
+    "not_binding": "No se aplica: ningún servidor activo permite más de {largest} conexión. | No se aplica: ningún servidor activo permite más de {largest} conexiones.",
     "live_even": "Ahora {files} archivo con {per} de {limit} conexiones. | Ahora {files} archivos con {per} de {limit} conexiones cada uno.",
     "live_mixed": "Ahora {files} archivos con {busy} de {limit} conexiones en total ({split})."
   },
@@ -134,7 +134,7 @@
   },
   "retries": {
     "label": "Reintentos por archivo",
-    "description": "Intentos tras errores temporales antes de que una descarga se considere fallida (0–100): cinco en segundos, luego los reintentos en minutos y después la espera larga. Esperar a que pase un límite o un bloqueo de IP del alojamiento no cuenta."
+    "description": "Intentos tras errores temporales antes de que una descarga se considere fallida (0–100): cinco en segundos, luego los reintentos en minutos y después la espera larga. Esperar a que pase un límite o un bloqueo de IP del hoster no cuenta."
   },
   "import_history": {
     "label": "Conservar historial de importación",
@@ -215,14 +215,14 @@
   },
   "postprocess": {
     "eyebrow": "Posprocesado",
-    "title": "Pipeline de posprocesamiento",
+    "title": "Pipeline de posprocesado",
     "description": "Los paquetes y categorías pueden sobrescribir el nivel y el script.",
     "default_level": {
       "label": "Nivel predeterminado",
       "description": "Se aplica a paquetes y categorías sin nivel propio."
     },
     "pause": {
-      "label": "Pausar descargas durante el posprocesamiento",
+      "label": "Pausar descargas durante el posprocesado",
       "description": "Retiene las nuevas descargas mientras se repara o extrae un paquete."
     },
     "cleanup_extensions": {
@@ -268,7 +268,7 @@
     },
     "script_timeout": {
       "label": "Tiempo límite del script",
-      "description": "Segundos tras los cuales se termina un script de posprocesamiento (10–86400)."
+      "description": "Segundos tras los cuales se termina un script de posprocesado (10–86400)."
     },
     "passwords_file": {
       "label": "Lista de contraseñas",
@@ -325,7 +325,7 @@
     },
     "fail_hopeless_jobs": {
       "label": "Cancelar descargas de Usenet sin remedio",
-      "description": "Si faltan más bloques PAR2 de los que los volúmenes de recuperación del conjunto pueden reemplazar, el resto ya no se descarga y el paquete falla. Lo ya descargado se conserva. Ahorra volumen en cuentas por bloques. Desactivado: cada archivo se descarga hasta el final, como antes."
+      "description": "Si faltan más bloques PAR2 de los que los volúmenes de recuperación del conjunto pueden reemplazar, el resto ya no se descarga y el paquete falla. Lo ya descargado se conserva. Ahorra volumen en cuentas por bloques. Desactivado: cada archivo se descarga hasta el final."
     },
     "direct_unpack": {
       "label": "Extraer durante la descarga",
@@ -402,7 +402,7 @@
     },
     "title_status": {
       "label": "Estado en la pestaña del navegador",
-      "description": "Mientras algo está en curso, la pestaña muestra la velocidad total y el número de transferencias activas; en reposo, solo el nombre de la aplicación. Desactívalo si un título que cambia constantemente te molesta."
+      "description": "Mientras algo está en curso, la pestaña muestra la velocidad total y el número de transferencias activas; en reposo, solo la vista y el nombre de la aplicación. Desactívalo si un título que cambia constantemente te molesta."
     },
     "palette": {
       "label": "Tema de color",
@@ -413,6 +413,10 @@
       "forest": "Bosque",
       "rose": "Rosa",
       "amber": "Ámbar"
+    },
+    "shortcuts": {
+      "label": "Atajos de teclado",
+      "description": "Teclas sueltas ejecutan acciones, por ejemplo P para pausar, solo en este navegador; ? las muestra todas. Desactivado si la entrada por voz o una pulsación accidental pudiera ejecutar algo."
     }
   },
   "messages": {
@@ -428,9 +432,9 @@
   },
   "save": "Guardar configuración",
   "media": {
-    "eyebrow": "Extractor de medios",
+    "eyebrow": "Extractor multimedia",
     "title": "Vídeo y audio (yt-dlp)",
-    "description": "Los enlaces de los hosts de medios se analizan con yt-dlp y se ofrecen en el LinkGrabber como variantes de vídeo/audio.",
+    "description": "Los enlaces de los hosts multimedia se analizan con yt-dlp y se ofrecen en el LinkGrabber como variantes de vídeo/audio.",
     "ytdlp": {
       "label": "Ejecutable de yt-dlp",
       "description": "Ruta absoluta a yt-dlp.",
@@ -443,7 +447,7 @@
     },
     "default_variant": {
       "label": "Variante predeterminada",
-      "description": "Preseleccionada para nuevos enlaces de medios; se puede cambiar por enlace en el LinkGrabber."
+      "description": "Preseleccionada para nuevos enlaces multimedia; se puede cambiar por enlace en el LinkGrabber."
     },
     "variants": {
       "video_best": "Vídeo (mejor calidad)",
@@ -455,8 +459,8 @@
       "audio_mp3": "Audio MP3"
     },
     "hosts": {
-      "label": "Hosts de medios",
-      "description": "Hosts (sin www.) que gestiona el proveedor de medios en lugar del descargador HTTP.",
+      "label": "Hosts multimedia",
+      "description": "Hosts (sin www.) que gestiona el proveedor multimedia en lugar del descargador HTTP.",
       "placeholder": "youtube.com, dumpert.nl, …",
       "add_defaults": "Añadir hosts predeterminados",
       "add_defaults_hint": "Fusiona la lista de hosts interna con tus entradas. No se elimina nada: así las instalaciones existentes incorporan los hosts añadidos recientemente.",
@@ -464,7 +468,7 @@
       "defaults_complete": "Todos los hosts predeterminados ya están presentes."
     },
     "max_parallel": {
-      "label": "Descargas de medios paralelas",
+      "label": "Descargas multimedia paralelas",
       "description": "Descargas simultáneas con yt-dlp (1–8)."
     },
     "check_timeout": {
@@ -479,7 +483,7 @@
     },
     "output_template": {
       "label": "Plantilla de salida",
-      "description": "Organiza las descargas de medios dentro de la carpeta del paquete. Las carpetas se separan con /. Vacío mantiene el nombre de archivo simple. Cada enlace puede sobrescribirlo.",
+      "description": "Organiza las descargas multimedia dentro de la carpeta del paquete. Las carpetas se separan con /. Vacío mantiene el nombre de archivo simple. Cada enlace puede sobrescribirlo.",
       "placeholder": "{uploader}/{upload_year}/{title}",
       "fields": "Campos disponibles: {fields}"
     },
@@ -508,7 +512,7 @@
     "general": "Cola y reintentos",
     "hotfolders": "Hotfolders",
     "interface": "Interfaz",
-    "media": "Medios",
+    "media": "Multimedia",
     "network": "Red",
     "notifications": "Notificaciones",
     "plugins": "Plugins",
@@ -604,7 +608,7 @@
   },
   "notifications": {
     "label": "Notificaciones del navegador",
-    "description": "Muestra una notificación de escritorio cuando termina la lista de descargas, fallan descargas de un paquete o llegan enlaces, una sola vez y desde una de las pestañas abiertas. Lo que push ya envía a este navegador y los enlaces que anuncia un agente de escritorio en marcha se quedan allí; las horas silenciosas las retienen. Se guarda solo en este navegador.",
+    "description": "Muestra una notificación de escritorio cuando termina la lista de descargas, fallan descargas de un paquete o llegan enlaces, una sola vez y desde una de las pestañas abiertas. Lo que push ya envía a este navegador y los enlaces que anuncia un agente de escritorio en marcha se dejan en sus manos; las horas silenciosas retienen las notificaciones. Se guarda solo en este navegador.",
     "denied": "El navegador bloquea las notificaciones de esta página. Permítelas en los permisos del sitio y vuelve a activar el interruptor.",
     "unsupported": "Este navegador no admite notificaciones."
   },
@@ -689,7 +693,7 @@
   "torrent": {
     "eyebrow": "BitTorrent",
     "title": "Torrents (motor integrado)",
-    "description": "Los torrents y enlaces magnet corren en el motor integrado con DHT, trackers y PEX. Los web seeds (BEP 19) no están soportados.",
+    "description": "Los torrents y enlaces magnet corren en el motor integrado con DHT, trackers y PEX. Los web seeds (BEP 19) no se admiten.",
     "sharing": {
       "label": "Compartir datos con otros pares",
       "description": "Desactivado de forma predeterminada: no se sube nada, ni siquiera mientras un torrent se está descargando.",
@@ -863,7 +867,7 @@
       "eyebrow": "Almacenamiento",
       "title": "Traslados, enlaces y reutilización",
       "description": "Traslados verificados entre carpetas, enlaces de duplicados y lo que cada tipo de transferencia reutiliza de los datos existentes.",
-      "index_checked": "Índice de contenido comprobado: {checked} entradas, {missing} faltan, {restored} recuperadas, {backfilled} añadidas.",
+      "index_checked": "Índice de contenido comprobado – entradas: {checked}, faltan: {missing}, recuperadas: {restored}, añadidas: {backfilled}.",
       "links_title": "Enlaces duros por ubicación",
       "links_description": "Se determina probando. Esta versión no crea reflinks.",
       "hardlink_yes": "Enlaces duros posibles",
@@ -924,7 +928,7 @@
       "description": "Importaciones NZB y descargas NNTP."
     },
     "media": {
-      "label": "Descargas de medios",
+      "label": "Descargas multimedia",
       "description": "Enlaces de vídeo y audio que resuelve yt-dlp."
     },
     "gallery": {
@@ -1045,7 +1049,6 @@
       "own": "rDownloader en sí",
       "own_text": "Software libre bajo {license}; el texto completo está en LICENSE dentro del paquete.",
       "tools": "Herramientas incluidas",
-      "tools_hint": "Los paquetes para Linux y Windows los incluyen en vendor/ y sus textos de licencia en vendor/licenses/.",
       "dependencies": "Dependencias",
       "dependencies_hint": "Todo lo que contiene un paquete distribuido: los crates que enlazan el servicio, el agente de captura y los plugins en Linux, Windows y macOS, y los paquetes de la interfaz. Generadas al compilar a partir de Cargo.lock y pnpm-lock.yaml, nunca a mano.",
       "rust": "Crates de Rust",
@@ -1057,7 +1060,12 @@
       "column_name": "Nombre",
       "column_version": "Versión",
       "column_license": "Licencia",
-      "column_file": "Texto de licencia"
+      "column_file": "Texto de licencia",
+      "tools_used": "Programas auxiliares",
+      "tools_hint_used": "rDownloader los usa si están en este sistema o si los instalas en Herramientas. Ningún paquete los incluye, salvo la imagen de contenedor.",
+      "tools_hint_shipped": "Esta imagen de contenedor los contiene; sus textos de licencia están en la imagen, en la ruta indicada.",
+      "notices": "Mostrar todos los textos de licencia",
+      "other": "Otros componentes"
     }
   },
   "nntp_parallel_files": {
@@ -1095,7 +1103,7 @@
     "clients": {
       "desktop": "Escritorio",
       "browser": "Navegador",
-      "api": "API & MCP"
+      "api": "API y MCP"
     },
     "notifications": {
       "targets": "Destinos y reglas",
@@ -1115,7 +1123,7 @@
       "s3": "S3"
     },
     "media": {
-      "media": "Medios",
+      "media": "Multimedia",
       "galleries": "Galerías",
       "streams": "Streams"
     },
@@ -1289,7 +1297,7 @@
   },
   "account_traffic": {
     "label": "Cuando se agota el tráfico de una cuenta",
-    "description": "Cuando un servidor informa de que la cuota de una cuenta está agotada, sus archivos esperan. rDownloader comprueba la cuenta cada 15 minutos y continúa por sí solo en cuanto vuelve a haber tráfico o termina la espera del servidor. Una pausa que hayas puesto tú se mantiene.",
+    "description": "Cuando un hoster informa de que la cuota de una cuenta está agotada, sus archivos esperan. rDownloader comprueba la cuenta cada 15 minutos y continúa por sí solo en cuanto vuelve a haber tráfico o termina la espera del hoster. Una pausa que hayas puesto tú se mantiene.",
     "nothing": "No hacer nada – solo esperan los archivos afectados",
     "pause_account": "Detener las descargas de esta cuenta",
     "pause_queue": "Pausar toda la cola",
@@ -1400,9 +1408,9 @@
     "confirm": "Limpiar",
     "done": "{size} liberados",
     "events": "Eventos",
-    "rows": "{count} entradas de los últimos 30 días",
+    "rows": "{count} entrada de los últimos 30 días | {count} entradas de los últimos 30 días",
     "items": "Archivo de suscripciones",
-    "compactable": "{count} entradas antiguas para compactar",
+    "compactable": "{count} entrada antigua para compactar | {count} entradas antiguas para compactar",
     "database_file": "Archivo de base de datos",
     "items_days_label": "Conservar completas las entradas omitidas",
     "items_days_description": "Días que una entrada omitida o descartada conserva su título y enlace; después solo queda lo que permite reconocerla, para que no vuelva. 0 lo conserva todo (0-3650).",
@@ -1427,5 +1435,11 @@
   "sequential_packages": {
     "label": "Paquete por paquete",
     "description": "Una descarga solo empieza cuando ningún paquete por encima en la lista tiene aún un archivo en espera. El precio: si el primer paquete espera (un límite del hoster o el tráfico agotado), toda la lista espera con él. Activarlo no detiene nada de lo que ya está en curso."
+  },
+  "foreign": {
+    "title": "Modificado en otro lugar",
+    "merged": "Los ajustes se han modificado en otro lugar. Ahora se muestran los valores nuevos; lo que aún no has guardado se conserva.",
+    "conflict": "Estos campos se han modificado en otro lugar mientras los editabas aquí: {fields}. Al guardar, tus valores sustituyen a los de allí.",
+    "take": "Usar los valores de allí"
   }
 }

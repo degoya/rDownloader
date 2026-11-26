@@ -18,6 +18,7 @@ import {
 } from '@/api/logLevel'
 import type { Answer } from '@/api/call'
 import { translateServerMessage } from '@/i18n/server'
+import { compareText } from '@/utils/collation'
 import { formatMoment } from '@/utils/format'
 
 /** The plugin select's "every plugin" entry: a select refuses an item whose value is `''`. */
@@ -88,7 +89,7 @@ async function loadPlugins(): Promise<void> {
   plugins.value = installed
     .filter(plugin => plugin.active !== false)
     .map(plugin => ({ value: String(plugin.id), label: plugin.name }))
-    .sort((left, right) => left.label.localeCompare(right.label))
+    .sort((left, right) => compareText(left.label, right.label))
 }
 
 function start(): void {
@@ -149,6 +150,7 @@ onBeforeUnmount(() => clearTimeout(expiry))
       v-if="refusal"
       class="mt-4"
       color="error"
+      role="alert"
       variant="subtle"
       icon="i-lucide-circle-alert"
       :description="refusal"

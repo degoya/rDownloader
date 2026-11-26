@@ -254,7 +254,7 @@ const uploadLimitMiB = byteModel(
           :description="portTestDetails || undefined"
           data-testid="torrent-port-test-result"
         />
-        <UAlert v-else-if="portTestError" color="error" variant="subtle" :title="portTestError" />
+        <UAlert v-else-if="portTestError" color="error" role="alert" variant="subtle" :title="portTestError" />
       </div>
     </UFormField>
     <UFormField

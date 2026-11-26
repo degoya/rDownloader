@@ -16,7 +16,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_api_core::input_checks::BundleHeader;
 use rd_core::Timestamp;
 use serde::{Deserialize, Serialize};

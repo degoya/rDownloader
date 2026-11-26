@@ -5,7 +5,7 @@
 # Homebrew allows one service per formula, and rdownloader's is the service. This formula carries
 # the second one: it runs the rdownloader-capture that formula installs. A formula needs a url and
 # a keg that is not empty, so it names the same archives with the same SHA-256 — Homebrew's cache
-# is keyed by the URL, so nothing is downloaded twice — and keeps their README and LICENSE.
+# is keyed by the URL, so nothing is downloaded twice — and keeps their README and licence texts.
 class RdownloaderCapture < Formula
   desc "Desktop agent handing Click'n'Load, clipboard and NZB files to rDownloader"
   homepage "https://rdownloader.net"
@@ -44,7 +44,7 @@ class RdownloaderCapture < Formula
   def install
     # The executable stays in rdownloader's keg, which links bin/rdownloader-capture already; a
     # second copy here would be a link conflict and a second version to keep in step.
-    doc.install "README.md", "LICENSE"
+    doc.install "README.md", "LICENSE", "THIRD-PARTY-NOTICES.txt"
   end
 
   def caveats

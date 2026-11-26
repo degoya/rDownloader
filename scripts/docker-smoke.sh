@@ -9,6 +9,8 @@
 #    to take ownership of both, and the bundled plugins must install into /config.
 #  * The bundled Python tools run as the service user: yt-dlp, streamlink, gallery-dl and apprise
 #    (RD-130-14, RD-1120-07), each answering `--version`.
+#  * The licence texts and where the source code is offered are in it (RD-1480-12): rDownloader's
+#    own files, and the text of one Debian and one Python program.
 #
 # Usage:
 #   scripts/docker-smoke.sh <image> [port]
@@ -50,5 +52,12 @@ echo
 for tool in yt-dlp streamlink gallery-dl apprise; do
     echo "==> ${tool} as the service user"
     docker exec --user rdownloader "${container_id}" "${tool}" --version
+done
+for text in rdownloader/LICENSE rdownloader/THIRD-PARTY-NOTICES.txt rdownloader/SOURCES.txt \
+    rdownloader/python/yt-dlp/LICENSE ffmpeg/copyright; do
+    if ! docker exec "${container_id}" test -s "/usr/share/doc/${text}"; then
+        echo "!! ${image} lacks /usr/share/doc/${text}" >&2
+        exit 1
+    fi
 done
 echo "==> ${image} passed the smoke test"

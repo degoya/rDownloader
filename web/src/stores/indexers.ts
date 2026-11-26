@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
 import type { Indexer, IndexerCaps } from '@/api/types'
+import { compareText } from '@/utils/collation'
 
 /**
  * The Newznab indexers defined once under Settings › Usenet (RD-180-19).
@@ -45,7 +46,7 @@ export const useIndexersStore = defineStore('indexers', () => {
   async function refresh(): Promise<string | null> {
     const response = await api.GET('/api/v1/indexers')
     if (!response.data) return responseError(response)
-    indexers.value = [...response.data].sort((left, right) => left.name.localeCompare(right.name))
+    indexers.value = [...response.data].sort((left, right) => compareText(left.name, right.name))
     loaded.value = true
     // An edited indexer may answer differently now: its caps are asked again when next needed.
     caps.value = {}

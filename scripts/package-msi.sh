@@ -70,8 +70,8 @@ source "$ROOT/scripts/lib/archive-layout.sh"
 if [[ "$capture" -eq 1 ]]; then
     zip_name=rdownloader-capture-windows-x86_64.zip
     product=rdownloader-capture
-    entries="$(printf '%s\n' LICENSE README.md VERSION.txt rdownloader-capture.exe \
-        start-capture.bat start-rdownloader.bat stop-capture.bat stop-rdownloader.bat)"
+    entries="$(printf '%s\n' LICENSE README.md THIRD-PARTY-NOTICES.txt VERSION.txt \
+        rdownloader-capture.exe start-capture.bat start-rdownloader.bat stop-capture.bat stop-rdownloader.bat)"
 else
     zip_name=rdownloader-windows-x86_64.zip
     product=rdownloader

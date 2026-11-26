@@ -4,7 +4,8 @@
 //! its target is done, through the same pause `/api/v1/queue/pause` reads and ends. These routes
 //! only place it; reading the pause names it too, so one read tells why the queue will stop.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_core::{DownloadId, PackageId, Timestamp};
 use rd_db::{StopMark, StopMarkTarget, StoreErrorKind};
 use serde::{Deserialize, Serialize};

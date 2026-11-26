@@ -54,7 +54,7 @@
     "api_key_keep": "Déjalo vacío para conservar la clave guardada",
     "add_mapping": "Añadir correspondencia de categoría",
     "source_category": "ID de categoría del indexador",
-    "caps_summary": "{count} categorías, admite: {types}",
+    "caps_summary": "{count} categoría, admite: {types} | {count} categorías, admite: {types}",
     "regex_editor": "Editar como expresión regular",
     "source_categories": "Categorías a consultar",
     "source_categories_description": "Solo se solicitan estas categorías al indexador. Sin selección se recupera todo y se filtra después.",
@@ -175,8 +175,8 @@
   "history": {
     "action": "Borrar historial completado",
     "title": "¿Borrar el historial completado de «{name}»?",
-    "description": "Se eliminarán permanentemente {count} resultados completados y {runs} registros de comprobación. Los resultados abiertos se conservan. Los resultados eliminados pueden reaparecer en una comprobación posterior.",
-    "done": "Se eliminaron {deleted_items} resultados completados y {deleted_runs} registros de comprobación."
+    "description": "Se eliminarán permanentemente los resultados completados ({count}) y los registros de comprobación ({runs}). Los resultados abiertos se conservan. Los resultados eliminados pueden reaparecer en una comprobación posterior.",
+    "done": "Eliminados – resultados completados: {deleted_items}, registros de comprobación: {deleted_runs}."
   },
   "notices": {
     "poll_started": "Comprobación de «{name}» iniciada. El resultado aparecerá aquí en cuanto termine.",

@@ -1,6 +1,7 @@
 import type { CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
 import { ref } from 'vue'
 
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
 import { router } from '@/router'
 import { SETTINGS_SEARCH_ENTRIES, SETTINGS_SEARCH_PAGES, type SettingsSearchEntry, type SettingsSearchPage, settingsSearchEntry, settingsSearchLocation } from '@/settingsSearch'
 import { SETTINGS_SECTION_GROUPS, SETTINGS_SECTIONS } from '@/settingsSections'
@@ -83,7 +84,7 @@ export function buildPaletteGroups(t: Translate): CommandPaletteGroup<CommandPal
     id: `view:${view.path}`,
     label: t(view.labelKey),
     icon: view.icon,
-    kbds: [view.key],
+    kbds: shortcutsEnabled.value ? [view.key] : [],
     onSelect: () => { void router.push(view.path) }
   }))
 

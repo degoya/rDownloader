@@ -11,7 +11,7 @@ pub async fn download_summary(
 
 pub async fn summarize_downloads(state: &AppState) -> Result<DownloadSummaryResponse, ApiError> {
     use rd_core::DownloadState;
-    let downloads = state.database.list_downloads().await?;
+    let downloads = state.database.download_figures().await?;
     let count = |predicate: fn(DownloadState) -> bool| {
         u32::try_from(
             downloads
@@ -115,7 +115,7 @@ pub(crate) fn is_transferring(state: rd_core::DownloadState) -> bool {
 }
 
 /// What one entry still has to fetch, or `None` when its size is not known.
-pub(super) fn remaining_of(download: &rd_core::DownloadFile) -> Option<u64> {
+pub(super) fn remaining_of(download: &rd_core::DownloadFigures) -> Option<u64> {
     download
         .total_bytes
         .map(|total| total.get().saturating_sub(download.committed_bytes.get()))
@@ -140,7 +140,7 @@ pub(crate) struct QueueRate {
 /// job).
 pub(crate) fn moving_rates(
     rates: std::collections::HashMap<rd_core::DownloadId, u64>,
-    downloads: &[rd_core::DownloadFile],
+    downloads: &[rd_core::DownloadFigures],
 ) -> std::collections::HashMap<rd_core::DownloadId, u64> {
     let moving = downloads
         .iter()
@@ -155,7 +155,7 @@ pub(crate) fn moving_rates(
 
 pub(crate) fn queue_rate(
     rates: &std::collections::HashMap<rd_core::DownloadId, u64>,
-    downloads: &[rd_core::DownloadFile],
+    downloads: &[rd_core::DownloadFigures],
 ) -> QueueRate {
     let bytes_per_second = downloads
         .iter()
@@ -179,7 +179,7 @@ pub(crate) fn queue_rate(
 pub async fn download_rates(
     State(state): State<AppState>,
 ) -> Result<Json<DownloadRatesResponse>, ApiError> {
-    let downloads = state.database.list_downloads().await?;
+    let downloads = state.database.download_figures().await?;
     let rates = moving_rates(state.scheduler.transfer_rates(), &downloads);
     let queue = queue_rate(&rates, &downloads);
     let live = state.scheduler.live_connections();
@@ -214,11 +214,25 @@ pub async fn download_rates(
             })
         })
         .collect();
+    // Every row a runner is at work on, whether or not it moves: the queue page patches the rows
+    // it holds with these instead of reading the whole list again, and a state here that differs
+    // from the one it shows is what tells it to (RD-1480-18).
+    let progress = downloads
+        .iter()
+        .filter(|download| download.state.is_working())
+        .map(|download| DownloadProgressEntry {
+            id: download.id,
+            state: download.state,
+            committed_bytes: download.committed_bytes,
+            total_bytes: download.total_bytes,
+        })
+        .collect();
     Ok(Json(DownloadRatesResponse {
         bytes_per_second: queue.bytes_per_second,
         transferring_remaining_bytes: queue.remaining_bytes.map(byte_count),
         eta_seconds: queue.eta_seconds,
         downloads: entries,
+        progress,
         waiting_for_host,
         usenet_servers: live
             .servers

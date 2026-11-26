@@ -1,10 +1,8 @@
 //! The mirror choice of the LinkGrabber: the standing preference, a pin per group and the
 //! dissolving of a proposed group (RD-110-19, RD-110-34).
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_api_core::input_checks::optional_text;
 use rd_core::CandidateId;
 

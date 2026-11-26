@@ -34,7 +34,7 @@ import { useFetchState } from '@/composables/useFetchState'
 import { useRangeSelection } from '@/composables/useRangeSelection'
 import { translateServerMessage } from '@/i18n/server'
 import { useCollectorStore } from '@/stores/collector'
-import { formatBytes, formatMoment } from '@/utils/format'
+import { formatBytes, formatMoment, formatPercent } from '@/utils/format'
 
 const props = defineProps<{ accounts: Account[], accountsLoading?: boolean }>()
 const emit = defineEmits<{ message: [string], error: [string] }>()
@@ -139,7 +139,7 @@ function jobMessage(job: RemoteJob): string | null {
  */
 function percent(job: RemoteJob): string | null {
   return typeof job.progress_permille === 'number'
-    ? `${Math.round(job.progress_permille / 10)}%`
+    ? formatPercent(job.progress_permille / 10)
     : null
 }
 

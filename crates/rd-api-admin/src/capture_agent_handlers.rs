@@ -13,11 +13,11 @@
 //! poll, so a change made here reaches it without a restart.
 
 use axum::{
-    Json,
     extract::State,
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
+use rd_api_core::extract::Json;
 use rd_core::{CaptureAgentSettings, CaptureGameMode, CaptureShortcutReport, CaptureShortcuts};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

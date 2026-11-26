@@ -1,7 +1,8 @@
 import { PICK_WAITING } from './api.js'
-import { api, loadConfig, message, openSendFilePage } from './browser.js'
+import { api, loadConfig, localizePage, message, openSendFilePage } from './browser.js'
 import { DECLINE_MESSAGE, createCaptchaAnswerer, hostOf } from './captcha.js'
 import { allowSite, revokeSite, siteConsented, siteHost } from './files.js'
+import { manifestOf } from './grants.js'
 import { HANDOVER_REFUSALS, createHandover, scopeHost, scopeOrigin } from './handover.js'
 
 /**
@@ -205,7 +206,7 @@ async function renderHandovers(handovers) {
     const host = scopeHost(handover.scope)
     let hadOrigin = false
     try {
-      hadOrigin = await api.permissions.contains({ origins: [scopeOrigin(handover.scope)] })
+      hadOrigin = await api.permissions.contains({ origins: [scopeOrigin(handover.scope, manifestOf(api))] })
     } catch {
       hadOrigin = false
     }
@@ -271,9 +272,7 @@ async function init() {
   // gesture, which a message to the background would not carry. Everything after the tab exists
   // happens in the background (RD-108-02).
   const captchas = createCaptchaAnswerer({ api, loadConfig, message, notify: async () => null })
-  for (const element of document.querySelectorAll('[data-i18n]')) {
-    element.textContent = message(element.dataset.i18n)
-  }
+  localizePage(message('extName'))
   void bindInterception(document.getElementById('intercept'), { load: loadConfig, storage: api.storage.local })
   void renderCaptchas(captchas)
   void renderHandovers(createHandover({ api, loadConfig, message, notify: async () => null }))

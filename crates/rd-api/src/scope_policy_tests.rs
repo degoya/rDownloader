@@ -10,26 +10,12 @@ use rd_api_core::scope_policy::ROUTE_POLICY;
 
 /// Routes the router registers that utoipa does not document, with the reason.
 ///
-/// The exhaustiveness test allows exactly these four to be absent from the OpenAPI document
+/// The exhaustiveness test allows exactly this one to be absent from the OpenAPI document
 /// and nothing else, so an endpoint that quietly stops being documented is still caught.
-const UNDOCUMENTED: &[(&str, &str)] = &[
-    (
-        "/api/v1/events",
-        "server-sent events; utoipa has no stream response type",
-    ),
-    (
-        "/api/v1/capture/events",
-        "server-sent events, capture surface",
-    ),
-    (
-        "/api/v1/capture/nzb",
-        "multipart upload; documented in the capture contract instead",
-    ),
-    (
-        "/api/v1/openapi.json",
-        "serves the document, so it cannot appear inside it",
-    ),
-];
+const UNDOCUMENTED: &[(&str, &str)] = &[(
+    "/api/v1/openapi.json",
+    "serves the document, so it cannot appear inside it",
+)];
 
 /// Every `(path, method)` in the document, as the router registered them.
 ///
@@ -88,8 +74,8 @@ fn every_documented_operation_has_a_policy_entry() {
 /// And the table must not describe routes that no longer exist.
 ///
 /// A stale entry is not merely untidy: it is a scope decision that reads as coverage of
-/// something, and the something is gone. The four exceptions are routes the router really
-/// does serve and utoipa cannot document; each carries its reason in [`UNDOCUMENTED`].
+/// something, and the something is gone. An exception is a route the router really does serve
+/// and the document cannot carry; it has its reason in [`UNDOCUMENTED`].
 #[test]
 fn every_policy_entry_is_a_documented_operation_or_a_named_exception() {
     let documented = documented();

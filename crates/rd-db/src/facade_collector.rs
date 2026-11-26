@@ -112,6 +112,18 @@ impl Database {
         Ok(packages)
     }
 
+    /// One package as [`Self::list_collector_packages`] shows it: `None` for one without open
+    /// links, which the list hides (RD-1480-10).
+    pub async fn open_collector_package(
+        &self,
+        id: CollectorPackageId,
+    ) -> Result<Option<CollectorPackage>> {
+        if !collector_packages::is_open(&self.readers, id).await? {
+            return Ok(None);
+        }
+        self.get_collector_package(id).await
+    }
+
     pub async fn get_collector_package(
         &self,
         id: CollectorPackageId,

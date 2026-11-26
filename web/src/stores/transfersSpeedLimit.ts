@@ -1,7 +1,9 @@
 import { ref, type Ref } from 'vue'
 
 import { api, responseError } from '@/api/client'
+import { patchSettings, type SettingsPatch } from '@/api/settingsDocument'
 import type { Settings } from '@/api/types'
+import { i18n } from '@/i18n'
 import { useSettingsStore } from '@/stores/settings'
 import { MIB } from '@/utils/format'
 
@@ -48,14 +50,9 @@ export function useSpeedLimit({ error, notice }: SpeedLimitContext) {
     if (response.data) applyRailSettings(response.data)
   }
 
-  /**
-   * The one read-modify-write both controls share: the PUT replaces the whole document, so the
-   * stored one is read first and only the changed fields are laid over it.
-   */
-  async function writeSettings(patch: Partial<Settings>): Promise<SettingsWrite> {
-    const current = await api.GET('/api/v1/settings')
-    if (!current.data) return { saved: null, failure: responseError(current) }
-    const response = await api.PUT('/api/v1/settings', { body: { ...current.data, ...patch } })
+  /** The one save both controls share: the changed field alone (RD-1480-07). */
+  async function writeSettings(patch: SettingsPatch): Promise<SettingsWrite> {
+    const response = await patchSettings(patch)
     if (!response.data) return { saved: null, failure: responseError(response) }
     applyRailSettings(response.data)
     return { saved: response.data, failure: null }
@@ -72,7 +69,7 @@ export function useSpeedLimit({ error, notice }: SpeedLimitContext) {
       return false
     }
     notice.value = speedLimitMiB.value
-      ? t('downloads.notices.speed_limit_set', { value: speedLimitMiB.value })
+      ? t('downloads.notices.speed_limit_set', { value: i18n.global.n(speedLimitMiB.value, { maximumFractionDigits: 2 }) })
       : t('downloads.notices.speed_limit_cleared')
     error.value = null
     return true

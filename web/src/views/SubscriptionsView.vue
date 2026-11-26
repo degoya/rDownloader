@@ -225,7 +225,7 @@ function rowActions(subscription: Subscription) {
     </template>
     <template #body>
       <div class="flex flex-col gap-5">
-        <UAlert v-if="store.error" color="error" :description="store.error" />
+        <UAlert v-if="store.error" color="error" role="alert" :description="store.error" />
         <UAlert
           v-if="notice"
           :color="notice.tone === 'error' ? 'error' : 'info'"

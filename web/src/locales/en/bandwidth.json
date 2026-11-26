@@ -59,7 +59,7 @@
     "no_budget": "No budget",
     "empty": "No profile yet.",
     "delete_title": "Delete profile",
-    "delete_description": "Delete the profile \"{name}\"? Its schedule windows go with it.",
+    "delete_description": "Delete the profile “{name}”? Its schedule windows go with it.",
     "form_new": "New profile",
     "summary_scopes": "{count} scope limit | {count} scope limits",
     "summary_parallel": "{count} parallel file | {count} parallel files",

@@ -13,20 +13,22 @@
 # stay in the local folder and never reach an archive, as the published archive has never carried
 # them (the managed tool store fetches them). UNVERIFIED.txt is the one local extra, allowed so a
 # package built without a --full green keeps saying so (scripts/package-windows.sh).
+# THIRD-PARTY-NOTICES.txt is the licence texts of what the binaries and plugins contain
+# (RD-1480-12), crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt in the checkout.
 
 rd_archive_entries() {
     case "$1" in
         linux)
-            printf '%s\n' LICENSE README.md VERSION.txt rdownloader rdownloader-capture \
-                start-capture.sh start-rdownloader.sh stop-capture.sh stop-rdownloader.sh
+            printf '%s\n' LICENSE README.md THIRD-PARTY-NOTICES.txt VERSION.txt rdownloader \
+                rdownloader-capture start-capture.sh start-rdownloader.sh stop-capture.sh stop-rdownloader.sh
             ;;
         windows)
-            printf '%s\n' LICENSE README.md VERSION.txt rdownloader.exe rdownloader-capture.exe \
-                start-capture.bat start-rdownloader.bat stop-capture.bat stop-rdownloader.bat
+            printf '%s\n' LICENSE README.md THIRD-PARTY-NOTICES.txt VERSION.txt rdownloader.exe \
+                rdownloader-capture.exe start-capture.bat start-rdownloader.bat stop-capture.bat stop-rdownloader.bat
             ;;
         macos)
-            printf '%s\n' LICENSE README.md VERSION.txt rdownloader rdownloader-capture \
-                start-capture.command start-rdownloader.command stop-capture.command \
+            printf '%s\n' LICENSE README.md THIRD-PARTY-NOTICES.txt VERSION.txt rdownloader \
+                rdownloader-capture start-capture.command start-rdownloader.command stop-capture.command \
                 stop-rdownloader.command "rDownloader Capture.app"
             ;;
         *)

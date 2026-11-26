@@ -4,7 +4,7 @@
 //! (RD-1280-08).
 
 use anyhow::Result;
-use rd_core::PackageId;
+use rd_core::{DownloadId, PackageId};
 use sqlx::{Connection, SqliteConnection};
 
 /// Carries enricher fields from the link candidates onto the queue rows they became
@@ -20,7 +20,7 @@ pub(crate) async fn carry_enrichment(
     connection: &mut SqliteConnection,
     package_id: PackageId,
     package_fields: &[rd_core::EnrichmentField],
-    files: &[(rd_core::DownloadId, Vec<rd_core::EnrichmentField>)],
+    files: &[(DownloadId, Vec<rd_core::EnrichmentField>)],
 ) -> Result<()> {
     let mut transaction = connection.begin().await?;
     sqlx::query("UPDATE packages SET enrichment_json = ? WHERE id = ?")
@@ -58,14 +58,14 @@ pub(crate) fn encode_enrichment(fields: &[rd_core::EnrichmentField]) -> Result<O
 ///
 /// The row is found by source address, the same way the enqueue matches a candidate to the row
 /// it became; the newest one wins, because that is the enqueue this write belongs to. Returns
-/// whether a row was found at all.
+/// that row, `None` when there was none.
 pub(crate) async fn carry_enrichment_for_source(
     connection: &mut SqliteConnection,
     source_url: &str,
     fields: &[rd_core::EnrichmentField],
-) -> Result<bool> {
+) -> Result<Option<DownloadId>> {
     if fields.is_empty() {
-        return Ok(false);
+        return Ok(None);
     }
     let Some((download_id, package_id)) = sqlx::query_as::<_, (String, String)>(
         "SELECT id, package_id FROM downloads WHERE source_url = ? \
@@ -75,7 +75,7 @@ pub(crate) async fn carry_enrichment_for_source(
     .fetch_optional(&mut *connection)
     .await?
     else {
-        return Ok(false);
+        return Ok(None);
     };
     sqlx::query("UPDATE downloads SET enrichment_json = ? WHERE id = ?")
         .bind(encode_enrichment(fields)?)
@@ -95,7 +95,7 @@ pub(crate) async fn carry_enrichment_for_source(
         .bind(&package_id)
         .execute(&mut *connection)
         .await?;
-    Ok(true)
+    Ok(Some(crate::parse_id(&download_id)?))
 }
 
 /// The package header keeps one entry per plugin and name, the one that was there first.

@@ -20,7 +20,10 @@ use hmac::{Hmac, KeyInit as _, Mac};
 use secrecy::ExposeSecret;
 use sha2::Sha256;
 
-use super::{Attempt, IDEMPOTENCY_HEADER, Message, SIGNATURE_HEADER};
+use super::{
+    Attempt, IDEMPOTENCY_HEADER, Message, SIGNATURE_HEADER, TIMED_SIGNATURE_HEADER,
+    TIMESTAMP_HEADER,
+};
 use crate::model::NotificationTarget;
 
 /// How long one call may take, connection and answer together.
@@ -65,8 +68,14 @@ pub(super) async fn send_via(
         .post(url)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
         .header(IDEMPOTENCY_HEADER, &message.idempotency_key);
+    // Of the attempt, not of the event: a retry half an hour later is no replay.
+    let at = rd_core::Timestamp::now().unix_seconds();
+    request = request.header(TIMESTAMP_HEADER, at);
     if let Some(secret) = secret {
-        request = request.header(SIGNATURE_HEADER, sign(secret.expose_secret(), &body));
+        let secret = secret.expose_secret();
+        request = request
+            .header(SIGNATURE_HEADER, sign(secret, &body))
+            .header(TIMED_SIGNATURE_HEADER, sign_timed(secret, at, &body));
     }
     let response = match request.body(body).send().await {
         Ok(response) => response,
@@ -150,6 +159,17 @@ pub(super) fn sign(secret: &str, body: &[u8]) -> String {
         <Hmac<Sha256>>::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key length");
     mac.update(body);
     format!("sha256={}", hex::encode(mac.finalize().into_bytes()))
+}
+
+/// `t=<seconds>,v1=<hex>` over `<seconds>.<body>`: a receiver that checks it and refuses an old
+/// `t` cannot be handed the same call twice (RD-1480-11). The other signature stays as it was.
+pub(super) fn sign_timed(secret: &str, at: i64, body: &[u8]) -> String {
+    let mut mac =
+        <Hmac<Sha256>>::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key length");
+    mac.update(at.to_string().as_bytes());
+    mac.update(b".");
+    mac.update(body);
+    format!("t={at},v1={}", hex::encode(mac.finalize().into_bytes()))
 }
 
 #[cfg(test)]

@@ -3,7 +3,10 @@
     "message": "rDownloader"
   },
   "extDescription": {
-    "message": "Links aus dem Kontextmenü an den rDownloader-LinkGrabber senden."
+    "message": "Links, Downloads und Seitensitzungen aus dem Browser an deinen eigenen rDownloader-Server senden."
+  },
+  "pageLanguage": {
+    "message": "de"
   },
   "menuLink": {
     "message": "Mit rDownloader laden"
@@ -60,10 +63,16 @@
     "message": "Bitte zuerst Server und Token einrichten."
   },
   "sentLinks": {
-    "message": "$1 Link(s) an den LinkGrabber gesendet."
+    "message": "$1 Links an den LinkGrabber gesendet."
+  },
+  "sentLinksOne": {
+    "message": "$1 Link an den LinkGrabber gesendet."
   },
   "pickWaiting": {
-    "message": "Eine Seite listet $1 Release(s); wähle sie im LinkGrabber von rDownloader aus."
+    "message": "Eine Seite listet $1 Releases; wähle sie im LinkGrabber von rDownloader aus."
+  },
+  "pickWaitingOne": {
+    "message": "Eine Seite listet $1 Release; wähle es im LinkGrabber von rDownloader aus."
   },
   "sendFailed": {
     "message": "Senden fehlgeschlagen: $1"
@@ -150,7 +159,7 @@
     "message": "Sitzung dieser Seite an rDownloader senden"
   },
   "sessionShared": {
-    "message": "Sitzung fuer $HOST$ gesendet. Zum Verwenden in rDownloader freigeben.",
+    "message": "Sitzung für $HOST$ gesendet. Zum Verwenden in rDownloader freigeben.",
     "placeholders": {
       "host": {
         "content": "$1"
@@ -158,7 +167,7 @@
     }
   },
   "sessionEmpty": {
-    "message": "Fuer diese Seite wurden keine Cookies gefunden."
+    "message": "Für diese Seite wurden keine Cookies gefunden."
   },
   "sessionFailed": {
     "message": "Das Senden der Sitzung ist fehlgeschlagen: $REASON$",
@@ -472,7 +481,10 @@
     "message": "Auf den Seiten unter „Seiten, die Dateien übergeben“ zeigt eine Seite ihren Click'n'Load-Knopf auch ohne laufenden Desktop-Agent, und ihre Links gehen mit Paketname und Passwort an deinen rDownloader. Läuft der Desktop-Agent, behält er Click'n'Load, und die Erweiterung hält sich heraus."
   },
   "cnlSent": {
-    "message": "Click'n'Load: $1 Link(s) an den LinkGrabber gesendet."
+    "message": "Click'n'Load: $1 Links an den LinkGrabber gesendet."
+  },
+  "cnlSentOne": {
+    "message": "Click'n'Load: $1 Link an den LinkGrabber gesendet."
   },
   "cnlFailed": {
     "message": "Click'n'Load fehlgeschlagen: $1"

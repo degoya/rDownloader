@@ -7,7 +7,8 @@
 //! way: no session, no API token and no other machine may take it, so a forgotten password is
 //! recovered by whoever holds the data directory and by nobody who merely reaches the service.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_api_core::password_reset;
 
 use crate::{ApiError, AppState, audit::AuditContext, dto::MessageResponse};

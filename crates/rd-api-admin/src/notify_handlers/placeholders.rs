@@ -2,7 +2,7 @@
 //! with, and the check a template passes when the rule is saved. Split out of
 //! `notify_handlers.rs` to keep it under the line limit.
 
-use axum::Json;
+use rd_api_core::extract::Json;
 use rd_notify::{NotificationEvent, Placeholder, TemplateError, TemplatePart};
 use serde::Serialize;
 use utoipa::ToSchema;

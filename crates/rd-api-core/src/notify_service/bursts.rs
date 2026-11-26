@@ -60,9 +60,10 @@ impl NotificationService {
                     name: payload
                         .get("source")
                         .and_then(serde_json::Value::as_str)
-                        .map(|source| source_label(source).to_owned()),
+                        .map(str::to_owned),
                     occurred_at: event.occurred_at,
                     package_id: None,
+                    download_id: None,
                 }
             }
             _ => {
@@ -89,6 +90,7 @@ impl NotificationService {
                     name: Some(file.file_name),
                     occurred_at: event.occurred_at,
                     package_id: Some(file.package_id),
+                    download_id: Some(id),
                 }
             }
         };
@@ -131,7 +133,10 @@ impl NotificationService {
                     burst.category_id,
                     &burst.first_event_id,
                     (&title, &body),
-                    None,
+                    super::events::About {
+                        package_path: None,
+                        subject: burst.subject(),
+                    },
                     values.as_ref(),
                 )
                 .await
@@ -143,58 +148,35 @@ impl NotificationService {
 }
 
 /// The title and the body of a closed burst.
-pub(super) fn burst_text(burst: &rd_notify::Burst) -> (String, String) {
-    let named = burst.names_text();
+pub(super) fn burst_text(burst: &rd_notify::Burst) -> (Text, Text) {
+    let names = burst.names();
     match burst.event {
         NotificationEvent::LinksAdded => {
-            let links = counted(burst.items, "link", "links");
             let title = if burst.occurrences == 1 {
-                format!("{links} added")
+                Text::counted("links_added.title", burst.items)
             } else {
-                format!(
-                    "{links} added in {}",
-                    counted(burst.occurrences, "import", "imports")
-                )
+                Text::counted("links_added.title_imports", burst.items)
+                    .with("imports", burst.occurrences)
             };
-            let body = if named.is_empty() {
-                format!("{links} arrived in the LinkGrabber.")
+            let body = if burst.names.is_empty() {
+                Text::counted("links_added.body", burst.items)
             } else {
-                format!("{links} arrived in the LinkGrabber from: {named}.")
+                Text::counted("links_added.body_from", burst.items).with("names", names)
             };
             (title, body)
         }
         _ => {
             let title = match burst.names.as_slice() {
-                [only] if burst.items == 1 => format!("Download started: {only}"),
-                _ => format!("{} started", counted(burst.items, "download", "downloads")),
+                [only] if burst.items == 1 => {
+                    Text::new("download_started.title").with("name", only.as_str())
+                }
+                _ => Text::counted("download_started.title_count", burst.items),
             };
-            (title, format!("Started: {named}."))
+            (
+                title,
+                Text::new("download_started.body").with("names", names),
+            )
         }
-    }
-}
-
-/// `1 link`, `5 links`.
-fn counted(count: u64, one: &str, many: &str) -> String {
-    if count == 1 {
-        format!("1 {one}")
-    } else {
-        format!("{count} {many}")
-    }
-}
-
-/// Where an intake came from, as the text says it (`rd_core::IngressSource`'s wire names).
-pub(super) fn source_label(source: &str) -> &str {
-    match source {
-        "manual" => "added by hand",
-        "clipboard" => "clipboard",
-        "click_and_load" => "Click'n'Load",
-        "api" => "API",
-        "nzb" => "NZB file",
-        "hot_folder" => "hot folder",
-        "browser_extension" => "browser extension",
-        "browser_download" => "browser download",
-        "subscription" => "subscription",
-        other => other,
     }
 }
 

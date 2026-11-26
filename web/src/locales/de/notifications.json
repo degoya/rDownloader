@@ -84,7 +84,7 @@
     "form_new": "Neues Ziel",
     "secret_copy": "Nicht mitkopiert – bitte neu eintragen; bis dahin hat die Kopie keins.",
     "setting_unset": "Nicht gesetzt",
-    "web_push_description": "Sendet an jeden Browser, der unter Einstellungen › Oberfläche „Push auf diesem Gerät“ eingeschaltet hat. Adresse und Geheimnis braucht es nicht; der erste Browser legt dieses Ziel selbst an."
+    "web_push_description": "Sendet an jeden Browser, der unter Einstellungen → Oberfläche „Push auf diesem Gerät“ eingeschaltet hat. Adresse und Geheimnis braucht es nicht; der erste Browser legt dieses Ziel selbst an."
   },
   "smtp": {
     "from": "Absender",
@@ -129,7 +129,7 @@
     "target_removed": "gelöschtes Ziel"
   },
   "desktop": {
-    "quiet_summary_title": "Während der Ruhezeit: {count} Benachrichtigungen",
+    "quiet_summary_title": "Während der Ruhezeit: {count} Benachrichtigung | Während der Ruhezeit: {count} Benachrichtigungen",
     "quiet_summary_more": "und {count} weitere"
   },
   "template": {
@@ -160,7 +160,7 @@
     "size": "Größe, z. B. 1.4 GiB",
     "path": "Ordner auf dem Datenträger",
     "error": "Was schiefging",
-    "storage_target": "Speicherort oder Sicherungsziel",
+    "storage_target": "Speicherort oder Backup-Ziel",
     "version": "Version",
     "plugin": "Name des Plugins",
     "account": "Bezeichnung und Anbieter des Kontos, nie der Benutzername",
@@ -172,5 +172,11 @@
     "count": "Wie oft das Ereignis im Bündel vorkam: Importe oder Starts",
     "items": "Links bzw. Downloads im Bündel insgesamt",
     "names": "Die ersten Namen im Bündel: gestartete Dateien, der Rest als „and N more“, oder die Quellen der Links"
+  },
+  "language": {
+    "eyebrow": "Wortlaut",
+    "title": "Sprache der Benachrichtigungen",
+    "description": "In dieser Sprache schreibt rDownloader seine eigenen Texte für Push, E-Mail, Telegram und Webhook. Was du in einer Regel selbst formulierst, bleibt, wie du es geschrieben hast.",
+    "label": "Sprache"
   }
 }

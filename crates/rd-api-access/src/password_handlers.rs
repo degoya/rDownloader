@@ -23,11 +23,11 @@
 //!   immediately replaced, so the change does not sign you out of the screen you made it on.
 
 use axum::{
-    Json,
     extract::State,
     http::{HeaderMap, HeaderValue, header},
     response::{IntoResponse, Response},
 };
+use rd_api_core::extract::Json;
 
 use crate::{ApiError, AppState, dto::MessageResponse, dto::PasswordChangeRequest};
 

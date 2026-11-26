@@ -24,10 +24,10 @@
     "shown": "{shown} von {total} Einträgen",
     "full_page": "Das ist eine volle Seite: dahinter liegen ältere Einträge.",
     "older": "Ältere laden",
-    "dropped": "{count} Einträge wurden verworfen, weil der Speicher nicht nachkam.",
+    "dropped": "{count} Eintrag wurde verworfen, weil der Speicher nicht nachkam. | {count} Einträge wurden verworfen, weil der Speicher nicht nachkam.",
     "expand": "Felder anzeigen",
     "collapse": "Felder ausblenden",
-    "retention": "Aufbewahrt für {days} Tage oder {records} Einträge, je nachdem, was zuerst erreicht ist."
+    "retention": "Aufbewahrt für {days} Tag oder {records} Einträge, je nachdem, was zuerst erreicht ist. | Aufbewahrt für {days} Tage oder {records} Einträge, je nachdem, was zuerst erreicht ist."
   },
   "bundle": {
     "title": "Diagnosepaket",
@@ -37,7 +37,7 @@
     "create": "Paket erzeugen",
     "directory": "Abgelegt unter {directory}",
     "entries": "Inhalt",
-    "items": "{count} Einträge",
+    "items": "{count} Eintrag | {count} Einträge",
     "redactions": "Bereinigungen",
     "excluded": "Nie enthalten",
     "created": "Paket geschrieben: {file}",
@@ -104,7 +104,7 @@
     "plugin_label": "Plugin",
     "plugin_all": "Alle Plugins",
     "minutes_label": "Dauer",
-    "minutes_option": "{count} Minuten",
+    "minutes_option": "{count} Minute | {count} Minuten",
     "start": "Debug starten",
     "active": "{area} steht bis {until} auf Debug.",
     "stop": "Jetzt beenden",

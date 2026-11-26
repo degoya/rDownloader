@@ -63,7 +63,7 @@ function clickCaptcha(): PendingCaptcha {
   return {
     id: 'captcha-3',
     kind: 'click_point',
-    host: 'filecrypt.cc',
+    host: 'container.example',
     prompt: 'Click the circle',
     image: 'data:image/png;base64,Qk0=',
     created_at: '2026-09-02T10:00:00Z',

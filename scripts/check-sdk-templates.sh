@@ -8,6 +8,8 @@
 #     `wit_bindgen::generate!`, which is what the component is made of since RD-1110-08),
 #   - manifest.toml with a `plugin_type`,
 #   - wit/rdownloader.wit, byte for byte the contract,
+#   - LICENSE, byte for byte sdk/LICENSE (MIT, as is the contract: RD-1480-13), and the same licence
+#     in Cargo.toml and manifest.toml,
 #   - README.md, pointing its reader at the handbook,
 #   - CHANGES.md, the release notes the plugin index shows per version (RD-1140-03),
 #   - at least one `#[test]` under src/, so `cargo test` in a fresh scaffold proves something.
@@ -89,6 +91,11 @@ while read -r world; do
 done < <(sed -n 's/^world \([a-z0-9-]*\)-plugin {$/\1/p' "$WIT")
 [[ "${#worlds[@]}" -gt 0 ]] || { echo "!! no world found in $WIT" >&2; exit 1; }
 
+# The licence the contract is under lies beside it, not in it: a comment there would change every
+# component built from it.
+cmp -s "$ROOT/sdk/LICENSE" "$(dirname "$WIT")/LICENSE" \
+    || finding "crates/rd-plugin-api/wit/LICENSE is not sdk/LICENSE"
+
 for world in "${worlds[@]}"; do
     dir="$TEMPLATES/$world"
     if [[ ! -d "$dir" ]]; then
@@ -101,6 +108,12 @@ for world in "${worlds[@]}"; do
         || finding "sdk/templates/${world}/manifest.toml declares no plugin_type"
     cmp -s "$WIT" "$dir/wit/rdownloader.wit" \
         || finding "sdk/templates/${world}/wit/rdownloader.wit is not the current contract"
+    cmp -s "$ROOT/sdk/LICENSE" "$dir/LICENSE" \
+        || finding "sdk/templates/${world}/LICENSE is not sdk/LICENSE"
+    for file in Cargo.toml manifest.toml; do
+        grep -qx 'license = "MIT"' "$dir/$file" 2> /dev/null \
+            || finding "sdk/templates/${world}/$file does not say license = \"MIT\""
+    done
     [[ -f "$dir/README.md" ]] || finding "sdk/templates/${world} has no README.md"
     [[ -f "$dir/CHANGES.md" ]] || finding "sdk/templates/${world} has no CHANGES.md"
     grep -rqF '#[test]' "$dir/src" 2> /dev/null \

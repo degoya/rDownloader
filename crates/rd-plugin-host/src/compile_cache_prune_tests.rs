@@ -50,10 +50,29 @@ fn each_entry_is_recorded_with_the_component_that_wrote_it() {
     );
 }
 
+/// Waits until Wasmtime's cache worker wrote every entry's statistics.
+///
+/// It does so in the background, and the file counts towards the entry's bytes: a preview taken
+/// before it and a pass after it named different sizes (GitHub's Windows runner, 2026-11-25).
+fn wait_for_statistics(root: &Path) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while entry_paths(root)
+        .iter()
+        .any(|entry| !super::stats_path(entry).exists())
+    {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "an entry without statistics"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
 #[test]
 fn an_entry_no_installed_component_owns_goes_and_compiles_again_if_needed() {
     let root = tempfile::tempdir().expect("tempdir");
     let shared = two_compiled(root.path());
+    wait_for_statistics(root.path());
     let disk = shared.disk().expect("a disk cache");
     let only_first = installed(&[&EMPTY_COMPONENT]);
 

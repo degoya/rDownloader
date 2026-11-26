@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """The breaking-change detector behind scripts/compat-check.sh (RD-170-08).
 
-Compares two versions of the public contracts — the REST API (`web/openapi.json`) and the plugin
-contract (`crates/rd-plugin-api/wit/rdownloader.wit`) — and prints one line per break. A break
+Compares two versions of the public contracts — the REST API (`web/openapi.json`), the plugin
+contract (`crates/rd-plugin-api/wit/rdownloader.wit`) and the names clients hold on to
+(compat_names.py: error codes, event names, webhook fields and headers, MCP tools; RD-1480-10) —
+and prints one line per break. A break
 passes when scripts/compat-breaks.toml acknowledges it for a release after the base, or, for the
 WIT, when the package version moved far enough (a major bump; before 1.0, a minor one).
 
@@ -13,6 +15,7 @@ a new function on an interface a world exports, a new export of an existing worl
 
   compat-check.py --base-version 1.5.2 [--acks FILE]
                   [--old-openapi A --new-openapi B] [--old-wit C --new-wit D]
+                  [--old-tree E --new-tree F]
 
 Exit 0 when every break is acknowledged, 1 when one is not, 2 on unusable input.
 """
@@ -22,8 +25,9 @@ import json
 import sys
 import tomllib
 
-# The two modules beside this one would otherwise leave a __pycache__ in the checkout.
+# The modules beside this one would otherwise leave a __pycache__ in the checkout.
 sys.dont_write_bytecode = True
+from compat_names import Unreadable, compare_names  # noqa: E402
 from compat_rest import Rest  # noqa: E402
 from compat_wit import WitParser, compare_wit, version_tuple, wit_bump_covers  # noqa: E402
 
@@ -80,7 +84,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("--base-version", required=True)
     parser.add_argument("--acks")
-    for name in ("old-openapi", "new-openapi", "old-wit", "new-wit"):
+    for name in ("old-openapi", "new-openapi", "old-wit", "new-wit", "old-tree", "new-tree"):
         parser.add_argument(f"--{name}")
     args = parser.parse_args()
 
@@ -100,6 +104,15 @@ def main():
             if old.version != new.version:
                 print(f"wit: @{old.version} -> @{new.version} is not a major bump "
                       "(before 1.0: a minor one); it versions nothing")
+
+    if args.old_tree and args.new_tree:
+        try:
+            names, notes = compare_names(args.old_tree, args.new_tree)
+        except Unreadable as error:
+            print(f"compat-check: {error}", file=sys.stderr)
+            return 2
+        findings += names
+        print("".join(f"{note}\n" for note in notes), end="")
 
     acks = load_acks(args.acks, args.base_version)
     unacknowledged = 0

@@ -1,10 +1,7 @@
 //! The links inside the LinkGrabber packages: moving, ordering, checking and renaming them.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path};
 use rd_api_core::list_bounds::validate_bulk;
 use rd_core::{CandidateId, CollectorPackage, LinkCandidateState};
 use rd_db::{MoveTarget, StoreErrorKind};

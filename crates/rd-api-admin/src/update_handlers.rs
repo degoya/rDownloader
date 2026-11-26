@@ -9,7 +9,8 @@
 //! the offered update ahead of its install is `Admin` and not audited for the same reason: it
 //! only puts the verified file where the install, which is audited, takes it from.
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::Json;
 
 use crate::audit::AuditContext;
 use crate::dto::{

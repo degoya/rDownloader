@@ -41,7 +41,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/site-rules/{id}",
-            put(site_rules_handlers::update_site_rule)
+            get(rd_api_intake::single_reads::get_site_rule)
+                .put(site_rules_handlers::update_site_rule)
                 .delete(site_rules_handlers::delete_site_rule),
         )
         .route(
@@ -92,5 +93,6 @@ pub(crate) fn routes() -> Router<AppState> {
     site_rule_picks::delete_collector_pick,
     site_rule_picks::resolve_collector_pick,
     site_rule_picks::cancel_collector_pick,
+    rd_api_intake::single_reads::get_site_rule,
 ))]
 pub(crate) struct Doc;

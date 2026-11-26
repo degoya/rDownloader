@@ -167,7 +167,11 @@ impl Writer {
                 file_name,
                 reply,
             } => {
-                send(reply, self.set_file_name(id, &file_name).await);
+                let result = self.set_file_name(id, &file_name).await;
+                if result.is_ok() {
+                    self.broadcast_row_changed(id, "renamed");
+                }
+                send(reply, result);
             }
             DownloadsCommand::SetTransformKeyRef {
                 id,

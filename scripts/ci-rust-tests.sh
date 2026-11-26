@@ -87,7 +87,12 @@ if [[ "${RUNNER_OS:-}" == Windows ]]; then
 fi
 run_group --workspace --exclude rd-api --exclude rd-plugin-ext --exclude rdownloader
 run_group -p rd-plugin-ext
-run_group -p rdownloader
+# With the ignored test that has zsh parse the completion script (RD-1480-14); the other ignored
+# ones, kill_restart's, are recovery.yml's.
+if [[ "${RUNNER_OS:-}" == Linux && ${#no_run[@]} -eq 0 ]] && ! command -v zsh > /dev/null; then
+    { sudo apt-get update && sudo apt-get install --yes --no-install-recommends zsh; } > /dev/null || failed=1
+fi
+run_group -p rdownloader --run-ignored all -E 'not binary(kill_restart)'
 run_group -p rd-api --lib
 # The rd-api integration binaries, one per crates/rd-api/tests/<subject>/main.rs, in one group:
 # six of them keep ~3.5 GB of executables at once.

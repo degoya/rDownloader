@@ -55,9 +55,9 @@ test('a page waiting for a choice is a success, with the number of releases (RD-
   const waiting = async () => ({
     ok: false,
     status: 400,
-    json: async () => ({ error: 'listed', code: 'site_rules.pick_waiting', params: { entries: '30', list: '19a-0', rule: 'serienjunkies.org' } })
+    json: async () => ({ error: 'listed', code: 'site_rules.pick_waiting', params: { entries: '30', list: '19a-0', rule: 'series.example' } })
   })
-  const result = await submitLinks({ server: '', token: 'abc' }, { text: 'https://serienjunkies.org/serie/show/' }, waiting)
+  const result = await submitLinks({ server: '', token: 'abc' }, { text: 'https://series.example/serie/show/' }, waiting)
   assert.deepEqual(result, { ok: true, status: 400, code: PICK_WAITING, message: null, links: 0, entries: 30 })
 })
 

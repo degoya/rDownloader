@@ -4,10 +4,8 @@
 //! Every tool builds the REST body and hands it to the REST handler, so validation and the
 //! stable error codes are the ones the web UI gets.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath, Query};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

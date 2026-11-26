@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 #
-# The breaking-change gate of the two public contracts (RD-170-08): the REST API as
-# web/openapi.json describes it, and the plugin contract rdownloader:plugin@X.Y.Z in
-# crates/rd-plugin-api/wit/rdownloader.wit, each compared between a base release and the working
-# tree. The rules are in scripts/lib/compat-check.py; the policy is docs/plugins.md#compatibility
-# and the wiki's API reference.
+# The breaking-change gate of the public contracts (RD-170-08): the REST API as
+# web/openapi.json describes it, the plugin contract rdownloader:plugin@X.Y.Z in
+# crates/rd-plugin-api/wit/rdownloader.wit, and the names clients hold on to — error codes, event
+# names, webhook fields and headers, MCP tools (scripts/lib/compat_names.py, RD-1480-10) — each
+# compared between a base release and the working tree. The rules are in
+# scripts/lib/compat-check.py; the policy is docs/plugins.md#compatibility and the wiki's API
+# reference.
 #
 # One line per break, with its location. A break passes when scripts/compat-breaks.toml lists
 # it for a release after the base, with a reason — or, for the WIT, when the package version
@@ -84,5 +86,13 @@ if git show "$BASE:$WIT" > "$SCRATCH/old.wit" 2>/dev/null; then
 else
     echo "note: $BASE has no $WIT; the plugin contract is not compared"
 fi
+# The sources the named contracts are read from, those of them the base has.
+mkdir "$SCRATCH/names"
+while IFS= read -r path; do
+    git cat-file -e "$BASE:$path" 2>/dev/null || continue
+    mkdir -p "$SCRATCH/names/$(dirname "$path")"
+    git show "$BASE:$path" > "$SCRATCH/names/$path"
+done < <(PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/lib/compat_names.py")
+args+=(--old-tree "$SCRATCH/names" --new-tree "$ROOT")
 
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/lib/compat-check.py" "${args[@]}"

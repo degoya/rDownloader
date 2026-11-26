@@ -1,15 +1,78 @@
 //! A direct download request: validated and queued as a package of its own.
 
+use rd_api_core::idempotency::IdempotencyKey;
+use tracing::Instrument;
+
 use super::*;
 use crate::torrent_intake::TorrentName;
 
-#[utoipa::path(post, path = "/api/v1/downloads", tag = "downloads", request_body = CreateDownloadRequest, responses((status = 201, body = rd_core::DownloadFile)))]
+#[utoipa::path(
+    post,
+    path = "/api/v1/downloads",
+    tag = "downloads",
+    params(
+        (
+            "Idempotency-Key" = Option<String>,
+            Header,
+            description = "1 to 128 visible ASCII characters the client chooses, e.g. a UUID. A repeat with the same key and the same body is answered the download the first request created, in its state by then, instead of creating another one. Kept per credential for an hour and not across a restart; the same key with another body is refused as `request.idempotency_key_reused`"
+        )
+    ),
+    request_body = CreateDownloadRequest,
+    responses(
+        (status = 201, body = rd_core::DownloadFile),
+        (status = 400),
+        (status = 404, description = "The download this `Idempotency-Key` created was removed since"),
+        (status = 422, description = "The `Idempotency-Key` was used for a different request")
+    )
+)]
 pub async fn create_download(
     State(state): State<AppState>,
+    audit: crate::audit::AuditContext,
+    headers: HeaderMap,
     Json(request): Json<CreateDownloadRequest>,
 ) -> Result<(StatusCode, Json<rd_core::DownloadFile>), ApiError> {
-    let file = create_download_as(&state, request, None).await?;
+    let key = IdempotencyKey::from_headers(&audit.actor, &headers)?;
+    let file = create_download_once(&state, key, request, None).await?;
     Ok((StatusCode::CREATED, Json(file)))
+}
+
+/// [`create_download_as`], once per `key` (RD-1480-10): a repeat of the request is answered the
+/// download the first one created, and one that arrives while the first still runs waits for it.
+///
+/// With a key the work runs in a task of its own. A client that gives up and repeats the request
+/// is the case the key exists for, and giving up drops the handler: without the task the download
+/// could be written and its id never recorded, and the repeat would write a second one.
+pub async fn create_download_once(
+    state: &AppState,
+    key: Option<IdempotencyKey>,
+    request: CreateDownloadRequest,
+    address_reach: Option<bool>,
+) -> Result<rd_core::DownloadFile, ApiError> {
+    let Some(key) = key else {
+        return create_download_as(state, request, address_reach).await;
+    };
+    let content = serde_json::to_vec(&(&request, address_reach)).map_err(anyhow::Error::new)?;
+    let outcome = state
+        .queue
+        .idempotency
+        .claim(key, &rd_api_core::input_checks::sha256_hex(content))?;
+    let state = state.clone();
+    let work = async move {
+        let mut created = outcome.lock_owned().await;
+        if let Some(id) = *created {
+            return state
+                .database
+                .get_download(id)
+                .await?
+                .ok_or_else(crate::error_codes::download_not_found);
+        }
+        let file = create_download_as(&state, request, address_reach).await?;
+        *created = Some(file.id);
+        Ok::<_, ApiError>(file)
+    };
+    tokio::spawn(work.in_current_span())
+        .await
+        .map_err(anyhow::Error::new)?
 }
 
 pub async fn create_download_inner(
@@ -25,7 +88,7 @@ pub async fn create_download_inner(
 /// address on this machine or in the person's network is refused here with
 /// `mirror.internal_address`, and every other one is written with its address as its one source
 /// row, so the transfer refuses a name that resolves there too. The REST handler and the MCP tool
-/// both call this, which `mcp_handler_tests` holds.
+/// both reach this through [`create_download_once`], which `mcp_handler_tests` holds.
 pub async fn create_download_as(
     state: &AppState,
     request: CreateDownloadRequest,

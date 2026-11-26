@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n'
 
 import type { PostprocessQueueEntry } from '@/api/types'
-import { postprocessStageLabel } from '@/utils/format'
+import { formatPercent, postprocessStageLabel } from '@/utils/format'
 import { fileName } from '@/utils/values'
 
 const props = defineProps<{ entries: PostprocessQueueEntry[] }>()
@@ -27,8 +27,8 @@ const { t } = useI18n()
           <UBadge v-else-if="entry.stage" color="primary" variant="subtle" size="sm">{{ postprocessStageLabel(entry.stage) }}</UBadge>
           <UBadge v-if="entry.state === 'failed'" color="error" variant="subtle" size="sm">{{ t('downloads.postprocess.states.failed') }}</UBadge>
         </div>
-        <UProgress :model-value="entry.pending ? null : entry.percent ?? null" size="xs" :color="entry.state === 'failed' ? 'error' : 'primary'" class="w-full" />
-        <span class="numeric w-10 text-right text-2xs text-toned">{{ entry.percent !== null && entry.percent !== undefined && !entry.pending ? `${entry.percent} %` : '—' }}</span>
+        <UProgress :model-value="entry.pending ? null : entry.percent ?? null" :get-value-label="() => t('common.a11y.progress_of', { name: entry.name })" size="xs" :color="entry.state === 'failed' ? 'error' : 'primary'" class="w-full" />
+        <span class="numeric w-10 text-right text-2xs text-toned">{{ entry.percent !== null && entry.percent !== undefined && !entry.pending ? formatPercent(entry.percent) : '—' }}</span>
       </li>
     </ul>
   </UCard>

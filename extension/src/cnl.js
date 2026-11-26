@@ -12,8 +12,15 @@ import { PICK_WAITING } from './api.js'
 /** The two addresses a page reaches the agent at, and the only hosts this feature needs. */
 export const CNL_ORIGINS = ['http://127.0.0.1:9666', 'http://localhost:9666']
 
-/** The same as webRequest match patterns. */
-export const CNL_URL_PATTERNS = CNL_ORIGINS.map((origin) => `${origin}/*`)
+/**
+ * The same as webRequest match patterns. Firefox reads no port in one — a pattern with a port
+ * matches nothing there (Mozilla bugs 1362809, 1468162; RD-1480-01) — so its filter names the two
+ * hosts and the agent's paths, and `cnlRoute` is what holds the port.
+ */
+export function cnlUrlPatterns({ ports = true } = {}) {
+  if (ports) return CNL_ORIGINS.map((origin) => `${origin}/*`)
+  return CNL_ORIGINS.flatMap((origin) => ['/jdcheck.js*', '/flash*'].map((path) => `http://${new URL(origin).hostname}${path}`))
+}
 
 /** What the page is answered with, as the agent answers it: the extension's own resources. */
 export const RESOURCES = {

@@ -6,7 +6,8 @@
 //! Editing profiles and the weekly schedule stays out (`mcp_coverage`); these tools only pick
 //! one of the profiles a person made, listed by list_bandwidth_profiles.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
 use serde::Deserialize;
 

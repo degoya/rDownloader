@@ -22,7 +22,7 @@ import { useTorrentsStore } from '@/stores/torrents'
 import { STOP_MARK_DONE_STATES, useStopMark } from '@/composables/useStopMark'
 import { RESETTABLE_STATES } from '@/stores/transfers'
 import { translateServerMessage } from '@/i18n/server'
-import { formatByteProgress, formatDuration, formatPauseEnd, formatRate, progressOf, stateColor, stateLabel } from '@/utils/format'
+import { formatByteProgress, formatDuration, formatPauseEnd, formatPercent, formatRate, formatRatio, progressOf, stateColor, stateLabel } from '@/utils/format'
 import { sourcePageUrl } from '@/utils/sourcePage'
 
 /** `connections`: the NNTP connections working for a running Usenet file (RD-1270-21). */
@@ -280,8 +280,8 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
         <span class="queue-cell-state min-w-0"><UBadge :color="stateColor(resolvingNow ? 'resolving' : props.download.state)" variant="subtle" size="sm" class="max-w-full truncate" :data-resolving-now="resolvingNow || undefined">{{ resolvingNow ? t('downloads.reresolve.resolving') : stateLabel(props.download.state, props.download) }}</UBadge></span>
         <!-- A full bar already says 100%; the number beside it is the same statement twice. -->
         <div class="queue-cell-progress items-center gap-1.5">
-          <UProgress :model-value="progressOf(props.download)" size="2xs" class="flex-1" />
-          <span v-if="progressOf(props.download) < 100" class="numeric w-8 text-right text-2xs text-toned">{{ progressOf(props.download).toFixed(0) }}%</span>
+          <UProgress :model-value="progressOf(props.download)" :get-value-label="() => t('common.a11y.progress_of', { name: props.download.file_name })" size="2xs" class="flex-1" />
+          <span v-if="progressOf(props.download) < 100" class="numeric w-8 text-right text-2xs text-toned">{{ formatPercent(progressOf(props.download)) }}</span>
         </div>
         <span class="queue-cell-size min-w-0 text-right">
           <span class="numeric block truncate text-xs text-muted">{{ sizeLabel }}</span>
@@ -311,8 +311,8 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
     </p>
     <div v-if="expanded" class="grid gap-1 border-t border-muted px-11 py-2 text-xs text-muted">
       <div class="flex items-center gap-2 md:hidden">
-        <UProgress :model-value="progressOf(props.download)" size="xs" class="flex-1" />
-        <span class="numeric w-9 text-right text-2xs text-toned">{{ progressOf(props.download).toFixed(0) }}%</span>
+        <UProgress :model-value="progressOf(props.download)" :get-value-label="() => t('common.a11y.progress_of', { name: props.download.file_name })" size="xs" class="flex-1" />
+        <span class="numeric w-9 text-right text-2xs text-toned">{{ formatPercent(progressOf(props.download)) }}</span>
       </div>
       <p class="min-w-0 truncate font-mono" :title="props.download.source">{{ props.download.source }}</p>
       <TransferSourceList v-if="sources" :sources="sources" />
@@ -329,7 +329,7 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
           @update:model-value="openTab"
         />
         <p v-if="torrentStats" class="flex flex-wrap items-center gap-3 text-xs text-muted">
-          <span>{{ t('torrent.stats.ratio') }} <span class="numeric text-toned">{{ torrentStats.ratio.toFixed(2) }}</span></span>
+          <span>{{ t('torrent.stats.ratio') }} <span class="numeric text-toned">{{ formatRatio(torrentStats.ratio) }}</span></span>
           <span>{{ t('torrent.stats.uploaded') }} <span class="numeric text-toned">{{ formatByteProgress(torrentStats.uploaded_bytes, null) }}</span></span>
           <span>{{ t('torrent.stats.peers') }} <span class="numeric text-toned">{{ torrentStats.peer_count }}</span></span>
           <span v-if="!torrentStats.live" class="text-warning">{{ t('torrent.stats.offline') }}</span>

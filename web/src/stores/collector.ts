@@ -10,6 +10,7 @@ import type { CollectorPackage, LinkCandidate } from '@/api/types'
 import { useNzbImportsStore } from '@/stores/nzbImports'
 import { type PickListing, useSitePicksStore } from '@/stores/sitePicks'
 import { batchError, inBatches } from '@/utils/bulkBatches'
+import { isUsenetTransfer, payloadOf } from '@/utils/eventPayload'
 
 import { useCandidateActions } from './collectorCandidates'
 import { useDeleteActions } from './collectorDeletes'
@@ -308,14 +309,19 @@ export const useCollectorStore = defineStore('collector', () => {
     if (listing?.list) void useSitePicksStore().announced(listing)
   }
 
+  /** Imports and their jobs are listed here; a running transfer's checkpoints change none of them. */
+  function usenetChanged(event: MessageEvent<string>): void {
+    if (!isUsenetTransfer(payloadOf(event))) events.schedule()
+  }
+
   const events = debouncedEventRefresh(
-    ['usenet.changed', 'category.changed'],
+    ['category.changed'],
     refresh,
     {
       busy: () => refreshing,
       // Links arriving from anywhere (web UI, extension, hotfolder, subscriptions) announce
       // themselves here; the desktop toast is raised from the same envelope.
-      handlers: { 'collector.intake': announceIntake, 'collector.changed': collectorChanged }
+      handlers: { 'collector.intake': announceIntake, 'collector.changed': collectorChanged, 'usenet.changed': usenetChanged }
     }
   )
 

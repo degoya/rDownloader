@@ -55,7 +55,7 @@ function verdictTitle(url: string): string {
       </div>
       <p class="mt-2 text-xs text-muted">
         {{ props.result.package_name
-          ? `${t('siterules.test.package')}: ${props.result.package_name}`
+          ? t('common.text.labelled', { label: t('siterules.test.package'), value: props.result.package_name })
           : t('siterules.test.package_none') }}
       </p>
       <template v-if="entries.length">

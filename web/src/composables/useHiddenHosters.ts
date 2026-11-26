@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 
 import type { LinkCandidate } from '@/api/types'
 import { useCollectorStore } from '@/stores/collector'
+import { compareText } from '@/utils/collation'
 import { hosterOf } from '@/utils/collectorSort'
 import { hideHosters, mirrorRows } from '@/utils/mirrorGroups'
 
@@ -38,7 +39,7 @@ export function useHiddenHosters() {
     }
     return [...counts]
       .map(([hoster, count]) => ({ hoster, count, hidden: hidden.value.has(hoster.toLowerCase()) }))
-      .sort((a, b) => a.hoster.localeCompare(b.hoster))
+      .sort((a, b) => compareText(a.hoster, b.hoster))
   })
 
   /** The links the hidden hosters take off the screen, over the whole list. */

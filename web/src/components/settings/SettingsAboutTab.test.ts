@@ -37,21 +37,26 @@ function aboutAnswer(overrides: Record<string, unknown> = {}) {
       { kind: 'changelog', url: `${REPOSITORY}/blob/main/CHANGELOG.md`, published: true }
     ],
     bundled_tools: [
-      { name: 'Streamlink', license: 'BSD-2-Clause', file: 'vendor/licenses/Streamlink-LICENSE.txt', homepage: 'https://streamlink.github.io' }
+      { name: 'Streamlink', license: 'BSD-2-Clause', file: '', homepage: 'https://streamlink.github.io' }
     ],
+    tools_shipped: false,
     ...overrides
   }
 }
 
+const crate = (name: string, version: string, license: string) =>
+  ({ name, version, license, source: `https://crates.io/crates/${name}/${version}` })
+
 const LICENSES = {
   rust: [
-    { name: 'axum', version: '0.8.4', license: 'MIT' },
-    { name: 'ring', version: '0.17.14', license: 'Apache-2.0 AND ISC' },
-    { name: 'serde', version: '1.0.219', license: 'MIT OR Apache-2.0' },
-    { name: 'tokio', version: '1.47.0', license: 'MIT' }
+    crate('axum', '0.8.4', 'MIT'),
+    crate('ring', '0.17.14', 'Apache-2.0 AND ISC'),
+    crate('serde', '1.0.219', 'MIT OR Apache-2.0'),
+    crate('tokio', '1.47.0', 'MIT')
   ],
   rust_not_shipped: ['tempfile@3.20.0'],
-  npm: [{ name: 'vue', version: '3.5.42', license: 'MIT' }]
+  npm: [{ name: 'vue', version: '3.5.42', license: 'MIT', source: 'https://www.npmjs.com/package/vue/v/3.5.42' }],
+  other: [{ name: 'Rust standard library and runtime', version: '1.100.0', license: 'MIT OR Apache-2.0', source: 'https://github.com/rust-lang/rust/tree/1.100.0' }]
 }
 
 function answer(about: unknown) {
@@ -106,7 +111,8 @@ describe('SettingsAboutTab', () => {
     expect(container.querySelector('[data-testid="about-links"]')?.textContent).not.toContain('settings.about')
   })
 
-  it('names the bundled tools with the file their license text is in', async () => {
+  // RD-1480-12: no package ships the helper programs, only the container image does.
+  it('lists the helper programs as used, not as shipped, outside the container image', async () => {
     answer(aboutAnswer())
     const { container } = mount()
 
@@ -114,7 +120,41 @@ describe('SettingsAboutTab', () => {
     const row = container.querySelector('[data-testid="about-tools"] tbody tr')
     expect(row?.textContent).toContain('Streamlink')
     expect(row?.textContent).toContain('BSD-2-Clause')
-    expect(row?.textContent).toContain('vendor/licenses/Streamlink-LICENSE.txt')
+    expect(container.querySelectorAll('[data-testid="about-tools"] thead th')).toHaveLength(2)
+    const card = container.querySelector('[data-testid="about-licenses"]')
+    expect(card?.textContent).toContain(en.about.licenses.tools_hint_used)
+    expect(card?.textContent).not.toContain(en.about.licenses.tools_hint_shipped)
+  })
+
+  it('names where the image keeps the license text of a program it contains', async () => {
+    const file = '/usr/share/doc/rdownloader/python/streamlink/'
+    answer(aboutAnswer({
+      tools_shipped: true,
+      bundled_tools: [{ name: 'Streamlink', license: 'BSD-2-Clause', file, homepage: 'https://streamlink.github.io' }]
+    }))
+    const { container } = mount()
+
+    await waitFor(() => expect(container.querySelector('[data-testid="about-tools"] tbody tr')?.textContent).toContain(file))
+    expect(container.querySelector('[data-testid="about-licenses"]')?.textContent).toContain(en.about.licenses.tools_hint_shipped)
+  })
+
+  it('offers the license texts in full, and the source of every component', async () => {
+    answer(aboutAnswer())
+    const { container } = mount()
+
+    const notices = await waitFor(() => {
+      const link = container.querySelector('[data-testid="about-notices"]')
+      expect(link).not.toBeNull()
+      return link as HTMLElement
+    })
+    expect(notices.getAttribute('to')).toBe('/api/v1/system/about/notices')
+    expect(notices.getAttribute('target')).toBe('_blank')
+
+    await waitFor(() => expect(container.querySelector('[data-toggle="other"]')).toBeTruthy())
+    await fireEvent.click(container.querySelector('[data-toggle="other"]') as HTMLElement)
+    const link = container.querySelector('[data-list="other"] tbody tr a')
+    expect(link?.textContent).toBe('Rust standard library and runtime')
+    expect(link?.getAttribute('href')).toBe('https://github.com/rust-lang/rust/tree/1.100.0')
   })
 
   it('summarises each dependency list and opens it onto the rows it counted', async () => {

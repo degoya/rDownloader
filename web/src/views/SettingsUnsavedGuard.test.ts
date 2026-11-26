@@ -16,12 +16,12 @@ import settingsCatalogue from '@/locales/en/settings.json'
 import { defaultSettings } from '@/settingsDefaults'
 import { loadEveryLocale } from '@/test/locales'
 import { mountComponent } from '@/test/mount'
+import { loadSettingsPages } from '@/test/settingsPages'
 
 beforeAll(loadEveryLocale)
 
 vi.mock('@/api/client', () => apiClientMock({
   POST: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
-  PATCH: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } })),
   DELETE: vi.fn(async () => ({ data: undefined, error: { code: 'internal' } }))
 }))
 const confirm = vi.fn<() => Promise<boolean>>()
@@ -69,6 +69,8 @@ async function editRetention(): Promise<{ router: Router, container: HTMLElement
   return mounted
 }
 
+beforeAll(loadSettingsPages, 60_000)
+
 describe('leaving the settings with unsaved changes', () => {
   beforeEach(() => {
     confirm.mockReset()
@@ -78,8 +80,8 @@ describe('leaving the settings with unsaved changes', () => {
       if (path === '/api/v1/captcha-config') return { data: { ...storedCaptcha } }
       return { data: undefined, error: { code: 'internal' } }
     }) as never)
-    vi.mocked(api.PUT).mockReset()
-    vi.mocked(api.PUT).mockImplementation((async (_path: string, init: { body: unknown }) => ({ data: init.body })) as never)
+    vi.mocked(api.PATCH).mockReset()
+    vi.mocked(api.PATCH).mockImplementation((async (_path: string, init: { body: object }) => ({ data: { ...stored, ...init.body } })) as never)
   })
 
   it('goes without a question when nothing was changed', async () => {
@@ -186,8 +188,8 @@ describe('leaving the settings with unsaved changes', () => {
     expect(router.currentRoute.value.path).toBe('/settings/security')
 
     await fireEvent.click(screen.getByRole('button', { name: settingsCatalogue.save }))
-    await waitFor(() => expect(api.PUT).toHaveBeenCalledTimes(1))
-    const [, init] = vi.mocked(api.PUT).mock.calls[0] as unknown as [string, { body: { admin_login_disabled: boolean } }]
+    await waitFor(() => expect(api.PATCH).toHaveBeenCalledTimes(1))
+    const [, init] = vi.mocked(api.PATCH).mock.calls[0] as unknown as [string, { body: { admin_login_disabled: boolean } }]
     expect(init.body.admin_login_disabled).toBe(true)
   })
 

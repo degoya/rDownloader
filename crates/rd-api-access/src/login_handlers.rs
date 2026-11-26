@@ -1,14 +1,12 @@
 //! Sign-in, first-run setup and the pairing of capture agents.
-//!
-//! The three sign-in operations carry `tag = "handlers"` explicitly: it is the tag utoipa derived
-//! from the module they lived in until RD-160-06, and the API contract does not move with a file.
 
 use axum::{
-    Extension, Json,
-    extract::{Path, State},
+    Extension,
+    extract::State,
     http::{HeaderMap, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
 };
+use rd_api_core::extract::{Json, Path};
 
 use crate::{
     ApiError, AppState,
@@ -19,7 +17,7 @@ use crate::{
     },
 };
 
-#[utoipa::path(get, path = "/api/v1/auth/status", tag = "handlers", responses((status = 200, body = AuthStatus)))]
+#[utoipa::path(get, path = "/api/v1/auth/status", tag = "auth", responses((status = 200, body = AuthStatus)))]
 pub async fn auth_status(
     State(state): State<AppState>,
     crate::client::ThisMachine(from_this_machine): crate::client::ThisMachine,
@@ -58,7 +56,7 @@ pub async fn auth_status(
     }))
 }
 
-#[utoipa::path(post, path = "/api/v1/auth/setup", tag = "handlers", request_body = SetupRequest, responses((status = 200, body = MessageResponse)))]
+#[utoipa::path(post, path = "/api/v1/auth/setup", tag = "auth", request_body = SetupRequest, responses((status = 200, body = MessageResponse)))]
 pub async fn setup(
     State(state): State<AppState>,
     client: crate::client::ClientAddress,
@@ -99,7 +97,7 @@ async fn note_failed_login_audit(state: &AppState, client: std::net::IpAddr, rea
 #[utoipa::path(
     post,
     path = "/api/v1/auth/login",
-    tag = "handlers",
+    tag = "auth",
     request_body = LoginRequest,
     responses(
         (status = 200, body = MessageResponse),

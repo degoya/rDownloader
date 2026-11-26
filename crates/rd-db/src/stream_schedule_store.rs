@@ -333,7 +333,8 @@ pub(crate) async fn expire_runs(
 /// Stores a recording's segment history and sidecars (RD-080-09).
 ///
 /// Written after every segment, so a crash mid-recording leaves a history that says what is
-/// on disk rather than nothing at all.
+/// on disk rather than nothing at all. The event says the row changed beyond its bytes, so a
+/// client that follows progress as figures alone reads it again (RD-1480-18).
 pub(crate) async fn set_recording_state(
     connection: &mut SqliteConnection,
     id: DownloadId,
@@ -341,7 +342,7 @@ pub(crate) async fn set_recording_state(
 ) -> Result<EventEnvelope> {
     let event = EventEnvelope::new(
         EventKind::DownloadProgress,
-        serde_json::json!({ "download_id": id }),
+        serde_json::json!({ "download_id": id, "recording": true }),
     );
     let mut tx = connection.begin().await?;
     sqlx::query("UPDATE downloads SET recording_json = ? WHERE id = ?")

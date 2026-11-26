@@ -577,8 +577,8 @@ describe('LinkGrabberView and mirror groups (RD-110-19)', () => {
 
 /**
  * A site rule with groups (RD-1170-02): a page listing several releases arrives as one package
- * per release, and each file at its two hosters as one declared mirror group — the shape the
- * warez.cx rule produces, two releases and two episodes of it here.
+ * per release, and each file at its two hosters as one declared mirror group — the shape a
+ * rule of a release page produces, two releases and two episodes of it here.
  */
 describe('LinkGrabberView and a page with several releases (RD-1170-02)', () => {
   const releases = ['Show.S01.720p.WEB-GROUP', 'Show.S01.1080p.WEB-GROUP']
@@ -594,7 +594,7 @@ describe('LinkGrabberView and a page with several releases (RD-1170-02)', () => 
           file_name: `${release}.E0${episode}.${hoster}.rar`,
           // The key the crawler builds: rule, page, group and mirror set.
           mirror: {
-            group: `warez.cx|https://warez.cx/detail/x|${packageIndex}|${episode}`,
+            group: `releases.example|https://releases.example/detail/x|${packageIndex}|${episode}`,
             source: 'declared',
             selected: hosterIndex === 0
           }

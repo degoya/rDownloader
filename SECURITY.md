@@ -103,8 +103,11 @@ Stated so a report can be aimed at what is *not* covered, rather than at what is
   the captcha settings.
 - Plugins are WebAssembly components with no WASI access, verified against an Ed25519 trust
   root, limited by fuel, memory and an allowed-domain list.
-- Release artifacts ship an SPDX SBOM, a SHA-256 manifest and a Sigstore bundle; container
-  images carry provenance and a Cosign signature.
+- Release artifacts ship an SPDX SBOM of the crates and npm packages they are made of, a SHA-256
+  manifest and a Sigstore bundle; container images carry provenance and a Cosign signature.
+- The plugins are signed in a job of the release that compiles nothing and reads no cache.
+- The crates, the npm packages and the container's Python tools are checked for known
+  vulnerabilities every week.
 
 ## Credit
 

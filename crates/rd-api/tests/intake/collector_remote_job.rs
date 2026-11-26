@@ -3,13 +3,21 @@
 //! Every link becomes one remote-job source through the duplicate guard every remote job passes.
 //! The setting `linkgrabber_hand_over_remove_links` (on by default) decides whether the links
 //! handed over leave the LinkGrabber -- a package left empty with them -- or stay marked with
-//! their job; what could not go stays either way, named with its code. The refusals that need no
+//! their job; what could not go stays either way, named with its code. No credential in an
+//! address leaves the machine (RD-1480-05): an NZB link goes as its document, any other address
+//! with a login or a key stays. The refusals that need no
 //! plugin run without components; the hand-overs install the real `torbox-jobs` (magnets,
 //! addresses, torrents) and `realdebrid-torrents` (magnets and torrents only) and are named
 //! `on_real_components`, so the `no-components` profile leaves them out.
 
 use crate::common;
 use crate::nzb_remote_job::{account, install};
+use crate::subscription_remote_job::indexer;
+
+use std::sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use axum::http::StatusCode;
 use common::{get_json, post_json, put_json, test_harness};
@@ -22,7 +30,17 @@ fn magnet(hash_digit: char, name: &str) -> String {
 }
 
 /// One LinkGrabber package holding `urls`, pasted by hand; answers the package id.
-async fn package(harness: &common::Harness, name: &str, urls: &[String]) -> String {
+pub(crate) async fn package(harness: &common::Harness, name: &str, urls: &[String]) -> String {
+    package_from(harness, name, urls, vec![None; urls.len()]).await
+}
+
+/// The same with the provider the intake or the online check gave each link.
+async fn package_from(
+    harness: &common::Harness,
+    name: &str,
+    urls: &[String],
+    providers: Vec<Option<String>>,
+) -> String {
     let (_, packages, _) = harness
         .database
         .add_collector_batch(rd_db::NewCollectorBatch {
@@ -36,7 +54,7 @@ async fn package(harness: &common::Harness, name: &str, urls: &[String]) -> Stri
             category_id: None,
             priority: None,
             urls: urls.iter().map(|url| url.parse().expect("url")).collect(),
-            providers: vec![None; urls.len()],
+            providers,
             file_names: Vec::new(),
             sizes: Vec::new(),
             requests: Vec::new(),
@@ -50,12 +68,12 @@ async fn package(harness: &common::Harness, name: &str, urls: &[String]) -> Stri
     packages[0].id.to_string()
 }
 
-fn uri(package: &str) -> String {
+pub(crate) fn uri(package: &str) -> String {
     format!("/api/v1/collector/packages/{package}/remote-job")
 }
 
 /// The LinkGrabber's links of one package, by address.
-async fn links_of(harness: &common::Harness, package: &str) -> Vec<Value> {
+pub(crate) async fn links_of(harness: &common::Harness, package: &str) -> Vec<Value> {
     let (status, candidates) = get_json(&harness.router, "/api/v1/collector/candidates").await;
     assert_eq!(status, StatusCode::OK, "{candidates}");
     candidates
@@ -84,7 +102,7 @@ async fn job_count(harness: &common::Harness) -> usize {
 }
 
 /// The addresses in one list of the answer.
-fn urls_in(answer: &Value, list: &str, links: &[Value]) -> Vec<String> {
+pub(crate) fn urls_in(answer: &Value, list: &str, links: &[Value]) -> Vec<String> {
     answer[list]
         .as_array()
         .expect(list)
@@ -267,6 +285,139 @@ async fn what_the_provider_refuses_stays_with_its_reason_on_real_components() {
     assert_eq!(links_of(&harness, &addresses).await.len(), 2);
     assert!(package_listed(&harness, &addresses).await);
     assert_eq!(job_count(&harness).await, 1);
+}
+
+/// Everything the plugin was given, over every job: the sources as the jobs keep them.
+pub(crate) async fn submitted_sources(harness: &common::Harness) -> String {
+    let (status, jobs) = get_json(&harness.router, "/api/v1/remote-jobs").await;
+    assert_eq!(status, StatusCode::OK, "{jobs}");
+    let mut all = String::new();
+    for job in jobs.as_array().expect("jobs") {
+        let id: rd_core::RemoteJobId = job["id"]
+            .as_str()
+            .expect("job id")
+            .parse()
+            .expect("a job id");
+        let source = harness
+            .database
+            .remote_job_source(id)
+            .await
+            .expect("source")
+            .expect("the job keeps its source");
+        all.push_str(&String::from_utf8_lossy(&source));
+        all.push('\n');
+    }
+    all
+}
+
+/// RD-1480-05: an NZB link carries the indexer's key, so its document goes as a container and the
+/// address never does. An account that takes no NZB keeps the link, and the indexer is not asked.
+#[tokio::test]
+async fn an_nzb_link_goes_as_its_document_without_the_key_on_real_components() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    install(&harness, "torbox-jobs").await;
+    install(&harness, "realdebrid-torrents").await;
+    let torbox = account(&harness, "torbox").await;
+    let realdebrid = account(&harness, "realdebrid").await;
+    let asked = Arc::new(AtomicUsize::new(0));
+    let server = indexer(asked.clone()).await;
+    let address = server.addr();
+    let nzb = [format!("http://{address}/getnzb?t=get&id=1&apikey=SECRET")];
+    let provider = vec![Some(rd_core::NZB_PROVIDER.to_owned())];
+    let release = package_from(&harness, "Indexer.S01", &nzb, provider.clone()).await;
+
+    let (status, answer) = post_json(
+        &harness.router,
+        &uri(&release),
+        json!({ "account_id": realdebrid }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    assert_eq!(answer["handed_over"], json!([]), "{answer}");
+    assert_eq!(answer["stayed"][0]["code"], "nzb.remote_job_no_nzb");
+    assert_eq!(asked.load(Ordering::SeqCst), 0, "the indexer was asked");
+
+    let (status, answer) = post_json(
+        &harness.router,
+        &uri(&release),
+        json!({ "account_id": torbox }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    assert_eq!(answer["stayed"], json!([]), "{answer}");
+    assert_eq!(answer["handed_over"][0]["job"]["source_kind"], "container");
+    assert_eq!(asked.load(Ordering::SeqCst), 1);
+    let sources = submitted_sources(&harness).await;
+    assert!(sources.contains("msg-1@example"), "{sources}");
+    assert!(!sources.contains("SECRET"), "{sources}");
+    assert!(!answer.to_string().contains("SECRET"), "{answer}");
+
+    // The indexer's refusal inside a `200` is the link's reason, with what the code names.
+    let refused = [format!("http://{address}/getnzb-refused?apikey=SECRET")];
+    let refused = package_from(&harness, "Refused.S02", &refused, provider).await;
+    let (status, answer) = post_json(
+        &harness.router,
+        &uri(&refused),
+        json!({ "account_id": torbox }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    assert_eq!(answer["stayed"][0]["code"], "collector.nzb_rejected");
+    assert!(
+        answer["stayed"][0]["params"]["reason"]
+            .as_str()
+            .is_some_and(|reason| reason.contains("Request limit reached")),
+        "{answer}"
+    );
+    assert!(!answer.to_string().contains("SECRET"), "{answer}");
+    assert_eq!(links_of(&harness, &refused).await.len(), 1);
+    assert_eq!(job_count(&harness).await, 1);
+}
+
+/// RD-1480-05: an address with a login or an access key stays with its own code while the rest
+/// goes.
+#[tokio::test]
+async fn an_address_with_a_login_or_a_key_stays_on_real_components() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = test_harness(directory.path()).await;
+    install(&harness, "torbox-jobs").await;
+    let torbox = account(&harness, "torbox").await;
+    let secret = [
+        "https://files.example/get?id=1&apikey=SECRET".to_owned(),
+        "https://user:SECRET@files.example/Login.S01E01.mkv".to_owned(),
+        "https://files.example/Signed.S01E01.mkv?X-Amz-Signature=SECRET".to_owned(),
+    ];
+    let mut urls = secret.to_vec();
+    urls.push("https://files.example/Plain.S01E01.mkv".to_owned());
+    let release = package(&harness, "Secret.S01", &urls).await;
+
+    let (status, answer) = post_json(
+        &harness.router,
+        &uri(&release),
+        json!({ "account_id": torbox }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    assert_eq!(
+        answer["handed_over"].as_array().expect("handed").len(),
+        1,
+        "{answer}"
+    );
+    let stayed = answer["stayed"].as_array().expect("stayed");
+    assert_eq!(stayed.len(), secret.len(), "{answer}");
+    assert!(
+        stayed
+            .iter()
+            .all(|entry| entry["code"] == "collector.remote_job_secret_address"),
+        "{answer}"
+    );
+    assert!(!answer.to_string().contains("SECRET"), "{answer}");
+    let sources = submitted_sources(&harness).await;
+    assert!(sources.contains("Plain.S01E01.mkv"), "{sources}");
+    assert!(!sources.contains("SECRET"), "{sources}");
+    assert_eq!(links_of(&harness, &release).await.len(), secret.len());
+    assert!(package_listed(&harness, &release).await);
 }
 
 /// The setting off: every link stays, marked with its job, and a second hand-over reports those

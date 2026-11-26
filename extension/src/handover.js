@@ -23,6 +23,7 @@ import { fromOwnPage as isOwnPage } from './sender.js'
 import { declineHandover, deliverHandover, listHandovers } from './handover-api.js'
 import { holdsCookieConsent, releasedGrant } from './files.js'
 import { withCookieData } from './data-collection.js'
+import { grantPattern, manifestOf } from './grants.js'
 
 /**
  * The service's refusals of a delivered session, each with a sentence of its own. Without this
@@ -57,11 +58,11 @@ export const MESSAGE_TYPES = [CONSENT_MESSAGE, DELIVER_MESSAGE, DECLINE_MESSAGE,
 export const STATE_KEYS = ['handoverConsents', 'handoverAnnounced', 'handoverNotifications']
 
 /** `https://<host>/*` for an https scope; null for anything else, which is never read. */
-export function scopeOrigin(scope) {
+export function scopeOrigin(scope, manifest) {
   try {
     const url = new URL(String(scope ?? ''))
     if (url.protocol !== 'https:' || !url.hostname) return null
-    return `https://${url.host}/*`
+    return grantPattern(url, manifest)
   } catch {
     return null
   }
@@ -234,7 +235,7 @@ export function createHandover({
    * request, before the click: whether this origin was granted already, and so must be kept.
    */
   function consent(handover, { hadOrigin = false } = {}) {
-    const origin = scopeOrigin(handover?.scope)
+    const origin = scopeOrigin(handover?.scope, manifestOf(api))
     if (!origin) return Promise.resolve({ ok: false, code: 'scope' })
     const recorded = Promise.resolve()
       .then(() => send({ type: CONSENT_MESSAGE, id: handover.id, origin, hadOrigin: Boolean(hadOrigin) }))
@@ -279,7 +280,7 @@ export function createHandover({
     if (!listed.ok) return { ok: false, code: listed.code ?? 'http' }
     const handover = listed.handovers.find((candidate) => candidate.id === id)
     if (!handover) return { ok: false, code: 'not_waiting' }
-    const origin = scopeOrigin(handover.scope)
+    const origin = scopeOrigin(handover.scope, manifestOf(api))
     // The popup named an origin with its consent; the service's scope is the one that counts,
     // and a disagreement means the consent was for something else.
     if (!origin || origin !== consented.origin) return { ok: false, code: 'scope' }

@@ -71,7 +71,7 @@ describe('useGrabberEnqueue, a large selection', () => {
     const sent = posts().filter(([path]) => path === '/api/v1/collector/packages/enqueue')
     expect(sent.map(([, init]) => init.body.ids.length)).toEqual([500, 21])
     expect(sent.every(([, init]) => init.body.paused === true)).toBe(true)
-    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Enqueued 1042 links and 0 NZB imports' }))
+    expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: 'Enqueued – links: 1042, NZB imports: 0' }))
   })
 
   it('splits a partly selected package off in the order on screen', async () => {

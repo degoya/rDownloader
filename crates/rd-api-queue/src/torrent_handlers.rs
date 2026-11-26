@@ -1,10 +1,8 @@
 //! Torrent endpoints: seeding control, and the recheck and move of a torrent's data. The
 //! `.torrent` import is the intake area's (`rd_api_intake::torrent_import`).
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 
 use crate::{
     ApiError, AppState, dto::MessageResponse, torrent_intake::ensure_torrent_service_enabled,

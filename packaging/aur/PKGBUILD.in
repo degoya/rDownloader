@@ -42,6 +42,6 @@ package() {
   ln -s /usr/lib/rdownloader/rdownloader "$pkgdir/usr/bin/rdownloader"
   ln -s /usr/lib/rdownloader/rdownloader-capture "$pkgdir/usr/bin/rdownloader-capture"
   install -Dm644 rdownloader.service rdownloader-capture.service -t "$pkgdir/usr/lib/systemd/user"
-  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname"
+  install -Dm644 LICENSE THIRD-PARTY-NOTICES.txt -t "$pkgdir/usr/share/licenses/$pkgname"
   install -Dm644 README.md -t "$pkgdir/usr/share/doc/$pkgname"
 }

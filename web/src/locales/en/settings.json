@@ -124,7 +124,7 @@
     "description": "0 = as many as the servers allow; a lower number lowers the connections per server that all Usenet files running at once share",
     "follows_servers": "Files running at once share the providers' connections ({largest} on the largest).",
     "capped": "The largest enabled server allows {largest} connections; files running at once get at most {cap} per server together. 0 uses them all.",
-    "not_binding": "Not binding: no enabled server allows more than {largest} connections.",
+    "not_binding": "Not binding: no enabled server allows more than {largest} connection. | Not binding: no enabled server allows more than {largest} connections.",
     "live_even": "Right now {files} file with {per} of {limit} connections. | Right now {files} files with {per} of {limit} connections each.",
     "live_mixed": "Right now {files} files with {busy} of {limit} connections together ({split})."
   },
@@ -272,7 +272,7 @@
     },
     "passwords_file": {
       "label": "Password list",
-      "description": "One password per line; empty = passwords.txt next to the database. Tried after the package password and \"no password\"."
+      "description": "One password per line; empty = passwords.txt next to the database. Tried after the package password and “no password”."
     },
     "max_files": "Maximum files",
     "max_bytes": "Maximum unpacked size",
@@ -325,7 +325,7 @@
     },
     "fail_hopeless_jobs": {
       "label": "Abort hopeless Usenet downloads",
-      "description": "When more PAR2 blocks are missing than the set's recovery volumes can replace, the rest is not downloaded and the package fails. What has been downloaded stays. Saves volume on block accounts. Off: every file is downloaded to the end, as before."
+      "description": "When more PAR2 blocks are missing than the set's recovery volumes can replace, the rest is not downloaded and the package fails. What has been downloaded stays. Saves volume on block accounts. Off: every file is downloaded to the end."
     },
     "direct_unpack": {
       "label": "Unpack while downloading",
@@ -333,7 +333,7 @@
     },
     "unwrap_package_folder": {
       "label": "Dissolve a folder named like the package",
-      "description": "When the package folder holds nothing but one folder named like the package after post-processing (Release/Release/…), its content moves up one level and the empty folder is removed. With subfolders per archive, the same applies to each archive's folder. Nothing is ever overwritten. Works only when nothing else is left in the package folder — so let the source archive go, e.g. with the level \"+Delete\"."
+      "description": "When the package folder holds nothing but one folder named like the package after post-processing (Release/Release/…), its content moves up one level and the empty folder is removed. With subfolders per archive, the same applies to each archive's folder. Nothing is ever overwritten. Works only when nothing else is left in the package folder — so let the source archive go, e.g. with the level “+Delete”."
     },
     "package_names": {
       "label": "Tidy package names",
@@ -402,7 +402,7 @@
     },
     "title_status": {
       "label": "State in the browser tab",
-      "description": "While something is running the tab shows the overall rate and the number of active transfers, and the application name alone otherwise. Off if a title that keeps changing is a distraction."
+      "description": "While something is running the tab shows the overall rate and the number of active transfers, and only the view and the application name otherwise. Off if a title that keeps changing is a distraction."
     },
     "palette": {
       "label": "Colour theme",
@@ -413,6 +413,10 @@
       "forest": "Forest",
       "rose": "Rose",
       "amber": "Amber"
+    },
+    "shortcuts": {
+      "label": "Keyboard shortcuts",
+      "description": "Single keys run actions, P for pause for example, in this browser only; ? lists them all. Off if voice input or a stray key press could trigger something."
     }
   },
   "messages": {
@@ -863,7 +867,7 @@
       "eyebrow": "Storage",
       "title": "Moves, links and reuse",
       "description": "Verified moves between folders, duplicate links, and what each kind of transfer reuses of data already on disk.",
-      "index_checked": "Content index checked: {checked} entries, {missing} missing, {restored} found again, {backfilled} added.",
+      "index_checked": "Content index checked – entries: {checked}, missing: {missing}, found again: {restored}, added: {backfilled}.",
       "links_title": "Hard links per storage root",
       "links_description": "Found out by trying. This build creates no reflinks.",
       "hardlink_yes": "Hard links possible",
@@ -955,7 +959,7 @@
     "manifest_url_description": "https address of the signed tool manifest. Empty = only the manifest shipped with this build, which works safely without a network.",
     "manifest_url_placeholder": "Empty = built-in manifest",
     "disabled_title": "Managing tools is switched off",
-    "disabled_description": "Switch on \"Manage tools automatically\" above to download and activate versions. The programs already found stay exactly as they are.",
+    "disabled_description": "Switch on “Manage tools automatically” above to download and activate versions. The programs already found stay exactly as they are.",
     "manifest": "Manifest",
     "manifest_detail": "Sequence {sequence} · platform {platform}",
     "manifest_built_in": "The manifest built into this release",
@@ -1045,7 +1049,6 @@
       "own": "rDownloader itself",
       "own_text": "Free software under {license}; the full text is LICENSE in the package.",
       "tools": "Bundled tools",
-      "tools_hint": "The Linux and Windows packages ship them under vendor/, their license texts under vendor/licenses/.",
       "dependencies": "Dependencies",
       "dependencies_hint": "Everything a shipped package contains: the crates the service, the capture agent and the plugins link on Linux, Windows and macOS, and the packages of the interface. Generated at build time from Cargo.lock and pnpm-lock.yaml, never kept by hand.",
       "rust": "Rust crates",
@@ -1057,7 +1060,12 @@
       "column_name": "Name",
       "column_version": "Version",
       "column_license": "License",
-      "column_file": "License text"
+      "column_file": "License text",
+      "tools_used": "Helper programs",
+      "tools_hint_used": "rDownloader uses them when they are on this system or you install them under Tools. No package ships them, except the container image.",
+      "tools_hint_shipped": "This container image contains them; their license texts are in the image at the path shown.",
+      "notices": "Show all license texts",
+      "other": "Other components"
     }
   },
   "nntp_parallel_files": {
@@ -1309,7 +1317,7 @@
     "updated": "Rule saved",
     "duplicated": "Rule copied",
     "delete_title": "Delete rule?",
-    "delete_description": "\"{name}\" is deleted. The links it hid are shown again.",
+    "delete_description": "“{name}” is deleted. The links it hid are shown again.",
     "empty": "No rules yet. Without one every link arrives visible in the LinkGrabber.",
     "matches_everything": "every link",
     "apply": "Apply to LinkGrabber",
@@ -1400,9 +1408,9 @@
     "confirm": "Clean up",
     "done": "{size} freed",
     "events": "Events",
-    "rows": "{count} entries from the last 30 days",
+    "rows": "{count} entry from the last 30 days | {count} entries from the last 30 days",
     "items": "Subscription archive",
-    "compactable": "{count} old entries to compact",
+    "compactable": "{count} old entry to compact | {count} old entries to compact",
     "database_file": "Database file",
     "items_days_label": "Keep skipped subscription entries whole",
     "items_days_description": "Days a skipped or dismissed subscription entry keeps its title and link; after that only what the subscription recognises it by stays, so it does not come back. 0 keeps everything (0-3650).",
@@ -1427,5 +1435,11 @@
   "sequential_packages": {
     "label": "Package by package",
     "description": "A download starts only once no package above it in the list still has a file waiting. The price: if the first package waits — for a hoster's limit or used-up traffic — the whole list waits with it. Switching it on stops nothing that is already running."
+  },
+  "foreign": {
+    "title": "Changed elsewhere",
+    "merged": "The settings were changed elsewhere. The new values are shown here now; what you have not saved yet is kept.",
+    "conflict": "These fields were changed elsewhere while you were editing them here: {fields}. Saving replaces the values from there with yours.",
+    "take": "Use the values from there"
   }
 }

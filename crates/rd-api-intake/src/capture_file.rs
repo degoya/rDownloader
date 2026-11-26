@@ -19,10 +19,10 @@
 //! extension leaves it to the browser -- which is where it would have stayed without this route.
 
 use axum::{
-    Json,
     extract::{Multipart, State},
     http::{HeaderMap, StatusCode},
 };
+use rd_api_core::extract::Json;
 use rd_api_core::input_checks::optional_text;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

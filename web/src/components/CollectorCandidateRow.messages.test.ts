@@ -66,7 +66,7 @@ describe('CollectorCandidateRow and the parameters of its message (RD-1250-03)',
     ['de', 'yt-dlp fehlgeschlagen: '],
     ['en', 'yt-dlp failed: '],
     ['es', 'yt-dlp falló: '],
-    ['fr', 'Échec de yt-dlp : ']
+    ['fr', 'Échec de yt-dlp\u00a0: ']
   ])('translates a failure with its detail in %s', (locale, prefix) => {
     appI18n.global.locale.value = locale as never
     expect(errorLine(failed({ detail }))).toBe(`${prefix}${detail}`)

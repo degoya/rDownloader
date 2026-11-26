@@ -16,6 +16,7 @@ import { subTabItems } from '@/composables/useSettingsSubTab'
 import { useSessionStore } from '@/stores/session'
 import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { WHOLE } from '@/utils/numberInput'
+import { unitName } from '@/utils/units'
 
 const settings = defineModel<Settings>({ required: true })
 /**
@@ -97,7 +98,7 @@ const facts = computed(() => [
   { key: 'web_ui', label: t('system.facts.web_ui'), value: uiAddress.value, hint: settings.value.ui_port ? t('system.facts.web_ui_configured') : t('system.facts.web_ui_default') },
   { key: 'cnl2', label: t('system.facts.cnl2'), value: '127.0.0.1:9666', hint: t('system.facts.loopback_only') },
   { key: 'hotfolder', label: t('system.facts.hotfolder'), value: `${settings.value.hotfolder_poll_seconds} s`, hint: t('system.facts.hotfolder_note') },
-  { key: 'nzb', label: t('system.facts.nzb'), value: '64 MiB', hint: t('system.facts.nzb_note') }
+  { key: 'nzb', label: t('system.facts.nzb'), value: `64 ${unitName('MiB')}`, hint: t('system.facts.nzb_note') }
 ])
 
 const systems = computed(() => [

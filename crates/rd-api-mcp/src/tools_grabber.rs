@@ -5,10 +5,8 @@
 //! route's handler: the package tools with the REST body built from their arguments, the NZB
 //! tools with the import id `list_nzb_imports` hands out.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

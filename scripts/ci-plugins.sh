@@ -12,9 +12,14 @@
 #   scripts/ci-plugins.sh scaffolds                # every template scaffolds, builds and packages
 #   scripts/ci-plugins.sh conformance <plugin>...  # conformance of the unsigned packages
 #   scripts/ci-plugins.sh package-signed <plugin>... # signed packages and their notes (release.yml)
+#   scripts/ci-plugins.sh digest <file>            # step output sha256 (release-plugins.yml)
+#   scripts/ci-plugins.sh hand-over <tar> <plugin>... # their components into <tar>, output sha256
+#   scripts/ci-plugins.sh take-over <tar>          # <tar> and the packager where package-signed
+#                                                  # looks, held to the two digests
 #
 # Reads GITHUB_OUTPUT and GITHUB_WORKSPACE as the runner sets them; `package-signed` reads
-# RDOWNLOADER_PLUGIN_SIGNING_KEY through the packager.
+# RDOWNLOADER_PLUGIN_SIGNING_KEY through the packager, `take-over` COMPONENTS_SHA256 and
+# PACKAGER_SHA256, the outputs of the jobs that built the two (RD-1480-14).
 set -euo pipefail
 
 # manifest_version: the version a plugin's manifest declares, the one copy of build-plugins.sh's.
@@ -171,6 +176,41 @@ package_signed() {
     done
 }
 
+digest() {
+    echo "sha256=$(sha256sum "$1" | cut -c1-64)" | tee -a "$GITHUB_OUTPUT"
+}
+
+# The components alone, by name: no stamp and nothing else of target/ reaches the signing job.
+hand_over() {
+    local archive="$1" plugin files=()
+    shift
+    for plugin in "$@"; do
+        files+=("$(basename "$(component "${plugin}")")")
+    done
+    [[ ${#files[@]} -gt 0 ]] || { echo "::error::no component to hand over"; exit 1; }
+    tar --create --file "${archive}" --directory target/wasm32-unknown-unknown/release "${files[@]}"
+    echo "handed over: ${#files[@]} components"
+    digest "${archive}"
+}
+
+# Compares first and unpacks second, then takes regular files named like a component and nothing
+# else: a link or a path in the archive is refused, not followed.
+take_over() {
+    local archive="$1" packager=target/release-test/rd-pack digest
+    for digest in "${COMPONENTS_SHA256:-}" "${PACKAGER_SHA256:-}"; do
+        [[ "${digest}" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::no SHA-256 to compare with"; exit 1; }
+    done
+    sha256sum --check --strict <<< "${COMPONENTS_SHA256}  ${archive}
+${PACKAGER_SHA256}  ${packager}" || { echo "::error::not what the build jobs made"; exit 1; }
+    if tar --list --verbose --file "${archive}" | grep -vE '^-.* rd_plugin_[a-z0-9_]+\.wasm$'; then
+        echo "::error::${archive} holds more than components"
+        exit 1
+    fi
+    mkdir -p target/wasm32-unknown-unknown/release
+    tar --extract --file "${archive}" --directory target/wasm32-unknown-unknown/release
+    chmod +x "${packager}"
+}
+
 command="${1:-}"
 shift || true
 case "${command}" in
@@ -181,8 +221,11 @@ case "${command}" in
     scaffolds) scaffolds ;;
     conformance) conformance "$@" ;;
     package-signed) package_signed "$@" ;;
+    digest) digest "$@" ;;
+    hand-over) hand_over "$@" ;;
+    take-over) take_over "$@" ;;
     *)
-        echo "usage: scripts/ci-plugins.sh list|imports|package-dev|templates|scaffolds|conformance|package-signed [...]" >&2
+        echo "usage: scripts/ci-plugins.sh list|imports|package-dev|templates|scaffolds|conformance|package-signed|digest|hand-over|take-over [...]" >&2
         exit 2
         ;;
 esac

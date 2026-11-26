@@ -319,13 +319,14 @@ impl TorrentService {
                 && now.duration_since(last) < REANNOUNCE_INTERVAL
             {
                 let wait = REANNOUNCE_INTERVAL - now.duration_since(last);
+                let seconds = wait.as_secs() + 1;
                 // Tagged, not merely worded: the caller answers `429` for this and `400` for
                 // every other refusal here, and it used to tell them apart by looking for the
                 // word "wait" in this very sentence.
-                return Err(TorrentError::rate_limited(format!(
-                    "wait {} seconds before announcing again",
-                    wait.as_secs() + 1
-                ))
+                return Err(TorrentError::rate_limited(
+                    format!("wait {seconds} seconds before announcing again"),
+                    seconds,
+                )
                 .into());
             }
             let previous = entry.last_reannounce;

@@ -58,7 +58,7 @@ async function installAndFollow(): Promise<void> {
       </p>
       <div v-if="fetched && !installing" class="mt-3" data-testid="update-notice-download-progress" aria-live="polite">
         <div v-if="fetched.state === 'downloading'" class="flex flex-wrap items-center gap-2">
-          <UProgress :model-value="fetchedPercent" size="xs" class="min-w-24 flex-1" />
+          <UProgress :model-value="fetchedPercent" :get-value-label="() => t('common.a11y.progress_of', { name: `rDownloader ${fetched?.version ?? ''}` })" size="xs" class="min-w-24 flex-1" />
           <span class="shrink-0 text-xs text-toned tabular-nums">
             {{ t('system.updates.download.progress', { received: formatBytes(String(fetched.received_bytes)), total: formatBytes(String(fetched.total_bytes)) }) }}
           </span>

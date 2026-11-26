@@ -5,10 +5,8 @@
 //! person's: each resolved entry asks one in the broker, and the tools say so rather than wait
 //! for it, so the agent can tell the person what to solve.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
 use serde::Deserialize;
 

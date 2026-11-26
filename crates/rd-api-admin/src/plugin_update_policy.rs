@@ -10,7 +10,8 @@
 //! rules that keep an update waiting for a click stay as they are: one that asks for a new
 //! permission, and one for a plugin held below its newest version on purpose.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_plugin_host::repository::{UpdatePolicy, UpdatePolicySource};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -18,7 +19,6 @@ use utoipa::ToSchema;
 use crate::{
     ApiError, AppState,
     audit::{AuditContext, AuditEvent},
-    dto::MessageResponse,
     plugin_lifecycle::{PluginUpdatePolicy, current, effective, pointer, save},
 };
 
@@ -122,7 +122,7 @@ pub async fn get_plugin_update_settings(
     path = "/api/v1/plugins/updates/settings",
     tag = "plugins",
     request_body = PluginUpdateSettingsRequest,
-    responses((status = 200, body = PluginUpdateSettingsResponse), (status = 400, body = MessageResponse))
+    responses((status = 200, body = PluginUpdateSettingsResponse), (status = 400, body = crate::error::ErrorBody))
 )]
 pub async fn set_plugin_update_settings(
     State(state): State<AppState>,

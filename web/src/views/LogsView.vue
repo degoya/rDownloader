@@ -158,7 +158,7 @@ watch(active, (tab) => {
             </span>
           </h2>
           <p v-if="store.retention" class="text-xs text-muted">
-            {{ t('logs.list.retention', { days: store.retention.days, records: store.retention.records }) }}
+            {{ t('logs.list.retention', { days: store.retention.days, records: store.retention.records }, store.retention.days) }}
           </p>
         </div>
 

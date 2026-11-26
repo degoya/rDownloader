@@ -636,7 +636,7 @@ describe('SubscriptionsView, accepted and skipped hits', () => {
     await fireEvent.click(screen.getByRole('button', { name: 'Clear completed history' }))
 
     await waitFor(() => expect(confirmed).toHaveBeenCalled())
-    expect(confirmed.mock.calls[0]?.[0].description).toContain('1 completed hits and 1 check records')
+    expect(confirmed.mock.calls[0]?.[0].description).toContain('Completed hits (1) and check records (1)')
     await waitFor(() => expect(del).toHaveBeenCalledWith(
       '/api/v1/subscriptions/{id}/history',
       { params: { path: { id: 's1' } } }
@@ -689,7 +689,7 @@ describe('SubscriptionsView, checking now', () => {
     await waitFor(() => expect(button.hasAttribute('disabled')).toBe(false))
     // The message says a check was started, never that it is done.
     await waitFor(() => expect(
-      screen.getByText('Check of "My Indexer" started. The result appears here once it has finished.')
+      screen.getByText('Check of “My Indexer” started. The result appears here once it has finished.')
     ).toBeTruthy())
   })
 
@@ -724,7 +724,7 @@ describe('SubscriptionsView, checking now', () => {
     await fireEvent.click(await pollButton('s1'))
 
     await waitFor(() => expect(
-      screen.getByText('The check of "My Indexer" could not be started: The service did not answer')
+      screen.getByText('The check of “My Indexer” could not be started: The service did not answer')
     ).toBeTruthy())
   })
 
@@ -746,7 +746,7 @@ describe('SubscriptionsView, checking now', () => {
     }))
 
     await waitFor(() => expect(
-      screen.getByText('Check of "My Indexer" finished: 7 found, 2 accepted, 5 skipped.')
+      screen.getByText('Check of “My Indexer” finished: 7 found, 2 accepted, 5 skipped.')
     ).toBeTruthy())
   })
 
@@ -768,7 +768,7 @@ describe('SubscriptionsView, checking now', () => {
     }))
 
     await waitFor(() => expect(
-      screen.getByText('Check of "My Indexer" failed: poll timed out')
+      screen.getByText('Check of “My Indexer” failed: poll timed out')
     ).toBeTruthy())
   })
 })

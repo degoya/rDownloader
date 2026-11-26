@@ -23,7 +23,8 @@
 
 use std::collections::BTreeMap;
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_core::{CategoryId, Indexer, IndexerId, IndexerSearch, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

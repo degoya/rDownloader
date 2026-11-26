@@ -173,7 +173,7 @@ function kindLabel(value: string): string {
   >
     <template #body>
       <div class="space-y-6" data-testid="full-restore-dialog">
-        <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
+        <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
 
         <section class="space-y-3">
           <h3 class="text-sm font-semibold text-highlighted">{{ t('system.backup.full_restore.source.title') }}</h3>
@@ -252,7 +252,7 @@ function kindLabel(value: string): string {
           <UAlert v-if="preview.from_newer_version" color="warning" :description="t('system.backup.full_restore.preview.newer', { version: preview.current_version })" />
           <ul class="grid gap-1 text-sm text-toned sm:grid-cols-2">
             <li v-for="part in preview.parts" :key="part.kind">
-              {{ kindLabel(part.kind) }}: {{ t('system.backup.full_restore.preview.part', { count: part.count, size: formatBytes(String(part.size)) }) }}
+              {{ t('common.text.labelled', { label: kindLabel(part.kind), value: t('system.backup.full_restore.preview.part', { count: part.count, size: formatBytes(String(part.size)) }) }) }}
             </li>
           </ul>
           <p class="text-sm text-toned">
@@ -282,7 +282,7 @@ function kindLabel(value: string): string {
           </div>
           <ul v-if="preview.paths.length" class="space-y-1 text-xs text-muted">
             <li v-for="entry in preview.paths" :key="`${entry.kind}:${entry.path}`" class="truncate font-mono">
-              {{ t(`system.backup.full_restore.preview.path_kind.${entry.kind}`) }}: {{ entry.path }}
+              {{ t('common.text.labelled', { label: t(`system.backup.full_restore.preview.path_kind.${entry.kind}`), value: entry.path }) }}
             </li>
           </ul>
 

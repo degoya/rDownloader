@@ -218,6 +218,6 @@ describe('SettingsFullBackupCard', () => {
     const history = screen.getByTestId('full-backup-history')
     expect(history.textContent).toContain(server.codes['backup.destinations_partial'])
     expect(history.textContent).toContain(`webdav:rd: ${server.codes['backup.rclone_failed']}`)
-    expect(history.textContent).toContain(en.history.pruned.replace('{count}', '2'))
+    expect(history.textContent).toContain(en.history.pruned.split(' | ')[1]!.replace('{count}', '2'))
   })
 })

@@ -23,7 +23,7 @@
     "proxy": "Proxy SOCKS5",
     "proxy_direct": "Conexión directa",
     "connections": "Conexiones del proveedor",
-    "connections_hint": "Número máximo de conexiones a este proveedor NNTP para todas las solicitudes; los archivos Usenet que se descargan a la vez las comparten, salvo que los ajustes generales reduzcan el número por servidor",
+    "connections_hint": "Número máximo de conexiones a este proveedor NNTP para todas las solicitudes; los archivos Usenet que se descargan a la vez las comparten, salvo que «Conexiones NNTP y archivos» reduzca el número por servidor",
     "enabled": "Servidor activo",
     "clear_password": "Borrar la contraseña guardada",
     "save_changes": "Guardar cambios",
@@ -88,7 +88,7 @@
       "created": "Indexador añadido",
       "updated": "Indexador guardado",
       "deleted": "{name} eliminado",
-      "tested": "{server} responde: {count} categorías"
+      "tested": "{server} responde: {count} categoría | {server} responde: {count} categorías"
     },
     "list_style": "Estilo de la lista de búsqueda",
     "list_style_hint": "Cómo aparecen los resultados de este indexador en la búsqueda del LinkGrabber.",

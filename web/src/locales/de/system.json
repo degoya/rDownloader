@@ -4,7 +4,7 @@
       "title": "HTTP & Hoster",
       "eyebrow": "Resolver-Kette",
       "status": "Kern aktiv",
-      "description": "Direkt-HTTP, DDownload-Cookies und Premiumize-API-Key laufen über dieselbe isolierte Clientidentität; signierte Components bleiben installierbar."
+      "description": "Direkt-HTTP, DDownload-Cookies und Premiumize-API-Schlüssel laufen über dieselbe isolierte Clientidentität; signierte Components bleiben installierbar."
     },
     "capture": {
       "title": "Capture-Agent",
@@ -97,7 +97,7 @@
       "confirm": "Konfiguration ersetzen",
       "button": "Importieren und ersetzen",
       "success": "Einstellungen wiederhergestellt",
-      "success_description": "{count} Konfigurationseinträge importiert.",
+      "success_description": "{count} Konfigurationseintrag importiert. | {count} Konfigurationseinträge importiert.",
       "password": "Administrator-Passwort",
       "password_hint": "Das Ersetzen der Konfiguration verlangt das Passwort noch einmal."
     },
@@ -158,7 +158,7 @@
         "path_description": "Absoluter Pfad auf dem Rechner, auf dem rDownloader läuft; eine eingebundene NAS-Freigabe geht auch.",
         "profile": "Objektspeicher-Profil",
         "profile_placeholder": "Profil wählen",
-        "profile_none": "Noch kein Profil – lege zuerst eins in den Objektspeicher-Einstellungen an.",
+        "profile_none": "Noch kein Profil – lege zuerst eins unter Einstellungen → FTP, SFTP, WebDAV & S3 → S3 an.",
         "prefix": "Bucket und Ordner",
         "prefix_description": "<bucket>/<ordner>; ohne Bucket nimmt es den Bucket des Profils.",
         "remote": "rclone-Remote",
@@ -169,8 +169,8 @@
         "keep_days_description": "Jüngere Archive bleiben; leer behält alle.",
         "retention": {
           "none": "Behält jedes Archiv",
-          "last": "Neueste {count}",
-          "days": "{count} Tage",
+          "last": "Neuestes ({count}) | Neueste {count}",
+          "days": "{count} Tag | {count} Tage",
           "hint": "Das neueste Archiv bleibt immer. Entfernt werden nur Archive, die diese Installation dort geschrieben hat – fremde Dateien nie.",
           "preview": "Vorschau",
           "result": "Behält {keep}, entfernt {remove} – noch wird nichts gelöscht."
@@ -205,7 +205,7 @@
       "history": {
         "title": "Verlauf",
         "empty": "Noch kein Voll-Backup gelaufen.",
-        "parts": "{count} Teile",
+        "parts": "{count} Teil | {count} Teile",
         "origin": {
           "scheduled": "Geplant",
           "manual": "Von Hand"
@@ -216,12 +216,12 @@
           "failed": "Fehlgeschlagen",
           "interrupted": "Unterbrochen"
         },
-        "pruned": "{count} alte Archive nach Aufbewahrung entfernt"
+        "pruned": "{count} altes Archiv nach Aufbewahrung entfernt | {count} alte Archive nach Aufbewahrung entfernt"
       }
     },
     "full_restore": {
       "eyebrow": "Wiederherstellung",
-      "title": "Vollbackup wiederherstellen",
+      "title": "Voll-Backup wiederherstellen",
       "description": "Öffnet ein Archiv mit seiner Passphrase, zeigt, was es enthält, prüft es in einer Wegwerf-Kopie und wechselt beim nächsten Start darauf. Die laufende Installation bleibt startbar, bis die wiederhergestellte einmal gestartet ist.",
       "open": "Aus einem Backup wiederherstellen …",
       "status": {
@@ -233,7 +233,7 @@
         "discarded": "Wiederherstellung verworfen"
       },
       "dialog": {
-        "title": "Vollbackup wiederherstellen",
+        "title": "Voll-Backup wiederherstellen",
         "description": "Archiv wählen, Passphrase eingeben, Inhalt prüfen, Speicherorte zuordnen, testen – erst dann bestätigen."
       },
       "source": {
@@ -258,8 +258,8 @@
         "created": "Erstellt {date} von rDownloader {version}, {size}",
         "newer": "Eine neuere Version hat dieses Backup erstellt. Aktualisiere zuerst auf mindestens diese Version (hier läuft {version}).",
         "part": "{count} × {size}",
-        "counts": "{categories} Kategorien, {accounts} Konten, {proxies} Proxys, {servers} Usenet-Server, {subscriptions} Abos, {hotfolders} Hotfolder",
-        "state": "{partial} unfertige Übertragungen, {trust} Einträge Plugin-Vertrauen.",
+        "counts": "Kategorien: {categories}, Konten: {accounts}, Proxys: {proxies}, Usenet-Server: {servers}, Abos: {subscriptions}, Hotfolder: {hotfolders}",
+        "state": "Unfertige Übertragungen: {partial}, Einträge zum Plugin-Vertrauen: {trust}.",
         "credentials_included": "Zugangsdaten sind verschlüsselt enthalten.",
         "credentials_missing": "Zugangsdaten sind nicht enthalten.",
         "kind": {
@@ -286,7 +286,7 @@
         "action": "Test-Wiederherstellung",
         "ok": "Die Test-Wiederherstellung hat nichts gefunden, was die Wiederherstellung verhindert.",
         "failed": "Die Test-Wiederherstellung hat Fehler gefunden, die die Wiederherstellung verhindern.",
-        "summary": "{packages} Pakete, {moved} Pfade umgezogen, {credentials} Zugangsdaten übernommen, {migrated} Migrationen angewandt.",
+        "summary": "Pakete: {packages}, umgezogene Pfade: {moved}, übernommene Zugangsdaten: {credentials}, angewandte Migrationen: {migrated}.",
         "none": "Keine Befunde.",
         "severity": {
           "error": "Fehler",
@@ -313,7 +313,7 @@
     "copy_hint": "Dieses API-Token wird nur einmal angezeigt – jetzt sicher beim vorgesehenen Client hinterlegen.",
     "mcp_hint": "MCP mit Claude Code verbinden:",
     "copy_command": "Befehl kopieren",
-    "token_hint": "Rohes Token für Clients, die ausschließlich den API-Key erwarten.",
+    "token_hint": "Rohes Token für Clients, die ausschließlich den API-Schlüssel erwarten.",
     "copy_token": "Token kopieren",
     "copied_title": "Kopiert",
     "command_copied": "Der claude-mcp-add-Befehl liegt in der Zwischenablage.",
@@ -372,13 +372,14 @@
     "scopes_label": "Was dieses Token darf",
     "scopes_hint": "Nur gewähren, was der Client wirklich braucht. Alles, was handelt, darf auch lesen — Lesen muss also nicht extra hinzugefügt werden.",
     "scopes_empty": "Mindestens einen Bereich auswählen.",
-    "scope_operations": "{count} Operationen",
+    "scope_operations": "{count} Operation | {count} Operationen",
     "scope_none": "Kein API-Zugriff",
     "sensitive": "Sensibel",
     "sensitive_warning": "Dieses Token kann gespeicherte Zugangsdaten lesen oder den Dienst verwalten. Nichts anderes gewährt das — also nur an einen Client geben, der es wirklich braucht.",
     "also_includes": "Enthält außerdem: {areas}",
     "minted_areas": "Dieses Token umfasst: {areas}",
-    "label_label": "Name des Clients"
+    "label_label": "Name des Clients",
+    "data_flow_hint": "Ein KI-Assistent, den du über MCP verbindest, bekommt in den Antworten der Werkzeuge Links, Dateinamen und Protokollzeilen; verarbeitet werden sie beim Anbieter dieses Assistenten."
   },
   "readiness": {
     "eyebrow": "Einrichtung",
@@ -431,7 +432,7 @@
     "revoke_others": {
       "action": "Überall sonst abmelden ({count})",
       "title": "Überall sonst abmelden?",
-      "description": "{count} andere Sitzungen werden beendet. Diese hier bleibt bestehen.",
+      "description": "{count} andere Sitzung wird beendet. Diese hier bleibt bestehen. | {count} andere Sitzungen werden beendet. Diese hier bleibt bestehen.",
       "confirm": "Beenden",
       "done": "Andere Sitzungen beendet"
     }
@@ -479,7 +480,7 @@
     "unconfirmed": "Nicht bestätigt",
     "last_used": "Zuletzt genutzt: {moment}",
     "never_used": "noch nie",
-    "remaining": "{count} Wiederherstellungscodes übrig",
+    "remaining": "{count} Wiederherstellungscode übrig | {count} Wiederherstellungscodes übrig",
     "remove": {
       "action": "Entfernen",
       "title": "Zweiten Faktor entfernen?",
@@ -540,56 +541,56 @@
   },
   "data_reset": {
     "button": "Leeren",
-    "stored": "{count} gespeichert",
+    "stored": "{count} gespeichert | {count} gespeichert",
     "confirm": "Endgültig leeren",
-    "done": "{count} Sätze entfernt",
+    "done": "{count} Satz entfernt | {count} Sätze entfernt",
     "logs": {
       "title": "Protokoll leeren?",
-      "description": "{count} Protokollsätze werden endgültig entfernt. Audit und Statistik bleiben stehen, ebenso Downloads, Pakete und Einstellungen."
+      "description": "{count} Protokollsatz wird endgültig entfernt. Audit und Statistik bleiben stehen, ebenso Downloads, Pakete und Einstellungen. | {count} Protokollsätze werden endgültig entfernt. Audit und Statistik bleiben stehen, ebenso Downloads, Pakete und Einstellungen."
     },
     "audit": {
       "title": "Audit leeren?",
-      "description": "{count} Auditsätze werden endgültig entfernt. Das Leeren selbst steht danach als erster Eintrag im leeren Audit. Protokoll und Statistik bleiben stehen, ebenso Downloads, Pakete und Einstellungen."
+      "description": "{count} Auditsatz wird endgültig entfernt. Das Leeren selbst steht danach als erster Eintrag im leeren Audit. Protokoll und Statistik bleiben stehen, ebenso Downloads, Pakete und Einstellungen. | {count} Auditsätze werden endgültig entfernt. Das Leeren selbst steht danach als erster Eintrag im leeren Audit. Protokoll und Statistik bleiben stehen, ebenso Downloads, Pakete und Einstellungen."
     },
     "stats": {
       "title": "Statistik leeren?",
-      "description": "{count} Statistikzeilen werden endgültig entfernt, samt der Gesamtsummen. Protokoll und Audit bleiben stehen, ebenso Downloads, Pakete und Einstellungen."
+      "description": "{count} Statistikzeile wird endgültig entfernt, samt der Gesamtsummen. Protokoll und Audit bleiben stehen, ebenso Downloads, Pakete und Einstellungen. | {count} Statistikzeilen werden endgültig entfernt, samt der Gesamtsummen. Protokoll und Audit bleiben stehen, ebenso Downloads, Pakete und Einstellungen."
     },
     "notifications": {
       "title": "Benachrichtigungsverlauf leeren?",
-      "description": "{count} abgeschlossene Zustellungen werden endgültig aus dem Verlauf entfernt. Zustellungen, die noch in der Warteschlange stehen oder wiederholt werden, bleiben stehen, ebenso Ziele, Regeln, Protokoll, Audit und Statistik."
+      "description": "{count} abgeschlossene Zustellung wird endgültig aus dem Verlauf entfernt. Zustellungen, die noch in der Warteschlange stehen oder wiederholt werden, bleiben stehen, ebenso Ziele, Regeln, Protokoll, Audit und Statistik. | {count} abgeschlossene Zustellungen werden endgültig aus dem Verlauf entfernt. Zustellungen, die noch in der Warteschlange stehen oder wiederholt werden, bleiben stehen, ebenso Ziele, Regeln, Protokoll, Audit und Statistik."
     },
     "notifications_pending": {
       "button": "Ausstehende verwerfen",
-      "stored": "{count} ausstehend",
+      "stored": "{count} ausstehend | {count} ausstehend",
       "title": "Ausstehende Benachrichtigungen verwerfen?",
-      "description": "{count} Benachrichtigungen, die noch in der Warteschlange stehen oder wiederholt werden, werden gelöscht und nicht mehr gesendet. Zugestellte und fehlgeschlagene Zustellungen bleiben im Verlauf, ebenso Ziele, Regeln, Protokoll, Audit und Statistik.",
+      "description": "{count} Benachrichtigung, die noch in der Warteschlange steht oder wiederholt wird, wird gelöscht und nicht mehr gesendet. Zugestellte und fehlgeschlagene Zustellungen bleiben im Verlauf, ebenso Ziele, Regeln, Protokoll, Audit und Statistik. | {count} Benachrichtigungen, die noch in der Warteschlange stehen oder wiederholt werden, werden gelöscht und nicht mehr gesendet. Zugestellte und fehlgeschlagene Zustellungen bleiben im Verlauf, ebenso Ziele, Regeln, Protokoll, Audit und Statistik.",
       "confirm": "Endgültig verwerfen",
-      "done": "{count} Benachrichtigungen verworfen"
+      "done": "{count} Benachrichtigung verworfen | {count} Benachrichtigungen verworfen"
     },
     "storage_operations": {
       "button": "Verlauf leeren",
-      "stored": "{count} Einträge",
+      "stored": "{count} Eintrag | {count} Einträge",
       "title": "Speicherverlauf leeren?",
-      "description": "{count} abgeschlossene, fehlgeschlagene und unterbrochene Verschiebungen und Duplikat-Links werden endgültig aus dem Verlauf entfernt. Ein Vorgang, der noch läuft, bleibt. Keine Datei wird verschoben oder gelöscht, und eine unterbrochene Verschiebung wird beim nächsten Start trotzdem fortgesetzt.",
+      "description": "{count} abgeschlossene, fehlgeschlagene oder unterbrochene Verschiebung oder Duplikat-Verlinkung wird endgültig aus dem Verlauf entfernt. Ein Vorgang, der noch läuft, bleibt. Keine Datei wird verschoben oder gelöscht, und eine unterbrochene Verschiebung wird beim nächsten Start trotzdem fortgesetzt. | {count} abgeschlossene, fehlgeschlagene und unterbrochene Verschiebungen und Duplikat-Links werden endgültig aus dem Verlauf entfernt. Ein Vorgang, der noch läuft, bleibt. Keine Datei wird verschoben oder gelöscht, und eine unterbrochene Verschiebung wird beim nächsten Start trotzdem fortgesetzt.",
       "confirm": "Endgültig leeren",
-      "done": "{count} Verlaufseinträge entfernt"
+      "done": "{count} Verlaufseintrag entfernt | {count} Verlaufseinträge entfernt"
     },
     "content_index": {
       "button": "Index leeren",
-      "stored": "{count} im Index",
+      "stored": "{count} im Index | {count} im Index",
       "title": "Inhaltsindex leeren?",
-      "description": "{count} Indexeinträge werden entfernt. Dateien und Downloads bleiben unberührt, aber bis eine Datei wieder im Index steht, wird sie nicht als inhaltliches Duplikat erkannt und kann nicht Original eines Duplikat-Links sein. „Inhaltsindex prüfen“ (läuft auch bei jedem Start) nimmt fertige Downloads wieder auf, die noch in der Warteschlange stehen, deren SHA-256 bekannt ist und deren Datei noch an ihrem Platz liegt. Dateien entfernter oder nie gehashter Downloads kommen erst mit einem neuen Download zurück.",
+      "description": "{count} Indexeintrag wird entfernt. Dateien und Downloads bleiben unberührt, aber bis eine Datei wieder im Index steht, wird sie nicht als inhaltliches Duplikat erkannt und kann nicht Original eines Duplikat-Links sein. „Inhaltsindex prüfen“ (läuft auch bei jedem Start) nimmt fertige Downloads wieder auf, die noch in der Warteschlange stehen, deren SHA-256 bekannt ist und deren Datei noch an ihrem Platz liegt. Dateien entfernter oder nie gehashter Downloads kommen erst mit einem neuen Download zurück. | {count} Indexeinträge werden entfernt. Dateien und Downloads bleiben unberührt, aber bis eine Datei wieder im Index steht, wird sie nicht als inhaltliches Duplikat erkannt und kann nicht Original eines Duplikat-Links sein. „Inhaltsindex prüfen“ (läuft auch bei jedem Start) nimmt fertige Downloads wieder auf, die noch in der Warteschlange stehen, deren SHA-256 bekannt ist und deren Datei noch an ihrem Platz liegt. Dateien entfernter oder nie gehashter Downloads kommen erst mit einem neuen Download zurück.",
       "confirm": "Index leeren",
-      "done": "{count} Indexeinträge entfernt"
+      "done": "{count} Indexeintrag entfernt | {count} Indexeinträge entfernt"
     },
     "history": {
       "button": "Verlauf leeren",
-      "stored": "{count} Einträge",
+      "stored": "{count} Eintrag | {count} Einträge",
       "title": "Downloadverlauf leeren?",
-      "description": "{count} Einträge werden endgültig aus dem Downloadverlauf entfernt. Die Downloadliste, die Dateien, die Statistik und die Protokolle bleiben unberührt.",
+      "description": "{count} Eintrag wird endgültig aus dem Downloadverlauf entfernt. Die Downloadliste, die Dateien, die Statistik und die Protokolle bleiben unberührt. | {count} Einträge werden endgültig aus dem Downloadverlauf entfernt. Die Downloadliste, die Dateien, die Statistik und die Protokolle bleiben unberührt.",
       "confirm": "Endgültig leeren",
-      "done": "{count} Verlaufseinträge entfernt"
+      "done": "{count} Verlaufseintrag entfernt | {count} Verlaufseinträge entfernt"
     }
   },
   "session_limits": {
@@ -715,7 +716,7 @@
     "whats_new": "Was ist neu",
     "auto_install": {
       "label": "Updates automatisch installieren",
-      "description": "Installiert eine gefundene neue Version selbst, sobald fünf Minuten lang nichts lädt, nachbearbeitet oder aufnimmt – mit Sicherung vorher und Rücknahme, wenn sie nicht startet.",
+      "description": "Installiert eine gefundene neue Version selbst, sobald fünf Minuten lang nichts lädt, nachbearbeitet oder aufnimmt – mit Backup vorher und Rücknahme, wenn sie nicht startet.",
       "locked": "Nicht verfügbar: Diese Installation ({kind}) aktualisiert sich nicht selbst, das übernimmt ihr Paketmanager oder Container.",
       "window_label": "Nur in einem Zeitfenster installieren und neu starten",
       "window_description": "Gilt für die automatische Installation und den automatischen Neustart; ohne Fenster jederzeit. Die Zeiten gelten in der Zeitzone der Bandbreitenplanung.",
@@ -736,7 +737,7 @@
     "copy": "Kopieren",
     "copied": "Kopiert",
     "copy_command": "Befehl kopieren",
-    "external_url_missing": "Ohne externe URL gibt es keine Weiterleitungsadresse. Trage sie unter Sicherheit → Reverse-Proxy ein.",
+    "external_url_missing": "Ohne externe URL gibt es keine Weiterleitungsadresse. Trage sie unter Einstellungen → Sicherheit → Erreichbarkeit & Reverse Proxy ein.",
     "linked": "Verknüpft: {label}",
     "unnamed": "ein Konto ohne Namen",
     "linked_at": "Verknüpft {moment}",
@@ -783,7 +784,7 @@
     "label": "Läuft ab",
     "hint": "Ein abgelaufener Token wird wie ein widerrufener abgewiesen und bleibt in der Liste, bis du ihn widerrufst.",
     "never": "Nie",
-    "days": "Nach {count} Tagen",
+    "days": "Nach {count} Tag | Nach {count} Tagen",
     "expires_on": "Läuft ab am {date}",
     "expired": "Abgelaufen"
   },
@@ -792,7 +793,7 @@
     "hint": "REST und MCP zusammen. Leer heißt keine Grenze; ein Aufruf darüber wird bis zum Ende der Minute abgelehnt.",
     "unit": "/min",
     "none": "Keine Grenze",
-    "row": "Höchstens {count} Aufrufe pro Minute"
+    "row": "Höchstens {count} Aufruf pro Minute | Höchstens {count} Aufrufe pro Minute"
   },
   "restart": {
     "title": "Neustart ausstehend",

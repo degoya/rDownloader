@@ -2,9 +2,12 @@
 //! wording and to a rule's own (RD-1291-01).
 
 use rd_core::{EventEnvelope, EventKind};
-use rd_notify::{Coalescer, NotificationEvent, NotificationRule, Occurrence, Placeholder as P};
+use rd_notify::{
+    Burst, Coalescer, NotificationEvent, NotificationLanguage as L, NotificationRule, Occurrence,
+    Placeholder as P,
+};
 
-use super::{burst_text, coalescing_kind, source_label};
+use super::coalescing_kind;
 
 fn state(previous: &str, next: &str) -> EventEnvelope {
     EventEnvelope::new(
@@ -60,6 +63,12 @@ fn an_intake_is_links_added_and_an_edit_is_not() {
     assert_eq!(coalescing_kind(&edit), None);
 }
 
+/// The burst's built-in wording in English.
+fn burst_text(burst: &Burst) -> (String, String) {
+    let (title, body) = super::burst_text(burst);
+    (title.say(L::En), body.say(L::En))
+}
+
 fn occurrence(event: NotificationEvent, id: &str, items: u64, name: &str) -> Occurrence {
     Occurrence {
         event,
@@ -69,6 +78,7 @@ fn occurrence(event: NotificationEvent, id: &str, items: u64, name: &str) -> Occ
         name: Some(name.to_owned()),
         occurred_at: rd_core::Timestamp::now(),
         package_id: None,
+        download_id: None,
     }
 }
 
@@ -139,12 +149,40 @@ fn one_start_names_its_file_and_many_are_counted() {
     );
 }
 
+/// RD-1480-11: a burst is worded in the language asked for, its sources and the count of what it
+/// does not name included.
 #[test]
-fn an_intake_source_reads_as_words() {
-    assert_eq!(source_label("browser_extension"), "browser extension");
-    assert_eq!(source_label("hot_folder"), "hot folder");
-    // A source added later still shows as what it is called.
-    assert_eq!(source_label("something_new"), "something_new");
+fn a_burst_speaks_the_chosen_language() {
+    let mut coalescer = Coalescer::default();
+    let now = rd_core::Timestamp::now();
+    coalescer.push(
+        occurrence(NotificationEvent::LinksAdded, "a", 1, "clipboard"),
+        now,
+    );
+    let links = coalescer.drain().remove(0);
+    for index in 0..5 {
+        coalescer.push(
+            occurrence(
+                NotificationEvent::DownloadStarted,
+                &format!("e{index}"),
+                1,
+                &format!("part{index}.rar"),
+            ),
+            now,
+        );
+    }
+    let starts = coalescer.drain().remove(0);
+    for language in [L::De, L::Es, L::Fr] {
+        for burst in [&links, &starts] {
+            let (title, body) = super::burst_text(burst);
+            let said = format!("{} / {}", title.say(language), body.say(language));
+            assert!(!said.contains('{'), "{language:?}: {said}");
+            assert!(
+                !said.contains("more") && !said.contains("clipboard") && !said.contains("added"),
+                "{language:?}: {said}"
+            );
+        }
+    }
 }
 
 fn worded(title: &str, body: &str) -> NotificationRule {
@@ -180,7 +218,11 @@ fn one_start_goes_out_in_the_rule_s_own_words() {
         "MYTITLE {file}",
         "MYBODY {count}x {names} at {time} ({message})",
     );
-    let (title, body) = rule.wording(&title, &body, &burst.values(&jiff::tz::TimeZone::UTC));
+    let (title, body) = rule.wording(
+        &title,
+        &body,
+        &burst.values(&jiff::tz::TimeZone::UTC, L::En),
+    );
     assert_eq!(title, "MYTITLE sample.bin");
     let time = burst.first_at.strftime("%H:%M");
     assert_eq!(
@@ -206,13 +248,17 @@ fn many_starts_count_and_name_and_leave_the_file_empty() {
     let burst = coalescer.drain().remove(0);
     let (title, body) = burst_text(&burst);
     let rule = worded("{count} started [{file}]", "{names}");
-    let values = burst.values(&jiff::tz::TimeZone::UTC);
+    let values = burst.values(&jiff::tz::TimeZone::UTC, L::En);
     let (own_title, own_body) = rule.wording(&title, &body, &values);
     assert_eq!(own_title, "50 started []");
     assert_eq!(own_body, "part0.rar, part1.rar, part2.rar and 47 more");
     // Filled again - a restart's replay - the burst says the same.
     assert_eq!(
-        rule.wording(&title, &body, &burst.values(&jiff::tz::TimeZone::UTC)),
+        rule.wording(
+            &title,
+            &body,
+            &burst.values(&jiff::tz::TimeZone::UTC, L::En)
+        ),
         (own_title, own_body)
     );
     // A rule without a template keeps the built-in wording.
@@ -238,7 +284,7 @@ fn the_editor_s_sample_bursts_are_real_ones() {
         ),
         (
             NotificationEvent::LinksAdded,
-            [(4, "clipboard"), (4, "browser extension"), (4, "clipboard")],
+            [(4, "clipboard"), (4, "browser_extension"), (4, "clipboard")],
         ),
     ];
     for (event, occurrences) in cases {
@@ -251,7 +297,7 @@ fn the_editor_s_sample_bursts_are_real_ones() {
         }
         let burst = coalescer.drain().remove(0);
         let (title, body) = burst_text(&burst);
-        let mut values = burst.values(&jiff::tz::TimeZone::UTC);
+        let mut values = burst.values(&jiff::tz::TimeZone::UTC, L::En);
         values.set(P::Title, title);
         values.set(P::Message, body);
         for (placeholder, example) in event.examples() {

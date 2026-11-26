@@ -2,7 +2,8 @@
 //! their targets may hold (RD-170-09, free text since RD-1250-01). Split out of
 //! `notify_handlers.rs` to keep it under the line limit.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use serde::Serialize;
 use utoipa::ToSchema;
 

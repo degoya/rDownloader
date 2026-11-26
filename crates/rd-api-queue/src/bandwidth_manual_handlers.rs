@@ -4,7 +4,8 @@
 //! until a chosen time, or until it is switched back. Editing profiles and the schedule stays
 //! where it was; this only picks one of them for a while.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_core::{SignedDuration, Timestamp};
 use serde::Deserialize;
 use utoipa::ToSchema;

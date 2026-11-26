@@ -64,6 +64,20 @@ impl Pace {
         recent.push_back(now);
         true
     }
+
+    /// Whole seconds until the next hand-over fits, at least one: what a refusal's
+    /// `Retry-After` says.
+    pub fn retry_after_seconds(&self, now: Instant) -> u64 {
+        let left = match self.recent.lock() {
+            Ok(recent) => recent.front().map_or(Duration::ZERO, |oldest| {
+                self.window
+                    .saturating_sub(now.saturating_duration_since(*oldest))
+            }),
+            // A poisoned pace admits nothing any more; a whole window is the honest guess.
+            Err(_) => self.window,
+        };
+        (left.as_secs() + u64::from(left.subsec_nanos() > 0)).max(1)
+    }
 }
 
 /// The package name to pass on: trimmed, empty as none, cut at [`MAX_PACKAGE_NAME_CHARS`].
@@ -104,6 +118,11 @@ mod tests {
             assert!(pace.admit(start));
         }
         assert!(!pace.admit(start + Duration::from_secs(59)));
+        assert_eq!(
+            pace.retry_after_seconds(start + Duration::from_millis(47_500)),
+            13
+        );
+        assert_eq!(pace.retry_after_seconds(start + Duration::from_secs(60)), 1);
         assert!(pace.admit(start + Duration::from_secs(60)));
     }
 

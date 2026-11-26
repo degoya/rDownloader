@@ -1,14 +1,14 @@
 {
-  "title": "Journal d'audit",
-  "intro": "Qui a fait quoi, depuis où, et comment cela s'est terminé. Les entrées sont ajoutées et jamais modifiées ; seule la rétention les supprime, entières et les plus anciennes d'abord. Aucun mot de passe, jeton ou lien signé n'apparaît dans cette liste.",
+  "title": "Journal d’audit",
+  "intro": "Qui a fait quoi, depuis où, et comment cela s’est terminé. Les entrées sont ajoutées et jamais modifiées ; seule la rétention les supprime, entières et les plus anciennes d’abord. Aucun mot de passe, jeton ou lien signé n’apparaît dans cette liste.",
   "export": "Exporter",
   "filters": {
     "action": "Action",
     "any_action": "Toutes les actions",
     "outcome": "Résultat",
-    "any_outcome": "N'importe quel résultat",
+    "any_outcome": "N’importe quel résultat",
     "actor_kind": "Acteur",
-    "any_actor": "N'importe quel acteur",
+    "any_actor": "N’importe quel acteur",
     "target_kind": "Type de cible",
     "target_placeholder": "download",
     "target_id": "Id de la cible",
@@ -93,18 +93,18 @@
     "title": "Entrées",
     "empty": "Aucune entrée ne correspond.",
     "shown": "{shown} sur {total} entrées",
-    "full_page": "Cette page est pleine : des entrées plus anciennes existent derrière.",
+    "full_page": "Cette page est pleine : des entrées plus anciennes existent derrière.",
     "older": "Charger les plus anciennes",
     "expand": "Afficher les détails",
     "collapse": "Masquer les détails",
-    "actor_id": "Id de l'acteur",
-    "retention": "Conservées {days} jours ou {records} entrées, selon ce qui arrive en premier.",
+    "actor_id": "Id de l’acteur",
+    "retention": "Conservées {days} jour ou {records} entrées, selon ce qui arrive en premier. | Conservées {days} jours ou {records} entrées, selon ce qui arrive en premier.",
     "via": "via {channel}"
   },
   "append_only": {
     "eyebrow": "Garantie",
     "title": "Ajout seul",
-    "description": "Aucune route ne modifie ni ne supprime une entrée, et la base de données refuse catégoriquement une mise à jour de cette table. Supprimer un téléchargement, un paquet, une catégorie ou une racine de stockage laisse son entrée, et restaurer une sauvegarde ne touche pas au journal. C'est une trace de ce qui s'est passé, pas une protection contre quelqu'un qui aurait accès au fichier lui-même."
+    "description": "Aucune route ne modifie ni ne supprime une entrée, et la base de données refuse catégoriquement une mise à jour de cette table. Supprimer un téléchargement, un paquet, une catégorie ou une racine de stockage laisse son entrée, et restaurer une sauvegarde ne touche pas au journal. C’est une trace de ce qui s’est passé, pas une protection contre quelqu’un qui aurait accès au fichier lui-même."
   },
   "channels": {
     "rest": "REST",

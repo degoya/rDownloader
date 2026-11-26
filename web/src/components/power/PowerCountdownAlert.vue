@@ -4,13 +4,13 @@ import { useI18n } from 'vue-i18n'
 
 import { api, responseError } from '@/api/client'
 import type { PowerStatus } from '@/api/types'
+import { useDebouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
 
 const { t } = useI18n()
 const status = ref<PowerStatus | null>(null)
 const error = ref<string | null>(null)
 const cancelling = ref(false)
 const now = ref(Date.now())
-let poll: ReturnType<typeof setInterval> | null = null
 let clock: ReturnType<typeof setInterval> | null = null
 
 /** Whole seconds left; the countdown is the whole point of the alert. */
@@ -39,18 +39,19 @@ async function cancel(): Promise<void> {
 
 onMounted(() => {
   void load()
-  poll = setInterval(() => void load(), 5000)
   clock = setInterval(() => (now.value = Date.now()), 1000)
 })
 onUnmounted(() => {
-  if (poll) clearInterval(poll)
   if (clock) clearInterval(clock)
 })
+// Announced when a countdown starts and when it ends (RD-1260-04), so nothing is polled
+// (RD-1480-18).
+useDebouncedEventRefresh(['power.changed'], load)
 </script>
 
 <template>
   <div v-if="status?.pending || status?.paused_reason" class="flex flex-col gap-2">
-    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
+    <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
     <UAlert
       v-if="status.pending"
       color="warning"

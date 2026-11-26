@@ -10,10 +10,8 @@
 //! The schedule body is a tree (a weekly or a one-off kind, flattened into the body), so the
 //! write tools take it as `definition`, as the channel tools beside them do.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path, Query};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

@@ -20,7 +20,7 @@ use axum::{
     http::{HeaderMap, header},
     response::{IntoResponse, Response},
 };
-use rd_core::{DownloadFile, DownloadState};
+use rd_core::{DownloadFigures, DownloadFile, DownloadState};
 use rd_files::StorageTarget;
 
 use crate::{
@@ -99,8 +99,8 @@ fn counter(name: &'static str, help: &'static str, samples: Vec<Sample>) -> Fami
 /// Every family, in the order they are exposed.
 pub(crate) async fn collect(state: &AppState) -> Result<Vec<Family>, ApiError> {
     let downloads = state.database.list_downloads().await?;
-    let rates =
-        crate::download_handlers::moving_rates(state.scheduler.transfer_rates(), &downloads);
+    let figures: Vec<DownloadFigures> = downloads.iter().map(Into::into).collect();
+    let rates = crate::download_handlers::moving_rates(state.scheduler.transfer_rates(), &figures);
     let totals = state.database.list_transfer_totals().await?;
     let accounts = state.database.list_accounts().await?;
     let now = rd_core::Timestamp::now();

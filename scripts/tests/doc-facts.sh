@@ -142,6 +142,23 @@ expect_true "--wiki-only without its directory is refused" '[[ $status -eq 2 ]]'
 run --wiki "$WIKI"
 expect_true "the tree is written again" '[[ $status -eq 0 ]] && has "$TREE/README.md" "@0.11.0"'
 
+# An argument it does not know is refused before anything is written (RD-1480-14, PLAN-10): the
+# call that reads nothing of it used to write the documentation.
+printf 'package rdownloader:plugin@0.12.0;\n' > "$TREE/crates/rd-plugin-api/wit/rdownloader.wit"
+cp "$TREE/README.md" "$SCRATCH/readme.before"
+for arguments in --chekc -x "--wiki $WIKI extra" "--date" "--wiki --check"; do
+    # shellcheck disable=SC2086  # several arguments on purpose
+    run $arguments
+    expect_true "refused: $arguments" '[[ $status -eq 2 ]]'
+done
+run --help
+expect_true "--help prints the usage" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "--wiki-only DIR"'
+"$ROOT/scripts/doc-facts.sh" --help > "$SCRATCH/out" 2>&1 && status=0 || status=$?
+expect_true "through the script as well" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "doc-facts"'
+expect_true "and none of them wrote" 'cmp -s "$TREE/README.md" "$SCRATCH/readme.before"'
+run
+expect_true "the same tree without an argument is written" '[[ $status -eq 0 ]] && has "$TREE/README.md" "@0.12.0"'
+
 sed -i 's/the versioned contract/the contract/' "$TREE/README.md"
 run --check
 expect_true "a reworded sentence is a refusal naming the file" '[[ $status -eq 2 ]] && has "$SCRATCH/out" "README.md: no match for the anchor"'

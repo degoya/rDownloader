@@ -34,11 +34,11 @@ describe('transfers store: refused actions', () => {
     const store = useTransfersStore()
 
     expect(await store.deletePackages(['p-1'], true)).toBe(false)
-    expect(store.error).toBe('1 file(s) could not be removed: part04.rar')
+    expect(store.error).toBe('1 file could not be removed: part04.rar')
 
     await store.refresh()
 
-    expect(store.error).toBe('1 file(s) could not be removed: part04.rar')
+    expect(store.error).toBe('1 file could not be removed: part04.rar')
   })
 
   it('shows what a bulk cancel refused by its code', async () => {

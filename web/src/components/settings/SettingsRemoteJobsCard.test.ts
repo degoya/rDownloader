@@ -413,7 +413,7 @@ describe('SettingsRemoteJobsCard', () => {
     expect(screen.getByText('container.unrecognised')).toBeTruthy()
     expect(screen.getByText(en.files.states.refused)).toBeTruthy()
     expect(view.emitted('error')?.[0]).toEqual([
-      en.files.summary_failed.replace('{failed}', '1').replace('{total}', '3')
+      en.files.summary_failed.split(' | ')[0]!.replace('{failed}', '1').replace('{total}', '3')
     ])
     // Both jobs the server answered with are in the list.
     await waitFor(() => expect(screen.getAllByText(en.states.working, ROWS).length).toBe(2))

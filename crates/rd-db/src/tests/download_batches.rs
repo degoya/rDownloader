@@ -8,7 +8,7 @@ use super::SELECTION;
 use crate::{Database, NewDownload, NewPackage, StoreErrorKind, store_kind};
 
 /// A package of `files` queued rows; answers their ids in queue order.
-async fn package(
+pub(super) async fn package(
     database: &Database,
     directory: &std::path::Path,
     name: &str,

@@ -252,7 +252,7 @@ async function revokeKey(keyId: string): Promise<void> {
 
     <!-- Above the tabs: removing, switching off and withdrawing answer here, whichever tab they came from. -->
     <UAlert v-if="message" color="success" :description="message" :actions="messageActions" data-testid="plugins-message" />
-    <UAlert v-if="error" color="error" :description="error" />
+    <UAlert v-if="error" color="error" role="alert" :description="error" />
 
     <UTabs
       v-model="activeTab"

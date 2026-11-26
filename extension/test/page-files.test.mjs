@@ -9,9 +9,10 @@ import vm from 'node:vm'
 
 import { SITES_KEY, sitePattern } from '../src/files.js'
 import { BROWSER_ONLY_EXTENSIONS, BROWSER_ONLY_TYPES } from '../src/intercept.js'
-import { PAGE_FILE_MAX_BYTES, PAGE_FILE_MESSAGE, PAGE_SCRIPT_IDS, createPageFiles, decodeBytes, pageScripts } from '../src/page-files.js'
+import { PAGE_FILE_MAX_BYTES, PAGE_FILE_MESSAGE, PAGE_SCRIPT_IDS, TAB_LIMIT, TAB_WINDOW_MS, createPageFiles, decodeBytes, pageScripts } from '../src/page-files.js'
 
-import { CONFIG } from './fakes.mjs'
+import { fakeBrowser } from './fake-browser.mjs'
+import { CONFIG, clock } from './fakes.mjs'
 
 const HOST = 'hide.test'
 const PAGE = `https://${HOST}/container/1`
@@ -19,30 +20,10 @@ const SENDER = { id: 'self', tab: { id: 4 }, url: PAGE }
 const DLC = { type: PAGE_FILE_MESSAGE, name: 'Release.dlc', mime: 'application/octet-stream', data: btoa('dlc-bytes') }
 
 function browser(calls, { sites = [HOST], granted = [sitePattern(HOST)], registered = [] } = {}) {
-  const scripts = new Map(registered.map((id) => [id, { id }]))
-  const api = {
-    runtime: { id: 'self' },
-    storage: { local: { get: async (defaults) => ({ ...defaults, [SITES_KEY]: sites }) } },
-    permissions: { contains: async ({ origins }) => origins.every((origin) => granted.includes(origin)) },
-    scripting: {
-      getRegisteredContentScripts: async ({ ids }) => ids.filter((id) => scripts.has(id)).map((id) => scripts.get(id)),
-      unregisterContentScripts: async ({ ids }) => {
-        calls.push(['unregister', ids])
-        for (const id of ids) scripts.delete(id)
-      },
-      registerContentScripts: async (list) => {
-        calls.push(['register', list])
-        for (const script of list) {
-          if (scripts.has(script.id)) throw new Error(`Duplicate script ID '${script.id}'`)
-          scripts.set(script.id, script)
-        }
-      }
-    }
-  }
-  return { api, scripts }
+  return fakeBrowser('chrome', { calls, local: { [SITES_KEY]: sites }, grants: granted, scripts: registered })
 }
 
-function setup(calls, { config = {}, result = { ok: true, status: 201 }, ...options } = {}) {
+function setup(calls, { config = {}, result = { ok: true, status: 201 }, time = clock(), ...options } = {}) {
   const { api, scripts } = browser(calls, options)
   const pageFiles = createPageFiles({
     api,
@@ -50,6 +31,7 @@ function setup(calls, { config = {}, result = { ok: true, status: 201 }, ...opti
     message: (key, substitutions) => (substitutions ? `${key}:${substitutions.join(',')}` : key),
     notify: async (body) => calls.push(['notify', body]),
     log: () => {},
+    now: time.now,
     submitBytes: async (_config, body) => {
       calls.push(['submit', body.fileName, await body.bytes.text()])
       return result
@@ -92,6 +74,19 @@ test("the site comes from the browser's address of the frame, not from the page"
   const forged = { ...DLC, url: PAGE, host: HOST }
   assert.deepEqual(await pageFiles.onMessage(forged, { ...SENDER, url: 'https://elsewhere.test/' }), { taken: false })
   assert.deepEqual(calls, [])
+})
+
+test('one tab hands over so many files a minute and no more (RD-1480-03)', async () => {
+  const calls = []
+  const time = clock()
+  const { pageFiles } = setup(calls, { time })
+  const taken = async (sender) => (await pageFiles.onMessage(DLC, sender)).taken
+  for (let file = 0; file < TAB_LIMIT; file += 1) assert.equal(await taken(SENDER), true, `file ${file + 1}`)
+  assert.equal(await taken(SENDER), false, 'the browser keeps the next one')
+  assert.equal(await taken({ ...SENDER, tab: { id: 5 } }), true, 'another tab has its own share')
+  time.advance(TAB_WINDOW_MS)
+  assert.equal(await taken(SENDER), true, 'a minute later it goes on')
+  assert.equal(calls.filter(([name]) => name === 'submit').length, TAB_LIMIT + 2)
 })
 
 test('a refusal is said, and the browser keeps the file', async () => {
@@ -224,7 +219,7 @@ function page() {
   return { context, downloads, posted, live, answer }
 }
 
-/** What hide.cx does: build the blob, click the anchor, revoke the address at once. */
+/** What a container page does: build the blob, click the anchor, revoke the address at once. */
 function siteDownload({ context }, name, blob, { connected = true } = {}) {
   const url = context.URL.createObjectURL(blob)
   const anchor = context.document.createElement('a')
@@ -284,13 +279,13 @@ const plain = (value) => JSON.parse(JSON.stringify(value))
 const RELAY = readFileSync(new URL('../src/page-files-relay.js', import.meta.url), 'utf8')
 
 /** The relay on a page; `sent` is what reaches the background, `posted` what goes back. */
-function relayPage(answer) {
+function relayPage(answer, { active = true } = {}) {
   const listeners = []
   const sent = []
   const posted = []
   const window = { addEventListener: (_type, listener) => listeners.push(listener), postMessage: (data) => posted.push(data) }
   const chrome = { runtime: { sendMessage: async (message) => (sent.push(message), answer) } }
-  vm.runInContext(RELAY, vm.createContext({ window, chrome, location: { origin: `https://${HOST}` }, console }))
+  vm.runInContext(RELAY, vm.createContext({ window, chrome, location: { origin: `https://${HOST}` }, navigator: { userActivation: { isActive: active } }, console: { info: () => {}, warn: () => {} } }))
   const post = async (data) => {
     for (const listener of listeners) await listener({ source: window, data: { type: PAGE_FILE_MESSAGE, phase: 'file', id: 'id-1', ...data } })
   }
@@ -302,6 +297,14 @@ test('the relay forwards the base64 text and posts the answer back', async () =>
   await relay.post({ name: 'Release.dlc', mime: 'application/octet-stream', data: btoa('dlc-bytes') })
   assert.deepEqual(plain(relay.sent), [{ type: PAGE_FILE_MESSAGE, name: 'Release.dlc', mime: 'application/octet-stream', data: btoa('dlc-bytes') }])
   assert.deepEqual(plain(relay.posted), [{ type: PAGE_FILE_MESSAGE, phase: 'answer', id: 'id-1', taken: true }])
+})
+
+test('without a click on the page the relay forwards nothing and the browser keeps the file (RD-1480-03)', async () => {
+  // A script on an allowed site posts what `page-files-main.js` would: no gesture, no hand-over.
+  const relay = relayPage({ taken: true }, { active: false })
+  await relay.post({ name: 'Release.dlc', mime: '', data: btoa('dlc-bytes') })
+  assert.deepEqual(relay.sent, [])
+  assert.deepEqual(plain(relay.posted), [{ type: PAGE_FILE_MESSAGE, phase: 'answer', id: 'id-1', taken: false }])
 })
 
 test('without text the relay asks nothing and the browser keeps the file', async () => {

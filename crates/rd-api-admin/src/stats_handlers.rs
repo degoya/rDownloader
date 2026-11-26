@@ -2,10 +2,8 @@
 //! retention settings the sweep reads; `GET /api/v1/stats/usenet-servers`, the traffic per
 //! Usenet server (RD-1100-05).
 
-use axum::{
-    Json,
-    extract::{Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Query};
 use rd_core::{SignedDuration, Timestamp};
 use rd_db::{StatsResolution, StatsRetention, TransferBucket};
 use serde::{Deserialize, Serialize};

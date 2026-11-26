@@ -1,0 +1,27 @@
+THIRD-PARTY NOTICES OF rDOWNLOADER
+
+rDownloader is free software, Copyright (C) 2026 Alexander Herling / DEGOYA.digital, licensed under
+the GNU General Public License, version 3 or (at your option) any later version; the text is the
+file LICENSE beside this one. Its packages also contain the work of others, under licences of their
+own. This file names every such component with its version, its licence as its package declares it
+(an SPDX expression), the place its source code is offered, and its licence, copyright and NOTICE
+texts in full, each once at the end. A bracketed mark like [0123abcd] leads to the text.
+
+Components under the Mozilla Public License 2.0 are contained unmodified; their source code form is
+available at the address named with each of them.
+
+Where a package carries no licence file, nothing was made up: the standard text of every licence it
+declares is named, with the placeholders of that standard text, and the authors its own manifest
+names.
+
+The Windows installers (.msi) were built with the WiX Toolset 5.0.2 (https://wixtoolset.org) and
+contain its utility custom action library (Wix4UtilCA_X64) and its installer dialogs
+(WixToolset.UI.wixext); the portable archives contain neither. They are the work of the WiX Toolset
+contributors, under the licence that project declares for that version.
+
+The container image also contains programs of the Debian project and of the Python Package Index.
+They are not listed here: their licence texts are in /usr/share/doc/<package>/copyright and
+/usr/share/doc/rdownloader/python/, and /usr/share/doc/rdownloader/SOURCES.txt says where their
+source code is offered.
+
+This file is generated (scripts/licenses.sh) and has not been reviewed by a lawyer.

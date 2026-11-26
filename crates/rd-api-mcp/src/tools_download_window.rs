@@ -4,10 +4,8 @@
 //! the bandwidth schedule pauses downloads is a profile's `pause_downloads`, read with
 //! list_bandwidth_profiles and get_bandwidth_status; profiles are edited in the interface.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
 use serde::{Deserialize, Serialize};
 
@@ -117,7 +115,7 @@ impl RdMcpServer {
             let request = body(params.request())?;
             let Json(stored) = config_handlers::set_category_download_window(
                 State(self.state.clone()),
-                axum::extract::Path(id),
+                Path(id),
                 Json(request),
             )
             .await?;

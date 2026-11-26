@@ -1,7 +1,8 @@
 //! The repository's own rules, read off its files: English-only Rust sources, the address forms of
 //! the plugin catalogues, plugin paths read at run time, the `no-components` profile, plugin crate
-//! versions, at most 500 lines per Rust source, the area graph of the eight HTTP crates, the
-//! release chain's set of tests that read the version, `unsafe` code in `rd-win32` only.
+//! versions and licences, the notifications' catalogues against the code that says their sentences,
+//! at most 500 lines per Rust source, the area graph of the eight HTTP crates, the release chain's
+//! set of tests that read the version, `unsafe` code in `rd-win32` only.
 //!
 //! One test binary, each rule a module of it (RD-1120-08): every one was a binary of its own that
 //! linked for a test reading a few files.
@@ -16,8 +17,11 @@ mod german_address;
 mod http_area_graph;
 mod no_components_profile;
 mod no_german;
+mod notification_texts;
 mod plugin_crate_versions;
+mod plugin_licences;
 mod plugin_paths_at_run_time;
+mod rest_extractors;
 mod unsafe_only_in_win32;
 mod version_tests;
 

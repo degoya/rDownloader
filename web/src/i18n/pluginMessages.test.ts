@@ -253,7 +253,7 @@ describe('account label parts', () => {
       de: 'Premium bis 2027-01-01',
       en: 'Premium until 2027-01-01',
       es: 'Premium hasta el 2027-01-01',
-      fr: "Premium jusqu'au 2027-01-01"
+      fr: 'Premium jusqu’au 2027-01-01'
     }
     for (const [locale, text] of Object.entries(expected)) {
       i18n.global.locale.value = locale as never

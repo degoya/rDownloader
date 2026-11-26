@@ -57,7 +57,7 @@ fn german_strings() -> Vec<(String, String, String)> {
     out
 }
 
-fn addresses_formally(text: &str) -> bool {
+pub(crate) fn addresses_formally(text: &str) -> bool {
     text.split(|c: char| !c.is_alphabetic())
         .any(|word| FORMAL.contains(&word))
 }

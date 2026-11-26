@@ -180,7 +180,9 @@ describe('the bandwidth status card naming what a limit cannot reach', () => {
 
   beforeAll(loadEveryLocale)
 
-  it.skipIf(codes.length === 0)('has a sentence for every note code in every required language', () => {
+  // Skipped without the crates alone: a source that no longer matches the pattern fails.
+  it.skipIf(!existsSync(sourceFile))('has a sentence for every note code in every required language', () => {
+    expect(codes.length).toBeGreaterThan(0)
     for (const code of codes) {
       for (const locale of REQUIRED_LOCALES) {
         expect(i18n.global.te(`bandwidth.capabilities.notes.${code}`, locale), `${code} in ${locale}`).toBe(true)

@@ -95,7 +95,7 @@ async function save(): Promise<void> {
       :description="t('settings.capture_agent.game_mode.description')"
       level="sub"
     />
-    <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" data-testid="game-mode-error" />
+    <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" data-testid="game-mode-error" />
     <UAlert v-if="message" color="success" icon="i-lucide-circle-check" :description="message" data-testid="game-mode-saved" />
     <UForm :state="draft" :validate="validate" class="space-y-4" data-testid="game-mode-form" @submit="save">
       <USwitch

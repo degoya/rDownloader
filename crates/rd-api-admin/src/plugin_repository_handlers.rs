@@ -6,12 +6,8 @@
 //! from any repository still goes through `PluginInstaller::install_bytes` under a trusted
 //! plugin key, after its bytes have matched the index's digest.
 
-use axum::{
-    Json,
-    body::Bytes,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use axum::{body::Bytes, extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path, Query};
 use rd_plugin_host::{
     index::Permissions,
     repository::{Offer, REFRESH_HOURS_RANGE, RepositoryError, is_official},
@@ -60,7 +56,7 @@ pub async fn list_plugin_repositories(
     request_body = AddPluginRepositoryRequest,
     responses(
         (status = 201, body = PluginRepositoryResponse),
-        (status = 409, description = "The repository key has not been confirmed yet", body = MessageResponse)
+        (status = 409, description = "The repository key has not been confirmed yet", body = crate::error::ErrorBody)
     )
 )]
 pub async fn add_plugin_repository(
@@ -137,7 +133,7 @@ pub async fn add_plugin_repository(
     tag = "plugins",
     params(("id" = String, Path, description = "Repository id")),
     request_body = UpdatePluginRepositoryRequest,
-    responses((status = 200, body = MessageResponse), (status = 404, body = MessageResponse))
+    responses((status = 200, body = MessageResponse), (status = 404, body = crate::error::ErrorBody))
 )]
 pub async fn update_plugin_repository(
     State(state): State<AppState>,
@@ -174,7 +170,7 @@ pub async fn update_plugin_repository(
     path = "/api/v1/plugins/repositories/{id}",
     tag = "plugins",
     params(("id" = String, Path, description = "Repository id")),
-    responses((status = 200, body = MessageResponse), (status = 400, body = MessageResponse), (status = 404, body = MessageResponse))
+    responses((status = 200, body = MessageResponse), (status = 400, body = crate::error::ErrorBody), (status = 404, body = crate::error::ErrorBody))
 )]
 pub async fn remove_plugin_repository(
     State(state): State<AppState>,
@@ -227,7 +223,7 @@ pub async fn refresh_plugin_repositories(
     path = "/api/v1/plugins/repositories/settings",
     tag = "plugins",
     request_body = PluginRepositorySettingsRequest,
-    responses((status = 200, body = PluginRepositoriesResponse), (status = 400, body = MessageResponse))
+    responses((status = 200, body = PluginRepositoriesResponse), (status = 400, body = crate::error::ErrorBody))
 )]
 pub async fn set_plugin_repository_settings(
     State(state): State<AppState>,
@@ -279,7 +275,7 @@ pub async fn list_plugin_updates(
     path = "/api/v1/plugins/preview",
     tag = "plugins",
     request_body(content = Vec<u8>, content_type = "application/octet-stream"),
-    responses((status = 200, body = PluginPreviewResponse), (status = 400, body = MessageResponse))
+    responses((status = 200, body = PluginPreviewResponse), (status = 400, body = crate::error::ErrorBody))
 )]
 pub async fn preview_plugin_package(
     State(state): State<AppState>,
@@ -306,7 +302,7 @@ pub async fn preview_plugin_package(
     tag = "plugins",
     params(("id" = String, Path, description = "Repository id")),
     request_body = RepositoryPackageRequest,
-    responses((status = 200, body = PluginPreviewResponse), (status = 404, body = MessageResponse), (status = 502, body = MessageResponse))
+    responses((status = 200, body = PluginPreviewResponse), (status = 404, body = crate::error::ErrorBody), (status = 502, body = crate::error::ErrorBody))
 )]
 pub async fn preview_repository_package(
     State(state): State<AppState>,
@@ -332,8 +328,8 @@ pub async fn preview_repository_package(
     request_body = RepositoryPackageRequest,
     responses(
         (status = 201, body = MessageResponse),
-        (status = 409, description = "Signed by a key the user has not confirmed yet", body = MessageResponse),
-        (status = 502, body = MessageResponse)
+        (status = 409, description = "Signed by a key the user has not confirmed yet", body = crate::error::ErrorBody),
+        (status = 502, body = crate::error::ErrorBody)
     )
 )]
 pub async fn install_repository_package(

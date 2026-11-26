@@ -1,8 +1,13 @@
 [graph]
 all-features = true
+# Every target a package or an image is built for (RD-1480-12). Not the plugins' wasm32: cargo-deny
+# takes one graph for all members and would judge the hosts' dependencies as if they were built for
+# it. scripts/licenses.sh holds the crates the plugins link to the same `allow` list.
 targets = [
   "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
   "x86_64-pc-windows-msvc",
+  "x86_64-apple-darwin",
   "aarch64-apple-darwin",
 ]
 
@@ -33,7 +38,7 @@ ignore = [
   # longer match since tray-icon 0.26 / muda 0.21 and were dropped with RD-1100-11.) rd-capture
   # gates tao/tray-icon to `cfg(any(windows, target_os = "macos"))` because Linux stays
   # headless, and GTK is in turn a Linux-only dependency of those two — a combination no
-  # single target produces. They only surface because `graph.targets` lists three targets
+  # single target produces. They only surface because `graph.targets` lists several targets
   # and cargo-deny filters the graph edge by edge instead of path by path. Confirm with
   # `cargo deny --target x86_64-unknown-linux-gnu check advisories`, which reports none of
   # it. Drop it once tao and tray-icon move off GTK3.

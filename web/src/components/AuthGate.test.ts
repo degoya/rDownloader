@@ -22,8 +22,8 @@ vi.mock('@/utils/identityProvider', async (original) => ({
   leaveFor: vi.fn()
 }))
 
-/** The notice as a `note`, so a test can read the refusal it carries. */
-const UAlert = { props: ['title', 'description'], template: '<div role="note">{{ title }} {{ description }}</div>' }
+/** The notice, found by the role the view gives it: a refusal is announced (RD-1480-17). */
+const UAlert = { props: ['title', 'description'], template: '<div>{{ title }} {{ description }}</div>' }
 
 /** Over the Pinia the test made active: each test sets the session store up before the mount. */
 function mount() {
@@ -68,8 +68,19 @@ describe('AuthGate and the identity provider (RD-190-15)', () => {
     )
     mount()
 
-    expect(screen.getByRole('note').textContent).toContain('translated auth.oidc_not_administrator')
-    expect(screen.getByRole('note').textContent).toContain('guest')
+    expect(screen.getByRole('alert').textContent).toContain('translated auth.oidc_not_administrator')
+    expect(screen.getByRole('alert').textContent).toContain('guest')
     expect(window.location.search).toBe('')
+  })
+})
+
+describe('AuthGate\'s password field', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => cleanup())
+
+  it.each([[true, 'new-password'], [false, 'current-password']])('while setup is required (%s) asks the password manager for %s', (setup, expected) => {
+    useSessionStore().setupRequired = setup
+    const { container } = mount()
+    expect(container.querySelector('input[type="password"]')?.getAttribute('autocomplete')).toBe(expected)
   })
 })

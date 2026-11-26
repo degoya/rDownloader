@@ -180,6 +180,7 @@ declare module 'vue' {
     SettingsMfaCard: typeof import('./src/components/settings/SettingsMfaCard.vue')['default']
     SettingsNetworkTab: typeof import('./src/components/settings/SettingsNetworkTab.vue')['default']
     SettingsNntpLimitsCard: typeof import('./src/components/settings/SettingsNntpLimitsCard.vue')['default']
+    SettingsNotificationLanguageCard: typeof import('./src/components/settings/SettingsNotificationLanguageCard.vue')['default']
     SettingsNotificationsTab: typeof import('./src/components/settings/SettingsNotificationsTab.vue')['default']
     SettingsObjectStorageCard: typeof import('./src/components/settings/SettingsObjectStorageCard.vue')['default']
     SettingsOidcCard: typeof import('./src/components/settings/SettingsOidcCard.vue')['default']

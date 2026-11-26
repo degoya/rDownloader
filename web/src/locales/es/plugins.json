@@ -21,7 +21,7 @@
     "homepage": "Sitio web",
     "support": "Soporte",
     "concurrency": "en paralelo",
-    "concurrency_hint": "Como máximo {count} descargas simultáneas a través de este plugin",
+    "concurrency_hint": "Como máximo {count} descarga simultánea a través de este plugin | Como máximo {count} descargas simultáneas a través de este plugin",
     "api_version": "ABI {version}",
     "capabilities": "Concedido",
     "superseded": "Sin usar",
@@ -222,7 +222,7 @@
     "name_label": "Nombre (opcional)",
     "add": "Añadir repositorio",
     "approve_title": "Aprobar la clave del repositorio",
-    "approve_intro": "El índice en {url} está firmado con esta clave y ofrece {count} paquetes.",
+    "approve_intro": "El índice en {url} está firmado con esta clave y ofrece {count} paquete. | El índice en {url} está firmado con esta clave y ofrece {count} paquetes.",
     "approve_warning": "Aprueba solo si esta huella coincide con la que publicó quien mantiene el repositorio. El repositorio podrá ofrecer paquetes y retirar lo que entregó; cada paquete sigue necesitando una clave de plugin de tu confianza.",
     "approve": "Aprobar y añadir",
     "added": "Repositorio añadido.",
@@ -267,7 +267,7 @@
   "catalogue": {
     "eyebrow": "Plugins",
     "title": "Servicios y plugins",
-    "description": "Todo lo que trae esta versión y ofrecen los repositorios de plugins: instalado, disponible o con una actualización pendiente. Un servicio llega del repositorio cuando responde y, si no, del paquete incluido; los plugins de alojamiento y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio.",
+    "description": "Todo lo que trae esta versión y ofrecen los repositorios de plugins: instalado, disponible o con una actualización pendiente. Un servicio llega del repositorio cuando responde y, si no, del paquete incluido; los plugins de hoster y de inicio de sesión funcionan al momento, los demás tipos desde el próximo inicio.",
     "origin": {
       "bundled": "Incluido",
       "repository": "Repositorio",

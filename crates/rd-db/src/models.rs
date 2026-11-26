@@ -353,7 +353,7 @@ pub(crate) const PACKAGE_COLUMNS: &str = "SELECT packages.id, packages.name, pac
      packages.download_window_json \
      FROM packages";
 
-fn i64_to_bytes(value: i64) -> Result<ByteCount> {
+pub(crate) fn i64_to_bytes(value: i64) -> Result<ByteCount> {
     let value = u64::try_from(value).context("negative byte count")?;
     ByteCount::new(value).map_err(anyhow::Error::msg)
 }

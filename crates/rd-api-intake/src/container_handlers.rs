@@ -16,7 +16,8 @@
 //! `enqueue` straight in the download list. A `.crawljob` is read by the host with the
 //! `crawljob-intake` plugin's rules — no folder, no start of its own.
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::Json;
 use serde::Serialize;
 use utoipa::ToSchema;
 

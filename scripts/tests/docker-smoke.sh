@@ -16,13 +16,15 @@ source "$ROOT/scripts/tests/lib/expect.sh"
 
 export FAKE="$SCRATCH/fake"
 mkdir -p "$FAKE" "$SCRATCH/bin"
-# docker: logs every call; `run` prints a container id; `exec` of the tool in $FAKE/broken fails.
+# docker: logs every call; `run` prints a container id; `exec` of the tool in $FAKE/broken fails,
+# as does the `test` of the file in $FAKE/absent.
 cat > "$SCRATCH/bin/docker" <<'STUB'
 #!/usr/bin/env bash
 echo "$*" >> "$FAKE/docker.calls"
 case "$1" in
     run) echo c0ffee ;;
-    exec) [[ -f "$FAKE/broken" && "$*" == *" $(cat "$FAKE/broken") --version" ]] && exit 127 ;;
+    exec) [[ -f "$FAKE/broken" && "$*" == *" $(cat "$FAKE/broken") --version" ]] && exit 127
+        [[ -f "$FAKE/absent" && "$*" == *" test -s $(cat "$FAKE/absent")" ]] && exit 1 ;;
 esac
 exit 0
 STUB
@@ -41,6 +43,17 @@ done
 expect_true "on two fresh volumes" \
     'grep -q -- "--volume rdownloader-config-7-1:/config --volume rdownloader-downloads-7-1:/downloads rdownloader:smoke" "$FAKE/docker.calls"'
 expect_true "removed afterwards" 'grep -qx "rm --force c0ffee" "$FAKE/docker.calls" && grep -qx "volume rm rdownloader-config-7-1 rdownloader-downloads-7-1" "$FAKE/docker.calls"'
+
+for text in LICENSE THIRD-PARTY-NOTICES.txt SOURCES.txt; do
+    expect_true "the image's $text is looked for" \
+        "grep -qx 'exec c0ffee test -s /usr/share/doc/rdownloader/$text' \"\$FAKE/docker.calls\""
+done
+
+echo /usr/share/doc/rdownloader/SOURCES.txt > "$FAKE/absent"
+smoke
+expect_status "an image without the sources' addresses fails" 1
+expect_output "naming the file" "lacks /usr/share/doc/rdownloader/SOURCES.txt"
+rm "$FAKE/absent"
 
 echo streamlink > "$FAKE/broken"
 smoke

@@ -135,7 +135,7 @@ fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
-fn addresses_as_tu(text: &str) -> bool {
+pub(crate) fn addresses_as_tu(text: &str) -> bool {
     words(text).iter().any(|word| {
         if FRENCH_WORDS.contains(&word.as_str()) {
             return true;
@@ -157,7 +157,7 @@ fn addresses_as_tu(text: &str) -> bool {
     })
 }
 
-fn addresses_as_usted(text: &str) -> bool {
+pub(crate) fn addresses_as_usted(text: &str) -> bool {
     let formal = words(text).iter().any(|word| {
         SPANISH_WORDS.contains(&word.as_str())
             || (word.chars().any(|c| SPANISH_ACCENTED_VOWELS.contains(c))

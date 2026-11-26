@@ -33,7 +33,7 @@ for file in rdownloader-linux-x86_64.tar.gz rdownloader-windows-x86_64.zip \
     rdownloader-capture-windows-x86_64-es.msi rdownloader-capture-windows-x86_64-fr.msi \
     rdownloader-plugin-index.json \
     rdownloader-linux-x86_64.unpacked.tar rdownloader-windows-x86_64.unpacked.zip rd-pack \
-    web-dist.tar 'degoya~rDownloader~ABC123.dockerbuild' ddownload-0.3.1.rdplug http-1.0.0.rdplug; do
+    web-dist.tar plugin-components.tar 'degoya~rDownloader~ABC123.dockerbuild' ddownload-0.3.1.rdplug http-1.0.0.rdplug; do
     echo "$file" > "$download/$file"
 done
 plugins="$SCRATCH/plugin-assets"
@@ -81,12 +81,13 @@ agent_assets="$SCRATCH/agent-assets"
 stage="$SCRATCH/stage"
 mkdir -p "$agent_assets" "$stage/unix/plugins" "$stage/windows/plugins"
 for file in rdownloader rdownloader-capture start-capture.sh stop-capture.sh start-rdownloader.sh \
-    stop-rdownloader.sh VERSION.txt LICENSE README.md plugins/http-1.0.0.rdplug; do
+    stop-rdownloader.sh VERSION.txt LICENSE THIRD-PARTY-NOTICES.txt README.md plugins/http-1.0.0.rdplug; do
     echo "$file" > "$stage/unix/$file"
 done
 chmod +x "$stage/unix/rdownloader-capture"
 for file in rdownloader.exe rdownloader-capture.exe start-capture.bat stop-capture.bat \
-    start-rdownloader.bat stop-rdownloader.bat VERSION.txt LICENSE README.md plugins/http-1.0.0.rdplug; do
+    start-rdownloader.bat stop-rdownloader.bat VERSION.txt LICENSE THIRD-PARTY-NOTICES.txt README.md \
+    plugins/http-1.0.0.rdplug; do
     echo "$file" > "$stage/windows/$file"
 done
 tar --create --gzip --file "$agent_assets/rdownloader-linux-x86_64.tar.gz" --directory "$stage/unix" .
@@ -98,12 +99,12 @@ expect "one agent archive per application archive, none for the extension" \
     "rdownloader-capture-linux-x86_64.tar.gz rdownloader-capture-windows-x86_64.zip rdownloader-chrome.zip rdownloader-linux-x86_64.tar.gz rdownloader-windows-x86_64.zip" \
     "$(listing "$agent_assets")"
 expect "the Linux agent archive holds the agent and what it runs with" \
-    "LICENSE README.md VERSION.txt rdownloader-capture start-capture.sh start-rdownloader.sh stop-capture.sh stop-rdownloader.sh" \
+    "LICENSE README.md THIRD-PARTY-NOTICES.txt VERSION.txt rdownloader-capture start-capture.sh start-rdownloader.sh stop-capture.sh stop-rdownloader.sh" \
     "$(tar --list --gzip --file "$agent_assets/rdownloader-capture-linux-x86_64.tar.gz" | sort | paste -sd' ')"
 expect "the agent keeps its executable bit" "1" \
     "$(tar --list --verbose --gzip --file "$agent_assets/rdownloader-capture-linux-x86_64.tar.gz" | grep -c '^-rwx.* rdownloader-capture$')"
 expect "the Windows agent archive holds the agent and its scripts" \
-    "LICENSE README.md VERSION.txt rdownloader-capture.exe start-capture.bat start-rdownloader.bat stop-capture.bat stop-rdownloader.bat" \
+    "LICENSE README.md THIRD-PARTY-NOTICES.txt VERSION.txt rdownloader-capture.exe start-capture.bat start-rdownloader.bat stop-capture.bat stop-rdownloader.bat" \
     "$(unzip -Z1 "$agent_assets/rdownloader-capture-windows-x86_64.zip" | sort | paste -sd' ')"
 first="$(sha256sum < "$agent_assets/rdownloader-capture-linux-x86_64.tar.gz")"
 run_status assets_of agent "$agent_assets"

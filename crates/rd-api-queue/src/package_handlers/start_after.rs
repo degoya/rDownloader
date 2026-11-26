@@ -4,10 +4,8 @@
 //! (`rd-scheduler`'s `dispatch.rs`); running files go on, and a file started by hand waits like
 //! the rest. A moment that is not in the future holds nothing, so it is stored as none.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_core::{PackageId, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

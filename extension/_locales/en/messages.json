@@ -3,7 +3,10 @@
     "message": "rDownloader"
   },
   "extDescription": {
-    "message": "Send links to your rDownloader LinkGrabber from the context menu."
+    "message": "Send links, downloads and page sessions from your browser to your own rDownloader server."
+  },
+  "pageLanguage": {
+    "message": "en"
   },
   "menuLink": {
     "message": "Download with rDownloader"
@@ -60,10 +63,16 @@
     "message": "Please configure server and token first."
   },
   "sentLinks": {
-    "message": "$1 link(s) sent to the LinkGrabber."
+    "message": "$1 links sent to the LinkGrabber."
+  },
+  "sentLinksOne": {
+    "message": "$1 link sent to the LinkGrabber."
   },
   "pickWaiting": {
-    "message": "A page lists $1 release(s); choose them in rDownloader's LinkGrabber."
+    "message": "A page lists $1 releases; choose them in rDownloader's LinkGrabber."
+  },
+  "pickWaitingOne": {
+    "message": "A page lists $1 release; choose it in rDownloader's LinkGrabber."
   },
   "sendFailed": {
     "message": "Sending failed: $1"
@@ -472,7 +481,10 @@
     "message": "On the sites listed under \"Sites that hand files over\", a page shows its Click'n'Load button even when no desktop agent runs, and its links go to your rDownloader with package name and password. A running desktop agent keeps Click'n'Load, and the extension stays out of its way."
   },
   "cnlSent": {
-    "message": "Click'n'Load: $1 link(s) sent to the LinkGrabber."
+    "message": "Click'n'Load: $1 links sent to the LinkGrabber."
+  },
+  "cnlSentOne": {
+    "message": "Click'n'Load: $1 link sent to the LinkGrabber."
   },
   "cnlFailed": {
     "message": "Click'n'Load failed: $1"

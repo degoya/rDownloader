@@ -8,7 +8,8 @@
 //! files again. The answers are counts and a time, like the summary beside them: nothing names a
 //! file.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_core::{DownloadState, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

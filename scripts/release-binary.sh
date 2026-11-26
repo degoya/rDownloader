@@ -37,7 +37,7 @@ package_unix() {
     local target="$1" artifact="$2"
     cp "target/${target}/release/rdownloader" stage/
     cp "target/${target}/release/rdownloader-capture" stage/
-    cp LICENSE README.md stage/
+    cp LICENSE README.md crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt stage/
     if [[ "${RUNNER_OS}" == "Linux" ]]; then
         cp scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh \
             scripts/linux/start-capture.sh scripts/linux/stop-capture.sh stage/

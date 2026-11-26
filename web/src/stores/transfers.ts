@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 
 import { api, responseError, resultMessage } from '@/api/client'
 import { clearWhenReconnected } from '@/composables/serviceConnection'
 import type { Download, DownloadBulkAction, DownloadBulkFilter, DownloadPackage, DownloadRates, DownloadState } from '@/api/types'
-import { debouncedEventRefresh } from '@/composables/useDebouncedEventRefresh'
+import { useNotifications } from '@/composables/useNotifications'
 import { serverMessageFrom } from '@/i18n/server'
 import { batchError, combinedMessage, inBatches } from '@/utils/bulkBatches'
+import { titleStatus } from '@/utils/titleStatus'
 import type { UsenetServerLoad } from '@/utils/usenetConnections'
 import {
   appendTransferRateHistory,
@@ -17,6 +18,7 @@ import { useClearList } from './transfersClear'
 import { applyPostprocessProgress, applyTorrentStats, createQueueAnnouncer } from './transfersEvents'
 import { useTransferFigures } from './transfersFigures'
 import { usePackageActions } from './transfersPackages'
+import { createQueueFollower, patchProgress, type DownloadProgress } from './transfersProgress'
 import {
   PAUSABLE_STATES,
   RESUMABLE_STATES,
@@ -34,8 +36,10 @@ export { PAUSABLE_STATES, PENDING_STATES, RESETTABLE_STATES, RESUMABLE_STATES } 
 export type { ClearScope, PackageChange } from './transfersShared'
 
 export const useTransfersStore = defineStore('transfers', () => {
-  const downloads = ref<Download[]>([])
-  const packages = ref<DownloadPackage[]>([])
+  // Shallow: both lists are replaced, never changed in place. A deep one wraps every row of the
+  // queue, and its figures read thirty times as long (RD-1480-18).
+  const downloads = shallowRef<Download[]>([])
+  const packages = shallowRef<DownloadPackage[]>([])
   const pending = ref(false)
   /**
    * True once the first refresh has settled. `pending` alone cannot answer "is the queue
@@ -62,10 +66,15 @@ export const useTransfersStore = defineStore('transfers', () => {
   /** Seconds until the queue is through at the current rate; `null` when no honest figure exists. */
   const queueEta = ref<number | null>(null)
   const speedHistory = ref<TransferRateHistoryPoint[]>([])
-  /** Monotonic ticket so only the newest `refresh()` may apply its result (see `refresh`). */
+  /** Monotonic ticket so only the newest read may apply its result (see `refresh`). */
   let refreshTicket = 0
-  /** True while a refresh is awaiting the network; event bursts wait rather than pile up. */
+  /** True while a read is awaiting the network; event bursts wait rather than pile up. */
   let refreshing = false
+  /**
+   * How many files were at work when the figures were last read on their own; `null` while the
+   * list says it. A hidden tab reads no list, and its title counts them (RD-106-07).
+   */
+  const workingSeen = ref<number | null>(null)
   /**
    * The error the last failed `refresh()` put up, the only one a later successful refresh may
    * take down. Refreshes follow every queue event, so clearing whatever `error` held wiped an
@@ -75,7 +84,9 @@ export const useTransfersStore = defineStore('transfers', () => {
 
   const { active, queued, totalCommitted, totalRemaining, globalControl, activePackages, packageComplete, packageRates, packageEtas } =
     useTransferFigures(downloads, packages, downloadRates)
+  const activeCount = computed(() => workingSeen.value ?? active.value.length)
   const announce = createQueueAnnouncer()
+  const notifications = useNotifications()
 
   /**
    * Takes the rates the server measured. A refusal or a shape we do not recognise leaves the
@@ -121,6 +132,7 @@ export const useTransfersStore = defineStore('transfers', () => {
         announce(downloadResponse.data, packageResponse.data)
         downloads.value = downloadResponse.data
         packages.value = packageResponse.data
+        workingSeen.value = null
         if (error.value === loadError) error.value = null
         loadError = null
       } else {
@@ -139,6 +151,32 @@ export const useTransfersStore = defineStore('transfers', () => {
         pending.value = false
         settled.value = true
       }
+    }
+  }
+
+  /**
+   * Reads the moving figures alone and patches the bytes of the rows at work (RD-1480-18).
+   * Answers whether the list turned out to be stale and has to be read. A read of the whole queue
+   * that starts meanwhile supersedes this one; a failed one changes nothing, as the next event
+   * asks again.
+   */
+  async function refreshProgress(): Promise<boolean> {
+    const ticket = ++refreshTicket
+    refreshing = true
+    try {
+      const { data } = await api.GET('/api/v1/downloads/rates')
+      if (ticket !== refreshTicket || !data) return false
+      applyRates(data)
+      const progress = (data as { progress?: DownloadProgress[] }).progress
+      if (!progress) return true
+      workingSeen.value = progress.length
+      const patched = patchProgress(downloads.value, progress)
+      if (patched.rows) downloads.value = patched.rows
+      return patched.stale
+    } catch {
+      return false
+    } finally {
+      if (ticket === refreshTicket) refreshing = false
     }
   }
 
@@ -163,7 +201,7 @@ export const useTransfersStore = defineStore('transfers', () => {
       error.value = responseError(response)
       return false
     }
-    downloads.value.push(response.data)
+    downloads.value = [...downloads.value, response.data]
     error.value = null
     return true
   }
@@ -320,32 +358,35 @@ export const useTransfersStore = defineStore('transfers', () => {
 
   let historyTimer: number | null = null
 
+  const follower = createQueueFollower({
+    downloads,
+    refresh,
+    refreshProgress,
+    reading: () => refreshing,
+    failed: () => loadError !== null,
+    // The tab's title shows rate and count, and a notification is meant for the tab nobody looks
+    // at; without either, a hidden tab reads nothing.
+    neededHidden: reading => reading === 'progress' ? titleStatus.value : notifications.enabled.value,
+    handlers: {
+      // Aggregate torrent counters are pushed; the detail panel pulls peers and pieces.
+      'torrent.stats': applyTorrentStats,
+      'postprocess.progress': (event: MessageEvent<string>) => applyPostprocessProgress(packages, event)
+    }
+  })
+
   function sampleSpeedHistory(): void {
+    // A rate nobody keeps current is no sample: a hole in the curve, not a flat line.
+    if (!follower.followsProgress()) return
     speedHistory.value = appendTransferRateHistory(speedHistory.value, {
       measuredAt: Date.now(),
       bytesPerSecond: globalRate.value
     })
   }
 
-  /** Coalesces bursts of events into one refresh per 400 ms. */
-  const events = debouncedEventRefresh(
-    ['download.progress', 'download.state', 'package.state', 'usenet.changed'],
-    refresh,
-    {
-      delayMs: 400,
-      busy: () => refreshing,
-      handlers: {
-        // Aggregate torrent counters are pushed; the detail panel pulls peers and pieces.
-        'torrent.stats': applyTorrentStats,
-        'postprocess.progress': (event: MessageEvent<string>) => applyPostprocessProgress(packages, event)
-      }
-    }
-  )
-
   function connectEvents(): void {
-    events.connect()
-    // The former 3s safety-net poll is gone: the shared stream reconnects with backoff and
-    // refreshes on every state event, so the extra round trips only crowded the connection pool.
+    follower.connect()
+    // No safety-net poll: the shared stream reconnects with backoff and says when it lost events,
+    // and the figures read with every progress tell a list that fell behind.
     if (historyTimer === null) {
       sampleSpeedHistory()
       historyTimer = window.setInterval(sampleSpeedHistory, 1_000)
@@ -353,7 +394,7 @@ export const useTransfersStore = defineStore('transfers', () => {
   }
 
   function disconnectEvents(): void {
-    events.disconnect()
+    follower.disconnect()
     if (historyTimer !== null) {
       window.clearInterval(historyTimer)
       historyTimer = null
@@ -382,6 +423,7 @@ export const useTransfersStore = defineStore('transfers', () => {
 
   return {
     active,
+    activeCount,
     activePackages,
     add,
     clear,

@@ -45,8 +45,9 @@ test('no listener asks the browser for a request body, except Click\'n\'Load\'s 
   // path is allowed to name it; code is not.
   //
   // One exception, RD-1260-10: Click'n'Load's listener reads the form a page posts to the agent's
-  // own port, and only there. `background.js` registers it with `CNL_URL_PATTERNS` — the two
-  // addresses on port 9666, held by `cnl.test.mjs` — and `cnl.js` reads the fields.
+  // own port, and only there. `background.js` registers it with `cnlUrlPatterns` — the two
+  // addresses on port 9666, in Firefox the agent's paths on them, held by `cnl.test.mjs` — and
+  // `cnl.js` reads the fields of a request whose port `cnlRoute` has checked.
   const READS_BODY = ['cnl.js']
   const REGISTERS_BODY = ['background.js']
   for (const [name, text] of sources()) {
@@ -62,7 +63,7 @@ test('no listener asks the browser for a request body, except Click\'n\'Load\'s 
   const registrations = background.split('\n').filter((line) => /['"]requestBody['"]/.test(line))
   assert.ok(registrations.length > 0, 'Click\'n\'Load reads no form at all')
   for (const line of registrations) {
-    assert.match(line, /\{ urls: CNL_URL_PATTERNS \}/, `a body listener without the port 9666 filter: ${line.trim()}`)
+    assert.match(line, /\{ urls: cnlUrlPatterns\((\{ ports: false \})?\) \}/, `a body listener without the port 9666 filter: ${line.trim()}`)
   }
 })
 

@@ -5,11 +5,8 @@
 //! somebody is looking at the form rather than discovered as a recording that never
 //! happened.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path, Query};
 use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_core::{
     ScheduleKind, StreamChannelId, StreamSchedule, StreamScheduleId, StreamScheduledRun,
@@ -54,7 +51,10 @@ const fn default_true() -> bool {
 pub struct RunQuery {
     #[serde(default)]
     pub schedule_id: Option<StreamScheduleId>,
+    /// Newest runs to return, 1 to 200; 200 when left out. A value outside is brought to the
+    /// nearest bound.
     #[serde(default)]
+    #[param(minimum = 1, maximum = 200)]
     pub limit: Option<i64>,
 }
 

@@ -6,7 +6,8 @@
 //! installs (and anyone who abandoned the wizard after the mandatory storage step) from ever
 //! seeing it again, without a migration.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 
 use crate::{ApiError, AppState, dto::MessageResponse, dto::SetupStatus};
 

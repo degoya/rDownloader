@@ -26,7 +26,7 @@ fn cutcaptcha() -> CaptchaChallenge {
     CaptchaChallenge::Cutcaptcha(CutcaptchaChallenge {
         site_key: "SAs61IAI".to_owned(),
         misery_key: "a1488b66da00bf332a1488993a5443c79047e752".to_owned(),
-        page_url: "https://filecrypt.cc/Container/ABC.html".to_owned(),
+        page_url: "https://container.example/Container/ABC.html".to_owned(),
     })
 }
 
@@ -285,7 +285,7 @@ fn a_cutcaptcha_is_described_but_never_offered_to_a_browser() {
     let (pending, _receiver) = queue.enqueue(&cutcaptcha(), std::time::Duration::from_secs(60));
 
     assert_eq!(pending.kind, CaptchaKind::Cutcaptcha);
-    assert_eq!(pending.host.as_deref(), Some("filecrypt.cc"));
+    assert_eq!(pending.host.as_deref(), Some("container.example"));
     assert_eq!(pending.site_key.as_deref(), Some("SAs61IAI"));
     assert!(queue.pending_widgets().is_empty());
     assert_eq!(

@@ -1,10 +1,7 @@
 //! Notification targets, rules, the delivery history and the test action (RD-050-14).
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, Query, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path as AxumPath, Query};
 use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_notify::{NotificationEvent, Severity, TargetKind};
 use serde::{Deserialize, Serialize};
@@ -74,7 +71,8 @@ const fn default_severity() -> Severity {
 
 #[derive(Deserialize, IntoParams)]
 pub struct HistoryQuery {
-    /// Newest rows to return (1–500).
+    /// Newest rows to return (1–500). A value outside is brought to the nearest bound.
+    #[param(minimum = 1, maximum = 500)]
     pub limit: Option<u32>,
 }
 

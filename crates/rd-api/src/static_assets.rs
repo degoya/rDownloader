@@ -1,9 +1,11 @@
+use std::borrow::Cow;
+
 use axum::{
-    body::Body,
-    http::{Method, Uri, header},
+    body::{Body, Bytes},
+    http::{HeaderMap, HeaderValue, Method, StatusCode, Uri, header},
     response::{IntoResponse, Response},
 };
-use rust_embed::RustEmbed;
+use rust_embed::{EmbeddedFile, RustEmbed};
 
 #[derive(RustEmbed)]
 #[folder = "../../web/dist"]
@@ -17,12 +19,23 @@ struct WebAssets;
 /// install the app or, worse, register the page as a service worker script.
 const MUST_EXIST: &[&str] = &["manifest.webmanifest", "sw.js"];
 
-/// Prefixes with the same rule, for the same reason.
+/// Prefixes the service's own endpoints live under; an address below one that no route answered is
+/// a client looking for an endpoint, never a page (RD-1480-08).
+///
+/// The shell with a `200` read as a success there: a misspelt or withdrawn `GET` route, or a
+/// client newer than the service, parsed HTML as JSON. Matched on the path the mount point was
+/// stripped from, so it holds behind a reverse proxy's prefix as well.
+const ENDPOINT_PREFIXES: &[&str] = &["api/", "mcp/", "sabnzbd/"];
+
+/// Prefixes with the same rule as [`MUST_EXIST`], for the same reason.
 ///
 /// `.well-known/` is asked for by programs, not browsers: an MCP client that gets a `401` from
 /// `/mcp` looks for OAuth metadata there and skips a location only on a `404`. The shell with a
 /// `200` was parsed as JSON and ended the connection with "Unexpected token '<'".
 const MUST_EXIST_PREFIXES: &[&str] = &["icons/", "assets/", ".well-known/"];
+
+/// The documents that carry absolute references and are rewritten under a base path.
+const REWRITTEN: &[&str] = &["index.html", "manifest.webmanifest"];
 
 /// Serves the built web application, rewritten for the configured mount point.
 ///
@@ -50,25 +63,30 @@ const MUST_EXIST_PREFIXES: &[&str] = &["icons/", "assets/", ".well-known/"];
 /// Only `GET` and `HEAD` are answered with the interface: a page is never posted to, and an
 /// unknown path asked for with another method is a client looking for an endpoint — the OAuth
 /// client registration at `POST /register` an MCP client tries after the metadata — that must
-/// see a `404` rather than an HTML page with a `200`.
+/// see a `404` rather than an HTML page with a `200`. The same holds for any method below
+/// [`ENDPOINT_PREFIXES`].
 pub(crate) async fn serve(
     axum::extract::State(state): axum::extract::State<crate::AppState>,
     method: Method,
     uri: Uri,
+    headers: HeaderMap,
 ) -> Response {
     let base = state.access.proxy.read().await.base_path().to_owned();
-    serve_with_base(&method, &uri, &base)
+    serve_with_base(&method, &uri, &headers, &base)
 }
 
-fn serve_with_base(method: &Method, uri: &Uri, base: &str) -> Response {
-    if method != Method::GET && method != Method::HEAD {
+fn serve_with_base(method: &Method, uri: &Uri, headers: &HeaderMap, base: &str) -> Response {
+    let requested = uri.path().trim_start_matches('/');
+    let endpoint = ENDPOINT_PREFIXES
+        .iter()
+        .any(|prefix| requested.starts_with(prefix));
+    if endpoint || (method != Method::GET && method != Method::HEAD) {
         return crate::ApiError::not_found(
             "web.route_not_found",
             "Nothing at this address answers this request",
         )
         .into_response();
     }
-    let requested = uri.path().trim_start_matches('/');
     let requested_asset = WebAssets::get(requested);
     if requested_asset.is_none() && must_exist(requested) {
         return crate::ApiError::not_found(
@@ -97,24 +115,63 @@ fn serve_with_base(method: &Method, uri: &Uri, base: &str) -> Response {
     } else {
         requested
     };
-    let body = rewrite_for_base(served_as, asset.data.into_owned(), base);
-    let mut response = ([(header::CONTENT_TYPE, mime.as_ref())], Body::from(body)).into_response();
+    let rewritten = !base.is_empty() && REWRITTEN.contains(&served_as);
+    // The build's own compressed copy (`web/src/precompress.ts`); a document that is rewritten for
+    // the mount point has none that is right.
+    let packed = (!rewritten)
+        .then(|| WebAssets::get(&format!("{served_as}.gz")))
+        .flatten();
+    let varies = packed.is_some();
+    let packed = packed.filter(|_| crate::conditional::accepts_gzip(headers));
+    let etag = entity_tag(&asset, rewritten.then_some(base), packed.is_some());
+    let encoded = packed.is_some();
+    let current = crate::conditional::has_current(headers, &etag);
+    let mut response = if current {
+        StatusCode::NOT_MODIFIED.into_response()
+    } else {
+        let data = packed.map_or(asset.data, |packed| packed.data);
+        let body = if rewritten {
+            Bytes::from(rewrite_for_base(served_as, data.into_owned(), base))
+        } else {
+            // Served out of the binary itself, without a copy per request.
+            match data {
+                Cow::Borrowed(data) => Bytes::from_static(data),
+                Cow::Owned(data) => Bytes::from(data),
+            }
+        };
+        ([(header::CONTENT_TYPE, mime.as_ref())], Body::from(body)).into_response()
+    };
+    let answered = response.headers_mut();
+    if encoded && !current {
+        answered.insert(header::CONTENT_ENCODING, HeaderValue::from_static("gzip"));
+    }
+    if varies {
+        answered.insert(header::VARY, HeaderValue::from_static("Accept-Encoding"));
+    }
+    if let Ok(value) = HeaderValue::from_str(&etag) {
+        answered.insert(header::ETAG, value);
+    }
+    answered.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static(cache_policy(served_as)),
+    );
     if served_as == "index.html" {
         let script = (!base.is_empty()).then(|| base_script(base));
         let policy = crate::security_headers::interface_policy(script.as_deref());
-        if let Ok(value) = header::HeaderValue::from_str(&policy) {
-            response
-                .headers_mut()
-                .insert(header::CONTENT_SECURITY_POLICY, value);
+        if let Ok(value) = HeaderValue::from_str(&policy) {
+            answered.insert(header::CONTENT_SECURITY_POLICY, value);
         }
     }
-    if let Some(policy) = cache_policy(served_as) {
-        response.headers_mut().insert(
-            header::CACHE_CONTROL,
-            header::HeaderValue::from_static(policy),
-        );
-    }
     response
+}
+
+/// The tag of one representation: the hash the build took of the file, the mount point its
+/// references were rewritten for, and whether the body is the compressed copy.
+fn entity_tag(asset: &EmbeddedFile, base: Option<&str>, packed: bool) -> String {
+    let hash = hex::encode(&asset.metadata.sha256_hash()[..16]);
+    let base = base.map_or_else(String::new, |base| format!("-{}", hex::encode(base)));
+    let packed = if packed { "-gz" } else { "" };
+    format!("\"{hash}{base}{packed}\"")
 }
 
 /// How long a browser or proxy may keep what was served as `served_as` (RD-1120-16).
@@ -122,15 +179,15 @@ fn serve_with_base(method: &Method, uri: &Uri, base: &str) -> Response {
 /// The shell — `index.html` at the root, by name and as the SPA fallback — is revalidated on
 /// every load: it names the bundle's files, and a cached one kept an old interface running after
 /// an update until a hard reload. A cached service worker does the same; browsers already bypass
-/// the HTTP cache for the worker script, but proxies do not. The files under `assets/` carry
-/// their content hash in the name, so a cached copy is right forever.
-fn cache_policy(served_as: &str) -> Option<&'static str> {
-    if served_as == "index.html" || served_as == "sw.js" {
-        Some("no-cache")
-    } else if served_as.starts_with("assets/") {
-        Some("public, max-age=31536000, immutable")
+/// the HTTP cache for the worker script, but proxies do not. The icons and the manifest keep their
+/// names across versions, so they are revalidated too; with a tag that is an empty `304`
+/// (RD-1480-19). The files under `assets/` carry their content hash in the name, so a cached copy
+/// is right forever.
+fn cache_policy(served_as: &str) -> &'static str {
+    if served_as.starts_with("assets/") {
+        "public, max-age=31536000, immutable"
     } else {
-        None
+        "no-cache"
     }
 }
 
@@ -140,115 +197,6 @@ fn must_exist(path: &str) -> bool {
         || MUST_EXIST_PREFIXES
             .iter()
             .any(|prefix| path.starts_with(prefix))
-}
-
-#[cfg(test)]
-mod tests {
-    use axum::http::{Method, StatusCode, header};
-
-    use super::{WebAssets, serve_with_base};
-
-    #[tokio::test]
-    async fn a_missing_manifest_or_worker_is_not_answered_with_the_app_shell() {
-        // These are fetched by the browser, not by a router. Answering an HTML page with a
-        // 200 would make an install failure look like a success and hide the real problem.
-        for path in [
-            "/manifest.webmanifest",
-            "/sw.js",
-            "/icons/icon-192.png",
-            "/assets/does-not-exist.js",
-        ] {
-            let response = serve_with_base(&Method::GET, &path.parse().expect("URI"), "");
-            let content_type = response
-                .headers()
-                .get(header::CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok())
-                .unwrap_or_default()
-                .to_owned();
-            assert!(
-                !content_type.starts_with("text/html"),
-                "{path} was answered with the app shell"
-            );
-        }
-    }
-
-    /// The shell carries the interface's policy, with the mount-point script's hash when it has
-    /// one; an asset does not (audit 2026-10-05, S5).
-    #[tokio::test]
-    async fn the_shell_carries_the_content_security_policy() {
-        let policy = |path: &str, base: &str| {
-            serve_with_base(&Method::GET, &path.parse().expect("URI"), base)
-                .headers()
-                .get(header::CONTENT_SECURITY_POLICY)
-                .and_then(|value| value.to_str().ok())
-                .map(str::to_owned)
-        };
-        let root = policy("/", "").expect("the shell has a policy");
-        assert!(root.contains("script-src 'self';"), "{root}");
-        let mounted = policy("/queue", "/downloads").expect("the shell has a policy");
-        assert!(mounted.contains("script-src 'self' 'sha256-"), "{mounted}");
-        assert_eq!(policy("/favicon.svg", ""), None);
-    }
-
-    /// The shell is revalidated on every load, the content-hashed assets are kept for a year,
-    /// so a page opened after an update gets the new interface without a hard reload
-    /// (RD-1120-16).
-    #[tokio::test]
-    async fn the_shell_is_revalidated_and_hashed_assets_are_immutable() {
-        let cache_control = |path: &str| {
-            serve_with_base(&Method::GET, &path.parse().expect("URI"), "")
-                .headers()
-                .get(header::CACHE_CONTROL)
-                .and_then(|value| value.to_str().ok())
-                .map(str::to_owned)
-        };
-        for shell in ["/", "/index.html", "/linkgrabber", "/settings/system"] {
-            assert_eq!(cache_control(shell).as_deref(), Some("no-cache"), "{shell}");
-        }
-        assert_eq!(cache_control("/sw.js").as_deref(), Some("no-cache"));
-        let asset = WebAssets::iter()
-            .find(|name| name.starts_with("assets/"))
-            .expect("the bundle has content-hashed assets");
-        assert_eq!(
-            cache_control(&format!("/{asset}")).as_deref(),
-            Some("public, max-age=31536000, immutable")
-        );
-        assert_eq!(cache_control("/favicon.svg"), None);
-    }
-
-    /// What an MCP client asks for after a `401` from `/mcp`: the OAuth metadata, then the
-    /// client registration. Each must be a JSON `404`, never the shell with a `200`, which the
-    /// client parsed as JSON and failed on with "Unexpected token '<'".
-    #[tokio::test]
-    async fn oauth_discovery_and_non_read_requests_get_a_json_404() {
-        for (method, path) in [
-            (Method::GET, "/.well-known/oauth-protected-resource/mcp"),
-            (Method::GET, "/.well-known/oauth-authorization-server"),
-            (Method::GET, "/.well-known/openid-configuration"),
-            (Method::POST, "/register"),
-            (Method::POST, "/routing"),
-            (Method::PUT, "/"),
-        ] {
-            let response = serve_with_base(&method, &path.parse().expect("URI"), "");
-            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{method} {path}");
-            assert_eq!(
-                response.headers().get(header::CONTENT_TYPE),
-                Some(&"application/json".parse().expect("content type")),
-                "{method} {path}"
-            );
-        }
-        let head = serve_with_base(&Method::HEAD, &"/routing".parse().expect("URI"), "");
-        assert_eq!(head.status(), StatusCode::OK);
-    }
-
-    #[tokio::test]
-    async fn spa_routes_are_served_as_html() {
-        let response = serve_with_base(&Method::GET, &"/routing".parse().expect("URI"), "");
-        assert_eq!(
-            response.headers().get(header::CONTENT_TYPE),
-            Some(&"text/html".parse().expect("content type"))
-        );
-    }
 }
 
 /// Prefixes the absolute references in the documents that carry them.
@@ -348,3 +296,7 @@ mod base_path_tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "static_assets_tests.rs"]
+mod tests;

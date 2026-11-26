@@ -14,6 +14,7 @@ anyhow.workspace = true
 axum.workspace = true
 base64.workspace = true
 futures-util.workspace = true
+hex.workspace = true
 mime_guess.workspace = true
 rd-api-access = { path = "../rd-api-access" }
 rd-api-admin = { path = "../rd-api-admin" }
@@ -53,7 +54,6 @@ jiff.workspace = true
 rd-testkit = { path = "../rd-testkit" }
 async-trait.workspace = true
 dunce.workspace = true
-hex.workspace = true
 http-body-util.workspace = true
 # The `test-support` hooks the integration tests drive the service through (RD-1110-06).
 rd-api-core = { path = "../rd-api-core", features = ["test-support"] }

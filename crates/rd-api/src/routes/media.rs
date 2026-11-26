@@ -21,7 +21,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/subscriptions/{id}",
-            put(subscription_handlers::update_subscription)
+            get(rd_api_intake::single_reads::get_subscription)
+                .put(subscription_handlers::update_subscription)
                 .delete(subscription_handlers::delete_subscription),
         )
         .route(
@@ -48,7 +49,9 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/indexers/{id}",
-            put(indexer_handlers::update_indexer).delete(indexer_handlers::delete_indexer),
+            get(rd_api_intake::single_reads::get_indexer)
+                .put(indexer_handlers::update_indexer)
+                .delete(indexer_handlers::delete_indexer),
         )
         .route(
             "/api/v1/indexers/{id}/caps",
@@ -121,7 +124,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/streams/schedules/{id}",
-            put(stream_schedule_handlers::update_stream_schedule)
+            get(rd_api_intake::single_reads::get_stream_schedule)
+                .put(stream_schedule_handlers::update_stream_schedule)
                 .delete(stream_schedule_handlers::delete_stream_schedule),
         )
         .route(
@@ -134,7 +138,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/streams/channels/{id}",
-            axum::routing::put(stream_handlers::update_stream_channel)
+            get(rd_api_intake::single_reads::get_stream_channel)
+                .put(stream_handlers::update_stream_channel)
                 .delete(stream_handlers::delete_stream_channel),
         )
         .route("/api/v1/streams/record", post(stream_handlers::record_now))
@@ -181,5 +186,9 @@ pub(crate) fn routes() -> Router<AppState> {
     stream_handlers::update_stream_channel,
     stream_handlers::delete_stream_channel,
     stream_handlers::record_now,
+    rd_api_intake::single_reads::get_indexer,
+    rd_api_intake::single_reads::get_stream_channel,
+    rd_api_intake::single_reads::get_stream_schedule,
+    rd_api_intake::single_reads::get_subscription,
 ))]
 pub(crate) struct Doc;

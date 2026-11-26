@@ -12,6 +12,7 @@ use axum::{
     http::{HeaderValue, header},
     response::{IntoResponse, Response},
 };
+use rd_api_core::extract::Query;
 use rd_core::{HistoryEntry, SecondsFormat, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
@@ -54,7 +55,7 @@ pub(crate) fn history_export_format_invalid() -> ApiError {
 }
 
 /// The requested format, read from the query string beside the filters; an extractor of its own
-/// so a word that does not parse is answered with a code instead of axum's plain-text `400`.
+/// so a word that does not parse is answered with a code of its own.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ExportFormat(pub HistoryExportFormat);
 
@@ -65,8 +66,8 @@ impl<S: Send + Sync> axum::extract::FromRequestParts<S> for ExportFormat {
         parts: &mut axum::http::request::Parts,
         _state: &S,
     ) -> Result<Self, Self::Rejection> {
-        axum::extract::Query::<HistoryExportQuery>::try_from_uri(&parts.uri)
-            .map(|axum::extract::Query(query)| Self(query.format.unwrap_or_default()))
+        Query::<HistoryExportQuery>::try_from_uri(&parts.uri)
+            .map(|Query(query)| Self(query.format.unwrap_or_default()))
             .map_err(|_| history_export_format_invalid())
     }
 }

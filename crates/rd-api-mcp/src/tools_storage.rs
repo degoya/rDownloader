@@ -4,10 +4,8 @@
 //! REST handler validates it, so the directory probe, the path allowlist and the error codes
 //! are the ones the web UI gets.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

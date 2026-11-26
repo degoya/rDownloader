@@ -1,4 +1,5 @@
 import type { CollectorPickEntry } from '@/api/types'
+import { compareNatural } from '@/utils/collation'
 
 /**
  * The choice before resolving (RD-1170-03): a series page's releases grouped by season, the
@@ -21,11 +22,6 @@ export function noFilters(): PickFilters {
   return { season: ALL, episode: ALL, resolution: ALL, language: ALL }
 }
 
-/** Numbers by their value, everything else by its text: `2` before `10`, `720p` before `1080p`. */
-function compareValues(left: string, right: string): number {
-  return left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' })
-}
-
 /** The values one attribute takes among the entries, sorted; `NO_EPISODE` where an entry has none. */
 export function attributeValues(entries: readonly CollectorPickEntry[], name: FilteredAttribute): string[] {
   const values = new Set<string>()
@@ -37,7 +33,7 @@ export function attributeValues(entries: readonly CollectorPickEntry[], name: Fi
   return [...values].sort((left, right) => {
     if (left === NO_EPISODE) return 1
     if (right === NO_EPISODE) return -1
-    return compareValues(left, right)
+    return compareNatural(left, right)
   })
 }
 
@@ -78,7 +74,7 @@ export function seasonGroups(entries: readonly CollectorPickEntry[]): SeasonGrou
     .sort(([left], [right]) => {
       if (left === null) return 1
       if (right === null) return -1
-      return compareValues(left, right)
+      return compareNatural(left, right)
     })
     .map(([season, members]) => ({
       season,

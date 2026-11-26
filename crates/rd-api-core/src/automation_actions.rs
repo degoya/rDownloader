@@ -273,7 +273,8 @@ async fn webhook(
             .map(|package| package.name),
         None => None,
     };
-    let message = automation_message(about, text, name.as_deref());
+    let language = crate::notify_service::notification_language(&context.database).await;
+    let message = automation_message(about, text, name.as_deref(), language);
     // The same fallback the notification hub uses: a target whose stored config does not
     // parse still delivers with defaults rather than failing every automation that names it.
     let config: rd_notify::TargetConfig =
@@ -305,20 +306,27 @@ fn automation_message(
     about: &About<'_>,
     text: Option<&str>,
     name: Option<&str>,
+    language: rd_notify::NotificationLanguage,
 ) -> rd_notify::Message {
     let slug = trigger_slug(about.trigger);
     let mut payload = serde_json::json!({
         "event": rd_notify::NotificationEvent::Automation,
         "trigger": slug,
         "package": name,
-        "package_id": about.package_id.map(|id| id.to_string()),
     });
+    rd_notify::Subject {
+        package_id: about.package_id,
+        ..rd_notify::Subject::now()
+    }
+    .describe(&mut payload);
     if let Some(text) = text {
         payload["message"] = serde_json::Value::from(text.trim());
     }
     rd_notify::Message {
-        title: format!("Automation: {slug}"),
-        body: message_body(text, name),
+        title: rd_notify::Text::new("automation.title")
+            .with("trigger", slug)
+            .say(language),
+        body: message_body(text, name, language),
         event: rd_notify::NotificationEvent::Automation,
         idempotency_key: about.delivery_key.to_owned(),
         payload,
@@ -327,11 +335,16 @@ fn automation_message(
 
 /// The text a webhook or notify action sends: the author's message when there is one, then
 /// the package's name; a webhook without a package says so.
-fn message_body(text: Option<&str>, package: Option<&str>) -> String {
+fn message_body(
+    text: Option<&str>,
+    package: Option<&str>,
+    language: rd_notify::NotificationLanguage,
+) -> String {
     match (text.map(str::trim), package) {
         (Some(text), Some(package)) => format!("{text}\n{package}"),
         (Some(text), None) => text.to_owned(),
-        (None, package) => package.unwrap_or("no package").to_owned(),
+        (None, Some(package)) => package.to_owned(),
+        (None, None) => rd_notify::Text::new("automation.no_package").say(language),
     }
 }
 

@@ -49,7 +49,7 @@
   "selection_package": "{name} (Auswahl)",
   "select_all_hint": "Alle Einträge auswählen",
   "bulk": {
-    "enqueued": "{links} Links und {nzbs} NZB-Importe übernommen",
+    "enqueued": "Übernommen – Links: {links}, NZB-Importe: {nzbs}",
     "free_download": "{count} Link wird ohne Konto geladen (Gratis/Direkt) | {count} Links werden ohne Konto geladen (Gratis/Direkt)",
     "enqueue_failed": "{count} Paket konnte nicht übernommen werden | {count} Pakete konnten nicht übernommen werden",
     "removing": "{done} von {total} gelöscht …"
@@ -155,7 +155,7 @@
       "submit": "Importieren",
       "passphrase": "Passphrase der Linkdatei",
       "passphrase_hint": "Nur für eine verschlüsselte .rdlinks-Datei.",
-      "enqueue": "Nach der Prüfung direkt in die Download-Liste",
+      "enqueue": "Nach der Prüfung direkt in die Downloadliste",
       "enqueue_hint": "Gilt für Linkdateien und Container: Die Links werden geprüft und dann ohne weiteren Klick übernommen."
     },
     "history": {
@@ -181,7 +181,7 @@
       "started": "„{name}“ an {provider} übergeben",
       "already_running": "{provider} lädt „{name}“ bereits",
       "summary": "{done} von {total} NZBs an {provider} übergeben",
-      "summary_failed": "{failed} von {total} NZBs konnten nicht an {provider} übergeben werden: {reason}",
+      "summary_failed": "{failed} von {total} NZBs konnte nicht an {provider} übergeben werden: {reason} | {failed} von {total} NZBs konnten nicht an {provider} übergeben werden: {reason}",
       "failed": "„{name}“ konnte nicht übergeben werden",
       "provider_fallback": "einen Anbieter"
     }
@@ -193,7 +193,7 @@
     "torrent_duplicate_description": "„{name}“ wurde als Duplikat markiert und kann bewusst erneut geladen werden.",
     "torrent_failed": "Torrent-Import fehlgeschlagen",
     "batch": "Dateiimport abgeschlossen",
-    "batch_description": "{created} importiert, {duplicates} Duplikate, {errors} Fehler.",
+    "batch_description": "Importiert: {created}, Duplikate: {duplicates}, Fehler: {errors}.",
     "container_imported": "Container importiert",
     "container_imported_description": "„{name}“ hat {count} Link in den LinkGrabber gelegt. | „{name}“ hat {count} Links in den LinkGrabber gelegt.",
     "container_failed": "Container-Import fehlgeschlagen",
@@ -373,7 +373,7 @@
       "automaticNamed": "Automatisch — {profile}",
       "automaticNone": "Automatisch — kein passendes Profil",
       "none": "Keine Sitzung senden",
-      "empty": "Kein Cookie-Profil deckt diese Adresse ab. Unter Einstellungen → Authentifizierung anlegen."
+      "empty": "Kein Cookie-Profil deckt diese Adresse ab. Unter Einstellungen → Konten → Seiten-Anmeldungen kannst du eins anlegen."
     },
     "unresolved_title": "Diese Seite bietet nichts zur Auswahl",
     "unresolved": {
@@ -458,7 +458,7 @@
     "intake_body": "Kein Link übernommen. | {count} Link im LinkGrabber. | {count} Links im LinkGrabber."
   },
   "indexers": {
-    "title": "Indexer-Abonnements",
+    "title": "Indexer-Abos",
     "hint": "Treffer, über die noch entschieden werden muss",
     "empty": "Zurzeit wartet kein Treffer auf eine Entscheidung.",
     "group_hits": "{count} Treffer | {count} Treffer",
@@ -490,7 +490,7 @@
     "reorder_filter_active": "Die Reihenfolge lässt sich nur ohne aktiven Filter ändern – die verborgenen Links würden sonst falsch einsortiert."
   },
   "list": {
-    "aria": "Gesammelte Links, {count} Zeilen"
+    "aria": "Gesammelte Links, {count} Zeile | Gesammelte Links, {count} Zeilen"
   },
   "mirror": {
     "mirrors": "{count} Mirror | {count} Mirrors",
@@ -526,13 +526,13 @@
   },
   "duplicates": {
     "queued": "{count} × schon in der Warteschlange",
-    "queued_hint": "Dieselbe Quelle ist bereits {count}-mal in der Warteschlange – erkannt an der normalisierten Adresse, am Info-Hash oder am Hoster.",
+    "queued_hint": "Dieselbe Quelle ist bereits {count}-mal in der Warteschlange – erkannt an der normalisierten Adresse, am Info-Hash oder am Hoster. | Dieselbe Quelle ist bereits {count}-mal in der Warteschlange – erkannt an der normalisierten Adresse, am Info-Hash oder am Hoster.",
     "history": "Schon heruntergeladen",
     "history_hint": "Dieselbe Quelle steht im Download-Verlauf: „{name}“, beendet am {date}."
   },
   "sources": {
     "title": "Quellen ({count})",
-    "badge": "{count} Quellen",
+    "badge": "{count} Quelle | {count} Quellen",
     "priority": "Priorität {value}",
     "hint": "In dieser Reihenfolge versucht. Eine Adresse, die auf deinen eigenen Rechner zeigt – oder, bei einem Dokument, das du nicht selbst übergeben hast, in dein lokales Netz –, wird nicht abgefragt."
   },
@@ -570,7 +570,7 @@
       "category": "Kategorie"
     },
     "unavailable": "Noch kein Indexer eingeschaltet. Lege zuerst einen Indexer an – Indexer-Abos allein werden hier nicht durchsucht.",
-    "unavailable_link": "Einstellungen › Usenet › Indexer",
+    "unavailable_link": "Einstellungen → Usenet → Indexer",
     "grab_one": "In den LinkGrabber übernehmen: {title}",
     "grab_one_done": "Im LinkGrabber: {title}",
     "grab_one_failed": "Nicht übernommen, noch einmal versuchen: {title}",
@@ -590,7 +590,7 @@
     },
     "type_unsupported": "Keiner der gewählten Indexer bietet diese Suche an.",
     "torrent": "Torrent",
-    "swarm": "{seeders} Seeder, {leechers} Leecher",
+    "swarm": "Seeder: {seeders}, Leecher: {leechers}",
     "grabbed_torrents": "Kein Torrent übernommen | Ein Torrent in den LinkGrabber übernommen | {count} Torrents in den LinkGrabber übernommen",
     "open": "Indexer durchsuchen",
     "drawer_hint": "Eine Anfrage pro Suche; was du übernimmst, landet zur Prüfung im LinkGrabber."

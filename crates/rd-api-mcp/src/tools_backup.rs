@@ -7,10 +7,8 @@
 //! (`mcp_coverage`), and a backup without one cannot be written at all. No destination tool
 //! takes a credential either: a profile is named by its id, an rclone remote by its name.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path, Query};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

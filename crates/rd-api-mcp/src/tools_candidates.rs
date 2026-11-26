@@ -6,10 +6,8 @@
 //! first, and every other tool here takes an id it hands out. Each one calls its route's handler
 //! with the extractors built by hand; none of them decides anything the route does not.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde::Serialize;
 

@@ -17,7 +17,7 @@ import { router } from './router'
 // sign-in, and the sign-in screen has no plugin strings to translate. The session store fetches
 // them the moment a session exists. The detected language's catalogues are a chunk of their own
 // (English aside), so the app mounts once they are in rather than flashing English first.
-const localeReady = setLocale(detectLocale())
+const localeReady = setLocale(detectLocale(), { remember: false })
 
 // Registered after load so it never competes with the first render. A failure is ignored on
 // purpose: the app works without it, and an install prompt is not worth an error dialog.

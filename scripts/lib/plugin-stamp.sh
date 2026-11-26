@@ -135,7 +135,7 @@ missing() {
     [[ ! -f "$(component_path "$1")" ]]
 }
 
-# The key of the component cache in CI and the release (RD-150-10), as two `name=value` lines
+# The key of the component cache in CI (RD-150-10; none in the release), as two `name=value` lines
 # for $GITHUB_OUTPUT. `sources` covers every plugin's source hash, so an exact hit is a set of
 # components built from exactly these sources. `deps` covers what a stamp deliberately leaves
 # out and a component still depends on: the registry packages in Cargo.lock, the root Cargo.toml

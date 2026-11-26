@@ -29,14 +29,14 @@ describe('selectionSummary', () => {
     expect(summary('en', files(4, 11))).toBe('4 packages · 11 files selected')
     expect(summary('de', files(4, 11))).toBe('4 Pakete · 11 Dateien ausgewählt')
     expect(summary('es', files(4, 11))).toBe('Selección: 4 paquetes · 11 archivos')
-    expect(summary('fr', files(4, 11))).toBe('Sélection : 4 paquets · 11 fichiers')
+    expect(summary('fr', files(4, 11))).toBe('Sélection\u00a0: 4 paquets · 11 fichiers')
   })
 
   it('says "in 1 package" while one package holds every ticked file', () => {
     expect(summary('en', files(1, 3))).toBe('3 files in 1 package selected')
     expect(summary('de', files(1, 3))).toBe('3 Dateien in 1 Paket ausgewählt')
     expect(summary('es', files(1, 1))).toBe('Selección: 1 archivo en 1 paquete')
-    expect(summary('fr', files(1, 1))).toBe('Sélection : 1 fichier dans 1 paquet')
+    expect(summary('fr', files(1, 1))).toBe('Sélection\u00a0: 1 fichier dans 1 paquet')
   })
 
   it('takes the singular and the plural of each figure on its own', () => {
@@ -47,6 +47,6 @@ describe('selectionSummary', () => {
   it('counts the LinkGrabber\'s links the same way, its NZB imports after them', () => {
     expect(summary('en', { packages: 3, items: 4, unit: 'link', imports: 1 })).toBe('3 packages · 4 links · 1 NZB import selected')
     expect(summary('de', { packages: 1, items: 2, unit: 'link', imports: 2 })).toBe('2 Links in 1 Paket · 2 NZB-Importe ausgewählt')
-    expect(summary('fr', { packages: 0, items: 0, unit: 'link', imports: 3 })).toBe('Sélection : 3 imports NZB')
+    expect(summary('fr', { packages: 0, items: 0, unit: 'link', imports: 3 })).toBe('Sélection\u00a0: 3 imports NZB')
   })
 })

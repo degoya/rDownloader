@@ -5,6 +5,279 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.48.0] - 2026-11-25
+
+### Added
+
+- **Draft legal notes (RD-1480-22).** `docs/legal-notes.md`: dated notes for a lawyer and a data
+  protection officer on the Cyber Resilience Act, product liability and the DPIA threshold analysis,
+  the procedure for a vulnerability, and the sentence the privacy text lacks. A draft; nothing in it
+  is confirmed.
+
+- **SBOM from the lock files, weekly vulnerability run (RD-1480-14).** `rdownloader.spdx.json` names
+  the 645 crates and 329 npm packages a release is made of, with checksum and licence
+  (`scripts/release-sbom.sh`; below 500/250 it stops the release), instead of a Syft scan of packed
+  archives whose binaries carry no dependency data. `scripts/advisories.sh` asks OSV weekly about the container's Python tools and
+  the npm packages. The published image's index carries source, description and licence.
+
+- **The licence texts of everything a package ships (RD-1480-12).** `scripts/licenses.sh` writes
+  `crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt` beside the list: the licence, copyright and
+  NOTICE texts of every crate, npm package (the fonts and the Lucide icons included) and the Rust
+  standard library, read from cargo's registry, `web/node_modules` and the toolchain and never from
+  the network; a package without a licence file gets the standard text of what it declares and no
+  copyright line. Every archive, the agent's archive, deb (with Debian's `copyright`), rpm (as
+  `%license`), MSI, AUR package and the image carry it, `archive-layout.sh` asks for it, and the
+  About page opens it (`GET /api/v1/system/about/notices`). The list gains `source` per entry and
+  `other`, and refuses a licence outside deny.toml's `allow`; deny.toml covers
+  `aarch64-unknown-linux-gnu` and `x86_64-apple-darwin`. The image also carries `LICENSE`, the
+  Python packages' texts, `SOURCES.txt` and OCI labels, and its build fails on a Python licence
+  nobody allowed (`docker/python-licences.py`).
+
+- **MCP: annotations, a tool list per token, data flow (RD-1480-06).** Every tool carries
+  `readOnlyHint`, `destructiveHint` and `idempotentHint`, derived centrally from the methods of
+  the routes it reaches (`rd-api-mcp/src/listing.rs`, exceptions named and tested). `tools/list`
+  offers only the tools the token's scopes price -- a read-only token 28 of 268 -- and is cached
+  for that client alone; every call is still checked. The `[untrusted content]` notice covers 82
+  tools instead of 49, `search_queue` and the remote-job tools among them, and a test in `rd-api`
+  holds the list against the OpenAPI document's answer types. The longest descriptions and the
+  notice in each description are shorter. Settings › Clients & API › API & MCP says before a
+  token is made that the assistant's provider processes links, file names and log lines.
+
+- **Keyboard shortcuts are a switch, off by default (RD-1480-17).** *Keyboard shortcuts* under
+  Settings › Interface › *This browser*, kept per browser (`rd-keyboard-shortcuts`). Off, no single
+  key is bound and no tooltip, menu, confirmation or tour text names one; Ctrl/Cmd+K and the
+  components' own keys stay (WCAG 2.1.4).
+
+- **Notifications in German, English, Spanish or French; a webhook says when and what (RD-1480-11).**
+  The settings key `notification_language` (`en`, `de`, `es`, `fr`; English while unset) decides the
+  language of the built-in texts of push, mail, Telegram and webhook, the test message, the summary
+  after quiet hours and an automation's built-in words; Settings > Notifications has a card for it,
+  and the sentences are in `crates/rd-notify/locales/`, said when a delivery is queued
+  (`rd_notify::Text`). A rule's own wording is untouched; what it takes over with `{title}`,
+  `{message}` and `{names}` follows the setting. A mail names UTF-8 as its character set. A webhook
+  call additionally carries `X-RDownloader-Timestamp` (the attempt, in Unix seconds) and, with a
+  secret, `X-RDownloader-Timed-Signature: t=<seconds>,v1=<hex>` (HMAC-SHA256 of
+  `<seconds>.<body>`); the body additionally has `version` (1), `occurred_at`, `package_id` and
+  `download_id` (migration 0151). `X-RDownloader-Signature` and the fields before stay as they were.
+
+- **Single reads, `Idempotency-Key`, `Location` (RD-1480-10).** `GET <collection>/{id}` for all 29
+  resources a `PUT` or `PATCH` changes (downloads, packages, subscriptions, accounts and the rest):
+  the list's row, at the list's scope, or a coded `404`. A `201` of such a collection carries
+  `Location` (one layer, `created_location`, from the scope table). `POST /api/v1/downloads` takes
+  an `Idempotency-Key`, `add_downloads` an `idempotency_key`: a repeat within an hour is answered
+  the download the first request created, per credential; another body under the key is refused as
+  `request.idempotency_key_reused` (422), a malformed one as `request.idempotency_key_invalid`.
+  Every `limit` names its bounds in the OpenAPI document; none became stricter. MCP's
+  `get_download` is priced by its own route. `compat-check.sh` also compares response headers,
+  error codes, event names, webhook fields and headers, and MCP tools.
+
+- **The settings change field by field (RD-1480-07).** `PATCH /api/v1/settings` takes the fields
+  that change and leaves the others as stored; a field named is replaced whole, `null` empties a
+  field that can be empty and is refused for any other (`settings.invalid` with the field in
+  `key`). It shares the merge, the administrator's fields and the audit record with `PUT` (unchanged)
+  and the MCP tool `update_settings` (`SettingsEdit`). The document's answers carry an `ETag`; an
+  optional `If-Match` on `PUT` and `PATCH` answers `412 settings.document_changed` when another
+  document is stored by now. Every writer of the document takes its turn, and `settings.changed`
+  (scope `api:config`) names the changed fields, never a value. The settings page, the status bar and
+  the hot folders' interval send what changed; a change made elsewhere is laid under the form,
+  unsaved input stays, and a field both sides changed is named before a save overwrites it.
+
+- **The extension in Firefox in CI, and a release gate (RD-1480-04).** `e2e.yml` runs
+  `web/e2e/firefox.e2e.mjs` on Linux: the built Firefox extension in the runner's Firefox through
+  its geckodriver, spoken to over WebDriver with Node's `fetch` and no new package. It saves a
+  service's address under another machine's name and port, tests the connection, shares a site's
+  session from the context menu, allows the site in the popup and hands Click'n'Load over without
+  an agent and beside one. The permission prompt is answered by a preference
+  (`extensions.webextOptionalPermissionPrompts=false`); a probe extension in the same Firefox and
+  scripted clicks on the buttons under test show that the click rule still holds. The release skill
+  gates on that step and names the live checks no run reaches. `e2e.yml` also starts on
+  `web/src/**` and `crates/rd-cnl/**`. The Chromium run's wait for the popup's answer read a text
+  the catalogue no longer had, so it waited for nothing; it waits for the real one now.
+
+- **Routes without a test, and the web interface in a real browser (RD-1480-25).** Suites for the
+  paths no test named: listing and revoking a capture agent, discarding a remote job, a package's
+  extraction plain and forced, one download's pause, hot folders, accounts, category rules,
+  LinkFilter order, stream channels and recording at once, SSH host keys, the malware scanner's
+  test, the setup wizard's end, a sign-in's start, an auth profile's test, the torrent port test,
+  and what a LinkGrabber link's routes refuse. `rd-api/src/untested_routes_tests.rs` holds every
+  path of the OpenAPI document to a test or a written reason. `web/e2e/web-ui.e2e.mjs` (`e2e.yml`,
+  Linux) signs in, adds a link in the LinkGrabber, enqueues it and finds the file on the disk, and
+  reads five pages with axe in light and dark, contrast included.
+
+### Changed
+
+- **Dependencies current before 1.48.0.** Every semver-compatible crate (`hyper` 1.13, `h2` 0.4.21,
+  `jiff` 1.0.3, `zstd` 0.13.6 with zstd 1.6.0, `zip` 9.8.2, `psl` 2.1.263 among them) and npm
+  package (`@nuxt/ui` 4.13.1, `@vueuse/core` 15.1, `oxlint` 1.95.0); the image's bases moved to
+  today's digests and its Python tools to `yt-dlp` 2026.11.23, `streamlink` 8.6.3, `gallery-dl`
+  1.32.21 and `apprise` 2.3.0.
+
+- **Example hosts instead of release pages (RD-1480-23).** Code, tests and `design.md` use
+  `*.example` hosts and neutral rule ids. `scripts/lib/public-names.py` takes a names file, and
+  `scripts/tests/public-names.sh` holds the tree against `scripts/release-site-names.txt`, which the
+  public export leaves out with its allowlist. The MediaFire and KrakenFiles page fixtures are
+  shortened to what their readers look at (136 to 3 kB, 45 to 8 kB, 18 to 2 kB), and three peeplink
+  entries carry a neutral heading.
+
+- **Planning kept from drifting (RD-1480-24).** A job whose core criterion is open on one platform is
+  `Partial`; criteria are changed before they are ticked and stay measurable
+  (`docs/roadmap/jobs/README.md`). `scripts/archive-jobs.sh` writes the job index's status words from
+  the job files. The milestones 1.4 to 1.40.1, the review of 2026-09-25 and the roadmap's old head
+  moved to `docs/roadmap-archive.md`; `ROADMAP.md` names 2.0 and the research ideas only. The 137
+  open boxes of the collecting jobs are a proposal list for the owner.
+
+- **Release workflow hardening (RD-1480-14).** Plugins are signed in a job of their own that compiles
+  nothing; components, packager and interface are built without any cache. 49 checkouts keep no
+  credentials (`persist-credentials: false`; the two that push keep their deploy key), held by
+  `scripts/tests/workflow-shape.sh`. The expired `minimumReleaseAgeExclude` for `@nuxt/ui` is gone.
+
+- **Tests that no longer pass unrun (RD-1480-14).** The real-7-Zip, unrar and zsh tests are
+  `#[ignore]` and fail without the program; CI runs the first with a pinned 7-Zip 25.01 and the
+  last with zsh. Two web tests fail instead of vanishing when their source yields nothing.
+
+- **Bundled plugins declare GPL-3.0-or-later (RD-1480-13)**, the licence their sources and the crates
+  they link have always had; `plugins/metadata.toml` said MIT (`repo_lints/plugin_licences.rs`
+  holds it). The SDK templates, its CI workflows and the plugin contract are expressly MIT:
+  `sdk/LICENSE`, the same text beside the contract and in every template
+  (`check-sdk-templates.sh`). The contract file itself is unchanged.
+
+- **Extension tests: one fake browser with the browsers' rules (RD-1480-02).** `fakeBrowser('firefox'
+  | 'chrome')` starts from the built manifest, refuses a permission request outside the click,
+  matches patterns as that browser does, gates `webRequest` listeners by filter and grant and carries
+  JSON across Chrome's boundary; `background.js` is loaded as both builds, the popup, the options
+  and the send-file page are opened and clicked, and `harvestAnswer` runs alone in an empty context.
+
+- **The interface's texts say one thing one way (RD-1480-15).** One term per concept in German,
+  French and Spanish (*API-Schlüssel*, *Browser-Erweiterung*, *Automation*, *Abo*, *clé d’accès*,
+  *posprocesado*, *multimedia* …, the list in `design.md`), each language's own quotation marks,
+  and French with its no-break spaces and apostrophes (about 1750 strings);
+  `scripts/i18n-key.sh` writes new French values that way and
+  `scripts/lib/fr_typography.py` puts right what a merge brings.
+
+- **The queue page follows a transfer without reading the queue (RD-1480-18).** Every
+  `download.progress` read `/downloads`, `/packages` and `/downloads/rates` again, up to twice a
+  second per tab (829 KB each time with 1140 files). `GET /downloads/rates` now carries `progress`
+  (id, state, bytes and size of every entry at work) and progress reads only that, for Usenet's
+  `nzb_checkpoint` as well; the queue is read on state changes, stream gaps, after a failed read,
+  after a person's action and when the figures do not fit the rows. A hidden tab suspends what it
+  does not show and catches up. Row changes that were silent are announced, broadcast only: a name
+  settled during a transfer (`renamed`), a chosen sign-in profile (`auth_profile`), late enrichment
+  (`enrichment`); a recording's segments and a checkpoint's file are named in their events. The
+  lists are shallow refs. LinkGrabber and statistics no longer read on Usenet checkpoints, and the
+  seeding sweep announces a torrent only when something about it changed. The storage, collision and power alerts follow events instead of polling
+  every five seconds. Nuxt UI's strings come in the four languages the interface has, and the
+  settings pages, driver.js and the setup wizard are chunks of their own: 2.25 MB → 1.49 MB of
+  initial JavaScript (632 → 448 KB as gzip).
+
+- **Service: compressed assets, narrow queue reads, bounded poll history (RD-1480-19).** The build
+  writes a gzip copy of every text file, embedded and served with `Vary`; every file has an `ETag`
+  and icons, manifest and favicon `no-cache`. API answers stay uncompressed (BREACH). Rates, summary,
+  the tray's figures and the power supervisor's five-second tick read four columns instead of whole
+  rows. A state's page of subscription hits walks its index (100 000 rows: 18 ms → 0.1 ms in
+  SQLite). `/api/v1/openapi.json` is built once per process. The newest 1000 polls of a subscription
+  are kept. `docs/reverse-proxy.md` says what a proxy may compress.
+
+- **The OpenAPI document says what a call costs and how it is refused (RD-1480-09).** Every operation
+  carries `security` and `x-required-scope`, written from `ROUTE_POLICY`; the shared refusals (400,
+  401, 403, 413, 415, 422, 429) are added centrally (`rd-api/src/openapi/`), and every refusal names
+  `ErrorBody` -- 29 named another schema, 257 none. `GET /api/v1/events`,
+  `GET /api/v1/capture/events` and `POST /api/v1/capture/nzb` are in it, the streams with every
+  event's name, area and payload and with `stream.lagged` and `stream.expired`; `/health` has a
+  schema, the sign-in is tagged `auth`, every tag and the document itself are described. A ratchet
+  holds what still has no text.
+
+- **Plugin versions.** The versions this release raises: `google-drive-crawler` and
+  `metadata-enricher` 0.1.17; `box-oauth`, `directory-index-crawler`, `google-drive-oauth`,
+  `offcloud-cloud`, `onedrive-oauth`, `pcloud-crawler`, `pcloud-oauth`, `pixeldrain-crawler`,
+  `premiumize-crawler` and `torbox-auth` 0.1.18; `box-crawler`, `dropbox-crawler`, `dropbox-oauth`,
+  `mediafire-crawler`, `nextcloud-crawler`, `onedrive-crawler`, `pcloud`, `peeplink-crawler`,
+  `putio-oauth` and `seedr-jobs` 0.1.19; `box`, `hitfile`, `mediafire`, `mega`, `mega-auth` and
+  `turbobit` 0.1.20; `dropbox`, `google-drive`, `krakenfiles`, `mega-crawler`, `offcloud`,
+  `onedrive`, `putio`, `putio-transfers`, `seedr` and `torbox` 0.1.21; `pixeldrain` 0.1.22;
+  `xfs-generic` 0.1.23; `emby-notifier` 0.2.6; `jellyfin-notifier` and `plex-notifier` 0.2.7;
+  `realdebrid-auth` 0.2.16; `realdebrid-torrents` 0.2.17; `premiumize-transfers`, `realdebrid` and
+  `torbox-jobs` 0.2.18; `debridlink`, `keep2share`, `linksnappy` and `rapidgator` 0.7.22;
+  `alldebrid` and `nitroflare` 0.7.23; `onefichier` 0.7.24; `filejoker` and `premiumize` 0.7.25;
+  `alldebrid-auth`, `crawljob-intake`, `discord-notifier` and `sponsorblock-enricher` 0.9.17;
+  `debridlink-auth`, `premiumize-auth` and `telegram-notifier` 0.9.18; `md5-postprocess`,
+  `sha256-postprocess` and `webdav-storage` 0.9.19; `rename-postprocess` 0.9.21; `katfile` 0.9.26;
+  `ntfy-notifier` 0.10.11; `metalink-intake` 0.10.15; `ddownload` 0.10.30.
+
+### Fixed
+
+- `scripts/doc-facts.sh` refuses an argument it does not know, and `--help` helps instead of writing
+  (RD-1480-14).
+
+- **The About page no longer says packages ship helper tools (RD-1480-12).** No archive has carried
+  `vendor/` since 1.8. The page lists the programs as used, and in the container image the ones it
+  contains with the place of their licence texts (`tools_shipped`).
+
+- **The browser extension saves a server address, shares a session and answers Click'n'Load in
+  Firefox (RD-1480-01).** Firefox takes `permissions.request` only while it handles the click: the
+  options page awaited `permissions.contains` first and the session share its settings, so every
+  address without a grant was "not a valid server address" and every share ended refused without a
+  word. Both ask first now, and a declined share is said. Firefox also matches a pattern with a port
+  against nothing: its build names its hosts without one (`manifestFor`), the options ask for the
+  host, and Click'n'Load's filter names the agent's paths while `cnlRoute` keeps the port; Chrome's
+  grants and filters are unchanged. 127.0.0.1:8710 was reached in Firefox by CORS alone and now by
+  its host grant. A captcha's page and a session handover ask without the port there as well, and a
+  share that finds no cookies gives its grant back. The Firefox build names its own content security policy without
+  `upgrade-insecure-requests`, so a service on plain http in the LAN is reached.
+
+- **Browser extension: accessible pages, plurals, hardening (RD-1480-03).** Buttons, hints and the
+  status read at 4.5:1 and the fields' edges at 3:1 in both themes; the three pages name their language, title, `main` and
+  headings and announce their status; the file field shows its focus. Counted messages have a
+  singular (`Intl.PluralRules`), and the manifest description is the store text. A file a page built
+  itself is taken only within a click on that page and at most 20 times a minute per tab, and
+  `storage.local` is closed to content scripts (Chrome). Both archives carry `LICENSE` (LIC-11), and
+  the store document names the captcha answer and the default take-over (LEG-5, a draft for a
+  lawyer).
+
+- **Figures, units, plurals and sorting in the interface language (RD-1480-16).** Sizes, rates,
+  ratios and percentages go through vue-i18n's number formats (`1,5 GiB`, `45 %` in German, French
+  and Spanish) with the digits they had; the names of the units come from `common.byte_units`
+  alone, `Kio/Mio/Gio` in French, fields included. A counter of 1000 and more in a text is grouped
+  (`12.345 Dateien`), French counts zero as singular, lists and trees sort by the interface language
+  rather than the browser's, colons and quotation marks follow the language
+  (`common.text.*`), and the language detected at the first start is no longer stored as a choice.
+  The web manifest names its language.
+
+- **Menu paths, address and plurals of the interface's texts (RD-1480-15).** Hints that pointed at
+  settings pages renamed long ago name today's page and tab, in four languages; eleven French
+  strings said "tu" and two Spanish ones "usted"; about seventy counted sentences said "1 sessions"
+  or "file(s)" and have both forms now, or a neutral one where the count does not reach the plural.
+  The setup wizard says that a paired client sends to the LinkGrabber. Five new tests hold menu
+  paths, terms, quotation marks, plural forms and French typography.
+
+- **Accessibility of the web interface (RD-1480-17).** Dark mode was painted in the light-mode
+  shades, because an unlayered `:root` beat Nuxt UI's layered `.dark`; light mode's `warning`,
+  `success` and `info` were unreadable. Both modes now pass 4.5:1 in all six colour themes, and
+  `contrast.test.ts` works it out from the style sheets instead of copied values. The focus ring is
+  the full accent; error notices are announced; the tab title names the view; every progress bar and
+  glyph badge has a name; the notices of a schedule's pause and of used-up traffic leave the
+  Downloads navbar where they covered the sidebar button; the setup's password field asks for a new
+  password.
+
+- **A malformed REST request is refused in the one error format (RD-1480-08).** `Json`, `Path` and
+  `Query` of `rd_api_core::extract` replace axum's in every handler: the same statuses, an
+  `ErrorBody` with `request.body_invalid`, `request.content_type_unsupported`,
+  `request.body_too_large`, `request.invalid_id` or the new `request.query_invalid` instead of plain
+  text (`repo_lints/rest_extractors.rs` holds it). `GET` of an unknown address below `/api/`,
+  `/mcp/` or `/sabnzbd/` is a JSON `404 web.route_not_found`, under a mount point too, instead of
+  the interface's page with a `200`. The `429` of a sign-in lockout, a reannounce and a Click'n'Load
+  hand-over carries `Retry-After`.
+
+- **The LinkGrabber's hand-over keeps the indexer's key here (RD-1480-05).** An NZB link of a
+  package handed to a remote-job provider went there as its address, API key included. Its
+  document is now fetched from the indexer and submitted as a container, through
+  `nzb_candidate` and `nzb_hand_over` like a subscription's hit; a provider that takes no NZB
+  files keeps the link (`nzb.remote_job_no_nzb`). Any other address with user info or a secret
+  query parameter stays with `collector.remote_job_secret_address`. A link that stayed carries
+  `params` for its translated code, and the package's menu offers NZB links only to providers
+  that take NZB files. A link the online check has not recognised yet goes the same way when it has
+  a Newznab download address's form (`t=get` with an id, `getnzb`, `i=`/`r=`, in the path too) or
+  sits at a configured indexer, and stays when its answer is no NZB.
+
 ## [1.47.0] - 2026-11-22
 
 ### Changed

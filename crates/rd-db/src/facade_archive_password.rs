@@ -193,6 +193,20 @@ impl Database {
         Ok(())
     }
 
+    /// [`Self::get_package`] with its archive password read from the vault, as
+    /// [`Self::list_packages_with_passwords`] shows it (RD-1480-10).
+    pub async fn get_package_with_password(
+        &self,
+        id: rd_core::PackageId,
+    ) -> Result<Option<rd_core::DownloadPackage>> {
+        let mut package = self.get_package(id).await?;
+        if let Some(package) = &mut package {
+            self.reveal_archive_passwords(std::slice::from_mut(package))
+                .await;
+        }
+        Ok(package)
+    }
+
     /// Fills in the password of every item whose row points into the vault. Never fails: a
     /// password that cannot be read is logged by row, never by value, and left out.
     pub(crate) async fn reveal_archive_passwords<T: ArchivePassword>(&self, items: &mut [T]) {

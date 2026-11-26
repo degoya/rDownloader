@@ -30,7 +30,9 @@ const get = vi.fn(async (path: string, init?: { params?: { query?: { container?:
     }
   }
   if (path === '/api/v1/remote-jobs/providers') {
-    return { data: init?.params?.query?.container === 'torrent' ? ['realdebrid'] : ['realdebrid', 'torbox'] }
+    const container = init?.params?.query?.container
+    if (container === 'torrent') return { data: ['realdebrid'] }
+    return { data: container === 'nzb' ? ['torbox'] : ['realdebrid', 'torbox'] }
   }
   if (path === '/api/v1/providers') {
     return {
@@ -73,8 +75,8 @@ const release = {
   created_at: '2026-11-21T10:00:00Z'
 } as unknown as CollectorPackage
 
-function link(id: string, url: string): LinkCandidate {
-  return { id, url, state: 'online', package_id: 'pkg-1', size: null } as unknown as LinkCandidate
+function link(id: string, url: string, provider = 'files.example'): LinkCandidate {
+  return { id, url, provider, state: 'online', package_id: 'pkg-1', size: null } as unknown as LinkCandidate
 }
 
 function renderPackage(candidates: LinkCandidate[]) {
@@ -118,6 +120,36 @@ describe('usePackageHandOver in the package menu', () => {
     renderPackage([link('c-3', 'file:///data/torrents/abc.torrent')])
     await waitFor(() => expect(screen.getByRole('button', { name: 'Second · Real-Debrid' })).toBeTruthy())
     expect(screen.queryByRole('button', { name: 'Main · TorBox' })).toBeNull()
+  })
+
+  it('offers a package of NZB links only to a provider that takes NZB files', async () => {
+    renderPackage([link('c-5', 'https://indexer.example/api?t=get&id=1', 'nzb')])
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Main · TorBox' })).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Second · Real-Debrid' })).toBeNull()
+  })
+
+  it('names the indexer\'s own reason for an NZB link that stayed', async () => {
+    submit.mockResolvedValue({
+      ok: true,
+      data: {
+        handed_over: [],
+        stayed: [{
+          candidate_id: 'c-5',
+          code: 'collector.nzb_rejected',
+          message: 'Request limit reached (code 450)',
+          params: { reason: 'Request limit reached (code 450)' }
+        }],
+        links_removed: true,
+        package_removed: false
+      }
+    })
+    renderPackage([link('c-5', 'https://indexer.example/api?t=get&id=1', 'nzb')])
+    await fireEvent.click(await screen.findByRole('button', { name: 'Main · TorBox' }))
+    await settle()
+    expect(add).toHaveBeenCalledWith(expect.objectContaining({
+      description: 'The indexer refused to deliver the NZB: Request limit reached (code 450)',
+      color: 'warning'
+    }))
   })
 
   it('counts the links handed over in the toast', async () => {

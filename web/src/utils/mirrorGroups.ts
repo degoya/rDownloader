@@ -13,6 +13,7 @@
  */
 import type { LinkCandidate } from '@/api/types'
 
+import { compareText } from '@/utils/collation'
 import { hosterOf } from '@/utils/collectorSort'
 
 /** The three dimensions a person may prefer, in the order the toolbar shows them. */
@@ -158,5 +159,5 @@ export function facetValues(candidates: LinkCandidate[], facet: MirrorFacet): st
     const value = facetOf(candidate, facet)
     if (value) values.add(value)
   }
-  return [...values].sort((a, b) => a.localeCompare(b))
+  return [...values].sort(compareText)
 }

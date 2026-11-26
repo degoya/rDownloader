@@ -1,4 +1,5 @@
 use super::validate_script_name;
+use crate::extract::Json;
 
 #[test]
 fn rejects_paths_and_hidden_files() {
@@ -27,18 +28,17 @@ fn templates() -> rd_core::SortTemplates {
 
 #[tokio::test]
 async fn the_preview_shows_where_each_name_would_land() {
-    let axum::Json(answer) =
-        super::preview_category_sorting(axum::Json(crate::dto::SortPreviewRequest {
-            sorting: templates(),
-            names: vec![
-                "Lost.S01E01-E02.Pilot.720p.BluRay.x264-SiNNERS.mkv".to_owned(),
-                "Inception.2010.1080p.BluRay.x264-SPARKS".to_owned(),
-                "The.Daily.Show.2024.03.15.Guest.720p.WEB.h264-EDITH.mkv".to_owned(),
-                "holiday.mp4".to_owned(),
-            ],
-        }))
-        .await
-        .expect("preview");
+    let Json(answer) = super::preview_category_sorting(Json(crate::dto::SortPreviewRequest {
+        sorting: templates(),
+        names: vec![
+            "Lost.S01E01-E02.Pilot.720p.BluRay.x264-SiNNERS.mkv".to_owned(),
+            "Inception.2010.1080p.BluRay.x264-SPARKS".to_owned(),
+            "The.Daily.Show.2024.03.15.Guest.720p.WEB.h264-EDITH.mkv".to_owned(),
+            "holiday.mp4".to_owned(),
+        ],
+    }))
+    .await
+    .expect("preview");
     let paths: Vec<Option<&str>> = answer
         .entries
         .iter()
@@ -66,7 +66,7 @@ async fn the_preview_shows_where_each_name_would_land() {
 async fn the_preview_refuses_a_template_that_leaves_the_folder() {
     let mut sorting = templates();
     sorting.series = Some("../{show}/{title}".to_owned());
-    let refused = super::preview_category_sorting(axum::Json(crate::dto::SortPreviewRequest {
+    let refused = super::preview_category_sorting(Json(crate::dto::SortPreviewRequest {
         sorting,
         names: vec!["Lost.S01E01.Pilot.mkv".to_owned()],
     }))

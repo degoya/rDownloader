@@ -13,7 +13,7 @@ use crate::format::Rule;
 const START: &str = "https://board.test/release/one";
 const API: &str = "https://api.board.test/release/one";
 
-/// The shape warez.cx answers in, cut down: two releases, each with its hoster lists in the
+/// The shape a release page answers in, cut down: two releases, each with its hoster lists in the
 /// same part order, and a title for the whole page.
 const RELEASES: &str = r#"{"title":"Show","releases":[
 {"fulltitle":"Show.S01.720p","links":{"one.test":["https://one.test/a1","https://one.test/a2"],"two.test":["https://www.two.test/b1","https://www.two.test/b2"]}},
@@ -44,7 +44,7 @@ fn grouped(groups: serde_json::Value) -> Rule {
     rule
 }
 
-/// The group the warez.cx rule uses: every address of the entry, named by its full title.
+/// The group a release page's rule uses: every address of the entry, named by its full title.
 fn per_release(mirrors: Option<&str>) -> serde_json::Value {
     let mut groups = json!({
         "from": "releases",

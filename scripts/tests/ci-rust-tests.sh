@@ -44,6 +44,9 @@ echo "<testsuites/>" > target/nextest/ci/junit.xml
 exit 0
 EOF
 chmod +x "$SCRATCH/bin/cargo"
+# Present, so that no run here installs one.
+printf '#!/bin/sh\n' > "$SCRATCH/bin/zsh"
+chmod +x "$SCRATCH/bin/zsh"
 export PATH="$SCRATCH/bin:$PATH"
 
 WORK="$SCRATCH/work"
@@ -63,7 +66,7 @@ tests_on() {
 tests_on Linux
 expect_status "Linux, all green" 0
 expect "five groups, the rd-api suites by their directories" \
-    "nextest run -P ci --no-fail-fast --workspace --exclude rd-api --exclude rd-plugin-ext --exclude rdownloader|nextest run -P ci --no-fail-fast -p rd-plugin-ext|nextest run -P ci --no-fail-fast -p rdownloader|nextest run -P ci --no-fail-fast -p rd-api --lib|nextest run -P ci --no-fail-fast -p rd-api --test access --test queue" \
+    "nextest run -P ci --no-fail-fast --workspace --exclude rd-api --exclude rd-plugin-ext --exclude rdownloader|nextest run -P ci --no-fail-fast -p rd-plugin-ext|nextest run -P ci --no-fail-fast -p rdownloader --run-ignored all -E not binary(kill_restart)|nextest run -P ci --no-fail-fast -p rd-api --lib|nextest run -P ci --no-fail-fast -p rd-api --test access --test queue" \
     "$(paste -sd'|' "$FAKE/cargo.calls")"
 expect "every group's executables and what is named after them deleted" "" \
     "$(find "$WORK/target/debug/build" -name 'test_*-0123*')"

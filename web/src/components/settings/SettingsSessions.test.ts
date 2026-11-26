@@ -143,7 +143,7 @@ describe('SettingsSessions', () => {
     await fireEvent.click(action)
     await waitFor(() => expect(api.POST).toHaveBeenCalledWith('/api/v1/sessions/revoke-others', {}))
     await waitFor(() => expect(screen.queryByText('Edge — Windows')).toBeNull())
-    expect(confirmed.mock.calls[0]?.[0].description).toBe('1 other sessions will be ended. This one stays signed in.')
+    expect(confirmed.mock.calls[0]?.[0].description).toBe('1 other session will be ended. This one stays signed in.')
     expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({ title: en.revoke_others.done }))
     expect(reload).not.toHaveBeenCalled()
   })

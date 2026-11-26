@@ -2,11 +2,8 @@
 //! LinkGrabber through the ordinary intake, so the blocklist, the routing rules, the online
 //! check and the review apply exactly as they do to a pasted link.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path};
 
 use crate::{
     ApiError, AppState,

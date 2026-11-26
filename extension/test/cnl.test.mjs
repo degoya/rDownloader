@@ -7,8 +7,12 @@ import { dirname, join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
-import { CNL_URL_PATTERNS, MAX_HANDOVER_BYTES, RESOURCES, RULE_IDS, cnlPayload, cnlRoute, handoverOutcome, initiatorOf, requestFields, sessionRules } from '../src/cnl.js'
+import { MAX_HANDOVER_BYTES, RESOURCES, RULE_IDS, cnlPayload, cnlRoute, cnlUrlPatterns, handoverOutcome, initiatorOf, requestFields, sessionRules } from '../src/cnl.js'
 import { PROBE_ALARM, createClickAndLoad, submitClickAndLoad } from '../src/cnl-handover.js'
+import { SITES_KEY, sitePattern } from '../src/files.js'
+
+import { fakeBrowser } from './fake-browser.mjs'
+import { matchesPattern } from './match-patterns.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CONFIG = { server: 'http://127.0.0.1:8710', token: 'capture-token', clickAndLoad: true }
@@ -30,7 +34,22 @@ test('only the agent\'s four paths on its two addresses are Click\'n\'Load', () 
   ]) {
     assert.equal(cnlRoute(other), null, other)
   }
-  assert.deepEqual(CNL_URL_PATTERNS, ['http://127.0.0.1:9666/*', 'http://localhost:9666/*'])
+})
+
+test('Chrome\'s filter names the port, Firefox\'s the agent\'s paths on any', () => {
+  // Firefox matches a pattern with a port against nothing; `cnlRoute` holds the port there.
+  assert.deepEqual(cnlUrlPatterns(), ['http://127.0.0.1:9666/*', 'http://localhost:9666/*'])
+  const firefox = cnlUrlPatterns({ ports: false })
+  assert.deepEqual(firefox, ['http://127.0.0.1/jdcheck.js*', 'http://127.0.0.1/flash*', 'http://localhost/jdcheck.js*', 'http://localhost/flash*'])
+  for (const path of ['/jdcheck.js', '/jdcheck.js?x=1', '/flash', '/flash/add?urls=x', '/flash/addcrypted2']) {
+    for (const host of ['127.0.0.1', 'localhost']) {
+      const url = `http://${host}:9666${path}`
+      assert.ok(cnlRoute(url), url)
+      assert.ok(firefox.some((pattern) => matchesPattern('firefox', pattern, url)), url)
+      assert.ok(cnlUrlPatterns().some((pattern) => matchesPattern('chrome', pattern, url)), url)
+      assert.ok(!cnlUrlPatterns().some((pattern) => matchesPattern('firefox', pattern, url)), 'the pattern that failed in Firefox')
+    }
+  }
 })
 
 test('the fields come from the form body over the query, known names only', () => {
@@ -137,21 +156,9 @@ test('the hand-over goes to the service\'s route under the capture token', async
 /** A browser with one allowed site, the extension's session rules, and the service. */
 function setup({ agent = false, config = CONFIG, sites = ['hoster.test'], granted = true, blocking = true, answer } = {}) {
   const calls = []
-  let rules = []
   let present = agent
-  const api = {
-    runtime: { getURL: (path) => `moz-extension://self/${path}` },
-    storage: { local: { get: async (defaults) => ({ ...defaults, fileSites: sites }) } },
-    permissions: { contains: async () => granted },
-    alarms: { create: async (name, options) => calls.push(['alarm', name, options.periodInMinutes]) },
-    declarativeNetRequest: {
-      updateSessionRules: async ({ removeRuleIds, addRules }) => {
-        calls.push(['rules', addRules.length])
-        rules = rules.filter((rule) => !removeRuleIds.includes(rule.id)).concat(addRules)
-      },
-      getSessionRules: async () => rules
-    }
-  }
+  const grants = granted ? sites.map(sitePattern) : []
+  const { api, rules } = fakeBrowser(blocking ? 'firefox' : 'chrome', { calls, local: { [SITES_KEY]: sites }, grants })
   const sent = []
   const notices = []
   const clickAndLoad = createClickAndLoad({
@@ -169,7 +176,7 @@ function setup({ agent = false, config = CONFIG, sites = ['hoster.test'], grante
       return answer ?? { ok: true, status: 201, json: async () => ({ candidates: [{}, {}] }) }
     }
   })
-  return { clickAndLoad, calls, sent, notices, rules: () => rules, startAgent: () => { present = true } }
+  return { clickAndLoad, calls, sent, notices, rules, startAgent: () => { present = true } }
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 5))
@@ -213,7 +220,7 @@ test('with the agent running the agent takes over and the extension does nothing
 test('Chrome: rules for the allowed sites while no agent answers, and the add is handed over', async () => {
   const { clickAndLoad, calls, sent, rules } = setup({ blocking: false })
   await clickAndLoad.schedule()
-  assert.deepEqual(calls.filter(([name]) => name === 'alarm'), [['alarm', PROBE_ALARM, 1]])
+  assert.deepEqual(calls.filter(([name]) => name === 'alarm'), [['alarm', PROBE_ALARM, { periodInMinutes: 1 }]])
   assert.deepEqual(rules().map((rule) => rule.condition.initiatorDomains), [['hoster.test'], ['hoster.test'], ['hoster.test']])
   await clickAndLoad.onBeforeRequest({ ...crypted, originUrl: undefined, initiator: 'https://hoster.test' })
   await settle()

@@ -158,7 +158,7 @@ describe('FullRestoreDialog', () => {
     await waitFor(() => expect(calls.test).toHaveBeenCalledWith({ run_id: 'run-1' }, 'correct horse battery', mappings))
     await waitFor(() => expect(screen.getByTestId('full-restore-report')).toBeTruthy())
     expect(screen.getByText(en.test.ok)).toBeTruthy()
-    expect(screen.getByText(server.codes['backup.restore_root_missing'].replace('{count}', '1'))).toBeTruthy()
+    expect(screen.getByText(server.codes['backup.restore_root_missing'].split(' | ')[0]!.replace('{count}', '1'))).toBeTruthy()
     // Tested but not confirmed: still unavailable.
     expect((screen.getByTestId('full-restore-start') as HTMLButtonElement).disabled).toBe(true)
     await fireEvent.click(screen.getByRole('checkbox', { name: en.confirm.label }))

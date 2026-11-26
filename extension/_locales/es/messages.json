@@ -3,7 +3,10 @@
     "message": "rDownloader"
   },
   "extDescription": {
-    "message": "Envía enlaces al LinkGrabber de rDownloader desde el menú contextual."
+    "message": "Envía enlaces, descargas y sesiones de páginas desde tu navegador a tu propio servidor rDownloader."
+  },
+  "pageLanguage": {
+    "message": "es"
   },
   "menuLink": {
     "message": "Descargar con rDownloader"
@@ -60,10 +63,16 @@
     "message": "Configura primero el servidor y el token."
   },
   "sentLinks": {
-    "message": "$1 enlace(s) enviado(s) al LinkGrabber."
+    "message": "$1 enlaces enviados al LinkGrabber."
+  },
+  "sentLinksOne": {
+    "message": "$1 enlace enviado al LinkGrabber."
   },
   "pickWaiting": {
-    "message": "Una página enumera $1 release(s); elígelos en el LinkGrabber de rDownloader."
+    "message": "Una página enumera $1 releases; elígelos en el LinkGrabber de rDownloader."
+  },
+  "pickWaitingOne": {
+    "message": "Una página enumera $1 release; elígelo en el LinkGrabber de rDownloader."
   },
   "sendFailed": {
     "message": "Error al enviar: $1"
@@ -472,7 +481,10 @@
     "message": "En los sitios de «Sitios que entregan archivos», una página muestra su botón de Click'n'Load aunque no se ejecute el agente de escritorio, y sus enlaces van a tu rDownloader con el nombre del paquete y la contraseña. Si el agente de escritorio está en marcha, él se encarga de Click'n'Load y la extensión no interviene."
   },
   "cnlSent": {
-    "message": "Click'n'Load: $1 enlace(s) enviado(s) al LinkGrabber."
+    "message": "Click'n'Load: $1 enlaces enviados al LinkGrabber."
+  },
+  "cnlSentOne": {
+    "message": "Click'n'Load: $1 enlace enviado al LinkGrabber."
   },
   "cnlFailed": {
     "message": "Click'n'Load falló: $1"

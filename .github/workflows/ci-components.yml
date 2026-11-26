@@ -5,7 +5,7 @@ name: CI components
 # imports, driven by the contract tests, packaged and run through conformance, and every SDK
 # template scaffolded and built outside the repository. It needs nothing from the other jobs but
 # the gate's word (RD-1120-07), and nothing waits for it. The component cache it saves on `main`
-# is the one release.yml reads.
+# is the one the next branches read; the release builds without it (RD-1480-14).
 on:
   workflow_call:
 
@@ -24,6 +24,8 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # No `web/dist` here any more: the packager is `rd-pack` (RD-150-20), which does not build
       # rd-api and its `#[derive(RustEmbed)]`.
       # ~90 wasm components, the test binaries of three plugin crates (rd-plugin-ext's one
@@ -50,7 +52,7 @@ jobs:
       # into a component: toolchain, wasm-tools, the registry half of Cargo.lock and the root
       # Cargo.toml (`deps`), and every plugin's source hash (`sources`); a miss on `sources`
       # restores the newest set with the same `deps`, and the build below rebuilds only what its
-      # stamps call stale or missing. release.yml reads the same cache, as it is left on `main`.
+      # stamps call stale or missing.
       - name: Work out the component cache key
         id: component-key
         shell: bash

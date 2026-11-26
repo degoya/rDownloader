@@ -2,8 +2,8 @@
  * RD-110-31: the poll interval is a setting, and this tab is where it is set.
  *
  * Three things pinned down: the field shows the value the settings document holds, saving it
- * writes the document back with only this field changed (read fresh, so an unsaved edit on
- * another tab is neither saved nor lost), and every folder row states the interval instead of
+ * sends this field alone (so an unsaved edit on another tab is neither saved nor lost, and a
+ * value saved elsewhere is not overwritten), and every folder row states the interval instead of
  * the "30 s" it used to print whatever the service did.
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/vue'
@@ -17,11 +17,13 @@ import { mountComponent } from '@/test/mount'
 
 const get = vi.fn()
 const put = vi.fn()
+const patch = vi.fn()
 const post = vi.fn()
 vi.mock('@/api/client', () => apiClientMock({
   GET: (...args: unknown[]) => get(...args),
   POST: (...args: unknown[]) => post(...args),
   PUT: (...args: unknown[]) => put(...args),
+  PATCH: (...args: unknown[]) => patch(...args),
   responseError: vi.fn(() => 'rejected')
 }))
 vi.mock('@/composables/useConfirm', () => confirmMock())
@@ -70,21 +72,15 @@ describe('RoutingHotfolders poll interval', () => {
     expect(screen.getByText(/45 s reconciliation/)).toBeTruthy()
   })
 
-  it('saves the interval alone, into the document as the server holds it right now', async () => {
-    // What the server holds differs from what this view loaded: another tab's unsaved edit
-    // must not travel along, and a value saved elsewhere must not be overwritten.
-    get.mockResolvedValue({ data: { ...stored(30), stats_hourly_days: 7 } })
-    put.mockResolvedValue({ data: stored(120) })
+  it('sends the interval alone', async () => {
+    patch.mockResolvedValue({ data: stored(120) })
     mount(30)
 
     await fireEvent.update(field(), '120')
     await fireEvent.click(screen.getByText(routing.hotfolder.poll_save))
 
-    await waitFor(() => expect(put).toHaveBeenCalledTimes(1))
-    expect(get).toHaveBeenCalledWith('/api/v1/settings')
-    expect(put).toHaveBeenCalledWith('/api/v1/settings', {
-      body: { hotfolder_poll_seconds: 120, stats_hourly_days: 7 }
-    })
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1))
+    expect(patch).toHaveBeenCalledWith('/api/v1/settings', { body: { hotfolder_poll_seconds: 120 } })
     await waitFor(() => expect(screen.getByText(routing.hotfolder.poll_saved)).toBeTruthy())
     expect(screen.getByText(/120 s reconciliation/)).toBeTruthy()
   })
@@ -93,8 +89,7 @@ describe('RoutingHotfolders poll interval', () => {
     // A value the field's own bounds let through: below five the browser refuses the submit
     // itself, so the server's refusal has to be provoked with a value it dislikes for its own
     // reasons.
-    get.mockResolvedValue({ data: stored(30) })
-    put.mockResolvedValue({ error: { code: 'settings.hotfolder_poll_invalid' } })
+    patch.mockResolvedValue({ error: { code: 'settings.hotfolder_poll_invalid' } })
     mount(30)
 
     await fireEvent.update(field(), '7')

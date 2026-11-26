@@ -204,4 +204,31 @@ git -C "$TREE" -c user.name=t -c user.email=t@t commit -qam recounted-status
 run
 expect_true "a second run leaves the count as it is" '[[ $status -eq 0 ]] && [[ -z "$(git -C "$TREE" status --porcelain)" ]]'
 
+# The index's status words (RD-1480-24): written from the file, named by --check without failing.
+printf '# RD-140-10 — Words\n\n- **Milestone:** 1.4\n- **Status:** In progress\n' > "$JOBS/140-10-words.md"
+python3 - "$JOBS/README.md" <<'PY'
+import re
+import sys
+
+path = sys.argv[1]
+text = open(path, encoding="utf-8").read()
+row = next(line for line in text.split("\n") if line.startswith("| [RD-140-02"))
+text = text.replace(row, row + "\n| [RD-140-10 — Words](./140-10-words.md) | P2 | Open (wartet) |")
+item = "**Milestone 1.4** — Plugins\n\n- [RD-140-10 — Words](./140-10-words.md) — Open (wartet) — Audit\n"
+text = re.sub(r"(\(\./140-02-open\.md\) — Open).*", r"\1 (bleibt) — Audit", text)
+text = text.replace("## Catalog", item + "\n## Catalog", 1)
+open(path, "w", encoding="utf-8").write(text)
+PY
+run
+git -C "$TREE" add -A && git -C "$TREE" -c user.name=t -c user.email=t@t commit -qm words
+sed -i 's/(.\/140-10-words.md) | P2 | In progress |/(.\/140-10-words.md) | P2 | Open |/' "$JOBS/README.md"
+run --check
+expect_true "check names an index word that is not its file's and does not fail over it" '[[ $status -eq 0 ]] && has "$SCRATCH/out" "another status for 140-10-words.md"'
+run
+expect_true "a run writes the file's word into the catalog" '[[ $status -eq 0 ]] && has "$JOBS/README.md" "(./140-10-words.md) | P2 | In progress |"'
+expect_true "and into Open Work, with the note behind it" 'has "$JOBS/README.md" "(./140-10-words.md) — In progress — Audit"'
+expect_true "a right word keeps what follows it" 'has "$JOBS/README.md" "(./140-02-open.md) — Open (bleibt) — Audit"'
+run --check
+expect_true "check after the run names no word" '! has "$SCRATCH/out" "another status"'
+
 finish_tests archive-jobs

@@ -202,15 +202,13 @@ pub(crate) async fn supervise(service: TorrentService) {
                 // Its data is being hashed — after a restart, a recheck or a move — or a recheck
                 // found pieces it is fetching again (RD-1100-10). No limit ends a seed with
                 // incomplete data; a manual stop still does.
-                let _ = service
-                    .inner
-                    .database
-                    .set_download_progress(
-                        download_id,
-                        stats.progress_bytes,
-                        Some(stats.total_bytes),
-                    )
-                    .await;
+                show_progress(
+                    &service.inner.database,
+                    download_id,
+                    stats.progress_bytes,
+                    stats.total_bytes,
+                )
+                .await;
                 continue;
             }
             // Read per torrent, not once per tick: a category or torrent override can
@@ -248,20 +246,44 @@ pub(crate) async fn supervise(service: TorrentService) {
                 active -= 1;
             } else {
                 finished.push((download_id, seeded_seconds));
-                // Surface the upload progress: committed stays at the payload size, and
-                // the UI derives the ratio from uploaded bytes in the stats endpoint later.
-                let _ = service
-                    .inner
-                    .database
-                    .set_download_progress(
-                        download_id,
-                        stats.progress_bytes,
-                        Some(stats.total_bytes),
-                    )
-                    .await;
+                // Committed stays at the payload size, and the UI derives the ratio from the
+                // uploaded bytes of `torrent.stats`; this brings a row back to it after a recheck.
+                show_progress(
+                    &service.inner.database,
+                    download_id,
+                    stats.progress_bytes,
+                    stats.total_bytes,
+                )
+                .await;
             }
         }
         end_surplus_seeds(&service, active, finished).await;
+    }
+}
+
+/// Writes a seed's bytes to its row when they differ from what it shows.
+///
+/// A seed's bytes do not move, and writing the same ones announced progress of a row at rest for
+/// every seed in every sweep, which the queue page answers by reading the whole queue
+/// (RD-1480-18).
+async fn show_progress(
+    database: &rd_db::Database,
+    id: DownloadId,
+    progress_bytes: u64,
+    total_bytes: u64,
+) {
+    let shown = match database.get_download(id).await {
+        Ok(Some(row)) => {
+            row.committed_bytes.get() == progress_bytes
+                && row.total_bytes.map(rd_core::ByteCount::get) == Some(total_bytes)
+        }
+        Ok(None) => return,
+        Err(_) => false,
+    };
+    if !shown {
+        let _ = database
+            .set_download_progress(id, progress_bytes, Some(total_bytes))
+            .await;
     }
 }
 
@@ -282,6 +304,10 @@ async fn end_surplus_seeds(
 #[cfg(all(test, feature = "failpoints"))]
 #[path = "seeding_crash_tests.rs"]
 mod crash_tests;
+
+#[cfg(test)]
+#[path = "seeding_progress_tests.rs"]
+mod progress_tests;
 
 #[cfg(test)]
 mod tests {

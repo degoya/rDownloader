@@ -6,22 +6,22 @@ use super::*;
 /// The rule `docs/site-rules.md` walks through, kept in step with the documentation.
 pub(crate) fn example_json() -> serde_json::Value {
     serde_json::json!({
-        "id": "scnlog",
-        "name": "scnlog.me",
+        "id": "releases",
+        "name": "releases.example",
         "group": "board",
         "version": 1,
         "match": {
-            "hosts": ["scnlog.me", "*.scnlog.me"],
+            "hosts": ["releases.example", "*.releases.example"],
             "paths": ["^/[a-z0-9-]+/[a-z0-9-]+/?$"]
         },
-        "dead": ["scnlog.eu", "scnlog.life"],
+        "dead": ["releases-old.example", "releases-gone.example"],
         "steps": [
             { "kind": "fetch" },
             { "kind": "regex", "pattern": "<div class=\"links\">(.+?)</div>", "into": "container" },
             { "kind": "regex", "from": "container", "pattern": "href=\"(https?://[^\"]+)\"", "into": "links", "all": true }
         ],
         "package": { "from": "regex", "pattern": "<h1[^>]*>(.+?)</h1>" },
-        "probe": "https://scnlog.me/movies/some-release-2026/",
+        "probe": "https://releases.example/movies/some-release-2026/",
         "checked": "2026-09-20"
     })
 }
@@ -58,10 +58,10 @@ fn an_unknown_field_is_refused_rather_than_ignored() {
 #[test]
 fn a_rule_claims_its_hosts_and_paths() {
     let rule = example();
-    assert!(rule.claims(&url("https://scnlog.me/movies/some-release/")));
-    assert!(rule.claims(&url("https://www.scnlog.me/movies/some-release")));
-    assert!(!rule.claims(&url("https://scnlog.me/")));
-    assert!(!rule.claims(&url("https://scnlog.eu/movies/some-release/")));
+    assert!(rule.claims(&url("https://releases.example/movies/some-release/")));
+    assert!(rule.claims(&url("https://www.releases.example/movies/some-release")));
+    assert!(!rule.claims(&url("https://releases.example/")));
+    assert!(!rule.claims(&url("https://releases-old.example/movies/some-release/")));
     assert!(!rule.claims(&url("https://example.org/movies/some-release/")));
 }
 
@@ -69,21 +69,26 @@ fn a_rule_claims_its_hosts_and_paths() {
 fn a_match_without_paths_claims_every_path_and_sees_the_query() {
     let mut rule = example();
     rule.matches.paths.clear();
-    assert!(rule.claims(&url("https://scnlog.me/")));
+    assert!(rule.claims(&url("https://releases.example/")));
     rule.matches.paths = vec!["^/index\\.php\\?id=\\d+$".to_owned()];
-    assert!(rule.claims(&url("https://scnlog.me/index.php?id=12")));
-    assert!(!rule.claims(&url("https://scnlog.me/index.php")));
+    assert!(rule.claims(&url("https://releases.example/index.php?id=12")));
+    assert!(!rule.claims(&url("https://releases.example/index.php")));
 }
 
 #[test]
 fn a_dead_host_is_revived_onto_the_canonical_host() {
     let rule = example();
-    let revived = rule.revive(&url("https://scnlog.eu/movies/some-release/?x=1"));
+    let revived = rule.revive(&url(
+        "https://releases-old.example/movies/some-release/?x=1",
+    ));
     assert_eq!(
         revived.map(String::from),
-        Some("https://scnlog.me/movies/some-release/?x=1".to_owned())
+        Some("https://releases.example/movies/some-release/?x=1".to_owned())
     );
-    assert!(rule.revive(&url("https://scnlog.me/movies/x/")).is_none());
+    assert!(
+        rule.revive(&url("https://releases.example/movies/x/"))
+            .is_none()
+    );
     assert!(rule.revive(&url("https://other.example/")).is_none());
 }
 
@@ -121,19 +126,19 @@ fn hosts_are_checked() {
         RuleError::NoHosts
     ));
     assert!(matches!(
-        refused(|j| j["match"]["hosts"] = serde_json::json!(["*.scnlog.me"])),
+        refused(|j| j["match"]["hosts"] = serde_json::json!(["*.releases.example"])),
         RuleError::WildcardCanonical
     ));
     assert!(matches!(
-        refused(|j| j["match"]["hosts"] = serde_json::json!(["scnlog.me", "https://x.me"])),
+        refused(|j| j["match"]["hosts"] = serde_json::json!(["releases.example", "https://x.me"])),
         RuleError::Host(_)
     ));
     assert!(matches!(
-        refused(|j| j["dead"] = serde_json::json!(["scnlog.me"])),
+        refused(|j| j["dead"] = serde_json::json!(["releases.example"])),
         RuleError::DeadIsLive(_)
     ));
     assert!(matches!(
-        refused(|j| j["dead"] = serde_json::json!(["www.scnlog.me"])),
+        refused(|j| j["dead"] = serde_json::json!(["www.releases.example"])),
         RuleError::DeadIsLive(_)
     ));
     assert!(matches!(
@@ -169,19 +174,19 @@ fn patterns_steps_and_package_are_checked() {
 #[test]
 fn the_probe_must_be_an_address_the_rule_claims() {
     assert!(matches!(
-        refused(|j| j["probe"] = "scnlog.me/movies/x/".into()),
+        refused(|j| j["probe"] = "releases.example/movies/x/".into()),
         RuleError::Probe(_)
     ));
     assert!(matches!(
-        refused(|j| j["probe"] = "ftp://scnlog.me/movies/x/".into()),
+        refused(|j| j["probe"] = "ftp://releases.example/movies/x/".into()),
         RuleError::Probe(_)
     ));
     assert!(matches!(
-        refused(|j| j["probe"] = "https://scnlog.eu/movies/x/".into()),
+        refused(|j| j["probe"] = "https://releases-old.example/movies/x/".into()),
         RuleError::ProbeUnclaimed(_)
     ));
     assert!(matches!(
-        refused(|j| j["probe"] = "https://scnlog.me/".into()),
+        refused(|j| j["probe"] = "https://releases.example/".into()),
         RuleError::ProbeUnclaimed(_)
     ));
 }

@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { PostprocessStep } from '@/api/types'
 import { translateServerMessage } from '@/i18n/server'
-import { formatMoment } from '@/utils/format'
+import { formatMoment, formatPercent } from '@/utils/format'
 import { fileName } from '@/utils/values'
 
 const props = defineProps<{ steps: PostprocessStep[], loading?: boolean }>()
@@ -73,9 +73,9 @@ function toggleOutput(key: string): void {
             :model-value="step.progress_percent ?? 0"
             size="xs"
             class="flex-1"
-            :aria-label="t('downloads.postprocess.progress_label', { step: kindLabel(step.kind) })"
+            :get-value-label="() => t('downloads.postprocess.progress_label', { step: kindLabel(step.kind) })"
           />
-          <span class="numeric w-9 text-right text-2xs text-toned">{{ step.progress_percent }}%</span>
+          <span class="numeric w-9 text-right text-2xs text-toned">{{ formatPercent(step.progress_percent ?? 0) }}</span>
         </div>
         <p v-if="step.output_path" class="truncate font-mono text-2xs text-muted" :title="step.output_path">→ {{ step.output_path }}</p>
         <UCollapsible v-if="step.message && step.kind === 'script'" :open="openOutput.has(stepKey(step))" @update:open="toggleOutput(stepKey(step))">

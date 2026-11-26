@@ -133,7 +133,7 @@ impl PowerSupervisor {
         self.apply_quiet_hold().await;
         self.apply_network_hold().await;
 
-        let downloads = self.inner.database.list_downloads().await?;
+        let downloads = self.inner.database.download_figures().await?;
         let unpacking = !self.inner.extraction.pending().await.is_empty();
         power
             .set_inhibited(unpacking || is_working(&downloads))
@@ -177,7 +177,7 @@ impl PowerSupervisor {
 
     /// The queue paused, resumed or ran empty since the last tick: one `queue.state` each
     /// (RD-1290-04, `queue_state`).
-    async fn announce_queue_state(&self, downloads: &[rd_core::DownloadFile], unpacking: bool) {
+    async fn announce_queue_state(&self, downloads: &[rd_core::DownloadFigures], unpacking: bool) {
         let scheduler = &self.inner.scheduler;
         let sample = crate::queue_state::Sample {
             queue_pause: scheduler.queue_pause().await.map(|pause| pause.reason),
@@ -326,7 +326,7 @@ impl std::fmt::Debug for QuietHold {
 ///
 /// Used for the completion cycle, which must not fire between a download and its unpacking, so
 /// a file merely waiting its turn still counts.
-fn is_busy(downloads: &[rd_core::DownloadFile]) -> bool {
+fn is_busy(downloads: &[rd_core::DownloadFigures]) -> bool {
     downloads
         .iter()
         .any(|file| file.state.is_queued_or_working())
@@ -337,7 +337,7 @@ fn is_busy(downloads: &[rd_core::DownloadFile]) -> bool {
 /// Deliberately narrower than [`is_busy`]: a queue held back by a bandwidth schedule, or a file
 /// waiting out an IP block, is not a reason to keep a machine awake for hours. Those states
 /// still stop the completion action, which is a different question.
-fn is_working(downloads: &[rd_core::DownloadFile]) -> bool {
+fn is_working(downloads: &[rd_core::DownloadFigures]) -> bool {
     downloads.iter().any(|file| file.state.is_working())
 }
 

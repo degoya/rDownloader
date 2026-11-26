@@ -13,12 +13,15 @@ mod executable;
 mod model;
 mod placeholder;
 mod retry;
+mod subject;
 mod summary;
 mod template;
+mod text;
 
 pub use coalesce::{Burst, Coalescer, LONGEST_SECONDS, NAMED, Occurrence, QUIET_SECONDS};
 pub use delivery::{
-    Attempt, IDEMPOTENCY_HEADER, Message, SIGNATURE_HEADER, TargetConfig, send,
+    Attempt, IDEMPOTENCY_HEADER, Message, SIGNATURE_HEADER, TIMED_SIGNATURE_HEADER,
+    TIMESTAMP_HEADER, TargetConfig, send,
     web_push::{
         PushOutcome, VapidKey, WebPushSubscription, are_push_keys, is_deliverable_push_address,
         is_push_address, push_payload, send_push,
@@ -31,12 +34,14 @@ pub use model::{
 };
 pub use placeholder::{Placeholder, placeholder_table_markdown};
 pub use retry::{JITTER_PERCENT, MAX_ATTEMPTS, backoff, backoff_with_seed, next_attempt_at};
+pub use subject::{PAYLOAD_VERSION, Subject};
 pub use summary::{SUMMARY_NAMED, message_of, quiet_summary};
 pub use template::{
     MAX_BODY_BYTES, MAX_BODY_CHARS, MAX_BODY_TEMPLATE_CHARS, MAX_TITLE_CHARS,
     MAX_TITLE_TEMPLATE_CHARS, TemplateError, TemplatePart, Values, render, size_text,
     validate_template,
 };
+pub use text::{NotificationLanguage, Text, Words};
 
 /// Builds the idempotency key of a delivery.
 ///

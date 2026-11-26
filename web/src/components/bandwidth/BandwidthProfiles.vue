@@ -14,6 +14,7 @@ import { useFormFocus } from '@/composables/useFormFocus'
 import { GIB, MIB, byteModel, formatBytes } from '@/utils/format'
 import NumberWithUnit from '@/components/NumberWithUnit.vue'
 import { DECIMAL, WHOLE, orNull } from '@/utils/numberInput'
+import { unitName } from '@/utils/units'
 import { editingRowClass } from '@/utils/editingRow'
 import SettingsCrossLink from '@/components/settings/SettingsCrossLink.vue'
 
@@ -186,7 +187,7 @@ function summary(profile: BandwidthProfile): string {
           :title="editingId ? t('bandwidth.profile.form_edit') : t('bandwidth.profile.form_new')"
         />
         <p class="mt-2 mb-4 text-xs leading-5 text-muted">{{ t('bandwidth.profile.description') }}</p>
-        <UAlert v-if="error" class="mb-3" color="error" :description="error" />
+        <UAlert v-if="error" class="mb-3" color="error" role="alert" :description="error" />
         <form ref="formElement" class="grid gap-3" @submit.prevent="submit">
           <UFormField :label="t('bandwidth.profile.name_label')" required>
             <UInput v-model="form.name" required maxlength="100" class="w-full" icon="i-lucide-gauge" :placeholder="t('bandwidth.profile.name_placeholder')" />
@@ -220,7 +221,7 @@ function summary(profile: BandwidthProfile): string {
               <UInput v-model="scopeValue" class="w-56" :placeholder="t(`bandwidth.scope.placeholder_${scopeKind}`)" />
               <UFieldGroup class="w-36">
                 <UInputNumber v-model="scopeMiB" :min="0" :format-options="DECIMAL" :step-snapping="false" :aria-label="t('bandwidth.scope.limit')" />
-                <UBadge color="neutral" variant="outline" label="MiB/s" class="font-mono" />
+                <UBadge color="neutral" variant="outline" :label="unitName('MiB/s')" class="font-mono" />
               </UFieldGroup>
               <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :label="t('bandwidth.scope.add')" @click="addScope" />
             </div>

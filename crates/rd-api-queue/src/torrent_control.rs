@@ -5,10 +5,8 @@
 //! carries it while the torrent is still being reviewed in the LinkGrabber; the queue row
 //! carries it afterwards, where a change is also pushed to the running torrent.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_core::{
     CandidateId, DownloadId, ResolvedTorrentPlan, TorrentCandidateState, TorrentEngineCapabilities,
     TorrentFilePlan, TorrentFilePriority, TorrentJobState, TorrentMetadataInfo,

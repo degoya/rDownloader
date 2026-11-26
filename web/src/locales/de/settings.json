@@ -72,7 +72,7 @@
       "description": "Quiet Hours, was nach dem Leerlaufen der Warteschlange geschieht, und das Anhalten im Akku- oder getakteten Betrieb."
     },
     "captcha": {
-      "eyebrow": "Freie Downloads",
+      "eyebrow": "Gratis-Downloads",
       "title": "Captcha & Löser",
       "description": "Ob ein Captcha an einen Löserdienst geht oder dir im Browser gestellt wird, und wie lange ein unbeantwortetes wartet."
     },
@@ -99,7 +99,7 @@
     "linkgrabber": {
       "eyebrow": "Links annehmen",
       "title": "LinkGrabber",
-      "description": "Welche Links der LinkGrabber verwirft, bevor sie ihn erreichen, wie er DLC-Container öffnet und ob er Kopien derselben Datei als Spiegel bündelt."
+      "description": "Welche Links der LinkGrabber verwirft, bevor sie ihn erreichen, wie er DLC-Container öffnet und ob er Kopien derselben Datei als Mirrors bündelt."
     },
     "clients": {
       "eyebrow": "Wer den Dienst anspricht",
@@ -124,7 +124,7 @@
     "description": "0 = so viele, wie die Server erlauben; ein kleinerer Wert senkt die Verbindungen je Server, die sich alle gleichzeitig laufenden Usenet-Dateien teilen",
     "follows_servers": "Gleichzeitige Dateien teilen sich die Verbindungen der Anbieter (beim größten {largest}).",
     "capped": "Der größte aktive Server erlaubt {largest} Verbindungen; gleichzeitige Dateien bekommen zusammen höchstens {cap} je Server. Mit 0 nutzen sie alle.",
-    "not_binding": "Greift nicht: kein aktiver Server erlaubt mehr als {largest} Verbindungen.",
+    "not_binding": "Greift nicht: kein aktiver Server erlaubt mehr als {largest} Verbindung. | Greift nicht: kein aktiver Server erlaubt mehr als {largest} Verbindungen.",
     "live_even": "Derzeit {files} Datei mit {per} von {limit} Verbindungen. | Derzeit {files} Dateien mit je {per} von {limit} Verbindungen.",
     "live_mixed": "Derzeit {files} Dateien mit zusammen {busy} von {limit} Verbindungen ({split})."
   },
@@ -325,7 +325,7 @@
     },
     "fail_hopeless_jobs": {
       "label": "Aussichtslose Usenet-Downloads abbrechen",
-      "description": "Fehlen mehr PAR2-Blöcke, als die Wiederherstellungs-Volumes des Satzes ersetzen können, wird der Rest nicht mehr geladen und das Paket schlägt fehl. Was schon geladen ist, bleibt liegen. Spart Volumen bei Block-Accounts. Aus: jede Datei wird wie bisher bis zum Ende geladen."
+      "description": "Fehlen mehr PAR2-Blöcke, als die Wiederherstellungs-Volumes des Satzes ersetzen können, wird der Rest nicht mehr geladen und das Paket schlägt fehl. Was schon geladen ist, bleibt liegen. Spart Volumen bei Block-Konten. Aus: Jede Datei wird bis zum Ende geladen."
     },
     "direct_unpack": {
       "label": "Während des Downloads entpacken",
@@ -369,7 +369,7 @@
     },
     "mcp_scripts_allowed": {
       "label": "KI-Assistenten (MCP) dürfen Skripte setzen",
-      "description": "Standardmäßig aus. Ist es an, darf ein MCP-Werkzeug einem Paket, einer Kategorie oder einer Automatisierung ein Skript aus dem Skriptordner zuweisen und das Abschluss- und Reconnect-Skript wählen. Nur du schaltest das hier um, kein Werkzeug."
+      "description": "Standardmäßig aus. Ist es an, darf ein MCP-Werkzeug einem Paket, einer Kategorie oder einer Automation ein Skript aus dem Skriptordner zuweisen und das Abschluss- und Reconnect-Skript wählen. Nur du schaltest das hier um, kein Werkzeug."
     },
     "refuse_unknown_archive_tool_version": {
       "label": "Entpackwerkzeuge mit unbekannter Version ablehnen",
@@ -402,7 +402,7 @@
     },
     "title_status": {
       "label": "Zustand im Browser-Tab",
-      "description": "Der Tab zeigt die Gesamtrate und die Anzahl laufender Übertragungen, solange etwas läuft, und sonst nur den Anwendungsnamen. Aus, wenn ein sich ständig ändernder Titel stört."
+      "description": "Der Tab zeigt die Gesamtrate und die Anzahl laufender Übertragungen, solange etwas läuft, und sonst nur die Ansicht und den Anwendungsnamen. Aus, wenn ein sich ständig ändernder Titel stört."
     },
     "palette": {
       "label": "Farbschema",
@@ -413,6 +413,10 @@
       "violet": "Violett",
       "forest": "Wald",
       "amber": "Bernstein"
+    },
+    "shortcuts": {
+      "label": "Tastenkürzel",
+      "description": "Einzelne Tasten lösen Aktionen aus, zum Beispiel P für Pause, nur in diesem Browser; ? zeigt sie alle. Aus, wenn eine Spracheingabe oder ein versehentlicher Tastendruck etwas auslösen könnte."
     }
   },
   "messages": {
@@ -800,7 +804,7 @@
     "port_in_use": "Ein anderes Programm hält Port {port}, deshalb lauscht die Torrent-Engine dort nicht. Wähle einen anderen Port oder beende dieses Programm."
   },
   "auth_profiles": {
-    "approval_description": "Diese Sitzungen wurden von der Browsererweiterung gesendet. Sie werden erst nach deiner Freigabe verwendet.",
+    "approval_description": "Diese Sitzungen wurden von der Browser-Erweiterung gesendet. Sie werden erst nach deiner Freigabe verwendet.",
     "approval_title": "Wartet auf Freigabe",
     "approve": "Freigeben",
     "badge_captured": "Aus dem Browser",
@@ -863,7 +867,7 @@
       "eyebrow": "Speicher",
       "title": "Verschiebungen, Links und Wiederverwendung",
       "description": "Geprüfte Verschiebungen zwischen Ordnern, Duplikat-Links und was jede Übertragungsart von vorhandenen Daten wiederverwendet.",
-      "index_checked": "Inhaltsindex geprüft: {checked} Einträge, {missing} fehlen, {restored} wiedergefunden, {backfilled} ergänzt.",
+      "index_checked": "Inhaltsindex geprüft – Einträge: {checked}, fehlend: {missing}, wiedergefunden: {restored}, ergänzt: {backfilled}.",
       "links_title": "Hardlinks je Speicherort",
       "links_description": "Durch Ausprobieren ermittelt. Reflinks legt diese Version nicht an.",
       "hardlink_yes": "Hardlinks möglich",
@@ -983,9 +987,9 @@
     "title": "Protokollstufe und Aufbewahrung",
     "description": "Was der Dienst protokolliert und wie viel davon er behält. Ältere Einträge werden im Hintergrund entfernt; die Warteschlange wartet nie darauf.",
     "records_label": "Aufbewahrte Einträge",
-    "records_description": "Die ältesten Einträge gehen zuerst (1000-500000).",
+    "records_description": "Die ältesten Einträge gehen zuerst (1000–500.000).",
     "days_label": "Aufbewahrte Tage",
-    "days_description": "Ältere Einträge werden unabhängig von der Anzahl entfernt (1-365).",
+    "days_description": "Ältere Einträge werden unabhängig von der Anzahl entfernt (1–365).",
     "open": "Protokoll öffnen",
     "level_label": "Protokollstufe",
     "level_description": "Was der Dienst in Konsole, Protokoll und Trace-Export schreibt: Fehler, Warnungen, Info (Standard) oder Debug. Gilt nach dem Speichern ab der nächsten Zeile, ohne Neustart."
@@ -995,9 +999,9 @@
     "title": "Auditprotokoll und Trace-Export",
     "description": "Wie lange das nur anhängende Auditprotokoll aufbewahrt wird und ob abgeschlossene Spans an einen OpenTelemetry-Kollektor gehen. Der Export ist aus, bis du ihn einschaltest.",
     "records_label": "Aufbewahrte Auditeinträge",
-    "records_description": "Die ältesten ganzen Einträge gehen zuerst (10000-2000000).",
+    "records_description": "Die ältesten ganzen Einträge gehen zuerst (10.000–2.000.000).",
     "days_label": "Aufbewahrte Tage",
-    "days_description": "Ältere Einträge werden unabhängig von der Anzahl entfernt (30-3650).",
+    "days_description": "Ältere Einträge werden unabhängig von der Anzahl entfernt (30–3650).",
     "open": "Auditprotokoll öffnen",
     "otlp_enabled_label": "Traces über OTLP exportieren",
     "otlp_enabled_description": "Standardmäßig aus. Ein ausgefallener oder langsamer Kollektor verzögert nie einen Download oder eine Anfrage.",
@@ -1045,7 +1049,6 @@
       "own": "rDownloader selbst",
       "own_text": "Freie Software unter {license}; der vollständige Text liegt als LICENSE im Paket.",
       "tools": "Mitgelieferte Werkzeuge",
-      "tools_hint": "Die Pakete für Linux und Windows bringen sie unter vendor/ mit, ihre Lizenztexte unter vendor/licenses/.",
       "dependencies": "Abhängigkeiten",
       "dependencies_hint": "Alles, was ein ausgeliefertes Paket enthält: die Crates, die Dienst, Capture-Agent und Plugins unter Linux, Windows und macOS einbinden, und die Pakete der Oberfläche. Beim Bau aus Cargo.lock und pnpm-lock.yaml erzeugt, nicht von Hand gepflegt.",
       "rust": "Rust-Crates",
@@ -1057,7 +1060,12 @@
       "column_name": "Name",
       "column_version": "Version",
       "column_license": "Lizenz",
-      "column_file": "Lizenztext"
+      "column_file": "Lizenztext",
+      "tools_used": "Hilfsprogramme",
+      "tools_hint_used": "rDownloader verwendet sie, wenn sie auf diesem System liegen oder du sie unter Werkzeuge installierst. Kein Paket bringt sie mit, außer dem Container-Image.",
+      "tools_hint_shipped": "Dieses Container-Image enthält sie; ihre Lizenztexte liegen im Image unter dem angegebenen Pfad.",
+      "notices": "Alle Lizenztexte anzeigen",
+      "other": "Weitere Bestandteile"
     }
   },
   "nntp_parallel_files": {
@@ -1144,7 +1152,7 @@
   },
   "auto_retry": {
     "label": "Fehlgeschlagene Downloads automatisch erneut versuchen",
-    "description": "Ein Download, der an einem Limit, einer IP-Sperre, einem nicht erreichbaren Server oder einer offline gemeldeten Datei gescheitert ist, kommt nach einer Weile wieder in die Warteschlange. Ein gelöschter Link, ein abgelehnter Account oder eine falsche Prüfsumme nicht.",
+    "description": "Ein Download, der an einem Limit, einer IP-Sperre, einem nicht erreichbaren Server oder einer offline gemeldeten Datei gescheitert ist, kommt nach einer Weile wieder in die Warteschlange. Ein gelöschter Link, ein abgelehntes Konto oder eine falsche Prüfsumme nicht.",
     "interval_label": "Abstand",
     "interval_description": "Stunden zwischen dem Fehlschlag und dem nächsten Versuch (1–24).",
     "rounds_label": "Runden je Download",
@@ -1156,9 +1164,9 @@
     "description": "Wie lange fertige und fehlgeschlagene Pakete im Verlauf bleiben, nachdem sie die Liste verlassen haben.",
     "open": "Verlauf öffnen",
     "entries_label": "Aufbewahrte Einträge",
-    "entries_description": "Die ältesten Einträge gehen zuerst (100-100000).",
+    "entries_description": "Die ältesten Einträge gehen zuerst (100–100.000).",
     "days_label": "Aufbewahrte Tage",
-    "days_description": "Ältere Einträge werden unabhängig von der Anzahl entfernt (1-3650)."
+    "days_description": "Ältere Einträge werden unabhängig von der Anzahl entfernt (1–3650)."
   },
   "limits": {
     "eyebrow": "Von Hand",
@@ -1385,10 +1393,10 @@
   },
   "cleanup": {
     "eyebrow": "Datenordner",
-    "title": "Update-Sicherungen, Plugin-Cache und Datenbank",
+    "title": "Update-Backups, Plugin-Cache und Datenbank",
     "description": "Jedes Update behält eine Kopie der Datenbank für den Weg zurück, und kompilierte Plugins landen im Cache. Sobald ein Update bestätigt ist, bleibt nur die neueste Kopie; im Cache bleibt nur, was installierte Plugins nutzen. Alte übersprungene Abo-Einträge behalten nur, woran das Abo sie wiedererkennt, und die Datenbankdatei gibt freien Platz zurück. Das läuft zehn Minuten nach jedem Start und täglich von selbst.",
     "days_label": "Neueste Kopie behalten",
-    "days_description": "Tage, die die neueste Kopie nach einem bestätigten Update bleibt; 0 behält sie dauerhaft (0-3650).",
+    "days_description": "Tage, die die neueste Kopie nach einem bestätigten Update bleibt; 0 behält sie dauerhaft (0–3650).",
     "pre_update": "Vor Updates",
     "pre_migration": "Vor Datenbank-Upgrades",
     "plugin_cache": "Plugin-Cache",
@@ -1396,16 +1404,16 @@
     "unproven": "Das letzte Update ist noch nicht bestätigt, darum bleiben alle Kopien davor.",
     "button": "Jetzt aufräumen",
     "confirm_title": "Datenordner aufräumen?",
-    "confirm_description": "Etwa {size} alte Update-Sicherungen, ungenutzter kompilierter Plugin-Code und freier Platz der Datenbank werden endgültig freigegeben; alte übersprungene Abo-Einträge verlieren Titel und Link. Plugins werden bei Bedarf neu kompiliert; Downloads, Einstellungen und offene Abo-Einträge bleiben.",
+    "confirm_description": "Etwa {size} alte Update-Backups, ungenutzter kompilierter Plugin-Code und freier Platz der Datenbank werden endgültig freigegeben; alte übersprungene Abo-Einträge verlieren Titel und Link. Plugins werden bei Bedarf neu kompiliert; Downloads, Einstellungen und offene Abo-Einträge bleiben.",
     "confirm": "Aufräumen",
     "done": "{size} freigegeben",
     "events": "Ereignisse",
-    "rows": "{count} Einträge der letzten 30 Tage",
+    "rows": "{count} Eintrag der letzten 30 Tage | {count} Einträge der letzten 30 Tage",
     "items": "Abo-Archiv",
-    "compactable": "{count} alte Einträge zum Verdichten",
+    "compactable": "{count} alter Eintrag zum Verdichten | {count} alte Einträge zum Verdichten",
     "database_file": "Datenbankdatei",
     "items_days_label": "Übersprungene Abo-Einträge vollständig behalten",
-    "items_days_description": "Tage, die ein übersprungener oder verworfener Abo-Eintrag Titel und Link behält; danach bleibt nur, woran das Abo ihn wiedererkennt, damit er nicht zurückkommt. 0 behält alles (0-3650).",
+    "items_days_description": "Tage, die ein übersprungener oder verworfener Abo-Eintrag Titel und Link behält; danach bleibt nur, woran das Abo ihn wiedererkennt, damit er nicht zurückkommt. 0 behält alles (0–3650).",
     "rewrite": "Die Datenbank stammt aus einer Version vor 1.24: „Jetzt aufräumen“ schreibt sie einmal neu, danach gibt sie freien Platz von selbst zurück. Dafür braucht der Datenordner Platz für eine zweite Kopie, und es darf nichts laufen."
   },
   "retry_middle": {
@@ -1427,5 +1435,11 @@
   "sequential_packages": {
     "label": "Paket für Paket",
     "description": "Ein Download startet erst, wenn kein Paket weiter oben in der Liste noch eine wartende Datei hat. Der Preis: Wartet das erste Paket – auf ein Hoster-Limit oder verbrauchten Traffic –, wartet die ganze Liste mit. Einschalten stoppt nichts, was schon läuft."
+  },
+  "foreign": {
+    "title": "An anderer Stelle geändert",
+    "merged": "Die Einstellungen wurden an anderer Stelle geändert. Die neuen Werte stehen jetzt hier; was du noch nicht gespeichert hast, ist erhalten.",
+    "conflict": "Diese Felder wurden an anderer Stelle geändert, während du sie hier bearbeitet hast: {fields}. Speichern ersetzt die Werte von dort durch deine.",
+    "take": "Werte von dort übernehmen"
   }
 }

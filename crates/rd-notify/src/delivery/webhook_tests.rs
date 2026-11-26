@@ -13,7 +13,7 @@ use rd_http::{
     test_support::{Answers, PUBLIC, connect_proxy, entries},
 };
 
-use super::{send, send_via, sign};
+use super::{send, send_via, sign, sign_timed};
 use crate::{
     delivery::{Attempt, Message},
     model::{NotificationEvent, NotificationTarget, TargetKind},
@@ -233,4 +233,98 @@ fn the_signature_is_a_stable_hmac_over_the_exact_body() {
     assert_ne!(first, sign("topsecret", b"{\"a\":2}"));
     // The secret itself is nowhere in the header value.
     assert!(!first.contains("topsecret"));
+}
+
+/// RD-1480-11: `t=<seconds>,v1=<hex>`, the hex being the HMAC of `<seconds>.<body>`.
+#[test]
+fn the_timed_signature_vouches_for_the_moment_and_the_body() {
+    let first = sign_timed("topsecret", 1_700_000_000, b"{}");
+    assert_eq!(
+        first.strip_prefix("t=1700000000,v1="),
+        sign("topsecret", b"1700000000.{}").strip_prefix("sha256=")
+    );
+    assert_ne!(first, sign_timed("topsecret", 1_700_000_000, b"[]"));
+    let later = sign_timed("topsecret", 1_700_000_001, b"{}");
+    let hmac = |signature: &str| signature.split_once(",v1=").map(|(_, hex)| hex.to_owned());
+    assert_ne!(hmac(&first), hmac(&later));
+}
+
+/// The headers of one call, as the receiver gets them, and its body.
+async fn received(secret: Option<&str>) -> (Vec<(String, String)>, Vec<u8>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind");
+    let port = listener.local_addr().expect("address").port();
+    let body = serde_json::to_vec(&message().payload).expect("body");
+    let length = body.len();
+    let call = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.expect("a call");
+        let mut call = Vec::new();
+        // The whole call: the headers, and behind the blank line as many bytes as the body has.
+        while call
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .is_none_or(|end| call.len() < end + 4 + length)
+        {
+            let mut chunk = [0_u8; 4096];
+            let read = stream.read(&mut chunk).await.expect("read");
+            assert_ne!(read, 0, "the call ended early");
+            call.extend_from_slice(&chunk[..read]);
+        }
+        stream.write_all(&ok_answer()).await.expect("answer");
+        call
+    });
+    let secret = secret.map(secrecy::SecretString::from);
+    let attempt = send(
+        &rd_http::AddressPolicy::new(true).with_loopback(),
+        &target(port),
+        &message(),
+        secret.as_ref(),
+    )
+    .await
+    .expect("attempt");
+    assert!(attempt.ok, "{attempt:?}");
+    let call = call.await.expect("the receiver");
+    let end = call
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .expect("headers");
+    let headers = String::from_utf8_lossy(&call[..end])
+        .lines()
+        .filter_map(|line| line.split_once(": "))
+        .map(|(name, value)| (name.to_ascii_lowercase(), value.to_owned()))
+        .collect();
+    (headers, call[end + 4..].to_vec())
+}
+
+fn header<'a>(headers: &'a [(String, String)], name: &str) -> Option<&'a str> {
+    headers
+        .iter()
+        .find(|(known, _)| known == name)
+        .map(|(_, value)| value.as_str())
+}
+
+/// RD-1480-11: the signature over the body stays, and beside it the moment of the attempt goes
+/// out, plain and under a signature of its own. Without a secret there is only the moment.
+#[tokio::test]
+async fn a_call_carries_its_moment_and_both_signatures() {
+    let (headers, body) = received(Some("topsecret")).await;
+    assert_eq!(
+        header(&headers, "x-rdownloader-signature"),
+        Some(sign("topsecret", &body).as_str())
+    );
+    let at: i64 = header(&headers, "x-rdownloader-timestamp")
+        .expect("the moment")
+        .parse()
+        .expect("seconds");
+    assert!((rd_core::Timestamp::now().unix_seconds() - at).abs() < 60);
+    assert_eq!(
+        header(&headers, "x-rdownloader-timed-signature"),
+        Some(sign_timed("topsecret", at, &body).as_str())
+    );
+
+    let (headers, _) = received(None).await;
+    assert!(header(&headers, "x-rdownloader-timestamp").is_some());
+    assert_eq!(header(&headers, "x-rdownloader-signature"), None);
+    assert_eq!(header(&headers, "x-rdownloader-timed-signature"), None);
 }

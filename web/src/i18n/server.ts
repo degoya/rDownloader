@@ -59,6 +59,8 @@ export function translateServerMessage(value: ServerMessage | string | null | un
       if (capability && te(capability)) params.capability = t(capability)
       const count = Number(params.count)
       const counted = Number.isFinite(count) && params.count !== undefined
+      // The API's parameters are text, which `t` leaves alone; a counter among them is a number.
+      if (counted && Number.isInteger(count)) params.count = i18n.global.n(count, 'integer', locale)
       if (value.message && value.message !== value.code && lacksParams(key, locale, params, counted)) {
         return value.message
       }

@@ -25,6 +25,11 @@
 # - channels.yml's `homebrew` job takes scripts/ci-brew-serve.sh's 3, the keychain refusal on
 #   macOS, as expected only on the upgrade path (`--upgraded`, once), and no other end
 #   (RD-1230-01).
+# - Every actions/checkout leaves no credentials behind (`persist-credentials: false`, RD-1480-14);
+#   the one exception is a checkout with its own `ssh-key`, which the job pushes to.
+# - The jobs that hold the plugin and the repository signing key build nothing (RD-1480-14):
+#   release-plugins.yml's `sign` runs no cargo, no cache and no action but checkout and the
+#   artifact pair, and only it reads the two secrets.
 #
 # Pure bash and awk over the YAML as this repository writes it (two-space indents, a block `on:`).
 # check.sh runs it when scripts/ change, and under --full.
@@ -196,5 +201,50 @@ expect "and takes 0 and 3 from it, nothing else" "0 3" \
     "$(sed -n 's/^ *\(el\)\{0,1\}if \[\[ "${started}" == \([0-9]*\) \]\]; then$/\2/p' "$WORKFLOWS/channels.yml" | paste -sd' ')"
 expect "every other start fails the step on any end but 0" "1" \
     "$(grep -cx ' *scripts/ci-brew-serve.sh "${log}"' "$WORKFLOWS/channels.yml" || true)"
+
+# Each checkout step in $1 that keeps its token: "<file>:<line>".
+keeping_checkouts() {
+    awk '
+        function close_step() { if (inside && !safe) print where; inside = 0 }
+        { text = $0; sub(/^ */, "", text); indent = length($0) - length(text) }
+        inside && text != "" && text !~ /^#/ && indent <= step { close_step() }
+        inside && text ~ /^(persist-credentials: false|ssh-key: )/ { safe = 1 }
+        text ~ /^(- )?uses: actions\/checkout@/ {
+            inside = 1; safe = 0; where = FILENAME ":" FNR
+            step = text ~ /^- / ? indent : indent - 2
+        }
+        END { close_step() }
+    ' "$@"
+}
+expect "no checkout leaves its token in the checkout" "" \
+    "$(cd "$ROOT" && keeping_checkouts .github/workflows/*.yml | paste -sd' ')"
+pushing="$(cd "$ROOT" && grep -lE '^ +ssh-key: ' .github/workflows/*.yml | paste -sd' ')"
+expect "only release-channels.yml checks out a repository it pushes to" ".github/workflows/release-channels.yml" "$pushing"
+probe="$(mktemp)"
+printf '%s\n' '      - uses: actions/checkout@abc # v7' '      - uses: ./x' '        with:' \
+    '          persist-credentials: false' > "$probe"
+expect "a checkout whose neighbour alone says so is named" "1" "$(keeping_checkouts "$probe" | wc -l | tr -d ' ')"
+rm -f "$probe"
+
+# The steps of job $2 in workflow $1, comments removed.
+job_body() {
+    awk -v job="$2" '
+        $0 == "  " job ":" { inside = 1; next }
+        inside && /^  [^[:space:]#]/ { inside = 0 }
+        inside && !/^ *#/ { print }
+    ' "$1"
+}
+plugins_yml="$WORKFLOWS/release-plugins.yml"
+sign="$(job_body "$plugins_yml" sign)"
+expect "release-plugins.yml's sign job uses only the checkout and the artifacts" \
+    "actions/checkout actions/download-artifact actions/upload-artifact" \
+    "$(sed -n 's/^ *\(- \)\{0,1\}uses: \([^@]*\).*/\2/p' <<< "$sign" | sort -u | paste -sd' ')"
+expect "and compiles nothing" "" "$(grep -E 'cargo|rustup|rustc|build-plugins\.sh --components-only|pnpm|npm |pip ' <<< "$sign" || true)"
+for job in components packager; do
+    expect "release-plugins.yml's $job job reads no secret and no cache" "" \
+        "$(job_body "$plugins_yml" "$job" | grep -E 'secrets\.|actions/cache|rust-cache' || true)"
+done
+expect "release-plugins.yml's jobs are the three" "components packager sign" \
+    "$(sed -n '/^jobs:/,$p' "$plugins_yml" | sed -n 's/^  \([a-z-]*\):$/\1/p' | sort | paste -sd' ')"
 
 finish_tests "workflow-shape"

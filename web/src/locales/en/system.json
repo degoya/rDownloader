@@ -97,7 +97,7 @@
       "confirm": "Replace configuration",
       "button": "Import and replace",
       "success": "Settings restored",
-      "success_description": "Imported {count} configuration entries.",
+      "success_description": "Imported {count} configuration entry. | Imported {count} configuration entries.",
       "password": "Administrator password",
       "password_hint": "Replacing the configuration asks for the password again."
     },
@@ -158,7 +158,7 @@
         "path_description": "Absolute path on the machine running rDownloader; a mounted NAS share works too.",
         "profile": "Object storage profile",
         "profile_placeholder": "Choose a profile",
-        "profile_none": "No profile yet – add one in the object storage settings first.",
+        "profile_none": "No profile yet – add one under Settings → FTP, SFTP, WebDAV & S3 → S3 first.",
         "prefix": "Bucket and folder",
         "prefix_description": "<bucket>/<folder>; without a bucket the profile's own bucket is used.",
         "remote": "rclone remote",
@@ -169,8 +169,8 @@
         "keep_days_description": "Younger archives stay; empty keeps all.",
         "retention": {
           "none": "Keeps every archive",
-          "last": "Newest {count}",
-          "days": "{count} days",
+          "last": "Newest {count} | Newest {count}",
+          "days": "{count} day | {count} days",
           "hint": "The newest archive always stays. Only archives this installation wrote there are ever removed – never anybody else's files.",
           "preview": "Preview",
           "result": "Keeps {keep}, removes {remove} – nothing is deleted yet."
@@ -205,7 +205,7 @@
       "history": {
         "title": "History",
         "empty": "No full backup has run yet.",
-        "parts": "{count} parts",
+        "parts": "{count} part | {count} parts",
         "origin": {
           "scheduled": "Scheduled",
           "manual": "Manual"
@@ -216,7 +216,7 @@
           "failed": "Failed",
           "interrupted": "Interrupted"
         },
-        "pruned": "{count} old archives removed by retention"
+        "pruned": "{count} old archive removed by retention | {count} old archives removed by retention"
       }
     },
     "full_restore": {
@@ -258,8 +258,8 @@
         "created": "Made {date} by rDownloader {version}, {size}",
         "newer": "A newer version made this backup. Update to at least that version first ({version} runs here).",
         "part": "{count} × {size}",
-        "counts": "{categories} categories, {accounts} accounts, {proxies} proxies, {servers} Usenet servers, {subscriptions} subscriptions, {hotfolders} hot folders",
-        "state": "{partial} unfinished transfers, {trust} plugin trust entries.",
+        "counts": "Categories: {categories}, accounts: {accounts}, proxies: {proxies}, Usenet servers: {servers}, subscriptions: {subscriptions}, hot folders: {hotfolders}",
+        "state": "Unfinished transfers: {partial}, plugin trust entries: {trust}.",
         "credentials_included": "Credentials are included, sealed.",
         "credentials_missing": "Credentials are not included.",
         "kind": {
@@ -286,7 +286,7 @@
         "action": "Test restore",
         "ok": "The test restore found nothing that stops the restore.",
         "failed": "The test restore found errors that stop the restore.",
-        "summary": "{packages} packages, {moved} paths moved, {credentials} credentials restored, {migrated} migrations applied.",
+        "summary": "Packages: {packages}, paths moved: {moved}, credentials restored: {credentials}, migrations applied: {migrated}.",
         "none": "No findings.",
         "severity": {
           "error": "Error",
@@ -372,13 +372,14 @@
     "scopes_label": "What this token may do",
     "scopes_hint": "Grant only what the client actually needs. Anything that acts can also read, so reading does not have to be added separately.",
     "scopes_empty": "Choose at least one area.",
-    "scope_operations": "{count} operations",
+    "scope_operations": "{count} operation | {count} operations",
     "scope_none": "No API access",
     "sensitive": "Sensitive",
     "sensitive_warning": "This token will be able to read stored credentials or administer the service. Nothing else grants either, so give it only to a client that genuinely needs it.",
     "also_includes": "Also includes: {areas}",
     "minted_areas": "This token holds: {areas}",
-    "label_label": "Client name"
+    "label_label": "Client name",
+    "data_flow_hint": "An AI assistant you connect through MCP receives links, file names and log lines in its tools' answers; that assistant's provider processes them."
   },
   "readiness": {
     "eyebrow": "Setup",
@@ -431,7 +432,7 @@
     "revoke_others": {
       "action": "Sign out everywhere else ({count})",
       "title": "Sign out everywhere else?",
-      "description": "{count} other sessions will be ended. This one stays signed in.",
+      "description": "{count} other session will be ended. This one stays signed in. | {count} other sessions will be ended. This one stays signed in.",
       "confirm": "End them",
       "done": "Other sessions ended"
     }
@@ -479,7 +480,7 @@
     "unconfirmed": "Not confirmed",
     "last_used": "Last used: {moment}",
     "never_used": "never",
-    "remaining": "{count} recovery codes left",
+    "remaining": "{count} recovery code left | {count} recovery codes left",
     "remove": {
       "action": "Remove",
       "title": "Remove this second factor?",
@@ -540,56 +541,56 @@
   },
   "data_reset": {
     "button": "Clear",
-    "stored": "{count} stored",
+    "stored": "{count} stored | {count} stored",
     "confirm": "Clear for good",
-    "done": "{count} records removed",
+    "done": "{count} record removed | {count} records removed",
     "logs": {
       "title": "Clear the service log?",
-      "description": "{count} log records will be removed for good. The audit log and the statistics stay, as do downloads, packages and settings."
+      "description": "{count} log record will be removed for good. The audit log and the statistics stay, as do downloads, packages and settings. | {count} log records will be removed for good. The audit log and the statistics stay, as do downloads, packages and settings."
     },
     "audit": {
       "title": "Clear the audit log?",
-      "description": "{count} audit records will be removed for good. The clearing itself becomes the first entry in the emptied log. The service log and the statistics stay, as do downloads, packages and settings."
+      "description": "{count} audit record will be removed for good. The clearing itself becomes the first entry in the emptied log. The service log and the statistics stay, as do downloads, packages and settings. | {count} audit records will be removed for good. The clearing itself becomes the first entry in the emptied log. The service log and the statistics stay, as do downloads, packages and settings."
     },
     "stats": {
       "title": "Clear the transfer statistics?",
-      "description": "{count} statistics rows will be removed for good, the all-time totals among them. The service log and the audit log stay, as do downloads, packages and settings."
+      "description": "{count} statistics row will be removed for good, the all-time totals among them. The service log and the audit log stay, as do downloads, packages and settings. | {count} statistics rows will be removed for good, the all-time totals among them. The service log and the audit log stay, as do downloads, packages and settings."
     },
     "notifications": {
       "title": "Clear the notification history?",
-      "description": "{count} finished deliveries will be removed from the history for good. Deliveries still queued or retrying stay, as do destinations, rules, the service log, the audit log and the statistics."
+      "description": "{count} finished delivery will be removed from the history for good. Deliveries still queued or retrying stay, as do destinations, rules, the service log, the audit log and the statistics. | {count} finished deliveries will be removed from the history for good. Deliveries still queued or retrying stay, as do destinations, rules, the service log, the audit log and the statistics."
     },
     "notifications_pending": {
       "button": "Discard pending",
-      "stored": "{count} pending",
+      "stored": "{count} pending | {count} pending",
       "title": "Discard the pending notifications?",
-      "description": "{count} notifications still queued or retrying will be deleted and never sent. Delivered and failed deliveries stay in the history, as do destinations, rules, the service log, the audit log and the statistics.",
+      "description": "{count} notification still queued or retrying will be deleted and never sent. Delivered and failed deliveries stay in the history, as do destinations, rules, the service log, the audit log and the statistics. | {count} notifications still queued or retrying will be deleted and never sent. Delivered and failed deliveries stay in the history, as do destinations, rules, the service log, the audit log and the statistics.",
       "confirm": "Discard for good",
-      "done": "{count} notifications discarded"
+      "done": "{count} notification discarded | {count} notifications discarded"
     },
     "storage_operations": {
       "button": "Clear history",
-      "stored": "{count} entries",
+      "stored": "{count} entry | {count} entries",
       "title": "Clear the storage history?",
-      "description": "{count} completed, failed and interrupted moves and duplicate links will be removed from the history for good. An operation still running stays. No file is moved or deleted, and an interrupted move is still carried on at the next start.",
+      "description": "{count} completed, failed or interrupted move or duplicate link will be removed from the history for good. An operation still running stays. No file is moved or deleted, and an interrupted move is still carried on at the next start. | {count} completed, failed and interrupted moves and duplicate links will be removed from the history for good. An operation still running stays. No file is moved or deleted, and an interrupted move is still carried on at the next start.",
       "confirm": "Clear for good",
-      "done": "{count} history entries removed"
+      "done": "{count} history entry removed | {count} history entries removed"
     },
     "content_index": {
       "button": "Clear index",
-      "stored": "{count} indexed",
+      "stored": "{count} indexed | {count} indexed",
       "title": "Clear the content index?",
-      "description": "{count} index entries will be removed. Files and downloads stay untouched, but until a file is indexed again it is not recognised as a content duplicate and cannot be the original of a duplicate link. “Check the content index” (also run at every start) re-indexes finished downloads still in the queue whose SHA-256 is known and whose file is still in place. Files of removed or never hashed downloads come back only when downloaded again.",
+      "description": "{count} index entry will be removed. Files and downloads stay untouched, but until a file is indexed again it is not recognised as a content duplicate and cannot be the original of a duplicate link. “Check the content index” (also run at every start) re-indexes finished downloads still in the queue whose SHA-256 is known and whose file is still in place. Files of removed or never hashed downloads come back only when downloaded again. | {count} index entries will be removed. Files and downloads stay untouched, but until a file is indexed again it is not recognised as a content duplicate and cannot be the original of a duplicate link. “Check the content index” (also run at every start) re-indexes finished downloads still in the queue whose SHA-256 is known and whose file is still in place. Files of removed or never hashed downloads come back only when downloaded again.",
       "confirm": "Clear the index",
-      "done": "{count} index entries removed"
+      "done": "{count} index entry removed | {count} index entries removed"
     },
     "history": {
       "button": "Clear history",
-      "stored": "{count} entries",
+      "stored": "{count} entry | {count} entries",
       "title": "Clear the download history?",
-      "description": "{count} entries will be removed from the download history for good. The download list, the files, the statistics and the logs stay untouched.",
+      "description": "{count} entry will be removed from the download history for good. The download list, the files, the statistics and the logs stay untouched. | {count} entries will be removed from the download history for good. The download list, the files, the statistics and the logs stay untouched.",
       "confirm": "Clear for good",
-      "done": "{count} history entries removed"
+      "done": "{count} history entry removed | {count} history entries removed"
     }
   },
   "session_limits": {
@@ -736,7 +737,7 @@
     "copy": "Copy",
     "copied": "Copied",
     "copy_command": "Copy the command",
-    "external_url_missing": "Without an external URL there is no redirect URI. Set it under Security → Reverse proxy.",
+    "external_url_missing": "Without an external URL there is no redirect URI. Set it under Settings → Security → Reachability & reverse proxy.",
     "linked": "Linked: {label}",
     "unnamed": "an account without a name",
     "linked_at": "Linked {moment}",
@@ -783,7 +784,7 @@
     "label": "Expires",
     "hint": "An expired token is refused like a revoked one and stays in the list until you revoke it.",
     "never": "Never",
-    "days": "After {count} days",
+    "days": "After {count} day | After {count} days",
     "expires_on": "Expires on {date}",
     "expired": "Expired"
   },
@@ -792,7 +793,7 @@
     "hint": "REST and MCP together. Empty means no limit; a call above it is refused until the minute is over.",
     "unit": "/min",
     "none": "No limit",
-    "row": "At most {count} calls per minute"
+    "row": "At most {count} call per minute | At most {count} calls per minute"
   },
   "restart": {
     "title": "Restart pending",

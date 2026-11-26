@@ -138,11 +138,11 @@ describe('collector store: a page that waits for a choice', () => {
 
   it('answers how many releases were listed and asks the board instead of showing an error', async () => {
     vi.mocked(api.POST).mockResolvedValueOnce({
-      error: { code: 'site_rules.pick_waiting', error: 'listed', params: { list: 'p1', entries: '32', rule: 'serienjunkies.org' } }
+      error: { code: 'site_rules.pick_waiting', error: 'listed', params: { list: 'p1', entries: '32', rule: 'series.example' } }
     } as never)
     const store = useCollectorStore()
 
-    const outcome = await store.collect({ text: 'https://serienjunkies.org/serie/show/' })
+    const outcome = await store.collect({ text: 'https://series.example/serie/show/' })
 
     expect(outcome).toMatchObject({ ok: true, listed: 32 })
     expect(store.error).toBeNull()

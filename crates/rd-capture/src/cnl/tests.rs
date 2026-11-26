@@ -82,7 +82,7 @@ async fn the_flash_routes_keep_their_documented_wildcard() {
     );
 }
 
-/// A page that posts with `fetch()` and a header of its own is asked about first: hide.cx
+/// A page that posts with `fetch()` and a header of its own is asked about first: a container page
 /// sends `X-Referer`, and a preflight that does not name it makes the browser drop the post.
 #[tokio::test]
 async fn the_preflight_allows_the_headers_hoster_pages_send() {
@@ -93,7 +93,7 @@ async fn the_preflight_allows_the_headers_hoster_pages_send() {
             reqwest::Method::OPTIONS,
             format!("http://{address}/flash/add"),
         )
-        .header(header::ORIGIN, "https://hide.cx")
+        .header(header::ORIGIN, "https://container.example")
         .header(header::ACCESS_CONTROL_REQUEST_METHOD, "POST")
         .header(
             header::ACCESS_CONTROL_REQUEST_HEADERS,

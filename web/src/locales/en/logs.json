@@ -24,10 +24,10 @@
     "shown": "{shown} of {total} records",
     "full_page": "This is a full page: older records exist behind it.",
     "older": "Load older",
-    "dropped": "{count} records were dropped because the store could not keep up.",
+    "dropped": "{count} record was dropped because the store could not keep up. | {count} records were dropped because the store could not keep up.",
     "expand": "Show fields",
     "collapse": "Hide fields",
-    "retention": "Kept for {days} days or {records} records, whichever runs out first."
+    "retention": "Kept for {days} day or {records} records, whichever runs out first. | Kept for {days} days or {records} records, whichever runs out first."
   },
   "bundle": {
     "title": "Diagnostic bundle",
@@ -37,7 +37,7 @@
     "create": "Create bundle",
     "directory": "Written to {directory}",
     "entries": "Contents",
-    "items": "{count} items",
+    "items": "{count} item | {count} items",
     "redactions": "Redactions",
     "excluded": "Never included",
     "created": "Bundle written: {file}",
@@ -104,7 +104,7 @@
     "plugin_label": "Plugin",
     "plugin_all": "All plugins",
     "minutes_label": "Duration",
-    "minutes_option": "{count} minutes",
+    "minutes_option": "{count} minute | {count} minutes",
     "start": "Start debug",
     "active": "{area} is on debug until {until}.",
     "stop": "End now",

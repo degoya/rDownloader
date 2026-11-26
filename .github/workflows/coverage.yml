@@ -40,6 +40,8 @@ jobs:
       NEXTEST_PROFILE: ci
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # Every rd-api integration binary links the whole dependency graph (RD-120-67), and
       # instrumentation makes them larger still.
       - name: Free runner disk

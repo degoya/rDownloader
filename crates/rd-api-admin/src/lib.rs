@@ -56,6 +56,7 @@ pub mod settings_backup_dto;
 pub mod settings_backup_indexers;
 pub mod settings_backup_secrets;
 pub mod settings_handlers;
+pub mod single_reads;
 pub mod stats_handlers;
 pub mod stats_retention_service;
 pub mod system_cleanup;

@@ -1,10 +1,7 @@
 //! REST surface of the automation engine (RD-090-04, RD-090-05).
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path, Query};
 use rd_automation::{Automation, AutomationVersion, Run, Trigger, VersionReset};
 use rd_core::{AutomationId, PackageId};
 use serde::{Deserialize, Serialize};
@@ -179,7 +176,7 @@ pub async fn reset_automation_versions(
     tag = "automations",
     params(
         ("automation_id" = Option<AutomationId>, Query, description = "Only this automation's runs"),
-        ("limit" = Option<u32>, Query, description = "Newest runs to return, 1-500")
+        ("limit" = Option<u32>, Query, description = "Newest runs to return, 1-500; a value outside is brought to the nearest bound", minimum = 1, maximum = 500)
     ),
     responses((status = 200, body = [Run]))
 )]

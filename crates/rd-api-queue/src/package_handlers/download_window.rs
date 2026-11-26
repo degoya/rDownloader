@@ -5,11 +5,9 @@
 //! (`rd-scheduler`'s `download_window.rs`). Removing it lets the package follow its category's.
 //! The read says what holds the package back right now.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
 use rd_api_core::download_window_input::{DownloadWindowRequest, validated_download_window};
+use rd_api_core::extract::{Json, Path};
 use rd_core::{DownloadWindow, PackageId};
 use serde::Serialize;
 use utoipa::ToSchema;

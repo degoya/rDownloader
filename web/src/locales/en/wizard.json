@@ -37,14 +37,14 @@
     "rule": "at least 10 characters",
     "submit": "Set password",
     "configured": "Password already configured",
-    "configured_hint": "The administrator password is set. Change it any time under Settings → General."
+    "configured_hint": "The administrator password is set. Change it any time under Settings → Security."
   },
   "pairing": {
-    "intro": "Pairing is optional — you can always add links by hand. A paired client sends captured links, Click'n'Load and .nzb files straight to the queue."
+    "intro": "Pairing is optional — you can always add links by hand. A paired client sends captured links, Click'n'Load and .nzb files to the LinkGrabber."
   },
   "storage": {
     "intro": "A storage root is the base directory downloads are written to. Paths must be absolute and are created if they do not exist yet — in a container, only a path on a mounted volume survives being recreated.",
-    "default_category_hint": "A default category named \"Downloads\" is created for the first storage root so the queue has a destination.",
+    "default_category_hint": "A default category named “Downloads” is created for the first storage root so the queue has a destination.",
     "default_category_name": "Downloads",
     "required_hint": "Add at least one storage root — without it no download can start."
   },

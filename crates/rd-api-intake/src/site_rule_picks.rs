@@ -16,10 +16,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_plugin_ext::{
     EntryState, PickDelivery, PickError, PickJob, PickPage, RuleOutcome, SiteRules,
 };
@@ -198,7 +196,7 @@ struct CollectorDelivery {
 impl PickDelivery for CollectorDelivery {
     async fn deliver(&self, job: &PickJob, group: rd_siterules::CrawlGroup) -> Result<u32, String> {
         let package_name = group.name.clone().or_else(|| job.label.clone());
-        // With the mirror sets the rule declares (RD-1190-17): warez.cx's hosters stay copies
+        // With the mirror sets the rule declares (RD-1190-17): a release page's hosters stay copies
         // of one file when its releases are picked rather than taken whole.
         let links = rd_plugin_ext::FolderCrawlers::picked_links(job, group);
         if links.is_empty() {

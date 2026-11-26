@@ -58,6 +58,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # A secret cannot be tested in `if:`, so this step says which channels have their key.
       - name: Decide which channels move
         id: gate
@@ -185,6 +187,8 @@ jobs:
       PACKAGES_KEY_FINGERPRINT: 47562DABFCFC3F17C78567CE395FA7C2B11721D1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Decide whether the repositories move
         id: gate
         shell: bash
@@ -257,6 +261,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Decide whether the stores get this release
         id: gate
         shell: bash

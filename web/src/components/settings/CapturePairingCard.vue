@@ -135,7 +135,7 @@ async function revokeAgent(agent: CaptureToken): Promise<void> {
           </i18n-t>
         </template>
       </SectionHeader>
-      <UAlert v-if="pairError" class="mt-4" color="error" :description="pairError" />
+      <UAlert v-if="pairError" class="mt-4" color="error" role="alert" :description="pairError" />
       <form class="mt-4 space-y-3" @submit.prevent="pair">
         <UFormField :label="t('system.pairing.label')" required>
           <UInput v-model="pairLabel" required maxlength="100" icon="i-lucide-monitor" class="w-full" />

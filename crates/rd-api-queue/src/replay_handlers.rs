@@ -4,10 +4,8 @@
 //! what would be sent and decide. They are deliberately API-first: the web UI's modal is a
 //! presentation of this contract, and nothing here depends on the UI existing.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_core::{CandidateId, LinkCandidate, ReplayConsent, ReplayMethod};
 
 use crate::{

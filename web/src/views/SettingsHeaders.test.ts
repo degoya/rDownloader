@@ -8,6 +8,7 @@
  * the service answering nothing but the settings document — the pages bound to it wait for it
  * (WEB-01) — so what is counted is the page as a person reaches it.
  */
+import { waitFor } from '@testing-library/vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { apiClientMock, eventStreamMock, toastMock } from '@/test/mocks'
@@ -18,6 +19,7 @@ import { SETTINGS_SECTIONS } from '@/settingsSections'
 import { axeViolations } from '@/test/axe'
 import { loadEveryLocale } from '@/test/locales'
 import { mountComponent } from '@/test/mount'
+import { loadSettingsPages } from '@/test/settingsPages'
 
 // The navbar test below switches through all four languages.
 beforeAll(loadEveryLocale)
@@ -50,10 +52,12 @@ async function mountPage(section: string, locale = 'en'): Promise<HTMLElement> {
   setActivePinia(createPinia())
   i18n.global.locale.value = locale as typeof i18n.global.locale.value
   const { container } = mountComponent(SettingsView, { i18n, plugins: [router], stubs: { UDashboardNavbar }, keepPinia: true })
-  // The settings document answers before the bound pages render.
-  await new Promise(resolve => setTimeout(resolve, 0))
+  // The settings document answers and the page's chunk arrives before the page renders.
+  await waitFor(() => expect(container.querySelector('h2')).not.toBeNull())
   return container as HTMLElement
 }
+
+beforeAll(loadSettingsPages, 60_000)
 
 describe('the settings page headers', () => {
   it.each(SETTINGS_SECTIONS.map(section => section.value))('%s opens with exactly one page header, with a description', async (section) => {

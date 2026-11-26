@@ -200,7 +200,7 @@ function completedSegments(file: NzbFileStatus): number {
       </div>
     </header>
     <!-- `w-auto`: the alert's own `w-full` plus the margins ran past the group (RD-1240-33). -->
-    <UAlert v-if="errorText" class="m-2 w-auto" color="error" icon="i-lucide-circle-alert" :description="errorText" />
+    <UAlert v-if="errorText" class="m-2 w-auto" color="error" role="alert" icon="i-lucide-circle-alert" :description="errorText" />
     <div v-if="open" class="divide-y divide-muted">
       <p v-if="failedSilently" class="px-2 py-2 text-sm text-error">{{ t('linkgrabber.nzb.failed_no_reason') }}</p>
       <div v-for="file in files" :key="file.id" class="flex items-center gap-2 px-2 py-1.5 transition hover:bg-elevated/60">

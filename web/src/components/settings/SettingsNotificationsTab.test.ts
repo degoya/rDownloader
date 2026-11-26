@@ -9,6 +9,7 @@ import { apiClientMock, eventStreamMock } from '@/test/mocks'
 
 import { api } from '@/api/client'
 import settings from '@/locales/en/settings.json'
+import { defaultSettings } from '@/settingsDefaults'
 import { SETTINGS_SEARCH_ENTRIES } from '@/settingsSearch'
 import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
@@ -28,11 +29,12 @@ const stubs = {
     template: '<section data-settings-anchor="notifications.targets"><button type="button" @click="$emit(\'changed\')">changed</button></section>'
   },
   NotificationRules: { template: '<section data-settings-anchor="notifications.rules" />' },
+  SettingsNotificationLanguageCard: { template: '<section data-settings-anchor="notifications.language" />' },
   NotificationHistory: { template: '<section data-settings-anchor="notifications.history" />', methods: { reload } }
 }
 
 function mount(subTab?: string) {
-  return mountComponent(SettingsNotificationsTab, { messages: { settings }, props: subTab ? { subTab } : {}, stubs })
+  return mountComponent(SettingsNotificationsTab, { messages: { settings }, props: { modelValue: defaultSettings(), ...(subTab ? { subTab } : {}) }, stubs })
 }
 
 const panel = (container: Element, tab: string) => container.querySelector(`[data-tab="${tab}"]`) as HTMLElement
@@ -60,7 +62,7 @@ describe('SettingsNotificationsTab', () => {
     const { container } = mount()
 
     const entries = SETTINGS_SEARCH_ENTRIES.filter(entry => entry.section === 'notifications')
-    expect(entries.map(entry => entry.id)).toEqual(['notifications.targets', 'notifications.rules', 'notifications.history'])
+    expect(entries.map(entry => entry.id)).toEqual(['notifications.targets', 'notifications.rules', 'notifications.language', 'notifications.history'])
     for (const entry of entries) {
       expect(panel(container, entry.tab ?? '').querySelector(`[data-settings-anchor="${entry.id}"]`), entry.id).not.toBeNull()
     }

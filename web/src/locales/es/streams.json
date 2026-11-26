@@ -10,12 +10,12 @@
   "empty": "Aún no hay canales. Añade uno con el formulario y actívalo para grabar automáticamente.",
   "delete": {
     "title": "Eliminar canal",
-    "description": "¿Eliminar \"{name}\"? Las grabaciones ya realizadas se conservan."
+    "description": "¿Eliminar «{name}»? Las grabaciones ya realizadas se conservan."
   },
   "messages": {
     "created": "Canal añadido.",
     "updated": "Canal guardado.",
-    "recording_started": "Grabación \"{name}\" iniciada."
+    "recording_started": "Grabación «{name}» iniciada."
   },
   "form": {
     "url_label": "URL del canal",

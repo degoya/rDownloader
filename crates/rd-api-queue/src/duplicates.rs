@@ -12,10 +12,8 @@
 
 use std::{collections::HashMap, path::Path};
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rd_core::{
     ChecksumAlgorithm, DownloadFile, DownloadId, DownloadKind, DownloadState, NzbImportId,
     PackageId, SourceIdentity,

@@ -1,61 +1,95 @@
 /**
- * Contrast of the accent scales (WCAG 2.2, 1.4.3).
+ * Contrast of the rendered colours (WCAG 2.2, 1.4.3 and 1.4.11), in light and dark mode and in
+ * every colour theme.
  *
  * axe-core cannot answer this in a test run: its colour-contrast rule needs a canvas to sample
- * rendered pixels, and jsdom has none. So the ratios are computed from the palette instead,
- * which is the same arithmetic and does not depend on anything being rendered.
+ * rendered pixels, and jsdom has none. So the colours are read out of the style sheets the page
+ * loads, through the cascade (`test/renderedColors.ts`), never out of constants copied here: a
+ * copy stays right while the sheet goes wrong (A11Y-16, RD-1480-17).
  *
- * The ratios are checked against the AA threshold rather than pinned to exact values: a palette
- * edit that quietly drops an accent below 4.5:1 is exactly the change this is here to catch.
+ * The ratios are checked against the AA threshold rather than pinned to exact values: an edit
+ * that quietly drops a colour below 4.5:1 is exactly the change this is here to catch.
  */
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 
-/** Relative luminance, per WCAG 2.x. */
-function luminance(hex: string): number {
-  const value = hex.replace('#', '')
-  const channels = [0, 2, 4].map(offset => Number.parseInt(value.slice(offset, offset + 2), 16) / 255)
-  const linear = channels.map(channel =>
-    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
-  )
-  return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!
-}
-
-function contrast(left: string, right: string): number {
-  const [high, low] = [luminance(left), luminance(right)].sort((a, b) => b - a) as [number, number]
-  return (high + 0.05) / (low + 0.05)
-}
-
-/** The two grounds the application actually paints, from `useTheme`. */
-const LIGHT = '#f8fafc'
-const DARK = '#08151d'
-
-/** The accent shades `main.css` binds to `--ui-primary` and `--ui-error`. */
-const LIGHT_PRIMARY = '#117572'
-const LIGHT_ERROR = '#ae2c27'
-const DARK_PRIMARY = '#20ded4'
-const DARK_ERROR = '#fa746d'
+import { applyColorPalette, COLOR_PALETTES, useColorPalette } from '@/composables/useColorPalette'
+import { contrast, loadRules, MAIN_CSS, over, resolveColour, type Colour } from '@/test/renderedColors'
+import { uiTheme } from '@/uiTheme'
 
 /** WCAG AA for text below 18.66px bold or 24px regular. */
 const AA_TEXT = 4.5
+/** WCAG AA for a component's own graphics: the focus ring. */
+const AA_GRAPHIC = 3
 
-describe('accent contrast', () => {
-  it('the light-mode accents are readable as text and as a ground under white', () => {
-    expect(contrast(LIGHT_PRIMARY, LIGHT)).toBeGreaterThanOrEqual(AA_TEXT)
-    expect(contrast(LIGHT_ERROR, LIGHT)).toBeGreaterThanOrEqual(AA_TEXT)
-    // Also as a button ground: the label on a primary button is white.
-    expect(contrast(LIGHT_PRIMARY, '#ffffff')).toBeGreaterThanOrEqual(AA_TEXT)
-    expect(contrast(LIGHT_ERROR, '#ffffff')).toBeGreaterThanOrEqual(AA_TEXT)
-  })
+const ACCENTS = ['primary', 'success', 'info', 'warning', 'error'] as const
+/** The grounds text stands on: the page, a card, a row, a badge. */
+const GROUNDS = ['bg', 'bg-muted', 'bg-elevated'] as const
+const PALETTES = Object.keys(COLOR_PALETTES) as (keyof typeof COLOR_PALETTES)[]
 
-  it('the dark-mode accents are readable as text', () => {
-    expect(contrast(DARK_PRIMARY, DARK)).toBeGreaterThanOrEqual(AA_TEXT)
-    expect(contrast(DARK_ERROR, DARK)).toBeGreaterThanOrEqual(AA_TEXT)
-  })
+let rules: Awaited<ReturnType<typeof loadRules>>
+const token = (name: string): Colour => resolveColour(rules, `var(--ui-${name})`)
 
-  it('the shades Nuxt UI would have chosen are the ones that failed', () => {
-    // Recorded so the override in `main.css` reads as a fix rather than a preference: shade
-    // 500 is what the library picks for light mode, and it does not clear the threshold.
-    expect(contrast('#14b8b0', LIGHT)).toBeLessThan(AA_TEXT)
-    expect(contrast('#e9524b', LIGHT)).toBeLessThan(AA_TEXT)
+beforeAll(async () => {
+  rules = await loadRules()
+  applyColorPalette()
+})
+
+afterAll(() => {
+  document.documentElement.className = ''
+})
+
+describe.each(['light', 'dark'])('%s mode', (mode) => {
+  describe.each(PALETTES)('%s', (palette) => {
+    beforeEach(async () => {
+      document.documentElement.className = mode
+      useColorPalette().palette.value = palette
+      await nextTick()
+    })
+
+    it('every accent is readable as text on every ground and on its own tint', () => {
+      const short: string[] = []
+      for (const accent of ACCENTS) {
+        for (const ground of GROUNDS) {
+          const plain = contrast(token(accent), token(ground))
+          if (plain < AA_TEXT) short.push(`${accent} on ${ground}: ${plain.toFixed(2)}`)
+          // `soft` and `subtle` badges, buttons and notices: `bg-<accent>/10 text-<accent>`.
+          const tint = over(token(accent), 0.1, token(ground))
+          const tinted = contrast(token(accent), tint)
+          if (tinted < AA_TEXT) short.push(`${accent} on its tint over ${ground}: ${tinted.toFixed(2)}`)
+        }
+      }
+      expect(short).toEqual([])
+    })
+
+    it('the label of a solid button is readable on every accent', () => {
+      for (const accent of ACCENTS) {
+        expect(contrast(token('text-inverted'), token(accent)), accent).toBeGreaterThanOrEqual(AA_TEXT)
+      }
+    })
+
+    it('the greys of running text are readable on every ground', () => {
+      for (const text of ['text', 'text-muted', 'text-toned', 'text-highlighted']) {
+        for (const ground of GROUNDS) {
+          expect(contrast(token(text), token(ground)), `${text} on ${ground}`).toBeGreaterThanOrEqual(AA_TEXT)
+        }
+      }
+    })
+
+    it('the focus ring stands out from every ground', () => {
+      for (const ground of GROUNDS) {
+        expect(contrast(token('primary'), token(ground)), ground).toBeGreaterThanOrEqual(AA_GRAPHIC)
+      }
+    })
   })
+})
+
+it('a focused control is outlined in the full accent, not a quarter of it', () => {
+  // Nuxt UI draws `outline-primary/25` (1.43:1 in light mode); the navigation draws it on `::before`.
+  expect(MAIN_CSS).toMatch(/:focus-visible,\s*:focus-visible::before \{\s*outline-color: var\(--ui-primary\) !important;/)
+})
+
+it('a notice paints its description in the full colour', () => {
+  // Nuxt UI's `opacity-90` costs the accent a tenth of its contrast.
+  expect(uiTheme.alert.slots.description).toBe('opacity-100')
 })

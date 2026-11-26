@@ -20,8 +20,9 @@ pub(crate) async fn queue_delivery(
     let mut tx = connection.begin().await?;
     let inserted = sqlx::query(
         "INSERT INTO notification_deliveries (id, rule_id, target_id, idempotency_key, event, \
-         title, body, package_path, state, attempt, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', 0, ?, ?) \
+         title, body, package_path, occurred_at, package_id, download_id, state, attempt, \
+         created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', 0, ?, ?) \
          ON CONFLICT(idempotency_key) DO NOTHING",
     )
     .bind(NotificationDeliveryId::new().to_string())
@@ -32,6 +33,9 @@ pub(crate) async fn queue_delivery(
     .bind(&input.title)
     .bind(&input.body)
     .bind(&input.package_path)
+    .bind(input.subject.occurred_at)
+    .bind(input.subject.package_id.map(|id| id.to_string()))
+    .bind(input.subject.download_id.map(|id| id.to_string()))
     .bind(now)
     .bind(now)
     .execute(&mut *tx)

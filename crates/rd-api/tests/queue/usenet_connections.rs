@@ -176,3 +176,60 @@ async fn without_a_pool_nothing_is_busy() {
     assert_eq!(status, StatusCode::OK, "{servers}");
     assert_eq!(servers[0]["busy_connections"], json!(0));
 }
+
+/// RD-1480-18: the rates carry state and bytes of every row a runner works on, moving or not, so
+/// the page follows a transfer without reading the list; a row at rest stays out.
+#[tokio::test]
+async fn the_rates_carry_the_bytes_of_the_rows_at_work() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let harness = common::parked_harness(directory.path()).await;
+    let mut files = Vec::new();
+    for url in [
+        "https://example.test/working.bin",
+        "https://example.test/resting.bin",
+    ] {
+        let (status, created) = post_json(
+            &harness.router,
+            "/api/v1/downloads",
+            json!({ "url": url, "paused": true }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{created}");
+        files.push(
+            created["id"]
+                .as_str()
+                .expect("download id")
+                .parse::<rd_core::DownloadId>()
+                .expect("id"),
+        );
+    }
+    for state in [
+        rd_core::DownloadState::Queued,
+        rd_core::DownloadState::Resolving,
+    ] {
+        harness
+            .database
+            .transition_download(files[0], state)
+            .await
+            .expect("transition");
+    }
+    harness
+        .database
+        .set_download_progress(files[0], 400, Some(1_000))
+        .await
+        .expect("progress");
+
+    let (status, rates) = get_json(&harness.router, "/api/v1/downloads/rates").await;
+    assert_eq!(status, StatusCode::OK, "{rates}");
+    assert_eq!(
+        rates["progress"],
+        json!([{
+            "id": files[0].to_string(),
+            "state": "resolving",
+            "committed_bytes": "400",
+            "total_bytes": "1000",
+        }])
+    );
+    assert_eq!(rates["downloads"], json!([]), "nothing moves");
+    assert_eq!(rates["transferring_remaining_bytes"], json!("600"));
+}

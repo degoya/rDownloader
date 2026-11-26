@@ -9,7 +9,7 @@
           { "name": "limit", "in": "query", "required": false, "schema": { "type": ["integer", "null"] } }
         ],
         "responses": {
-          "200": { "description": "OK", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ItemList" } } } }
+          "200": { "description": "OK", "headers": { "x-total-count": { "schema": { "type": "integer" } } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ItemList" } } } }
         }
       },
       "post": {

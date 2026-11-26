@@ -42,7 +42,7 @@ const route = useRoute()
 onMounted(async () => {
   if (!session.consumeTourRequest()) return
   await nextTick()
-  startTour()
+  void startTour()
 })
 // App-wide NZB/torrent drag & drop (any route, while authenticated).
 const { dropActive } = useFileImportDropZone()

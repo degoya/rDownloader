@@ -54,7 +54,7 @@ mkdir -p "$OUT/plugins"
 echo "==> assembling $OUT"
 install -m 755 "$binaries/rdownloader" "$OUT/rdownloader"
 install -m 755 "$binaries/rdownloader-capture" "$OUT/rdownloader-capture"
-install -m 644 README.md LICENSE "$OUT/"
+install -m 644 README.md LICENSE crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt "$OUT/"
 rd_write_version_file "$OUT" "$version" "linux x86_64" "$profile"
 install -m 755 scripts/linux/start-rdownloader.sh scripts/linux/stop-rdownloader.sh \
     scripts/linux/start-capture.sh scripts/linux/stop-capture.sh "$OUT/"

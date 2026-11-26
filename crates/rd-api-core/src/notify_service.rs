@@ -11,9 +11,10 @@ use std::{
     time::Duration,
 };
 
-use rd_core::{NotificationTargetId, PackageState};
+use rd_core::NotificationTargetId;
 use rd_notify::{
-    Attempt, Delivery, DeliveryState, Message, NotificationEvent, NotificationTarget, TargetConfig,
+    Attempt, Delivery, DeliveryState, Message, NotificationEvent, NotificationLanguage,
+    NotificationTarget, Subject, TargetConfig, Text, Words,
 };
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
@@ -170,16 +171,17 @@ impl NotificationService {
     /// Sends one message to a target right now, for the test action.
     pub async fn test_target(&self, target: &NotificationTarget) -> Attempt {
         let config = target_config(target);
+        let language = notification_language(&self.inner.database).await;
+        let title = Text::new("test.title").say(language);
+        let body = Text::new("test.body").say(language);
+        let mut payload = serde_json::json!({ "event": "test", "title": title, "body": body });
+        Subject::now().describe(&mut payload);
         let message = Message {
-            title: "rDownloader test".to_owned(),
-            body: "This is a test notification from rDownloader.".to_owned(),
+            title,
+            body,
             event: NotificationEvent::PackageCompleted,
             idempotency_key: format!("test:{}", target.id),
-            payload: serde_json::json!({
-                "event": "test",
-                "title": "rDownloader test",
-                "body": "This is a test notification from rDownloader."
-            }),
+            payload,
         };
         // A test names no package, so a media server refreshes its whole library.
         if target.kind == rd_notify::TargetKind::Plugin {
@@ -303,13 +305,25 @@ pub async fn vendor_directory(database: &rd_db::Database) -> Option<String> {
     }
 }
 
-/// A classified bus event: the notification event, its category, its title and its body.
-type Classified = (
-    NotificationEvent,
-    Option<rd_core::CategoryId>,
-    String,
-    String,
-);
+/// The language of the built-in wording (RD-1480-11), read when something is queued or sent, so
+/// a changed setting applies to the next notification. English while none is chosen, and when the
+/// setting cannot be read.
+pub async fn notification_language(database: &rd_db::Database) -> NotificationLanguage {
+    match database
+        .service_setting_field::<NotificationLanguage>("notification_language")
+        .await
+    {
+        Ok(language) => language.unwrap_or_default(),
+        Err(error) => {
+            tracing::warn!(%error, "the notification language setting is unreadable");
+            NotificationLanguage::default()
+        }
+    }
+}
+
+/// A classified bus event: the notification event, its category, its title and its body, in no
+/// language yet.
+type Classified = (NotificationEvent, Option<rd_core::CategoryId>, Text, Text);
 
 /// The `budget_exhausted` notification for a `bandwidth.changed` event that reports the
 /// active profile's traffic budget running out.
@@ -326,23 +340,21 @@ fn budget_exhausted(payload: &serde_json::Value) -> Option<Classified> {
     {
         return None;
     }
-    let period = match payload.get("period").and_then(serde_json::Value::as_str) {
-        Some("monthly") => "monthly",
-        _ => "daily",
-    };
+    let monthly = payload.get("period").and_then(serde_json::Value::as_str) == Some("monthly");
     let limit = payload
         .get("limit_bytes")
-        .and_then(serde_json::Value::as_u64)
-        .map(|bytes| format!(" of {bytes} bytes"))
-        .unwrap_or_default();
+        .and_then(serde_json::Value::as_u64);
+    let body = match (monthly, limit) {
+        (true, Some(limit)) => Text::new("budget_exhausted.body_monthly_of").with("limit", limit),
+        (true, None) => Text::new("budget_exhausted.body_monthly"),
+        (false, Some(limit)) => Text::new("budget_exhausted.body_daily_of").with("limit", limit),
+        (false, None) => Text::new("budget_exhausted.body_daily"),
+    };
     Some((
         NotificationEvent::BudgetExhausted,
         None,
-        "Traffic budget used up".to_owned(),
-        format!(
-            "The {period} traffic budget{limit} is used up. Running transfers finish; nothing \
-             new starts until the period rolls over."
-        ),
+        Text::new("budget_exhausted.title"),
+        body,
     ))
 }
 
@@ -361,24 +373,25 @@ fn usenet_quota_reached(payload: &serde_json::Value) -> Option<Classified> {
     {
         return None;
     }
-    let name = payload
+    let name: Words = payload
         .get("name")
         .and_then(serde_json::Value::as_str)
-        .unwrap_or("A Usenet server");
+        .map_or_else(|| Text::new("usenet_quota.unnamed").into(), Words::from);
     let limit = payload
         .get("limit_bytes")
-        .and_then(serde_json::Value::as_u64)
-        .map(|bytes| format!(" of {bytes} bytes"))
-        .unwrap_or_default();
-    let then = match payload.get("action").and_then(serde_json::Value::as_str) {
-        Some("pause") => "It is paused until the quota is reset or raised.",
-        _ => "It is asked only for articles the other servers do not have.",
+        .and_then(serde_json::Value::as_u64);
+    let paused = payload.get("action").and_then(serde_json::Value::as_str) == Some("pause");
+    let body = match (paused, limit) {
+        (true, Some(limit)) => Text::new("usenet_quota.body_pause_of").with("limit", limit),
+        (true, None) => Text::new("usenet_quota.body_pause"),
+        (false, Some(limit)) => Text::new("usenet_quota.body_fill_of").with("limit", limit),
+        (false, None) => Text::new("usenet_quota.body_fill"),
     };
     Some((
         NotificationEvent::UsenetQuotaReached,
         None,
-        format!("Usenet quota used up: {name}"),
-        format!("{name} has used up its quota{limit}. {then}"),
+        Text::new("usenet_quota.title").with("name", name.clone()),
+        body.with("name", name),
     ))
 }
 

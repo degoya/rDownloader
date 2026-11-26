@@ -1,11 +1,25 @@
 name: Release plugins
 
-# The signed plugins of a release, called by release.yml's `plugins` job (RD-1101-07 split it off;
-# the job is unchanged): every bundled plugin built as a wasm component, the packager `rd-pack`,
-# the packages signed with the plugin key and the plugin index signed with the repository key.
-# Its artifacts (`packager`, `plugins`, `plugin-index`) belong to the release run and are what
-# `packages`, `publish` and the container jobs download. Since RD-1230-03 a release carries no
-# site-rule file: the app brings its examples, and nothing else is published.
+# The signed plugins of a release, called by release.yml's `plugins` job (RD-1101-07): every
+# bundled plugin built as a wasm component, the packager `rd-pack`, the packages signed with the
+# plugin key and the plugin index signed with the repository key. Its artifacts (`packager`,
+# `plugins`, `plugin-index`) belong to the release run and are what `packages`, `publish` and the
+# container jobs download; `plugin-components` is this workflow's own and dropped by `publish`.
+# Since RD-1230-03 a release carries no site-rule file: the app brings its examples.
+#
+# Three jobs (RD-1480-14, SEC-6). `components` and `packager` compile — the plugins' and the
+# packager's dependencies with their build scripts and proc macros — and hold no key. `sign` holds
+# the two keys and compiles nothing: it takes what the other two built, held to the SHA-256 they
+# put out, and runs our scripts and `rd-pack` alone. What it does not take away: `rd-pack` itself,
+# which links its dependencies, signs with the key.
+#
+# The components come from no cache. Until 1.47 they came from the one ci.yml fills on `main`,
+# whose stamps hash the sources and not the `.wasm`, so a poisoned cache entry would have been
+# signed.
+#
+# No `environment:` yet: GitHub creates a named environment that does not exist, without its
+# protection, and the owner has to move the secrets into it. docs/development.md ("Signing keys in
+# an environment") has the steps; nothing here changes but one line in `sign`.
 on:
   workflow_call:
     secrets:
@@ -22,22 +36,22 @@ env:
   PLUGIN_RELEASE_TAG: plugins-${{ github.ref_name }}
 
 jobs:
-  plugins:
+  components:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    outputs:
+      sha256: ${{ steps.hand-over.outputs.sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # No `web/dist` here any more: the packager is `rd-pack` (RD-150-20), which does not build
-      # rd-api and its `#[derive(RustEmbed)]`.
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
-      # No Rust cache (RD-1120-07): `release-plugins` was restored and never saved by any workflow
-      # (a tag's run reads only its own caches and the default branch's), so it found nothing. The
-      # components come from the component cache below; only the packager builds from scratch.
+      # No cache of any kind, see above: every component is built here, from this tag's sources.
       # Makes each core module a component (RD-1110-08), and reads the imports for the check
       # scripts/build-plugins.sh runs on every component it builds and the one below over all of
-      # them; the version the script requires, as in ci-components.yml whose cache this run reads.
+      # them; the version the script requires.
       - uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
         with:
           tool: wasm-tools@1.261.0
@@ -45,47 +59,82 @@ jobs:
         id: plugins
         shell: bash
         run: scripts/ci-plugins.sh list
-      # Components are built only when their content changed (RD-150-10). The cache is the one
-      # ci.yml's `components` job fills on `main` — a tag's run may read the default branch's
-      # caches and nothing else — keyed by what goes into a component: toolchain, wasm-tools,
-      # the registry half of Cargo.lock and the root Cargo.toml (`deps`), and every plugin's source
-      # hash (`sources`). A miss on `sources` restores the newest set with the same `deps`, and
-      # build-plugins.sh rebuilds what its stamps call stale or missing. Every package is still
-      # signed below, cached component or not.
-      - name: Work out the component cache key
-        id: component-key
-        shell: bash
-        run: scripts/build-plugins.sh --cache-key | tee -a "$GITHUB_OUTPUT"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            target/wasm32-unknown-unknown/release/rd_plugin_*.wasm
-            target/wasm32-unknown-unknown/release/rd_plugin_*.wasm.src-sha256
-          key: components-1.100.0-wt1.261.0-${{ steps.component-key.outputs.deps }}-${{ steps.component-key.outputs.sources }}
-          restore-keys: components-1.100.0-wt1.261.0-${{ steps.component-key.outputs.deps }}-
       - name: Build plugin components
         shell: bash
         run: scripts/build-plugins.sh --components-only
       - name: Reject accidental WASI capabilities
         shell: bash
         run: scripts/ci-plugins.sh imports ${{ steps.plugins.outputs.names }}
-      # The packager, `rd-pack` (RD-150-20): the `plugin` commands of `rdownloader` without
-      # building the service. `release-test` because it compiles every
-      # component with Wasmtime; `release`'s single code unit and LTO buy a tool nothing. The
-      # packages it writes are the same bytes either way, and the embedded roots are the same.
-      - name: Build the packager
-        run: cargo build --locked --profile release-test -p rd-pack
+      - name: Hand the components over
+        id: hand-over
+        shell: bash
+        run: scripts/ci-plugins.sh hand-over plugin-components.tar ${{ steps.plugins.outputs.packageable }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plugin-components
+          path: plugin-components.tar
+          if-no-files-found: error
+          retention-days: 1
+
+  # The packager, `rd-pack` (RD-150-20): the `plugin` commands of `rdownloader` without building
+  # the service or `web/dist`. `release-test` because it compiles every component with Wasmtime;
+  # `release`'s single code unit and LTO buy a tool nothing. The packages it writes are the same
+  # bytes either way, and the embedded roots are the same.
+  packager:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      sha256: ${{ steps.digest.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust
+      - run: cargo build --locked --profile release-test -p rd-pack
+      - name: Its SHA-256
+        id: digest
+        shell: bash
+        run: scripts/ci-plugins.sh digest target/release-test/rd-pack
       # RD-180-01: `publish` builds the update manifest with it, after the checksums exist.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: packager
           path: target/release-test/rd-pack
           if-no-files-found: error
+
+  sign:
+    needs: [components, packager]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: plugin-components
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packager
+          path: target/release-test
+      # Through the environment, never into the command line: an output comes from a job that ran
+      # code of third parties. The plugins to sign are read from this checkout again for the same
+      # reason.
+      - name: Take the components and the packager over
+        shell: bash
+        env:
+          COMPONENTS_SHA256: ${{ needs.components.outputs.sha256 }}
+          PACKAGER_SHA256: ${{ needs.packager.outputs.sha256 }}
+        run: scripts/ci-plugins.sh take-over plugin-components.tar
       - name: Package and sign bundled plugins
         env:
           RDOWNLOADER_PLUGIN_SIGNING_KEY: ${{ secrets.RDOWNLOADER_PLUGIN_SIGNING_KEY }}
         shell: bash
-        run: scripts/ci-plugins.sh package-signed ${{ steps.plugins.outputs.packageable }}
+        run: |
+          set -euo pipefail
+          names="$(scripts/build-plugins.sh --list-packageable | sort)"
+          mapfile -t plugins <<< "${names}"
+          scripts/ci-plugins.sh package-signed "${plugins[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: plugins

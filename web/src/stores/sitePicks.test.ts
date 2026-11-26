@@ -28,9 +28,9 @@ function entry(index: number, label: string, state = 'pending'): CollectorPickEn
 function page(id: string, entries: CollectorPickEntry[], extra: Partial<CollectorPick> = {}): CollectorPick {
   return {
     id,
-    rule: 'serienjunkies.org',
-    rule_id: 'serienjunkies',
-    address: 'https://serienjunkies.org/serie/the-show/',
+    rule: 'series.example',
+    rule_id: 'series',
+    address: 'https://series.example/serie/the-show/',
     package_name: 'The Show',
     created_at: '2026-10-08T20:00:00Z',
     running: false,
@@ -66,7 +66,7 @@ describe('the pick board in the interface', () => {
 
     expect(await picks.resolve('old', [1])).toBe(true)
 
-    expect(post).toHaveBeenCalledWith('/api/v1/collector/picks', { body: { address: 'https://serienjunkies.org/serie/the-show/' } })
+    expect(post).toHaveBeenCalledWith('/api/v1/collector/picks', { body: { address: 'https://series.example/serie/the-show/' } })
     expect(post).toHaveBeenLastCalledWith('/api/v1/collector/picks/{id}/resolve', { params: { path: { id: 'new' } }, body: { entries: [1] } })
     expect(picks.pages.map(item => item.id)).toEqual(['new'])
     expect(picks.pages[0]?.entries[1]?.state).toBe('queued')
@@ -90,7 +90,7 @@ describe('the pick board in the interface', () => {
   it('opens the drawer where a panel is shown, and keeps the page for the next panel where none is', async () => {
     const picks = useSitePicksStore()
     get.mockResolvedValue({ data: { pages: [page('p1', [entry(0, 'A')])] } })
-    const listing = { list: 'p1', entries: 1, rule: 'serienjunkies.org' }
+    const listing = { list: 'p1', entries: 1, rule: 'series.example' }
 
     await picks.announced(listing)
     expect(picks.asked).toBe(0)

@@ -279,7 +279,7 @@ describe('carrying rules to another installation (RD-1230-03)', () => {
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/site-rules/export', { params: { query: {} } }))
 
     await fireEvent.click(within(row('My board')).getByRole('checkbox'))
-    await fireEvent.click(screen.getByRole('button', { name: 'Export 1 rules' }))
+    await fireEvent.click(screen.getByRole('button', { name: 'Export 1 rule' }))
     await waitFor(() => expect(get).toHaveBeenCalledWith('/api/v1/site-rules/export', {
       params: { query: { ids: 'my-board' } }
     }))

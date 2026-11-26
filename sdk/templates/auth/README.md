@@ -49,3 +49,9 @@ rDownloader's own plugins are made with.
 `plugin-signing.key` is yours alone: keep it out of version control. Signing, the reusable CI
 workflow and publishing in a repository of your own are in the SDK's `README.md` and the [plugin
 reference](https://github.com/degoya/rDownloader/wiki/plugin-reference).
+
+## License
+
+What the scaffold came with — this template and the contract in `wit/` — is under the MIT license
+(`LICENSE`); keep that file with it. `license` in `Cargo.toml` and `manifest.toml` is what you
+declare for your plugin.

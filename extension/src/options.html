@@ -1,22 +1,23 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>rDownloader</title>
     <style>
       body { font: 14px system-ui, sans-serif; margin: 0; padding: 16px; min-width: 360px; color: #0f172a; background: #f8fafc; }
-      @media (prefers-color-scheme: dark) { body { color: #e2e8f0; background: #0b1620; } input, select, textarea { background: #12222d; color: inherit; border-color: #334155; } }
+      @media (prefers-color-scheme: dark) { body { color: #e2e8f0; background: #0b1620; } input, select, textarea { background: #12222d; color: inherit; } }
+      h1 { font-size: 1.5em; } h2 { font-size: 1.17em; }
       label { display: block; margin: 12px 0 4px; font-weight: 600; }
-      input, select, textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font: inherit; }
+      input, select, textarea { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #64748b; border-radius: 4px; font: inherit; }
       textarea { resize: vertical; }
       textarea:disabled { opacity: 0.6; }
-      button { margin-top: 14px; margin-right: 8px; padding: 8px 14px; border: 0; border-radius: 4px; background: #14b8b0; color: #fff; font: inherit; cursor: pointer; }
+      button { margin-top: 14px; margin-right: 8px; padding: 8px 14px; border: 0; border-radius: 4px; background: #117572; color: #fff; font: inherit; cursor: pointer; }
       button.secondary { background: #64748b; }
       #status { margin-top: 12px; min-height: 1.2em; }
-      .ok { color: #0f938f; } .error { color: #cf3832; }
+      .ok { color: #117572; } .error { color: #cf3832; }
       p.hint { color: #64748b; font-size: 12px; margin: 4px 0 0; }
       p.warning { color: #b45309; font-size: 12px; margin: 4px 0 0; }
-      @media (prefers-color-scheme: dark) { p.warning { color: #fbbf24; } }
+      @media (prefers-color-scheme: dark) { p.warning { color: #fbbf24; } p.hint { color: #94a3b8; } .ok { color: #0f938f; } .error { color: #fa746d; } }
       label.check { display: flex; align-items: center; gap: 8px; margin: 16px 0 0; }
       label.check input { width: auto; }
       #file-sites { list-style: none; padding: 0; margin: 8px 0 0; }
@@ -25,35 +26,37 @@
     </style>
   </head>
   <body>
-    <h2 data-i18n="optionsTitle"></h2>
-    <label for="server" data-i18n="serverLabel"></label>
-    <input id="server" type="url" placeholder="http://127.0.0.1:8710" autocomplete="off" />
-    <p class="hint" data-i18n="serverHint"></p>
-    <p class="warning" id="server-insecure" role="status" data-i18n="serverInsecure" hidden></p>
-    <label for="token" data-i18n="tokenLabel"></label>
-    <input id="token" type="password" autocomplete="off" />
-    <p class="hint" data-i18n="tokenHint"></p>
-    <label class="check"><input id="intercept" type="checkbox" /><span data-i18n="optionsIntercept"></span></label>
-    <p class="hint" data-i18n="optionsInterceptHint"></p>
-    <label for="intercept-mode" data-i18n="optionsInterceptMode"></label>
-    <select id="intercept-mode">
-      <option value="all" data-i18n="optionsInterceptModeAll"></option>
-      <option value="only" data-i18n="optionsInterceptModeOnly"></option>
-      <option value="except" data-i18n="optionsInterceptModeExcept"></option>
-    </select>
-    <label for="intercept-types" data-i18n="optionsInterceptTypes"></label>
-    <textarea id="intercept-types" rows="2" maxlength="2000" placeholder=".dlc .nzb" autocomplete="off" spellcheck="false"></textarea>
-    <p class="hint" data-i18n="optionsInterceptTypesHint"></p>
-    <p class="warning" id="intercept-types-notice" role="status" hidden></p>
-    <label class="check"><input id="click-and-load" type="checkbox" /><span data-i18n="optionsClickAndLoad"></span></label>
-    <p class="hint" data-i18n="optionsClickAndLoadHint"></p>
-    <h3 data-i18n="optionsFilesTitle"></h3>
-    <p class="hint" data-i18n="optionsFilesHint"></p>
-    <ul id="file-sites"></ul>
-    <p class="hint" id="file-sites-none" data-i18n="optionsFilesNone" hidden></p>
-    <button id="save" data-i18n="save"></button>
-    <button id="test" class="secondary" data-i18n="testConnection"></button>
-    <div id="status"></div>
+    <main>
+      <h1 data-i18n="optionsTitle"></h1>
+      <label for="server" data-i18n="serverLabel"></label>
+      <input id="server" type="url" placeholder="http://127.0.0.1:8710" autocomplete="off" />
+      <p class="hint" data-i18n="serverHint"></p>
+      <p class="warning" id="server-insecure" role="status" data-i18n="serverInsecure" hidden></p>
+      <label for="token" data-i18n="tokenLabel"></label>
+      <input id="token" type="password" autocomplete="off" />
+      <p class="hint" data-i18n="tokenHint"></p>
+      <label class="check"><input id="intercept" type="checkbox" /><span data-i18n="optionsIntercept"></span></label>
+      <p class="hint" data-i18n="optionsInterceptHint"></p>
+      <label for="intercept-mode" data-i18n="optionsInterceptMode"></label>
+      <select id="intercept-mode">
+        <option value="all" data-i18n="optionsInterceptModeAll"></option>
+        <option value="only" data-i18n="optionsInterceptModeOnly"></option>
+        <option value="except" data-i18n="optionsInterceptModeExcept"></option>
+      </select>
+      <label for="intercept-types" data-i18n="optionsInterceptTypes"></label>
+      <textarea id="intercept-types" rows="2" maxlength="2000" placeholder=".dlc .nzb" autocomplete="off" spellcheck="false"></textarea>
+      <p class="hint" data-i18n="optionsInterceptTypesHint"></p>
+      <p class="warning" id="intercept-types-notice" role="status" hidden></p>
+      <label class="check"><input id="click-and-load" type="checkbox" /><span data-i18n="optionsClickAndLoad"></span></label>
+      <p class="hint" data-i18n="optionsClickAndLoadHint"></p>
+      <h2 data-i18n="optionsFilesTitle"></h2>
+      <p class="hint" data-i18n="optionsFilesHint"></p>
+      <ul id="file-sites"></ul>
+      <p class="hint" id="file-sites-none" data-i18n="optionsFilesNone" hidden></p>
+      <button id="save" data-i18n="save"></button>
+      <button id="test" class="secondary" data-i18n="testConnection"></button>
+      <div id="status" role="status"></div>
+    </main>
     <script type="module" src="options.js"></script>
   </body>
 </html>

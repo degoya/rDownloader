@@ -118,7 +118,10 @@ rDownloader then takes the file in one of two ways, and never fetches it a secon
   `ArrayBuffer` of the page (RD-1470-03); `src/page-files-relay.js` carries that text to the background, which
   applies the same rules as above — token, **Take over browser downloads**, the type list, the
   site's consent read from the browser's own address of the frame — and posts them to
-  `POST /api/v1/capture/file`. Taken, the page's download never starts; refused, not ours or
+  `POST /api/v1/capture/file`. A page could post such a file without the person, so the relay
+  forwards one only while the browser says the person has just used the page
+  (`navigator.userActivation.isActive`, about five seconds after a click), and the background takes
+  at most 20 files per tab and minute (RD-1480-03); anything beyond stays in the browser. Taken, the page's download never starts; refused, not ours or
   unanswered within 30 seconds, the browser gets the file from a fresh address after all.
   Why a file stayed in the browser is written to the extension's console
   (`rDownloader: a page's file stays in the browser (…)`).
@@ -186,6 +189,11 @@ so it takes those requests in the browser instead (RD-1260-10):
 - **From the sites you allowed only**, the same list as under *Files from a site you allowed*
   above: the host grant given there is what lets the browser show the extension a page's request
   to the port at all. A page from any other site is left alone.
+- **On the agent's port only.** Chrome's manifest and its listener name port 9666. Firefox reads no
+  port in a match pattern — one with a port matches nothing there (Mozilla bugs 1362809, 1468162),
+  so until RD-1480-01 no Click'n'Load request ever reached the Firefox build. Its manifest names
+  the two hosts, its listener the agent's paths (`/jdcheck.js`, `/flash…`), and `cnlRoute` checks
+  the port of every request in either browser.
 - **The agent first.** Before it answers a page, the extension asks the port itself (from the
   background, once a minute and whenever a page looks for the agent). If anything answers there
   — the desktop agent, or another Click'n'Load program — the extension answers nothing and hands
@@ -274,6 +282,12 @@ browser would send to the page you are looking at, and posts them to rDownloader
 arrives disabled and has to be approved in the web interface; no cookie value is ever shown in a
 notification or written to a log.
 
+The browser's prompt is the first thing the click does, before the settings are read: Firefox takes
+a permission request only while it handles the click, and the share asked too late until RD-1480-01
+— it ended as refused, without a word. An extension that is not paired is therefore asked for as
+well; it reads nothing, gives the grant back and says that it has to be paired. A declined prompt
+is said in a notification.
+
 Which cookies that is, is a question the browser answers: `cookies.getAll({ url })` returns
 exactly what it would send to that address, **including the ones a parent domain set**. That
 matters, because a login cookie is usually set on `.hoster.com` while you are on
@@ -331,10 +345,10 @@ Requested on installation:
 | Permission | Why |
 | --- | --- |
 | `activeTab` | reading the address of the tab you are on, and only while you use one of the extension's own entries on it — it is what makes "send the current page" work at all |
-| `contextMenus`, `storage`, `notifications` | menu entries, saved settings, success/failure notices |
+| `contextMenus`, `storage`, `notifications` | menu entries, saved settings — kept from the extension's own content scripts where the browser can (`storage.local.setAccessLevel`, Chrome) —, success/failure notices |
 | `clipboardRead` | the popup's "send links from the clipboard" action |
 | `downloads`, `webRequest` | pausing, resuming and *observing* a download so it can be handed over: the method of the request, an allowlist of harmless headers, and the `Content-Disposition`. The one listener that reads a request body is Click'n'Load's, and it sees only requests to `127.0.0.1:9666` and `localhost:9666` |
-| host `http://127.0.0.1:9666/*`, `http://localhost:9666/*` | Click'n'Load without the desktop agent: asking whether something answers the port, and seeing a page's requests to it |
+| host `http://127.0.0.1:9666/*`, `http://localhost:9666/*` | Click'n'Load without the desktop agent: asking whether something answers the port, and seeing a page's requests to it. The Firefox build holds `http://127.0.0.1/*` and `http://localhost/*` instead of this and the 8710 addresses, because Firefox's patterns have no port |
 | `alarms`, `scripting` | polling for waiting widget captchas even after the service worker was put to sleep, and injecting the reader into the hoster's page you chose to open |
 
 Requested only when you use the feature, and revocable at any time in the browser:
@@ -360,7 +374,7 @@ server, so the declaration names what travels:
 - **required** — `browsingActivity` (addresses of links, pages and downloads, with referrer and
   user agent), `websiteActivity` (downloads taken over), `websiteContent` (selected text,
   Click'n'Load's encrypted links, key, package name and archive passwords, NZB, torrent and
-  container files handed over);
+  container files handed over, the answer of a captcha solved on a hoster's page);
 - **optional** — `authenticationInfo`: the login cookies of a session share, a session handover or
   a site's file hand-over. It is asked for in the same click and the same browser prompt as
   `cookies` and the site (`permissions.request({ permissions, origins, data_collection:
@@ -384,14 +398,23 @@ scripts/build-extension.sh --skip-tests  # build only
 scripts/build-extension.sh --test-only   # unit tests only
 ```
 
+Both archives carry the repository's `LICENSE`.
+
 The tests are `node --test extension/test/*.test.mjs` and need nothing but Node — no dependency,
 no bundler, no browser. `extension/package.json` exists only to say `"type": "module"`, so Node
 does not have to guess the module kind from the syntax; without it the run printed a reparse
 warning pointing at a `package.json` outside this repository and failed outright on Node 20.
 
-`extension/test/fakes.mjs` is the one fake browser the suite drives everything through, plus the
-two setup helpers over it and `pageChrome`, the browser as a script injected into a page sees it. It is deliberately not named `*.test.mjs`, so the glob above does not
-try to run it as a test file.
+`extension/test/fake-browser.mjs` is the fake browser with the browsers' own rules (RD-1480-02):
+`fakeBrowser('firefox')` and `fakeBrowser('chrome')` start from the manifest the build writes, take
+a permission request only in the click, match patterns as that browser does (`match-patterns.mjs`),
+feed `webRequest` listeners by filter and host grant, and carry messages and storage as it does
+(`boundary.mjs`: JSON in Chrome). `loadIn` loads a module into one of them, `fake-page.mjs` opens
+the popup, the options or the send-file page in a small DOM. Anything about permissions, patterns,
+messages or wiring is tested there, in both browsers. `fakes.mjs` is the plain call recorder the
+download and captcha flows run over, with their two setup helpers and `pageChrome`, the browser as
+a script injected into a page sees it. None of them is named `*.test.mjs`, so the glob above does
+not try to run it as a test file.
 
 What the suite covers beyond the pure helpers: the background's wiring — that every listener is
 registered while the worker script is first evaluated, which is what Manifest V3 requires, the
@@ -458,11 +481,19 @@ push, so a manifest Mozilla would refuse fails before a tag.
 2. Open the extension options, enter the server URL (e.g. `http://127.0.0.1:8710` or `http://nas.local:8710`)
    and the token, press **Test connection**, then **Save**.
 
-**Which addresses need a permission.** The manifest holds `http://127.0.0.1:8710/*` and
-`http://localhost:8710/*` from the moment the extension is installed, and nothing else. Every
-other address — including a loopback one on a different port, such as `http://127.0.0.1:9000` —
-is asked for when you press **Save**. "Loopback" is not the rule; what the manifest declares is,
-and `permissions.contains` is what answers. Until RD-109-24 the options page skipped the request
+**Which addresses need a permission.** Chrome's manifest holds `http://127.0.0.1:8710/*` and
+`http://localhost:8710/*` from the moment the extension is installed, beside the Click'n'Load port.
+Every other address — including a loopback one on a different port, such as
+`http://127.0.0.1:9000` — is asked for when you press **Save**. Firefox's holds `http://127.0.0.1/*`
+and `http://localhost/*`, every port, because it cannot name one; until RD-1480-01 it named the
+port, which granted nothing, and rDownloader on this computer was reached in Firefox by the server's
+CORS headers alone. "Loopback" is not the rule; what the manifest declares is.
+The request is the first thing the click does, with no `permissions.contains` before it: Firefox
+takes it only while it handles the click, and it answers true without a prompt for what is
+granted already. Chrome is asked for the address with its port, Firefox for the host, because a
+match pattern with a port matches nothing there. The Firefox build names its own content security
+policy: the default one turns every `http://` request of an add-on into https, and a service on a
+trusted LAN often speaks plain http. Until RD-109-24 the options page skipped the request
 for any loopback address regardless of port, so such a service had no host permission at all and
 worked only because rDownloader answers `Access-Control-Allow-Origin: *` — an undocumented
 dependency on a server header, which is now gone. An address the browser cannot parse, such as

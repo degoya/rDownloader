@@ -1,5 +1,7 @@
 //! MCP tools operating on the download list and packages.
 
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde::Serialize;
 
@@ -35,7 +37,7 @@ struct AddDownloadsResult {
 #[tool_router(router = downloads_router, vis = "pub(crate)")]
 impl RdMcpServer {
     #[tool(
-        description = "Add direct HTTP(S) or magnet downloads to the queue. With start_paused they are created paused -- the scheduler never starts them -- and wait for control_downloads resume. For hoster/one-click links (rapidgator, keep2share, ...) use collect_links + enqueue_collector instead, so accounts and link checks apply. An address an agent hands in never reaches this machine or the local network: a literal loopback, private or link-local address fails with mirror.internal_address, and a name that resolves there fails the same way when the transfer starts."
+        description = "Add direct HTTP(S) or magnet downloads to the queue. With start_paused they are created paused -- the scheduler never starts them -- and wait for control_downloads resume. For hoster/one-click links (rapidgator, keep2share, ...) use collect_links + enqueue_collector instead, so accounts and link checks apply. An address an agent hands in never reaches this machine or the local network: a literal loopback, private or link-local address fails with mirror.internal_address, and a name that resolves there fails the same way when the transfer starts. Send an idempotency_key to be able to repeat the call after a lost answer: for an hour the same key with the same arguments answers the downloads it created instead of creating them again, and with other arguments it fails with request.idempotency_key_reused."
     )]
     pub async fn add_downloads(
         &self,
@@ -52,10 +54,20 @@ impl RdMcpServer {
             Ok(id) => id,
             Err(error) => return Ok(api_error(error)),
         };
+        let caller = crate::audit::AuditContext::current().actor;
+        let key = match params
+            .idempotency_key
+            .as_deref()
+            .map(|key| rd_api_core::idempotency::IdempotencyKey::new(&caller, key))
+            .transpose()
+        {
+            Ok(key) => key,
+            Err(error) => return Ok(api_error(error)),
+        };
         let start_paused = params.start_paused.unwrap_or(false);
         let mut created = Vec::new();
         let mut failed = Vec::new();
-        for url in params.urls {
+        for (number, url) in params.urls.into_iter().enumerate() {
             let request = CreateDownloadRequest {
                 url: url.clone(),
                 package_name: params.package_name.clone(),
@@ -68,8 +80,16 @@ impl RdMcpServer {
                 // a moment to start the file first (API-09).
                 paused: start_paused,
             };
-            match crate::download_handlers::create_download_as(&self.state, request, Some(false))
-                .await
+            // Each address has its own part of the key, so a call that got halfway is completed
+            // by its repeat.
+            let part = key.as_ref().map(|key| key.part(number));
+            match crate::download_handlers::create_download_once(
+                &self.state,
+                part,
+                request,
+                Some(false),
+            )
+            .await
             {
                 Ok(file) => created.push(AddedDownload {
                     url,
@@ -149,19 +169,11 @@ impl RdMcpServer {
         &self,
         Parameters(params): Parameters<GetDownloadParams>,
     ) -> McpToolResult {
-        let id = match parse_id::<rd_core::DownloadId>(&params.id) {
-            Ok(id) => id,
-            Err(error) => return Ok(api_error(error)),
-        };
-        let result = async {
-            self.state
-                .database
-                .get_download(id)
-                .await?
-                .ok_or_else(crate::error_codes::download_not_found)
-        }
-        .await;
-        respond(result)
+        respond(
+            rd_api_queue::single_reads::get_download(State(self.state.clone()), Path(params.id))
+                .await
+                .map(|Json(file)| file),
+        )
     }
 
     #[tool(
@@ -178,10 +190,10 @@ impl RdMcpServer {
         respond(
             crate::download_sources::list_download_sources(
                 axum::extract::State(self.state.clone()),
-                axum::extract::Path(id),
+                Path(id),
             )
             .await
-            .map(|axum::Json(sources)| sources),
+            .map(|Json(sources)| sources),
         )
     }
 

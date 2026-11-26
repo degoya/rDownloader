@@ -105,6 +105,11 @@ key server named.close de=Schließen en=Close es=Cerrar fr=Fermer it=Chiudi
 expect_status "an in-progress language named starts its catalogue" 0
 expect "it" "Chiudi" "$(value it named close)"
 
+key server named.typed de='Fehler: {reason}' en='Error: {reason}' es='Error: {reason}' fr="L'erreur: {reason} ; voir « http://a.example/b: » !"
+expect_status "French typed with a keyboard is accepted" 0
+expect "and written with French spaces and apostrophe" $'L\u2019erreur\u00a0: {reason}\u202f; voir «\u00a0http://a.example/b:\u00a0»\u202f!' "$(value fr named typed)"
+expect "the other languages as typed" "Fehler: {reason}" "$(value de named typed)"
+
 key server named.missing de=a en=b es=c
 expect_status "a required language left out is refused" 2
 expect_output "naming it" "missing: fr"

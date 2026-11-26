@@ -179,7 +179,7 @@ async function remove(root: StorageRoot): Promise<void> {
           class="mb-4"
         />
         <div v-if="error && !pathError" ref="refusalElement" class="mb-3 scroll-mt-4">
-          <UAlert color="error" :description="error" />
+          <UAlert color="error" role="alert" :description="error" />
         </div>
         <!-- Between the two on purpose: the warning is a standing condition, the success message
              below it a receipt for the last save. Both can be on screen at once. -->

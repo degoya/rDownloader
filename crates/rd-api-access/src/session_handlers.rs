@@ -6,11 +6,8 @@
 //! caller's own session — an action that also signs you out leaves you unable to check whether
 //! it worked.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::HeaderMap,
-};
+use axum::{extract::State, http::HeaderMap};
+use rd_api_core::extract::{Json, Path};
 
 use crate::{ApiError, AppState, dto::MessageResponse};
 

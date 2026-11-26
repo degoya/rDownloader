@@ -11,10 +11,8 @@
 //! an automation's version history (RD-1280-01), and asks the person first as every tool that
 //! empties a store does.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path, Query};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

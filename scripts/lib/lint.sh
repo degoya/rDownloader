@@ -168,7 +168,8 @@ rd_check_gate() {
 # Files a Rust source reads as data only (include_str! of text parsed at run time): their content
 # cannot change what clippy says, so the bridge passes them over. The licence list, which
 # integrate.sh writes after the gate.
-RD_LINT_NEUTRAL_FILES=(crates/rd-api/licenses/third-party.json)
+RD_LINT_NEUTRAL_FILES=(crates/rd-api/licenses/third-party.json
+    crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt)
 
 # What --full lints for tree $2 of checkout $1, the working directory at that checkout: the
 # recorded clippy green it builds on on the first line, then one `cargo clippy` selection per line

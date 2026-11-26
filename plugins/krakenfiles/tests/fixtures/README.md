@@ -15,6 +15,11 @@ file is the public example the feasibility measurement used, `DP3nGKJNsX`
 | `download-captcha-invalid-2026-09-21.json` | `POST /download/DP3nGKJNsX` with the page's `token`, header `hash`, no Turnstile answer | 500 `application/json`; the same answer with `cf-turnstile-response=invalid` |
 | `download-ok-synthetic.json` | — | **Synthetic.** The successful answer needs a solved Turnstile and was not measured; the shape (`status: "ok"`, `url`) is the expected one, the host is a guess inside the manifest's `download_domains`. |
 
+The two pages are shortened to the parts the page reader looks at (RD-1480-23, 45 kB and 18 kB
+before): the head, the script that names the form, the file's card with name, hash and size, the
+download form, the headings and notices a wrong reading would pick up. What is kept is verbatim; a
+comment marks every gap. The sizes in the table are the measured ones.
+
 Sanitised: the form's `token` value, the ad hash, the Cloudflare challenge parameters and
 obfuscated e-mail, the analytics id, the ad-network keys, the site-verification metas, and
 the embed page's ping and play tokens are replaced by placeholders. The Turnstile and

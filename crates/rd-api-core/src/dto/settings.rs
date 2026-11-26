@@ -599,6 +599,11 @@ pub struct SettingsResponse {
     /// now" works either way.
     #[serde(default = "default_true")]
     pub update_check_enabled: bool,
+    /// The language the built-in notification texts are written in (RD-1480-11): push, mail,
+    /// Telegram and the webhook's `title` and `body`. English by default; a rule's own wording
+    /// is sent as it was written.
+    #[serde(default)]
+    pub notification_language: rd_notify::NotificationLanguage,
     /// Which releases the update check offers: `stable`, or `beta` for the pre-releases too.
     /// Unset, it is `beta` on a pre-release build and `stable` on every other.
     #[serde(default = "default_update_channel")]

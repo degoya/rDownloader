@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import nav from '@/locales/en/nav.json'
+import { axeViolations } from '@/test/axe'
 import { mountComponent } from '@/test/mount'
 
 vi.mock('@/components/stats/StatsTab.vue', () => ({ default: { name: 'StatsTab', template: '<p data-testid="stats-tab">statistics</p>' } }))
@@ -68,5 +69,11 @@ describe('StatsHistoryView', () => {
     router.back()
     await vi.waitFor(() => expect(router.currentRoute.value.query.tab).toBe('history'))
     expect(await screen.findByTestId('history-tab')).toBeTruthy()
+  })
+
+  it('renders without an axe violation', async () => {
+    await mountAt('/stats')
+    await screen.findByTestId('stats-tab')
+    expect(await axeViolations(document.body)).toBe('')
   })
 })

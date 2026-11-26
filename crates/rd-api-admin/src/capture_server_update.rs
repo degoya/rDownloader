@@ -14,8 +14,9 @@
 //! the tray (`restart_service::begin`, the button's restart with the agent's token as its actor):
 //! the tray's second line says a restart is pending, and "Restart server" appears.
 
-use axum::{Extension, Json, extract::State, http::StatusCode};
+use axum::{Extension, extract::State, http::StatusCode};
 use rd_api_core::auth::Granted;
+use rd_api_core::extract::Json;
 use serde::Serialize;
 use utoipa::ToSchema;
 

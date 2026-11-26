@@ -1,5 +1,9 @@
 //! Assembles the OpenAPI document from the per-area operation sets.
 
+mod access;
+mod events;
+mod operations;
+mod refusals;
 mod schemas;
 mod schemas_capture;
 mod schemas_diagnostics;
@@ -10,17 +14,50 @@ use utoipa::OpenApi;
 
 use crate::routes;
 
-/// Document metadata and tags; operations and schemas are merged in.
+/// Document metadata and tags; operations and schemas are merged in. Every tag an operation
+/// carries has its description here (`completeness_tests`).
 #[derive(OpenApi)]
 #[openapi(
+    components(schemas(rd_core::EventEnvelope, rd_core::EventKind)),
     tags(
-        (name = "system", description = "Service health and settings"),
-        (name = "downloads", description = "Persistent download queue"),
+        (name = "api-tokens", description = "API tokens: issue, re-scope, limit and revoke"),
+        (name = "audit", description = "The audit log: who did what, from where"),
+        (name = "auth", description = "Signing in: first setup, password, passkeys and the identity provider"),
+        (name = "automations", description = "Rules that act on events, and their runs"),
+        (name = "bandwidth", description = "Bandwidth profiles, the weekly schedule and the limit in force"),
+        (name = "captcha", description = "Captchas waiting to be solved"),
+        (name = "capture", description = "The desktop agent and the browser extension: pairing, settings, and what they call with a capture token"),
         (name = "collector", description = "LinkGrabber intake"),
-        (name = "diagnostics", description = "Structured log store and diagnostic bundle")
+        (name = "configuration", description = "Accounts, categories, folders, proxies, stored sign-ins, site rules and their import and export"),
+        (name = "diagnostics", description = "Structured log store and diagnostic bundle"),
+        (name = "downloads", description = "Persistent download queue"),
+        (name = "history", description = "What was downloaded, after it left the queue"),
+        (name = "indexers", description = "Newznab and Torznab indexers: configuration and search"),
+        (name = "notifications", description = "Notification targets, rules, templates and deliveries"),
+        (name = "plugins", description = "Installed plugins, their keys, repositories and updates"),
+        (name = "security", description = "The password, second factors, sessions and the identity provider's settings"),
+        (name = "stats", description = "Persistent transfer statistics"),
+        (name = "streams", description = "Stream channels, their schedules and recordings"),
+        (name = "subscriptions", description = "Followed channels, feeds and indexers, and what they brought"),
+        (name = "system", description = "Service health, settings, backups, storage, tools, updates and restarts"),
+        (name = "usenet", description = "NNTP servers and NZB jobs")
     )
 )]
 struct Base;
+
+/// `info.description`: what a reader needs before the first call.
+const ABOUT: &str = "The REST API of rDownloader, a local-first download manager. The web \
+interface uses nothing else.\n\n\
+**Credentials.** An API token in `Authorization: Bearer`, or the session cookie of the web \
+interface; every operation names the permission area it costs in `security` and \
+`x-required-scope`. One that names a `capture:` area takes a capture token and nothing else, one \
+with an empty `security` no credential at all.\n\n\
+**Errors.** Every refusal is an `ErrorBody`: a stable `code` to act on, an English `error` to \
+show, and the `params` the code's sentence names. A `429` that knows its wait says it in \
+`Retry-After` as well. An address no operation has answers `404` with `web.route_not_found`.\n\n\
+**Paging.** The growing lists take `limit` and `offset` and then name the whole list's length in \
+`X-Total-Count`; without them the whole list comes back.\n\n\
+**Live changes.** `GET /api/v1/events` announces what changed as Server-Sent Events.";
 
 /// The complete document served at `/api/v1/openapi.json`.
 pub(crate) fn document() -> utoipa::openapi::OpenApi {
@@ -49,6 +86,10 @@ pub(crate) fn document() -> utoipa::openapi::OpenApi {
     doc.merge(routes::lifecycle::Doc::openapi());
     doc.merge(routes::audit::Doc::openapi());
     doc.merge(routes::history::Doc::openapi());
+    doc.info.description = Some(ABOUT.to_owned());
+    access::describe(&mut doc);
+    refusals::describe(&mut doc);
+    events::describe(&mut doc);
     describe_bare_responses(&mut doc);
     doc
 }
@@ -86,6 +127,9 @@ fn describe_bare_responses(doc: &mut utoipa::openapi::OpenApi) {
         }
     }
 }
+
+#[cfg(test)]
+mod completeness_tests;
 
 #[cfg(test)]
 mod secret_boundary_tests {

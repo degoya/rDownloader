@@ -1,0 +1,2 @@
+# Advisories scripts/advisories.sh does not report: one `<id> <reason>` a line, the id as OSV names
+# it or one of its aliases. A line that matches nothing any more fails the run; remove it then.

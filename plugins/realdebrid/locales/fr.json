@@ -1,30 +1,30 @@
 {
   "name": "Real-Debrid",
-  "description": "Résout les liens d'autres hébergeurs via un compte Real-Debrid.",
+  "description": "Résout les liens d’autres hébergeurs via un compte Real-Debrid.",
   "account": {
-    "secret_label": "Jeton d'API Real-Debrid",
-    "secret_hint": "Choisissez comment ce compte se connecte. « Se connecter avec un code » est la voie simple : enregistrez le compte, appuyez sur « Connecter » et confirmez le code affiché sur real-debrid.com/device — ni nom d'utilisateur ni jeton à copier, et rDownloader renouvelle la connexion lui-même. « Jeton d'API » utilise à la place le jeton privé de real-debrid.com/apitoken.",
-    "mode_label_api_key": "Jeton d'API",
-    "secret_label_api_key": "Jeton d'API Real-Debrid",
-    "secret_hint_api_key": "Ouvrez real-debrid.com/apitoken (connecté), copiez le jeton d'API privé et saisissez-le ici. Aucun nom d'utilisateur n'est nécessaire. Si vous renouvelez le jeton là-bas, saisissez le nouveau ici.",
-    "secret_hint_oauth": "Rien à saisir ici. Enregistrez le compte et appuyez sur « Connecter » : rDownloader affiche une adresse et un code, vous confirmez le code sur real-debrid.com/device, et le compte reste connecté ensuite."
+    "secret_label": "Jeton d’API Real-Debrid",
+    "secret_hint": "Choisissez comment ce compte se connecte. « Se connecter avec un code » est la voie simple : enregistrez le compte, appuyez sur « Connecter » et confirmez le code affiché sur real-debrid.com/device — ni nom d’utilisateur ni jeton à copier, et rDownloader renouvelle la connexion lui-même. « Jeton d’API » utilise à la place le jeton privé de real-debrid.com/apitoken.",
+    "mode_label_api_key": "Jeton d’API",
+    "secret_label_api_key": "Jeton d’API Real-Debrid",
+    "secret_hint_api_key": "Ouvrez real-debrid.com/apitoken (connecté), copiez le jeton d’API privé et saisissez-le ici. Aucun nom d’utilisateur n’est nécessaire. Si vous renouvelez le jeton là-bas, saisissez le nouveau ici.",
+    "secret_hint_oauth": "Rien à saisir ici. Enregistrez le compte et appuyez sur « Connecter » : rDownloader affiche une adresse et un code, vous confirmez le code sur real-debrid.com/device, et le compte reste connecté ensuite."
   },
   "codes": {
     "realdebrid.account_missing": "Compte Real-Debrid manquant",
-    "realdebrid.api_error": "Erreur {api_code} de l'API Real-Debrid",
-    "realdebrid.auth_invalid": "La connexion ou le jeton d'API Real-Debrid n'est plus valide. Reconnectez le compte ou saisissez le jeton actuel de real-debrid.com/apitoken.",
+    "realdebrid.api_error": "Erreur {api_code} de l’API Real-Debrid",
+    "realdebrid.auth_invalid": "La connexion ou le jeton d’API Real-Debrid n’est plus valide. Reconnectez le compte ou saisissez le jeton actuel de real-debrid.com/apitoken.",
     "realdebrid.file_offline": "Real-Debrid signale ce fichier comme indisponible",
     "realdebrid.host_unsupported": "Real-Debrid ne prend pas en charge cet hébergeur pour ce compte",
     "realdebrid.http_error": "Statut HTTP {status} de Real-Debrid",
     "realdebrid.invalid_response": "Réponse Real-Debrid non valide",
-    "realdebrid.invalid_url": "URL du fournisseur non valide : {error}",
-    "realdebrid.ip_not_allowed": "Real-Debrid n'autorise pas ce compte depuis cette adresse",
-    "realdebrid.limit_reached": "Real-Debrid signale la limite de trafic ou d'hébergeur comme atteinte",
-    "realdebrid.no_download_url": "Real-Debrid n'a renvoyé aucun lien de téléchargement",
-    "realdebrid.rate_limited": "La limite de requêtes de l'API Real-Debrid est atteinte. Attente en cours.",
-    "realdebrid.server_busy": "Real-Debrid ou l'hébergeur derrière lui est temporairement indisponible",
+    "realdebrid.invalid_url": "URL du fournisseur non valide : {error}",
+    "realdebrid.ip_not_allowed": "Real-Debrid n’autorise pas ce compte depuis cette adresse",
+    "realdebrid.limit_reached": "Real-Debrid signale la limite de trafic ou d’hébergeur comme atteinte",
+    "realdebrid.no_download_url": "Real-Debrid n’a renvoyé aucun lien de téléchargement",
+    "realdebrid.rate_limited": "La limite de requêtes de l’API Real-Debrid est atteinte. Attente en cours.",
+    "realdebrid.server_busy": "Real-Debrid ou l’hébergeur derrière lui est temporairement indisponible",
     "realdebrid.server_error": "Erreur du serveur Real-Debrid",
-    "realdebrid.token_missing": "Ce compte Real-Debrid n'est pas encore connecté ou n'a pas de jeton d'API saisi",
+    "realdebrid.token_missing": "Ce compte Real-Debrid n’est pas encore connecté ou n’a pas de jeton d’API saisi",
     "realdebrid.two_factor": "Real-Debrid a demandé une authentification à deux facteurs"
   }
 }

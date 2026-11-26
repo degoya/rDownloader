@@ -67,7 +67,7 @@
     "wrong_type": "Nur .torrent- und .nzb-Dateien lassen sich übergeben",
     "unreadable": "Die Datei ließ sich nicht lesen",
     "summary": "{done} von {total} Dateien übergeben.",
-    "summary_failed": "{failed} von {total} Dateien konnten nicht übergeben werden; jede nennt ihren Grund. Die übrigen liefen weiter.",
+    "summary_failed": "{failed} von {total} Dateien konnte nicht übergeben werden; sie nennt ihren Grund. Die übrigen liefen weiter. | {failed} von {total} Dateien konnten nicht übergeben werden; jede nennt ihren Grund. Die übrigen liefen weiter.",
     "states": {
       "waiting": "Wartet",
       "sending": "Wird übergeben",

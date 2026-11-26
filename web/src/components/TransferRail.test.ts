@@ -106,10 +106,10 @@ describe('TransferRail parallel downloads', () => {
   beforeEach(() => {
     toastAdd.mockReset()
     vi.mocked(api.GET).mockReset()
-    vi.mocked(api.PUT).mockReset()
+    vi.mocked(api.PATCH).mockReset()
     vi.mocked(api.GET).mockImplementation((async (path: string) =>
       path === '/api/v1/settings' ? { data: { ...stored } } : { data: undefined }) as never)
-    vi.mocked(api.PUT).mockImplementation((async (_path: string, init: { body: unknown }) => ({ data: init.body })) as never)
+    vi.mocked(api.PATCH).mockImplementation((async (_path: string, init: { body: object }) => ({ data: { ...stored, ...init.body } })) as never)
   })
 
   function field(): HTMLInputElement {
@@ -128,15 +128,15 @@ describe('TransferRail parallel downloads', () => {
     expect(screen.queryByRole('button', { name: common.actions.apply })).toBeNull()
   })
 
-  it('saves a changed number into the whole stored document', async () => {
+  it('saves a changed number, and only that', async () => {
     await mounted()
     await fireEvent.update(field(), '1')
     await fireEvent.click(screen.getByRole('button', { name: common.actions.apply }))
 
-    await waitFor(() => expect(api.PUT).toHaveBeenCalledTimes(1))
-    const [path, init] = vi.mocked(api.PUT).mock.calls[0] as unknown as [string, { body: typeof stored }]
+    await waitFor(() => expect(api.PATCH).toHaveBeenCalledTimes(1))
+    const [path, init] = vi.mocked(api.PATCH).mock.calls[0] as unknown as [string, { body: typeof stored }]
     expect(path).toBe('/api/v1/settings')
-    expect(init.body).toEqual({ ...stored, max_active_files: 1 })
+    expect(init.body).toEqual({ max_active_files: 1 })
     await waitFor(() => expect(screen.queryByRole('button', { name: common.actions.apply })).toBeNull())
     expect(toastAdd).not.toHaveBeenCalled()
   })
@@ -147,13 +147,13 @@ describe('TransferRail parallel downloads', () => {
     await fireEvent.keyUp(field(), { key: 'Enter' })
 
     await waitFor(() => expect(toastAdd).toHaveBeenCalledTimes(1))
-    expect(api.PUT).not.toHaveBeenCalled()
+    expect(api.PATCH).not.toHaveBeenCalled()
     expect(toastAdd.mock.calls[0]?.[0]).toMatchObject({ title: downloads.rail.parallel_failed, description: 'Between 1 and 32 downloads may run at once.', color: 'error' })
     expect(field().value).toBe('3')
   })
 
   it('raises the refusal of the service as a toast and goes back to the stored number', async () => {
-    vi.mocked(api.PUT).mockImplementation((async () => ({ data: undefined, error: { code: 'settings.invalid' } })) as never)
+    vi.mocked(api.PATCH).mockImplementation((async () => ({ data: undefined, error: { code: 'settings.invalid' } })) as never)
     vi.mocked(responseError).mockReturnValue('The settings were refused')
     await mounted()
     await fireEvent.update(field(), '5')

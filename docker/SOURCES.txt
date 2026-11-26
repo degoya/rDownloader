@@ -1,0 +1,23 @@
+SOURCE CODE OF WHAT THIS IMAGE CONTAINS
+
+rDownloader
+  GPL-3.0-or-later; the text is LICENSE beside this file.
+  https://github.com/degoya/rDownloader, the tag of the version `rdownloader --version` names
+  (v1.48.0 for 1.48.0). The same tag holds the plugins in /usr/local/lib/rdownloader/plugins.
+  What both contain of others is in THIRD-PARTY-NOTICES.txt beside this file, each component with
+  the address its source code is offered at.
+
+Debian packages (7-Zip and its RAR codec, FFmpeg, par2cmdline, gosu, curl, Python and the
+libraries they need)
+  Licences: /usr/share/doc/<package>/copyright.
+  Installed versions: dpkg-query --show --showformat '${source:Package} ${source:Version}\n'
+  Source code of exactly these versions: https://snapshot.debian.org/package/<source package>/
+  or, while they are current, https://deb.debian.org/debian with `apt-get source`.
+
+Python packages (yt-dlp, Streamlink, gallery-dl, Apprise and what they need)
+  Licences: /usr/share/doc/rdownloader/python/<package>/.
+  Installed versions: /opt/venv/bin/pip list
+  Source code of exactly these versions: the source distribution (sdist) of that version at
+  https://pypi.org/project/<package>/<version>/#files
+
+Nothing of this is modified. This file has not been reviewed by a lawyer.

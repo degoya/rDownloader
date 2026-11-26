@@ -2,7 +2,7 @@
   "header": {
     "eyebrow": "Reconnaissance des pages",
     "title": "Règles de sites",
-    "description": "Quelles pages de sorties rDownloader reconnaît, et par quelle règle. Le programme n’apporte que quelques règles à lui, désactivées ; importez d’autres règles depuis un export ou écrivez les vôtres. Chaque règle ici peut être activée, modifiée, dupliquée, exportée et supprimée."
+    "description": "Quelles pages de sorties rDownloader reconnaît, et par quelle règle. Le programme n’apporte que quelques règles à lui, désactivées ; importez d’autres règles depuis un export ou écrivez les vôtres. Chaque règle ici peut être activée, modifiée, dupliquée, exportée et supprimée."
   },
   "groups": {
     "board": "Forums",
@@ -25,8 +25,8 @@
   },
   "list": {
     "title": "Règles",
-    "empty": "Aucune règle n’est installée : aucune page de sorties n’est donc reconnue par règle. Restaurez les règles fournies avec rDownloader, importez un export de règles ou écrivez votre propre règle.",
-    "group_off": "Le groupe est désactivé : cette règle n’est donc pas consultée.",
+    "empty": "Aucune règle n’est installée : aucune page de sorties n’est donc reconnue par règle. Restaurez les règles fournies avec rDownloader, importez un export de règles ou écrivez votre propre règle.",
+    "group_off": "Le groupe est désactivé : cette règle n’est donc pas consultée.",
     "more": "Plus d’actions"
   },
   "editor": {
@@ -38,11 +38,11 @@
     "id_hint": "Minuscules, chiffres et tirets. Non modifiable ensuite, et jamais celui d’une autre règle.",
     "name": "Nom",
     "group": "Groupe",
-    "group_hint": "Ce par quoi la liste regroupe et ce que couvre l’interrupteur de groupe. Minuscules, chiffres et tirets : « Protection liens » devient protection-liens.",
+    "group_hint": "Ce par quoi la liste regroupe et ce que couvre l’interrupteur de groupe. Minuscules, chiffres et tirets : « Protection liens » devient protection-liens.",
     "version": "Révision",
     "version_hint": "Augmentez-la quand vous modifiez la règle.",
     "hosts": "Hôtes",
-    "hosts_hint": "Un par ligne. `*.example.org` couvre tout ce qui est en dessous ; la première entrée doit être un hôte concret.",
+    "hosts_hint": "Un par ligne. `*.example.org` couvre tout ce qui est en dessous ; la première entrée doit être un hôte concret.",
     "paths": "Motifs de chemin",
     "paths_hint": "Une expression régulière par ligne, sur le chemin et sa requête. Vide revendique tout chemin.",
     "dead": "Anciens hôtes",
@@ -68,7 +68,7 @@
   },
   "steps": {
     "heading": "Étapes",
-    "description": "Elles s’exécutent dans cet ordre. `fetch` écrit la page dans `page` ; les liens sont ce qui finit dans `links`.",
+    "description": "Elles s’exécutent dans cet ordre. `fetch` écrit la page dans `page` ; les liens sont ce qui finit dans `links`.",
     "add": "Ajouter une étape",
     "remove": "Supprimer l’étape",
     "up": "Monter l’étape",
@@ -114,7 +114,7 @@
     "description": "Indiquez une adresse réelle revendiquée par cette règle. L’essai n’enregistre rien.",
     "address": "Adresse à essayer",
     "run": "Lancer la règle",
-    "crawled": "Parcourue : {address}",
+    "crawled": "Parcourue : {address}",
     "package": "Nom du paquet",
     "package_none": "La règle n’a trouvé aucun nom de paquet.",
     "pages": "aucune requête | {count} requête | {count} requêtes",
@@ -126,7 +126,7 @@
       "claimed": "Un résolveur ou un backend en répond",
       "confirmed": "Confirmé comme fichier",
       "not-a-file": "Répond par une page, pas par un fichier",
-      "unconfirmed": "Aucune réponse ; conservé quand même"
+      "unconfirmed": "Aucune réponse ; conservé quand même"
     },
     "groups": "aucun paquet | {count} paquet | {count} paquets",
     "group_links": "aucun lien | {count} lien | {count} liens",
@@ -134,26 +134,26 @@
     "mirror": "Miroir {set}",
     "mirror_hint": "Les liens d’un paquet portant le même numéro de miroir sont des copies d’un fichier.",
     "entries": "aucune entrée à choisir | {count} entrée à choisir | {count} entrées à choisir",
-    "entries_hint": "L’essai ne fait que lister ; liens et captchas viennent quand quelqu’un choisit dans le LinkGrabber.",
-    "address_hint": "Vide : l'adresse de contrôle de la règle."
+    "entries_hint": "L’essai ne fait que lister ; liens et captchas viennent quand quelqu’un choisit dans le LinkGrabber.",
+    "address_hint": "Vide : l’adresse de contrôle de la règle."
   },
   "transfer": {
     "export_empty": "Il n’y a aucune règle à exporter.",
     "import_unreadable": "Ce fichier n’est pas un export de règles.",
-    "imported": "Importées : {stored} nouvelles, {replaced} remplacées, sur {total} règles du fichier.",
+    "imported": "Importées : {stored} nouvelles, {replaced} remplacées, sur {total} règles du fichier.",
     "refused_one": "{name} a été refusée",
-    "export_selected": "Exporter {count} règles",
+    "export_selected": "Exporter {count} règle | Exporter {count} règles",
     "export_hint": "Écrit les règles cochées dans un fichier, ou toutes si aucune n’est cochée, chacune avec son interrupteur. Une autre installation importe le fichier sans retouche.",
     "select": "Sélectionner {name} pour l’export"
   },
   "delete": {
-    "title": "Supprimer cette règle ?",
+    "title": "Supprimer cette règle ?",
     "description": "{name} sera supprimée de cette installation. Exportez-la d’abord si vous souhaitez la conserver."
   },
   "duplicated": "{name} a été créée, désactivée, et ouverte pour modification.",
   "packages": {
     "heading": "Plusieurs paquets",
-    "description": "Pour une page qui liste plusieurs sorties. Les étapes ci-dessus laissent une entrée par sortie dans une variable ; les étapes ici font de chaque entrée un paquet à part.",
+    "description": "Pour une page qui liste plusieurs sorties. Les étapes ci-dessus laissent une entrée par sortie dans une variable ; les étapes ici font de chaque entrée un paquet à part.",
     "enabled": "Un paquet par entrée",
     "from": "Entrées de la variable",
     "from_hint": "La liste écrite par les étapes ci-dessus, une entrée par paquet.",
@@ -167,7 +167,7 @@
     "mirrors_by_host": "Même position chez chaque hébergeur",
     "mirrors_all": "Chaque lien est le même fichier",
     "pick": "Choisir d’abord, puis récupérer",
-    "pick_hint": "Un attribut par ligne sous la forme nom=motif, par exemple season, episode, resolution, language, hoster. La règle ne fait alors que lister les entrées ; ce que quelqu’un choisit est récupéré ensuite, chaque entrée avec son propre captcha."
+    "pick_hint": "Un attribut par ligne sous la forme nom=motif, par exemple season, episode, resolution, language, hoster. La règle ne fait alors que lister les entrées ; ce que quelqu’un choisit est récupéré ensuite, chaque entrée avec son propre captcha."
   },
   "origin": {
     "label": "Origine",
@@ -201,29 +201,29 @@
   },
   "clear": {
     "button": "Tout supprimer",
-    "title": "Supprimer toutes les règles de site ?",
-    "description": "Les {count} règles sont supprimées de cette installation avec leurs résultats de vérification. Exportez-les d’abord si vous souhaitez les conserver. Les interrupteurs de groupe restent.",
+    "title": "Supprimer toutes les règles de site ?",
+    "description": "{count} règle est supprimée de cette installation avec ses résultats de vérification. Exportez-la d’abord si vous souhaitez la conserver. Les interrupteurs de groupe restent. | Les {count} règles sont supprimées de cette installation avec leurs résultats de vérification. Exportez-les d’abord si vous souhaitez les conserver. Les interrupteurs de groupe restent.",
     "confirm": "Tout supprimer",
-    "done": "{count} règles supprimées."
+    "done": "{count} règle supprimée. | {count} règles supprimées."
   },
   "examples": {
     "restore": "Restaurer les règles fournies",
-    "restored": "{count} règles fournies restaurées, désactivées.",
+    "restored": "{count} règle fournie restaurée, désactivée. | {count} règles fournies restaurées, désactivées.",
     "none_missing": "Toutes les règles fournies sont déjà présentes."
   },
   "bundled": {
-    "debian-cd": "Une règle à une étape. Elle prend en charge les dossiers d'images de cdimage.debian.org, récupère la liste du dossier (fetch), prend chaque lien qui se termine par .iso (regex avec all: true, into links) et nomme le paquet d'après le premier installateur réseau trouvé (package from regex). Le site liste chaque image deux fois ; les liens en double n'en font plus qu'un.",
-    "ubuntu-releases": "Une règle à une étape comme celle de Debian, pour releases.ubuntu.com : un dossier de version (24.04/, noble/ ...) devient un paquet de ses images .iso. Le nom du paquet est lu dans le titre de la page, coupé avant le nom de code entre parenthèses.",
-    "blender-releases": "Une règle à deux étapes (groups avec pick). Le dossier d'une série de Blender liste chaque build pour chaque plateforme, donc les étapes propres de la règle ne collectent que les noms de fichiers (regex avec all: true, into files). groups.from fait de chaque fichier une entrée, et pick lit sa version, sa plateforme et son format, si bien que le LinkGrabber liste les builds à choisir avant que quoi que ce soit ne soit téléchargé. Seules les entrées choisies passent par les étapes du groupe : l'entrée elle-même est le lien, joint à l'adresse du dossier, et son nom sans l'extension est le nom du paquet.",
-    "blender-open-movies": "Une règle à deux étapes pour les dossiers des films libres de la Blender Foundation (Big Buck Bunny, Tears of Steel, Sintel). Chaque fichier vidéo du dossier est une entrée ; pick lit sa résolution et son format, et vous choisissez ainsi dans le LinkGrabber la version que vous voulez. Le lien de l'entrée choisie est le fichier lui-même ; le paquet porte le nom du fichier sans .zip.",
-    "fedora-releases": "Une règle à une étape pour les dossiers d'images d'une version de Fedora sur le miroir de kernel.org (dl.fedoraproject.org répond lui-même aux requêtes automatisées par un contrôle anti-robot). Elle récupère la liste du dossier, prend chaque lien qui se termine par .iso (regex avec all: true, into links), si bien que les fichiers .manifest et CHECKSUM restent dehors, et nomme le paquet d'après le fichier CHECKSUM : édition, version et architecture.",
-    "archlinux-iso": "Une règle à une étape pour les dossiers ISO d'Arch Linux sur son propre miroir géographique, latest/ ou une version datée. Le dossier liste l'image deux fois, une fois datée et une fois sous le nom archlinux-x86_64.iso, donc le motif ne prend que le nom daté (regex avec all: true, into links) et le paquet est nommé d'après lui ; les signatures, les torrents et les archives bootstrap restent dehors.",
-    "linuxmint-releases": "Une règle à une étape comme celle de Debian, pour les dossiers de versions sur pub.linuxmint.io : un dossier de version (22.3/ ...) devient un paquet de ses images .iso, Cinnamon, MATE et Xfce, et les fichiers de sommes de contrôle restent dehors. Le paquet porte le nom de la première image, coupé après la version.",
-    "libreoffice-stable": "Une règle à deux étapes (groups avec pick) pour un dossier de plateforme d'une version stable de LibreOffice (win/x86_64/, deb/x86_64/, mac/aarch64/ ...). Le dossier contient l'installateur à côté d'un pack d'aide ou de langue par langue et du SDK, donc les étapes de la règle ne collectent que les noms de fichiers (regex avec all: true, into files) et laissent de côté les signatures et les listes de miroirs. pick lit la version, la partie (helppack, langpack, sdk ; aucune pour l'installateur), la langue et le format, et vous choisissez ainsi dans le LinkGrabber ; l'entrée choisie est le lien, et son nom sans l'extension est le nom du paquet.",
-    "vlc-releases": "Une règle à deux étapes pour un dossier de plateforme d'une version de VLC sur le serveur de téléchargement de VideoLAN (last/ ou une version, puis win64/, win32/, winarm64/ ou macosx/). Le dossier propose le même build en installateur, MSI, zip et 7z, donc les étapes de la règle collectent les noms de fichiers (regex avec all: true, into files) en laissant de côté les sommes de contrôle, les signatures et les symboles de débogage, et pick lit la version, la plateforme et le format. L'entrée choisie est le lien ; son nom sans l'extension est le nom du paquet.",
-    "archive-org-items": "Une règle à une étape qui fait d'une page d'élément (archive.org/details/<item>) un paquet des fichiers de l'élément. Elle lit le nom de l'élément dans l'adresse (regex from url, into item), récupère la page de l'élément pour son titre, puis la liste des fichiers de l'élément <item>_files.xml (elle redirige vers un nœud de stockage, d'où *.archive.org) et prend chaque fichier déposé par la personne qui l'a mis en ligne (source=\"original\" ; regex avec all: true, into links). Les dérivés propres de l'archive, les vignettes et les noms commençant par un tiret bas restent dehors ; les petits fichiers de métadonnées que l'archive liste comme originaux sont inclus. Enfin elle récupère le dossier de téléchargement de l'élément, si bien que les noms de fichiers deviennent des liens sous archive.org/download/<item>/. Le paquet porte le titre de l'élément. Les éléments sont des dépôts de n'importe qui et une adresse ne dit rien de leur licence : vérifiez-la sur la page de l'élément.",
-    "pastebin": "Une règle à une étape pour les pastes publics sur pastebin.com, la page du paste ou sa forme /raw/. Elle lit l'identifiant du paste dans l'adresse (regex from url, into id), récupère la page du paste pour son titre, puis le paste en texte brut depuis /raw/<id> (into text), et prend chaque adresse http ou https du texte (regex avec all: true, into links) ; les parenthèses, les guillemets et un point ou une virgule final ne font pas partie d'un lien. Le paquet porte le titre du paste.",
-    "rentry": "Une règle à une étape pour les pages publiques sur rentry.co et rentry.org. Le texte brut demande un code d'accès, donc la règle lit la page rendue : elle la récupère, découpe l'entrée elle-même, le premier <article> (regex, into text), et prend chaque lien http ou https qu'il contient (regex avec all: true, into links), si bien que la navigation propre du site reste dehors. Le paquet porte le titre de la page.",
-    "sourcehut-paste": "Une règle à une étape pour les pastes publics sur paste.sr.ht. Un paste peut contenir plusieurs fichiers, chacun avec un lien View raw, donc la règle récupère la page du paste, collecte ces liens (regex avec all: true, into blobs), récupère chaque fichier brut (fetch sur la liste, into text) et prend chaque adresse http ou https du texte (regex avec all: true, into links) ; les parenthèses, les guillemets et un point ou une virgule final ne font pas partie d'un lien. Le paquet porte le titre du paste, le nom de son premier fichier."
+    "debian-cd": "Une règle à une étape. Elle prend en charge les dossiers d’images de cdimage.debian.org, récupère la liste du dossier (fetch), prend chaque lien qui se termine par .iso (regex avec all: true, into links) et nomme le paquet d’après le premier installateur réseau trouvé (package from regex). Le site liste chaque image deux fois ; les liens en double n’en font plus qu’un.",
+    "ubuntu-releases": "Une règle à une étape comme celle de Debian, pour releases.ubuntu.com : un dossier de version (24.04/, noble/ ...) devient un paquet de ses images .iso. Le nom du paquet est lu dans le titre de la page, coupé avant le nom de code entre parenthèses.",
+    "blender-releases": "Une règle à deux étapes (groups avec pick). Le dossier d’une série de Blender liste chaque build pour chaque plateforme, donc les étapes propres de la règle ne collectent que les noms de fichiers (regex avec all: true, into files). groups.from fait de chaque fichier une entrée, et pick lit sa version, sa plateforme et son format, si bien que le LinkGrabber liste les builds à choisir avant que quoi que ce soit ne soit téléchargé. Seules les entrées choisies passent par les étapes du groupe : l’entrée elle-même est le lien, joint à l’adresse du dossier, et son nom sans l’extension est le nom du paquet.",
+    "blender-open-movies": "Une règle à deux étapes pour les dossiers des films libres de la Blender Foundation (Big Buck Bunny, Tears of Steel, Sintel). Chaque fichier vidéo du dossier est une entrée ; pick lit sa résolution et son format, et vous choisissez ainsi dans le LinkGrabber la version que vous voulez. Le lien de l’entrée choisie est le fichier lui-même ; le paquet porte le nom du fichier sans .zip.",
+    "fedora-releases": "Une règle à une étape pour les dossiers d’images d’une version de Fedora sur le miroir de kernel.org (dl.fedoraproject.org répond lui-même aux requêtes automatisées par un contrôle anti-robot). Elle récupère la liste du dossier, prend chaque lien qui se termine par .iso (regex avec all: true, into links), si bien que les fichiers .manifest et CHECKSUM restent dehors, et nomme le paquet d’après le fichier CHECKSUM : édition, version et architecture.",
+    "archlinux-iso": "Une règle à une étape pour les dossiers ISO d’Arch Linux sur son propre miroir géographique, latest/ ou une version datée. Le dossier liste l’image deux fois, une fois datée et une fois sous le nom archlinux-x86_64.iso, donc le motif ne prend que le nom daté (regex avec all: true, into links) et le paquet est nommé d’après lui ; les signatures, les torrents et les archives bootstrap restent dehors.",
+    "linuxmint-releases": "Une règle à une étape comme celle de Debian, pour les dossiers de versions sur pub.linuxmint.io : un dossier de version (22.3/ ...) devient un paquet de ses images .iso, Cinnamon, MATE et Xfce, et les fichiers de sommes de contrôle restent dehors. Le paquet porte le nom de la première image, coupé après la version.",
+    "libreoffice-stable": "Une règle à deux étapes (groups avec pick) pour un dossier de plateforme d’une version stable de LibreOffice (win/x86_64/, deb/x86_64/, mac/aarch64/ ...). Le dossier contient l’installateur à côté d’un pack d’aide ou de langue par langue et du SDK, donc les étapes de la règle ne collectent que les noms de fichiers (regex avec all: true, into files) et laissent de côté les signatures et les listes de miroirs. pick lit la version, la partie (helppack, langpack, sdk ; aucune pour l’installateur), la langue et le format, et vous choisissez ainsi dans le LinkGrabber ; l’entrée choisie est le lien, et son nom sans l’extension est le nom du paquet.",
+    "vlc-releases": "Une règle à deux étapes pour un dossier de plateforme d’une version de VLC sur le serveur de téléchargement de VideoLAN (last/ ou une version, puis win64/, win32/, winarm64/ ou macosx/). Le dossier propose le même build en installateur, MSI, zip et 7z, donc les étapes de la règle collectent les noms de fichiers (regex avec all: true, into files) en laissant de côté les sommes de contrôle, les signatures et les symboles de débogage, et pick lit la version, la plateforme et le format. L’entrée choisie est le lien ; son nom sans l’extension est le nom du paquet.",
+    "archive-org-items": "Une règle à une étape qui fait d’une page d’élément (archive.org/details/<item>) un paquet des fichiers de l’élément. Elle lit le nom de l’élément dans l’adresse (regex from url, into item), récupère la page de l’élément pour son titre, puis la liste des fichiers de l’élément <item>_files.xml (elle redirige vers un nœud de stockage, d’où *.archive.org) et prend chaque fichier déposé par la personne qui l’a mis en ligne (source=\"original\" ; regex avec all: true, into links). Les dérivés propres de l’archive, les vignettes et les noms commençant par un tiret bas restent dehors ; les petits fichiers de métadonnées que l’archive liste comme originaux sont inclus. Enfin elle récupère le dossier de téléchargement de l’élément, si bien que les noms de fichiers deviennent des liens sous archive.org/download/<item>/. Le paquet porte le titre de l’élément. Les éléments sont des dépôts de n’importe qui et une adresse ne dit rien de leur licence : vérifiez-la sur la page de l’élément.",
+    "pastebin": "Une règle à une étape pour les pastes publics sur pastebin.com, la page du paste ou sa forme /raw/. Elle lit l’identifiant du paste dans l’adresse (regex from url, into id), récupère la page du paste pour son titre, puis le paste en texte brut depuis /raw/<id> (into text), et prend chaque adresse http ou https du texte (regex avec all: true, into links) ; les parenthèses, les guillemets et un point ou une virgule final ne font pas partie d’un lien. Le paquet porte le titre du paste.",
+    "rentry": "Une règle à une étape pour les pages publiques sur rentry.co et rentry.org. Le texte brut demande un code d’accès, donc la règle lit la page rendue : elle la récupère, découpe l’entrée elle-même, le premier <article> (regex, into text), et prend chaque lien http ou https qu’il contient (regex avec all: true, into links), si bien que la navigation propre du site reste dehors. Le paquet porte le titre de la page.",
+    "sourcehut-paste": "Une règle à une étape pour les pastes publics sur paste.sr.ht. Un paste peut contenir plusieurs fichiers, chacun avec un lien View raw, donc la règle récupère la page du paste, collecte ces liens (regex avec all: true, into blobs), récupère chaque fichier brut (fetch sur la liste, into text) et prend chaque adresse http ou https du texte (regex avec all: true, into links) ; les parenthèses, les guillemets et un point ou une virgule final ne font pas partie d’un lien. Le paquet porte le titre du paste, le nom de son premier fichier."
   }
 }

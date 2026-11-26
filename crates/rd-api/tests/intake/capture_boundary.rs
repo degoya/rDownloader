@@ -59,6 +59,7 @@ async fn cross_origin_access_is_open_on_the_capture_routes_and_nowhere_else() {
 
     for (uri, method) in [
         ("/api/v1/settings", "PUT"),
+        ("/api/v1/settings", "PATCH"),
         ("/api/v1/collector/candidates", "GET"),
         ("/api/v1/auth/login", "POST"),
         ("/api/v1/auth/setup", "POST"),

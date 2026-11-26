@@ -36,6 +36,7 @@ import {
   POLL_PERIOD_MINUTES,
   TOKEN_MESSAGE
 } from './captcha-messages.js'
+import { manifestOf } from './grants.js'
 import { STATE_KEYS, createCaptchaState } from './captcha-state.js'
 import { createCaptchaTabs } from './captcha-tabs.js'
 
@@ -153,7 +154,7 @@ export function createCaptchaAnswerer({
    * waiting, so it is known even if the browser tears the popup down under the prompt.
    */
   function open(widget) {
-    const origin = pageOriginPattern(widget?.page_url)
+    const origin = pageOriginPattern(widget?.page_url, manifestOf(api))
     if (!origin) return Promise.resolve({ ok: false, code: 'page' })
     const recorded = Promise.resolve()
       .then(() => send({ type: GRANT_MESSAGE, id: widget.id, origin }))
@@ -189,7 +190,7 @@ export function createCaptchaAnswerer({
    * that already has a tab gets that tab focused instead of a second one.
    */
   async function openTab(widget) {
-    const origin = pageOriginPattern(widget?.page_url)
+    const origin = pageOriginPattern(widget?.page_url, manifestOf(api))
     if (!origin) return { ok: false, code: 'page' }
     const config = await loadConfig()
     if (!config?.token) return { ok: false, code: 'unconfigured' }

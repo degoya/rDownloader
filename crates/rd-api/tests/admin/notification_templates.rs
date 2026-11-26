@@ -250,10 +250,20 @@ async fn a_finished_package_reaches_the_webhook_in_the_rule_s_words() {
     keys.sort();
     assert_eq!(
         keys,
-        ["body", "event", "idempotency_key", "title"],
+        [
+            "body",
+            "download_id",
+            "event",
+            "idempotency_key",
+            "occurred_at",
+            "package_id",
+            "title",
+            "version"
+        ],
         "{payload}"
     );
     assert_eq!(payload["event"], "package_completed");
+    assert_eq!(payload["package_id"], id.to_string());
     let title = payload["title"].as_str().expect("title");
     let time = title
         .strip_prefix("Holiday \u{2713} {done} at ")

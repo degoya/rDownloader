@@ -396,6 +396,15 @@ At startup, the application moves through Loading → Setup Wizard or Login → 
 session becomes ready, transfers, the collector, and captchas connect to the event stream; streams
 and other initial data are loaded once.
 
+**What moves is read narrowly, what changes is read whole** (RD-1480-18). Progress of a transfer
+reads the figures of the rows at work and patches their bytes; the list itself is read again on
+what changes a row otherwise (a state, a package, a deletion it referred to), on a hole in the
+event stream, after a failed read, after a person's own action, and whenever the figures do not fit
+the rows shown — so a missed event never leaves a row stale. A hidden tab reads only what it still
+shows, the title's rate and count, at most every five seconds, and reads the queue for desktop
+notifications when they are on; everything missed is read when it is looked at again. A figure
+that only an event can change is announced by one and never polled.
+
 ### Visual Language
 
 - **Typography:** IBM Plex Sans Variable for UI and prose, JetBrains Mono Variable for numbers,
@@ -436,9 +445,15 @@ and other initial data are loaded once.
   browser picks the accent and the greys — Signal (the default above), Ocean (blue/slate), Violet
   (violet/zinc), Forest (emerald/stone), Rose (rose/zinc), Amber (amber/stone). A palette is a
   pair of Tailwind scales written over `--ui-color-primary-*` and `--ui-color-neutral-*` on
-  `<html>` (`useColorPalette.ts`); the default writes nothing. Light mode takes shade 700 of
-  whichever primary is in use, dark mode Nuxt UI's 400, and a new palette joins only when both
-  pass 4.5:1 (`useColorPalette.test.ts`). Warning and error keep their colours in every palette.
+  `<html>` (`useColorPalette.ts`); the default writes nothing. Light mode takes shade 800 of
+  whichever primary is in use, dark mode Nuxt UI's 400 (Violet: 300). Warning and error keep their
+  colours in every palette.
+- **Every colour that carries text passes 4.5:1** (RD-1480-17), on the page, on a card and on a tenth
+  of itself — the ground of a `soft` or `subtle` badge, button and notice — in both modes and every
+  palette; a solid button's label on it as well, and the focus ring, drawn in the full accent, passes
+  3:1. The light shades stand in `main.css` under `:root:not(.dark)`, never a bare `:root`, which
+  would paint them in dark mode too. `contrast.test.ts` works the ratios out from the style sheets,
+  so a new palette or a changed shade joins only when it passes.
 
 Queue rows and the LinkGrabber's link rows share one responsive grid of nine named cells. Below
 560 px the row is two lines, with the name on the first and the state on the second; from 560 px
@@ -461,6 +476,12 @@ prevent columns from shifting during live updates.
 - Forms expose loading, success, and error states. Self-saving settings areas remain separate from
   the shared settings document. Areas that *fetch* expose the same three, under the rule below.
 - Full-page refresh is not the normal update path; SSE or local store updates keep views current.
+- **The single-key shortcuts are off until a browser switches them on** (RD-1480-17, owner
+  2026-11-25; WCAG 2.1.4): *Keyboard shortcuts* under Interface › *This browser*
+  (`shortcutsEnabled.ts`). Off, no key of the catalogue is bound and nothing names one: tooltips,
+  `aria-keyshortcuts`, menu hints, the `UKbd` of a confirmation and the tour read it from the
+  catalogue or from the switch. A new hint does the same, never a key written beside a control.
+  Ctrl/Cmd+K and every component's own keys (Tab, arrows, Enter, Escape) stay as they are.
 - Global keyboard shortcuts, numbered in sidebar order: `1` Downloads, `2` LinkGrabber,
   `3` Streams, `4` Subscriptions, `5` Remote jobs, `6` Automation, `7` Statistics & history
   (`H` its History tab), `8` Logs,
@@ -626,6 +647,12 @@ prevent columns from shifting during live updates.
   asks. Forms that save each entry themselves carry no save bar, and of them the ones where a
   half-typed entry is costly ask too: a new subscription and an open automation draft
   (`useFormBaseline` tells them what changed since the form was last filled; RD-1120-15).
+- **A change made elsewhere never costs unsaved input** (RD-1480-07). The settings page sends the
+  fields that changed and follows `settings.changed`: the stored document is laid under the form,
+  what is not saved yet stays. A notice above the save bar says so (*info*, closable); a field both
+  sides changed is named there (*warning*) with *Use the values from there*, and saving keeps this
+  page's value. A card that saves itself and the page's own saves raise no notice
+  (`useSettingsDraft`, `utils/settingsMerge.ts`).
 - The UI is fully translated into English, German, French, and Spanish. Plugin messages are merged
   into the same locale namespace at runtime. Languages come from `web/src/locales/languages.json`;
   the picker names each in its own language (*Deutsch*, *Français*), and one still being
@@ -645,6 +672,8 @@ prevent columns from shifting during live updates.
   extension and plugin twins) catch the forms that only ever address the reader — French "tu"
   pronouns and hyphenated "tu" imperatives, Spanish *usted*, reflexive *-ese* imperatives and a
   list of formal imperatives at a clause start — and list a misread sentence by key and phrase.
+  A French form that is both an imperative and a third person (*vérifie*, *choisis*) is read against
+  the English string: where English commands, French says *Vérifiez* (RD-1480-15).
 - **A technical term stays English where the language's IT usage keeps it** (owner, 2026-10-02):
   *Stream*, *Plugin*, *Token*, *Proxy*, *Cookie*, *Hash*, *Seed/Seeding*, *Tracker*, *Hoster*,
   *Webhook*, *Endpoint*, *Header* — a German "Stromtransformation" for a stream transform reads
@@ -652,7 +681,14 @@ prevent columns from shifting during live updates.
   *Backup-Ziel*), *Mirror* (never *Spiegel*), *Tresor* (never *Vault* or *Secret-Store*, as in
   password managers), *Konto/Konten* (never *Account*; *Providerkonto*, *Premium-Konto*),
   *Passwort* (never *Kennwort*), *Speicherort* for a storage root (never *Storage-Root*;
-  *Standard-Speicherort*) and *Gratis/Direkt* for a download without an account (1.9.0);
+  *Standard-Speicherort*) and *Gratis/Direkt* for a download without an account (1.9.0;
+  *Gratis-Downloads* in a sentence). Settled since by the majority of the catalogue (RD-1480-15):
+  German *API-Schlüssel* (never *API-Key*), *Browser-Erweiterung*, *Automation* (never
+  *Automatisierung*), *Abo/Abos* (never *Abonnement*), *Downloadliste* and *das Token*; French
+  *clé d’accès* (never *passkey*) and *clé API* (never *clé d’API*); Spanish *clave de acceso*
+  (never *passkey*), *posprocesado* (never *posprocesamiento*), *multimedia* (never *medios*) and
+  *hoster* (never *alojamiento* or *servidor* for one). `web/src/i18n/terms.test.ts` holds the words
+  a test can recognise;
   Spanish *seeding* and *Seeders*, *suma de verificación* (never *suma de comprobación*) and
   *stream de eventos* where an event stream is named (French keeps *flux d'événements*). Ordinary words
   are translated, and a native word that is genuinely the standard one stays (de
@@ -661,6 +697,22 @@ prevent columns from shifting during live updates.
   in one view and *Warteschlange* in the next; a search keyword may still name the other word as
   a synonym. Protocol, product and format names (Newznab, SABnzbd, yt-dlp, PAR2, WebDAV, S3,
   NZB, JSON …) are never translated.
+- **Quotation marks are the language's own** (RD-1480-15): German „…“, English “…”, French « … »,
+  Spanish «…», always in pairs. A straight `"` stands only where it is the thing named (a quoted
+  argument, an attribute); `terms.test.ts` lists those.
+- **French typography** (RD-1480-15): U+202F before `;`, `!` and `?`, U+00A0 before `:` and inside
+  `« »`, and the apostrophe ’. Placeholders, code, addresses and foreign formats keep theirs.
+  `scripts/i18n-key.sh` writes a French value that way whatever was typed;
+  `python3 scripts/lib/fr_typography.py` puts right what came otherwise (a merge, an edit by hand),
+  and `frenchTypography.test.ts` holds it.
+- **A menu path is written `Settings → page → tab`**, in the labels of today, with `→` and no other
+  sign, and starts at *Settings* (RD-1480-15). `menuPaths.test.ts` reads every one against the pages
+  and tabs, so a renamed page names the sentences to change.
+- **A counted sentence has both forms** (RD-1480-15): `{count}` with a piped plural in every
+  language, `{count}` in each form, never "file(s)". The caller passes the number: as a numeric
+  `count`, or as the third parameter of `t` where the count is formatted text or named otherwise.
+  Two counts in one sentence, or a server code whose count arrives under another name, take the
+  neutral form: "Sessions ended: {sessions_ended}." (`pluralForms.test.ts`).
 - Settings navigation follows stable task groups rather than an alphabetical order that changes
   with the selected language. Group labels are headings, never expandable detours: every settings
   page remains one click away after Settings is open, including in the collapsed sidebar popover.
@@ -1568,7 +1620,7 @@ recognised as drifting.
     sent by the browser extension or by Click'n'Load asked for the choice as much as a paste
     did: on the LinkGrabber the drawer opens, on any other view a toast with *Choose* leads there
     and the drawer opens on arrival. *Take all* fetches every release still open — for a page
-    without captchas (warez.cx) the choice is a convenience, not a cost.
+    without captchas the choice is a convenience, not a cost.
   - **A list that vanished is not an error.** *Fetch* lists the page again (the first stage
     asks no captcha) and fetches the same releases; *Stop* and *Discard* let it go silently. The
     drawer is not part of the header that disappears with the last list: it closes instead.
@@ -2136,6 +2188,24 @@ under its title, `CollectorCandidateRow.vue` for a leaf row on the shared grid,
 `QueueColumnHeader.vue` for a column header with resizable columns on that grid,
 `RoutingCategories.vue` for a form beside its list with the edited row marked.
 
+### Figures in Texts
+
+A figure reads in the interface language, like the field it was typed into (RD-1480-16).
+
+- **No `toFixed` and no `%` or unit in a template.** `formatBytes`, `formatRate`, `formatPercent`,
+  `formatRatio` and `formatFixed` (`web/src/utils/format.ts`) print it, over the named formats of
+  `i18n/formats.ts`. Measured figures carry no thousands separator: the columns are as wide as
+  `1023 MiB`.
+- **The unit has one source**, `common.byte_units` through `unitName` (`utils/units.ts`): `MiB` is
+  `Mio` in French. `NumberWithUnit` translates its `unit` itself.
+- **A counter is passed as a number**, `t(key, { count }, count)`. From 1000 on `i18n/plurals.ts`
+  groups `{count}` and `{total}`; French counts 0 as singular, so a two-part message names
+  `{count}` in its singular too.
+- **Names sort with `compareText` or `compareNatural`** (`utils/collation.ts`), never with a
+  `localeCompare` that leaves the language to the browser.
+- **"Label: value" is `common.text.labelled`, a quoted text `common.text.quoted`**: French puts a
+  space before the colon, and every language has its own quotation marks.
+
 ### Number Fields
 
 Every number a person types is a `UInputNumber`, never a `UInput type="number"` (RD-1110-10). It
@@ -2312,8 +2382,9 @@ Nuxt UI's (RD-1110-11):
   state worth knowing — is a `UAlert`, `subtle`, in the colour of its meaning; `subtle` is the
   theme's default (`web/src/uiTheme.ts`), so only a `soft` or `outline` one names its variant. A heading is its
   `title`, the rest its `description` or, where it holds controls, its `#description` slot; an
-  action goes into `#actions`. UAlert sets no role, so a box that announced itself keeps its role
-  on the UAlert (`DataState`'s failure: `role="alert"`). A line that says what went wrong with
+  action goes into `#actions`. UAlert sets no role, so an error notice that answers an action names
+  `role="alert"` itself (`errorNotices.test.ts`, RD-1480-17); a state the page opens with does not.
+  A progress bar is named by `get-value-label` — an `aria-label` on `UProgress` lands on a wrapper. A line that says what went wrong with
   one field or one row stays text beside it; the feedback of a form is a `UAlert` above it
   (*Forms Share One Shape*).
 - **Opening and closing.** What opens and closes is a `UCollapsible` with a `UButton` as its

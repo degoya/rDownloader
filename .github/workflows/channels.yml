@@ -68,6 +68,8 @@ jobs:
       from: ${{ steps.gate.outputs.from }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Decide whether and against what to check
         id: gate
         shell: bash
@@ -100,6 +102,8 @@ jobs:
       HOMEBREW_INSTALLER_SHA256: 5f333bbe53bc490e51e7ccb1df8779b3dd6ee73a1a7379efda216edb08ccb148
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # The Ubuntu image carries Homebrew without putting it on PATH; the arm64 one lacks it.
       - name: Put Homebrew on PATH
         if: runner.os == 'Linux'
@@ -334,6 +338,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Install from the published repository, upgrade, keep the data
         env:
           MANAGER: ${{ matrix.manager }}

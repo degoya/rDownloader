@@ -5,7 +5,7 @@
 # per release in the public repository, so the commit differs and the tree does not — and ci.yml
 # ran everything over it again, macOS included: 61 minutes for nothing. The `gate` job of ci.yml
 # asks this script on a push to `main` and runs the platform jobs only for the images it names;
-# with none left only `components` runs, whose cache release.yml reads. The jobs that run once
+# with none left only `components` runs, whose cache the next branches read. The jobs that run once
 # per run rather than per image (`docker`, `s3-live`, `clamav-live`, `supply-chain`, `scripts`)
 # are named after `--` and decided the same way, so a push that misses macOS alone does not run
 # them all again (RA-TOOL-05).

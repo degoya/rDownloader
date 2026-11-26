@@ -143,7 +143,7 @@ function reload(): void {
               <template v-if="fetched.state === 'downloading'">
                 <p class="text-toned">{{ t('system.updates.download.downloading', { version: fetched.version }) }}</p>
                 <div class="mt-2 flex items-center gap-2">
-                  <UProgress :model-value="fetchedPercent" size="xs" class="flex-1" />
+                  <UProgress :model-value="fetchedPercent" :get-value-label="() => t('common.a11y.progress_of', { name: `rDownloader ${fetched?.version ?? ''}` })" size="xs" class="flex-1" />
                   <span class="shrink-0 text-xs text-muted tabular-nums">
                     {{ t('system.updates.download.progress', { received: formatBytes(String(fetched.received_bytes)), total: formatBytes(String(fetched.total_bytes)) }) }}
                   </span>

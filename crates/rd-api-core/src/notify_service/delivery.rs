@@ -98,7 +98,8 @@ impl NotificationService {
     /// Delivers `batch` -- one delivery, or a quiet-hours summary of several -- and records the
     /// outcome on each of them.
     pub(super) async fn attempt(&self, batch: Vec<Delivery>, target: NotificationTarget) {
-        let Some(message) = rd_notify::quiet_summary(&batch) else {
+        let language = notification_language(&self.inner.database).await;
+        let Some(message) = rd_notify::quiet_summary(&batch, language) else {
             self.inner.in_flight.lock().await.remove(&target.id);
             return;
         };

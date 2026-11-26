@@ -7,10 +7,8 @@
 //! machine, after both were hashed; it hands out no secret and changes nothing elsewhere, so it
 //! is offered like the rest.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath, Query};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

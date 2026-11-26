@@ -78,8 +78,8 @@ pub(crate) async fn download_state(
 /// Persists the torrent state of one download row and announces it.
 ///
 /// The announcement is broadcast only, deliberately: unlike its candidate sibling this write
-/// also carries the seeding sweep's bookkeeping, which rewrites the row of every seeding
-/// torrent every thirty seconds. Persisting each of those would fill the `events` table with
+/// also carries bookkeeping nobody asked for (tracker scrapes, priority tiers, the seed clock).
+/// Persisting each of those would fill the `events` table with
 /// rows nothing reads, the way `DownloadProgress` would if it were persisted. A live client
 /// still learns at once that the file plan, the tracker list or the seeding override changed,
 /// and a client that reconnects refetches the download anyway.
@@ -110,7 +110,10 @@ pub(crate) async fn set_download_state(
 /// all on the writer's connection, so no other write of the blob can land in between.
 ///
 /// A row without state starts from the defaults. When `edit` declines (returns `false`) the
-/// row is left untouched and no event is produced; the state is returned either way.
+/// row is left untouched and no event is produced; the state is returned either way. An edit that
+/// leaves the stored state as it was is written and announced no more than a declined one: the
+/// seeding sweep starts every seed's clock every thirty seconds, and it runs after the first time
+/// (RD-1480-18).
 pub(crate) async fn update_download_state(
     connection: &mut SqliteConnection,
     id: DownloadId,
@@ -122,15 +125,16 @@ pub(crate) async fn update_download_state(
             .fetch_optional(&mut *connection)
             .await?;
     let stored = exists.ok_or_else(|| StoreError::not_found("download not found"))?;
-    let mut state: rd_core::TorrentJobState = stored
+    let before: Option<rd_core::TorrentJobState> = stored
         .map(|value| serde_json::from_str(&value))
         .transpose()
-        .context("parse download torrent state")?
-        .unwrap_or_default();
+        .context("parse download torrent state")?;
+    let unchanged = before.as_ref().map(serde_json::to_string).transpose()?;
+    let mut state = before.unwrap_or_default();
     // A panicking edit must not take the single writer task down with it.
     let write = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| edit.apply(&mut state)))
         .map_err(|_| anyhow::anyhow!("torrent state edit panicked"))?;
-    if !write {
+    if !write || unchanged == Some(serde_json::to_string(&state)?) {
         return Ok((state, None));
     }
     let event = set_download_state(connection, id, &state).await?;

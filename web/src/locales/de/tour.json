@@ -8,7 +8,7 @@
   "steps": {
     "nav": {
       "title": "Der Überblick",
-      "description": "Downloads enthält die Warteschlange, der LinkGrabber sammelt und prüft Links vor dem Start, Streams nimmt Live-Quellen auf, Abonnements holen Neues aus Feeds und Indexern, und Automation reagiert darauf. Die Einstellungen klappen als eigene Unterseiten auf."
+      "description": "Downloads enthält die Warteschlange, der LinkGrabber sammelt und prüft Links vor dem Start, Streams nimmt Live-Quellen auf, Abos holen Neues aus Feeds und Indexern, und Automation reagiert darauf. Die Einstellungen klappen als eigene Unterseiten auf."
     },
     "downloads_add": {
       "title": "Download hinzufügen",
@@ -32,11 +32,12 @@
     },
     "settings": {
       "title": "Einstellungen",
-      "description": "Jeder Bereich ist eine eigene Unterseite: Routing bestimmt, wo Dateien landen, Konten und Usenet halten die Zugangsdaten, Nachbearbeitung übernimmt Reparatur und Entpacken, Desktop-Client und MCP hängen die Außenwelt an, und Sichern & Wiederherstellen sichert die Konfiguration."
+      "description": "Jeder Bereich ist eine eigene Unterseite: „Ablage & Regeln“ bestimmt, wo Dateien landen, „Konten“ und „Usenet“ halten die Zugangsdaten, „Nachbearbeitung“ übernimmt Reparatur und Entpacken, „Clients & API“ bindet Desktop-Agent, Browser-Erweiterung und MCP an, und „Backup & Restore“ sichert die Konfiguration."
     },
     "done": {
       "title": "Alles bereit",
-      "description": "Mit ? rufst du jederzeit die Tastenkürzel auf. Diese Tour und den Einrichtungsassistenten startest du unter Einstellungen → System erneut; dort steht auch, ob die Einrichtung vollständig ist."
+      "description": "Mit ? rufst du jederzeit die Tastenkürzel auf. Diese Tour und den Einrichtungsassistenten startest du unter Einstellungen → System erneut; dort steht auch, ob die Einrichtung vollständig ist.",
+      "description_shortcuts_off": "Tastenkürzel schaltest du unter Einstellungen → Oberfläche ein. Diese Tour und den Einrichtungsassistenten startest du unter Einstellungen → System erneut; dort steht auch, ob die Einrichtung vollständig ist."
     }
   }
 }

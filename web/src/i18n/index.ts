@@ -2,6 +2,7 @@ import { createI18n } from 'vue-i18n'
 
 import { DATETIME_FORMATS, NUMBER_FORMATS } from './formats'
 import { REQUIRED_LOCALES, SUPPORTED_LOCALES } from './languages'
+import { PLURAL_RULES, groupCounters } from './plurals'
 import { messageResolver } from './resolver'
 import { loadPluginMessages } from './plugins'
 
@@ -100,19 +101,29 @@ export const i18n = createI18n<false>({
   messageResolver,
   numberFormats: perLocale(NUMBER_FORMATS),
   datetimeFormats: perLocale(DATETIME_FORMATS),
+  pluralRules: PLURAL_RULES,
   missingWarn: false,
   fallbackWarn: false
 })
 
+// Every `useI18n()` and `$t` is this composer, so a large counter is grouped wherever it is named.
+const translate = i18n.global.t as (...args: unknown[]) => string
+i18n.global.t = ((key: unknown, ...args: unknown[]) => translate(
+  key,
+  ...groupCounters(args, (value, locale) => locale ? i18n.global.n(value, 'integer', locale) : i18n.global.n(value, 'integer'))
+)) as typeof i18n.global.t
+
 /** The language asked for last, so a slow chunk cannot overturn a later choice. */
 let requestedLocale: AppLocale | null = null
 
-function applyLocale(locale: AppLocale): void {
+function applyLocale(locale: AppLocale, remember: boolean): void {
   i18n.global.locale.value = locale
-  try {
-    localStorage.setItem(STORAGE_KEY, locale)
-  } catch {
-    // storage unavailable
+  if (remember) {
+    try {
+      localStorage.setItem(STORAGE_KEY, locale)
+    } catch {
+      // storage unavailable
+    }
   }
   if (typeof document !== 'undefined') document.documentElement.lang = locale
   void loadPluginMessages(locale)
@@ -120,6 +131,10 @@ function applyLocale(locale: AppLocale): void {
 
 /**
  * Switches the UI language, persists it and updates `<html lang>`.
+ *
+ * `remember: false` is the start of the app, which applies the detected language without making
+ * it a choice: a browser whose language changes later is followed until somebody picks one
+ * (RD-1480-16).
  *
  * A language whose catalogues are not loaded yet is switched to once its chunk has arrived, so
  * the page never shows English for a moment in between; one already loaded switches at once.
@@ -129,7 +144,7 @@ function applyLocale(locale: AppLocale): void {
  * merged in the background; until it arrives, plugin strings fall back to English. Without a
  * session that merge is skipped rather than refused — the endpoint requires one.
  */
-export async function setLocale(locale: AppLocale): Promise<void> {
+export async function setLocale(locale: AppLocale, { remember = true }: { remember?: boolean } = {}): Promise<void> {
   if (!isSupported(locale)) return
   requestedLocale = locale
   if (!loadedLocales.has(locale)) {
@@ -141,7 +156,7 @@ export async function setLocale(locale: AppLocale): Promise<void> {
     }
     if (requestedLocale !== locale) return
   }
-  applyLocale(locale)
+  applyLocale(locale, remember)
 }
 
 export function currentLocale(): AppLocale {

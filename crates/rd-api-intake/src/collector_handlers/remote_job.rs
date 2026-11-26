@@ -3,8 +3,14 @@
 //! Every link of the package becomes one remote-job source -- a magnet, a plain address, or the
 //! stored `.torrent` of an imported file -- and goes through `submit_named`, the entry point of
 //! every remote job, so the same duplicate guard and the same plugin `identify` decide what is
-//! taken. Nothing is fetched here: the provider fetches the content on its side, and what it
-//! finished comes back into the LinkGrabber as a package of its own (`RemoteJob::package_id`).
+//! taken. The provider fetches the content on its side, and what it finished comes back into the
+//! LinkGrabber as a package of its own (`RemoteJob::package_id`).
+//!
+//! No credential in an address goes along (RD-1480-05). An NZB link carries the indexer's API
+//! key, so its document is fetched here and handed over as a container (`nzb`), as a
+//! subscription's hit is (RD-1460-03) -- a link the online check has not recognised included,
+//! when it has an indexer's form or sits at a configured one; any other address with a user name,
+//! a password or a secret query parameter stays.
 //!
 //! What becomes of the links afterwards is a setting, read here and never taken from the
 //! request (owner, 2026-11-21): `linkgrabber_hand_over_remove_links` on, the default, takes each
@@ -16,13 +22,12 @@
 
 use std::path::{Path as FsPath, PathBuf};
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_api_core::remote_job_service::{self, MAX_REMOTE_JOB_CONTAINER_BYTES, SubmitOutcome};
 use rd_core::{
-    AccountId, CandidateId, CollectorPackageId, LinkCandidate, LinkCandidateState, RemoteJob,
+    AccountId, CandidateId, CollectorPackage, CollectorPackageId, LinkCandidate,
+    LinkCandidateState, RemoteJob,
 };
 use rd_db::HandedOverLinks;
 use rd_plugin_host::extension::RemoteJobSource;
@@ -31,6 +36,8 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{ApiError, AppState};
+
+mod nzb;
 
 /// Longest address handed over, the ceiling `POST /api/v1/accounts/{id}/remote-jobs` keeps too.
 const MAX_ADDRESS: usize = 8 * 1024;
@@ -71,10 +78,14 @@ pub struct CandidateHandedOver {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CandidateStayed {
     pub candidate_id: CandidateId,
-    /// Stable code: `collector.remote_job_*`, `remote_job.*`, or a provider's own.
+    /// Stable code: `collector.remote_job_*`, `collector.nzb_*`, `nzb.remote_job_*`,
+    /// `remote_job.*`, or a provider's own.
     pub code: String,
     /// The English wording, shown when no catalogue translates the code.
     pub message: String,
+    /// What the translation of the code names (an indexer's reason, a limit).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub params: rd_api_core::error::MessageParams,
 }
 
 /// Hands every link of a LinkGrabber package to one account's provider as remote jobs.
@@ -88,7 +99,7 @@ pub async fn submit_collector_package_remote_job(
     Path(id): Path<CollectorPackageId>,
     Json(request): Json<CollectorPackageRemoteJobRequest>,
 ) -> Result<Json<CollectorPackageRemoteJobResponse>, ApiError> {
-    state
+    let package = state
         .database
         .get_collector_package(id)
         .await?
@@ -110,12 +121,21 @@ pub async fn submit_collector_package_remote_job(
         .filter(|candidate| candidate.package_id == Some(id))
         .collect();
     let torrents = state.queue.torrent.torrent_file_directory();
+    let indexers = nzb::IndexerHosts::read(&state).await?;
     let mut handed_over = Vec::new();
     let mut stayed = Vec::new();
     // One after another: the jobs are charged to one account, and the provider sees them in
     // the package's order.
     for candidate in &candidates {
-        match hand_over(&state, candidate, request.account_id, &torrents).await {
+        let handed = hand_over(
+            &state,
+            &package,
+            candidate,
+            request.account_id,
+            &torrents,
+            &indexers,
+        );
+        match handed.await {
             Ok(done) => handed_over.push(done),
             Err(reason) => stayed.push(reason),
         }
@@ -178,14 +198,17 @@ async fn runs_remote_jobs(state: &AppState, account_id: AccountId) -> Result<(),
 /// One link to the provider, or the reason it stays.
 async fn hand_over(
     state: &AppState,
+    package: &CollectorPackage,
     candidate: &LinkCandidate,
     account_id: AccountId,
     torrents: &FsPath,
+    indexers: &nzb::IndexerHosts,
 ) -> Result<CandidateHandedOver, CandidateStayed> {
     let stay = |code: &str, message: &str| CandidateStayed {
         candidate_id: candidate.id,
         code: code.to_owned(),
         message: message.to_owned(),
+        params: Default::default(),
     };
     let handed = |job: RemoteJob, already_running: bool| CandidateHandedOver {
         candidate_id: candidate.id,
@@ -207,8 +230,31 @@ async fn hand_over(
     if let Some(reason) = held_back(candidate) {
         return Err(stay(reason.0, reason.1));
     }
-    let source = match shape_of(&candidate.url) {
+    let shape = shape_of(&candidate.url);
+    if shape == Shape::Address && nzb::is_nzb_call(candidate, indexers) {
+        return match nzb::submit(state, package, candidate, account_id).await {
+            Ok(done) => Ok(handed(done.job, done.already_running)),
+            Err(error) => {
+                // The code alone: a fetch's reason is for the person, not for the log.
+                tracing::info!(candidate = %candidate.id, code = error.code(), "an NZB link was not handed over");
+                let reason = error.into_message();
+                Err(CandidateStayed {
+                    candidate_id: candidate.id,
+                    code: reason.code,
+                    message: reason.message,
+                    params: reason.params,
+                })
+            }
+        };
+    }
+    let source = match shape {
         Shape::Magnet => RemoteJobSource::Magnet(candidate.url.as_str().to_owned()),
+        Shape::Address if carries_credential(&candidate.url) => {
+            return Err(stay(
+                SECRET_ADDRESS,
+                "The address of this link carries a login or an access key, which stays on this machine",
+            ));
+        }
         Shape::Address if candidate.url.as_str().len() <= MAX_ADDRESS => {
             RemoteJobSource::Address(candidate.url.as_str().to_owned())
         }
@@ -245,6 +291,7 @@ async fn hand_over(
             candidate_id: candidate.id,
             code: refusal.code,
             message: refusal.message,
+            params: Default::default(),
         }),
         Err(error) => {
             tracing::warn!(candidate = %candidate.id, %error, "a link could not be handed over");
@@ -256,6 +303,7 @@ async fn hand_over(
 const BUSY: &str = "collector.remote_job_busy";
 const HIDDEN: &str = "collector.remote_job_hidden";
 const MIRROR_SKIPPED: &str = "collector.remote_job_mirror_skipped";
+const SECRET_ADDRESS: &str = "collector.remote_job_secret_address";
 const SECRET_FRAGMENT: &str = "collector.remote_job_secret_fragment";
 const SOURCE_UNSUPPORTED: &str = "collector.remote_job_source_unsupported";
 const TORRENT_UNREADABLE: &str = "collector.remote_job_torrent_unreadable";
@@ -319,6 +367,16 @@ fn shape_of(url: &Url) -> Shape {
     }
 }
 
+/// Whether an address names a login or a secret the provider would keep in its job list: user
+/// info, or a query parameter the central redaction hides (`rd_core::is_secret_parameter`).
+fn carries_credential(url: &Url) -> bool {
+    !url.username().is_empty()
+        || url.password().is_some()
+        || url
+            .query_pairs()
+            .any(|(name, value)| !value.is_empty() && rd_core::is_secret_parameter(&name))
+}
+
 /// The bytes of an imported `.torrent`, only from inside the torrent store and only up to what
 /// a remote job's container may carry. Both paths are resolved first, so neither `..` nor a
 /// link can reach a file elsewhere on the machine.
@@ -337,7 +395,7 @@ async fn stored_torrent(path: &FsPath, torrents: &FsPath) -> Option<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Shape, shape_of, stored_torrent};
+    use super::{Shape, carries_credential, shape_of, stored_torrent};
 
     fn url(value: &str) -> url::Url {
         value.parse().expect("url")
@@ -380,6 +438,27 @@ mod tests {
         let other = url::Url::from_file_path(directory.join("notes.txt")).expect("file url");
         assert_eq!(shape_of(&other), Shape::Unsupported);
         let _ = std::fs::remove_dir_all(directory);
+    }
+
+    #[test]
+    fn an_address_with_a_login_or_a_key_is_recognised() {
+        for secret in [
+            "https://indexer.example/api?t=get&id=1&apikey=SECRET",
+            "https://files.example/a.mkv?X-Amz-Signature=SECRET",
+            "https://files.example/a.mkv?Token=SECRET#part",
+            "https://user:SECRET@files.example/a.mkv",
+            "https://user@files.example/a.mkv",
+        ] {
+            assert!(carries_credential(&url(secret)), "{secret}");
+        }
+        for plain in [
+            "https://files.example/a.mkv",
+            "https://files.example/a.mkv?lang=de&page=2",
+            "https://files.example/a.mkv?token=",
+            "https://files.example/apikey/a.mkv",
+        ] {
+            assert!(!carries_credential(&url(plain)), "{plain}");
+        }
     }
 
     #[tokio::test]

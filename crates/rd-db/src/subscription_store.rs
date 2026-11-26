@@ -25,7 +25,7 @@ use rd_core::{
     SubscriptionKind, SubscriptionMode, SubscriptionReviewCount, SubscriptionReviewSummary,
     SubscriptionRun, SubscriptionView, Timestamp,
 };
-use sqlx::SqlitePool;
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use url::Url;
 
 #[path = "subscription_store_compact.rs"]
@@ -41,6 +41,8 @@ pub(crate) use compact::{COMPACTION_BATCH, compact_items, compactable_items};
 pub use compact::{
     DEFAULT_ITEM_RETENTION_DAYS, ITEM_RETENTION_DAYS_RANGE, SubscriptionItemRetention,
 };
+#[cfg(test)]
+pub(crate) use items::SUBSCRIPTION_RUNS_KEPT;
 pub(crate) use items::{
     ItemPasswords, clear_history, finish_run, record_items, set_item_state, set_pending_items_state,
 };
@@ -184,48 +186,41 @@ pub(crate) async fn item_page(
     offset: i64,
     until: Option<Timestamp>,
 ) -> Result<SubscriptionItemPage> {
-    let state = state.map(item_state_string);
-    let rows = sqlx::query_as::<_, ItemRow>(sqlx::AssertSqlSafe(format!(
-        "SELECT {ITEM_COLUMNS} FROM subscription_items \
-         WHERE subscription_id = ? AND (? IS NULL OR state = ?) \
-         AND (? IS NULL OR discovered_at <= ?) \
-         ORDER BY discovered_at DESC, id DESC LIMIT ? OFFSET ?"
-    )))
-    .bind(id.to_string())
-    .bind(state)
-    .bind(state)
-    .bind(until)
-    .bind(until)
-    .bind(limit)
-    .bind(offset)
-    .fetch_all(pool)
-    .await?;
-    let total = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(*) FROM subscription_items \
-         WHERE subscription_id = ? AND (? IS NULL OR state = ?) \
-         AND (? IS NULL OR discovered_at <= ?)",
-    )
-    .bind(id.to_string())
-    .bind(state)
-    .bind(state)
-    .bind(until)
-    .bind(until)
-    .fetch_one(pool)
-    .await?;
+    // Each condition is in the statement only when it applies. `? IS NULL OR state = ?` is true for
+    // any row until the value is bound, so SQLite could use no index for it and sorted every item
+    // of the subscription for one page; a named state walks `subscription_items_state_idx` in the
+    // page's own order (RD-1480-19). The order's last term stays `id`: rows found in the same
+    // instant have one order on every page.
+    let filtered = |select: &str| {
+        let mut query = QueryBuilder::<Sqlite>::new(select);
+        query.push(" FROM subscription_items WHERE subscription_id = ");
+        query.push_bind(id.to_string());
+        if let Some(state) = state {
+            query.push(" AND state = ");
+            query.push_bind(item_state_string(state));
+        }
+        if let Some(until) = until {
+            query.push(" AND discovered_at <= ");
+            query.push_bind(until);
+        }
+        query
+    };
+    let mut page = filtered(&format!("SELECT {ITEM_COLUMNS}"));
+    page.push(" ORDER BY discovered_at DESC, id DESC LIMIT ");
+    page.push_bind(limit);
+    page.push(" OFFSET ");
+    page.push_bind(offset);
+    let rows = page.build_query_as::<ItemRow>().fetch_all(pool).await?;
+    let total = filtered("SELECT COUNT(*)")
+        .build_query_scalar::<i64>()
+        .fetch_one(pool)
+        .await?;
     // The page's own order is `discovered_at` first, so its maximum is the newest row of the
     // filter on any page: the watermark of the list as this read saw it (RD-1250-13).
-    let newest_discovered_at = sqlx::query_scalar::<_, Option<Timestamp>>(
-        "SELECT MAX(discovered_at) FROM subscription_items \
-         WHERE subscription_id = ? AND (? IS NULL OR state = ?) \
-         AND (? IS NULL OR discovered_at <= ?)",
-    )
-    .bind(id.to_string())
-    .bind(state)
-    .bind(state)
-    .bind(until)
-    .bind(until)
-    .fetch_one(pool)
-    .await?;
+    let newest_discovered_at = filtered("SELECT MAX(discovered_at)")
+        .build_query_scalar::<Option<Timestamp>>()
+        .fetch_one(pool)
+        .await?;
     let counts = item_counts(pool, id).await?;
     let run_total = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM subscription_runs WHERE subscription_id = ?",

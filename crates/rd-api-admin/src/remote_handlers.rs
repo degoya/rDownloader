@@ -7,11 +7,8 @@
 //! protocol, host or port asks for it again, and every change to a login is audited
 //! (RD-1200-06, `remote_audit.rs`).
 
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path};
 use rd_api_core::input_checks::{TextLimit, optional_text, required_text};
 use rd_core::{
     MAX_REMOTE_HOST, MAX_REMOTE_KEY, MAX_REMOTE_SECRET, RemoteAuthMode, RemoteCredential,

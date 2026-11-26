@@ -37,10 +37,10 @@
     "rule": "al menos 10 caracteres",
     "submit": "Establecer contraseña",
     "configured": "Contraseña ya configurada",
-    "configured_hint": "La contraseña de administrador está establecida. Puedes cambiarla en cualquier momento en Ajustes → General."
+    "configured_hint": "La contraseña de administrador está establecida. Puedes cambiarla en cualquier momento en Ajustes → Seguridad."
   },
   "pairing": {
-    "intro": "La vinculación es opcional: siempre puedes añadir enlaces a mano. Un cliente vinculado envía los enlaces capturados, Click'n'Load y archivos .nzb directamente a la cola."
+    "intro": "La vinculación es opcional: siempre puedes añadir enlaces a mano. Un cliente vinculado envía los enlaces capturados, Click'n'Load y archivos .nzb al LinkGrabber."
   },
   "storage": {
     "intro": "Una ubicación de almacenamiento es el directorio base donde se escriben las descargas. Las rutas deben ser absolutas y se crean si aún no existen: en un contenedor, solo una ruta en un volumen montado sobrevive a una recreación.",

@@ -6,13 +6,13 @@ import { test } from 'node:test'
 
 import { connectionStatus, ensurePermission, saveStatus } from '../src/options.js'
 
-function permissions({ held = false, grant = false } = {}) {
-  const calls = []
-  return {
-    calls,
-    contains: async (value) => { calls.push(['contains', value.origins[0]]); return held },
-    request: async (value) => { calls.push(['request', value.origins[0]]); return grant }
-  }
+import { fakeBrowser } from './fake-browser.mjs'
+
+/** Saves `server` in a click in this browser. */
+async function save(target, server, options) {
+  const browser = fakeBrowser(target, options)
+  const outcome = await browser.gesture(() => ensurePermission(server, browser.api.permissions, browser.manifest))
+  return { browser, outcome, asked: browser.calls.map(([name, value]) => [name, value.origins]) }
 }
 
 test('an address the browser cannot parse is named, not thrown', async () => {
@@ -20,45 +20,73 @@ test('an address the browser cannot parse is named, not thrown', async () => {
   // listener used to reject unhandled — no status text, nothing saved, no explanation
   // (RD-109-24).
   for (const input of ['::1', '[::1', 'http://', 'not a url at all']) {
-    const api = permissions()
-    assert.equal(await ensurePermission(input, api), 'invalid', input)
-    assert.deepEqual(api.calls, [], 'nothing is asked for an address that is not one')
+    const { outcome, asked } = await save('chrome', input)
+    assert.equal(outcome, 'invalid', input)
+    assert.deepEqual(asked, [], 'nothing is asked for an address that is not one')
     assert.deepEqual(saveStatus('invalid'), { key: 'serverInvalid', ok: false })
   }
   // The bracketed spelling is a perfectly good address and goes the normal way.
-  assert.equal(await ensurePermission('http://[::1]:8710', permissions({ held: true })), 'granted')
+  assert.equal((await save('chrome', 'http://[::1]:8710')).outcome, 'granted')
 })
 
-test('a loopback server on another port is asked for like any other host', async () => {
-  // The manifest declares loopback on port 8710 and nothing else, so the old shortcut left a
-  // service on 127.0.0.1:9000 with no host permission at all — it worked only because the
-  // server answers `Access-Control-Allow-Origin: *` (RD-109-24).
-  const declared = permissions({ held: true })
-  assert.equal(await ensurePermission('http://127.0.0.1:8710', declared), 'granted')
-  assert.deepEqual(declared.calls, [['contains', 'http://127.0.0.1:8710/*']], 'nothing is asked twice')
+test('the permission is requested in the click itself, as Firefox demands', async () => {
+  // Firefox takes `permissions.request` only while it handles the click and refuses it after any
+  // awaited call. `contains` used to be awaited first, so every address without a grant was
+  // refused as "not a valid server address" and nothing could be saved.
+  for (const target of ['firefox', 'chrome']) {
+    for (const server of ['http://192.168.178.123:8710', 'https://dl.example.com']) {
+      const { browser, outcome } = await save(target, server)
+      assert.equal(outcome, 'granted', `${target}: ${server}`)
+      assert.equal(browser.prompts.length, 1)
+      // The grant covers what the extension then asks the server.
+      const { browser: again, outcome: second } = await save(target, server, { grants: browser.prompts[0].origins })
+      assert.equal(second, 'granted')
+      assert.deepEqual(again.prompts, [], 'a grant already held asks nobody twice')
+    }
+  }
+})
 
-  const other = permissions({ held: false, grant: true })
-  assert.equal(await ensurePermission('http://127.0.0.1:9000', other), 'granted')
-  assert.deepEqual(other.calls, [
-    ['contains', 'http://127.0.0.1:9000/*'],
-    ['request', 'http://127.0.0.1:9000/*']
-  ])
+test('the addresses on this computer are declared, so saving them asks nothing', async () => {
+  for (const target of ['firefox', 'chrome']) {
+    for (const server of ['http://127.0.0.1:8710', 'http://localhost:8710']) {
+      const { browser, outcome } = await save(target, server, { answer: () => false })
+      assert.equal(outcome, 'granted', `${target}: ${server}`)
+      assert.deepEqual(browser.prompts, [])
+    }
+  }
+  // Chrome's grant names the port: another one on this computer is another service (RD-109-24).
+  assert.equal((await save('chrome', 'http://127.0.0.1:9000', { answer: () => false })).outcome, 'deniedLoopback')
+})
+
+test('Firefox is asked without the port, Chrome with it', async () => {
+  // A match pattern with a port matches nothing in Firefox (bugs 1362809, 1468162).
+  for (const [server, firefox, chrome] of [
+    ['http://192.168.178.123:8710', 'http://192.168.178.123/*', 'http://192.168.178.123:8710/*'],
+    ['https://dl.example.com', 'https://dl.example.com/*', 'https://dl.example.com/*'],
+    ['http://[::1]:8710', 'http://[::1]/*', 'http://[::1]:8710/*'],
+    ['http://127.0.0.1:8710', 'http://127.0.0.1/*', 'http://127.0.0.1:8710/*']
+  ]) {
+    assert.deepEqual((await save('firefox', server)).asked, [['request', [firefox]]])
+    assert.deepEqual((await save('chrome', server)).asked, [['request', [chrome]]])
+  }
 })
 
 test('a refused permission says which refusal it was', async () => {
-  assert.equal(await ensurePermission('http://127.0.0.1:9000', permissions()), 'deniedLoopback')
-  assert.equal(await ensurePermission('http://nas.local:8710', permissions()), 'denied')
+  assert.equal((await save('chrome', 'http://127.0.0.1:9000', { answer: () => false })).outcome, 'deniedLoopback')
+  assert.equal((await save('firefox', 'http://nas.local:8710', { answer: () => false })).outcome, 'denied')
   assert.deepEqual(saveStatus('deniedLoopback'), { key: 'permissionDeniedLoopback', ok: false })
   assert.deepEqual(saveStatus('denied'), { key: 'permissionDenied', ok: false })
   assert.deepEqual(saveStatus('granted'), { key: 'saved', ok: true })
 })
 
-test('a browser that rejects the permission call is an invalid address, not a crash', async () => {
-  const throwing = {
-    contains: async () => { throw new Error('no such permission') },
-    request: async () => true
-  }
-  assert.equal(await ensurePermission('http://nas.local:8710', throwing), 'invalid')
+test('a permission call the browser rejects is no invalid address', async () => {
+  const throwing = (held) => ({
+    contains: async () => held(),
+    request: async () => { throw new Error('no such permission') }
+  })
+  assert.equal(await ensurePermission('http://nas.local:8710', throwing(() => true)), 'granted')
+  assert.equal(await ensurePermission('http://nas.local:8710', throwing(() => false)), 'denied')
+  assert.equal(await ensurePermission('http://nas.local:8710', throwing(() => { throw new Error('no') })), 'denied')
 })
 
 test('the connection test reports version, token and failure apart', () => {

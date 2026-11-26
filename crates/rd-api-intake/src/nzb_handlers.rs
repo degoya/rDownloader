@@ -1,10 +1,10 @@
 //! NZB imports: the upload, the capture agent's drop and the review list.
 
 use axum::{
-    Json,
-    extract::{Multipart, Path, State},
+    extract::{Multipart, State},
     http::{HeaderMap, StatusCode},
 };
+use rd_api_core::extract::{Json, Path};
 use rd_api_core::list_bounds::total_header;
 use rd_db::StoreErrorKind;
 
@@ -222,6 +222,7 @@ pub async fn store_nzb_import(
 
 /// The capture agent's NZB drop: the same import, but multipart only — the agent's contract
 /// did not change when the interface's route learned JSON (RD-120-31).
+#[utoipa::path(post, path = "/api/v1/capture/nzb", tag = "capture", request_body(content = Vec<u8>, content_type = "multipart/form-data"), responses((status = 201, body = rd_core::NzbImport), (status = 400, description = "The form or the NZB cannot be read, or a field is invalid")))]
 pub async fn capture_nzb(
     state: State<AppState>,
     multipart: Multipart,

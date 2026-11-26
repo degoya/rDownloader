@@ -6,7 +6,8 @@
 //! key goes to the secret store, and every answer says only whether a key is set and its
 //! fingerprint. Replacing it asks for the current one. Every route costs `api:admin` (`scope_policy`).
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::Json;
 use rd_backup::{BackupKey, MIN_PASSPHRASE_CHARS, schedule};
 use rd_core::{AuditAction, BackupOrigin, BackupRunState, Timestamp};
 use rd_db::{BackupConfigUpdate, BackupKeyRecord};

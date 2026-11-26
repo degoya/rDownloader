@@ -173,7 +173,7 @@ impl CapturedLink {
 mod tests {
     use super::{CapturedLink, LinkOrigin};
 
-    /// A site rule's find on an alias host (`ddl.to` on serienjunkies) reaches the collector
+    /// A site rule's find on an alias host (`ddl.to` on a series page) reaches the collector
     /// under the hoster's own domain, as a pasted link does, so the account lookup finds it.
     #[test]
     fn a_crawled_link_on_an_alias_host_takes_the_hosters_domain() {

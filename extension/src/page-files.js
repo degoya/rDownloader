@@ -33,6 +33,14 @@ export const PAGE_FILE_MESSAGE = 'rdownloader:page-file'
  */
 export const PAGE_FILE_MAX_BYTES = 16 * 1024 * 1024
 
+/**
+ * How many files one tab may hand over within `TAB_WINDOW_MS`. A page is a person's doing one file
+ * at a time; a script that holds on to a click gets this far and no further, and the browser keeps
+ * the rest.
+ */
+export const TAB_LIMIT = 20
+export const TAB_WINDOW_MS = 60_000
+
 /** The ids of the two registered scripts. */
 export const PAGE_SCRIPT_IDS = ['rdownloader-page-files-main', 'rdownloader-page-files-relay']
 
@@ -67,10 +75,27 @@ export function createPageFiles({
   message,
   notify,
   submitBytes = submitFileBytes,
+  now = () => Date.now(),
   // Why a file stayed in the browser, in the extension's console: nothing else says it (RD-1470-03).
   log = (reason) => console.info(`rDownloader: a page's file stays in the browser (${reason})`)
 }) {
   let pending = Promise.resolve()
+  /** tab id → when its files of the last minute came. */
+  const recent = new Map()
+
+  /** Counts one file of a tab; false once the tab has had its share of the window. */
+  function withinLimit(tabId) {
+    const since = now() - TAB_WINDOW_MS
+    for (const [id, times] of recent) {
+      const kept = times.filter((time) => time > since)
+      if (kept.length) recent.set(id, kept)
+      else recent.delete(id)
+    }
+    const times = recent.get(tabId) ?? []
+    if (times.length >= TAB_LIMIT) return false
+    recent.set(tabId, [...times, now()])
+    return true
+  }
 
   /** Registers the scripts for exactly the allowed sites whose grant still stands. */
   async function register() {
@@ -117,6 +142,7 @@ export function createPageFiles({
     if (!(await siteConsented(api, sender.url))) return kept('site not allowed')
     const bytes = decodeBytes(request?.data)
     if (!bytes) return kept('no bytes')
+    if (!withinLimit(sender.tab.id)) return kept('too many files from this tab')
     const result = await submitBytes(config, { bytes: new Blob([bytes]), fileName: handOverName(name, mime) })
     if (result.ok) {
       await notify?.(message('fileHandedOver'))

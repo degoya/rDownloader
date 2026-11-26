@@ -10,11 +10,8 @@
 //! and reconnecting (a new public address, and the old one is gone). The power tools can read a
 //! countdown and stop one; nothing here starts a standby or a shutdown.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::HeaderMap,
-};
+use axum::{extract::State, http::HeaderMap};
+use rd_api_core::extract::{Json, Path, Query};
 use rmcp::{
     handler::server::wrapper::Parameters,
     model::{CallToolResult, ContentBlock},

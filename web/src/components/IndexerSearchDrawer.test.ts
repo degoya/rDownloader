@@ -17,6 +17,10 @@ import { router } from '@/router'
 import { createTestI18n, mountComponent, settle, uiStubs } from '@/test/mount'
 
 import LinkGrabberNavbar from './LinkGrabberNavbar.vue'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
+
+// Off by default (RD-1480-17); these tests are about the keys.
+shortcutsEnabled.value = true
 
 const get = vi.fn()
 vi.mock('@/api/client', () => apiClientMock({ GET: (...args: unknown[]) => get(...args), responseError: vi.fn(() => '') }))

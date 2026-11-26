@@ -1,8 +1,8 @@
-import { driver, type Config, type DriveStep, type Driver } from 'driver.js'
+import type { Config, DriveStep, Driver } from 'driver.js'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import 'driver.js/dist/driver.css'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
 
 /** A step plus the route that has to be showing before its anchor exists. */
 type TourStep = DriveStep & { data?: { route?: string } }
@@ -18,7 +18,7 @@ const ANCHOR_TIMEOUT = 3000
  * which route first, wait for the anchor to actually exist, and only then move the tour on —
  * views are lazily imported, so moving before the anchor renders would silently skip the step.
  */
-export function useAppTour(): { startTour: () => void } {
+export function useAppTour(): { startTour: () => Promise<void> } {
   const { t } = useI18n()
   const router = useRouter()
 
@@ -27,12 +27,13 @@ export function useAppTour(): { startTour: () => void } {
       element: string | undefined,
       key: string,
       route: string,
-      side: 'top' | 'right' | 'bottom' | 'left' = 'right'
+      side: 'top' | 'right' | 'bottom' | 'left' = 'right',
+      description = 'description'
     ): TourStep => ({
       ...(element ? { element } : {}),
       popover: {
         title: t(`tour.steps.${key}.title`),
-        description: t(`tour.steps.${key}.description`),
+        description: t(`tour.steps.${key}.${description}`),
         side,
         align: 'start'
       },
@@ -48,11 +49,12 @@ export function useAppTour(): { startTour: () => void } {
       step('[data-tour="grabber-body"]', 'grabber_body', '/linkgrabber', 'top'),
       step('[data-tour="settings-tabs"]', 'settings', '/settings', 'bottom'),
       // No anchor: a closing note centred on the screen.
-      step(undefined, 'done', '/settings')
+      // It names the key that lists the shortcuts only while they are on (RD-1480-17).
+      step(undefined, 'done', '/settings', 'right', shortcutsEnabled.value ? 'description' : 'description_shortcuts_off')
     ]
   }
 
-  function startTour(): void {
+  async function startTour(): Promise<void> {
     const tourSteps = steps()
 
     /** Resolves once the step's anchor is in the DOM, or after the timeout either way. */
@@ -100,6 +102,8 @@ export function useAppTour(): { startTour: () => void } {
       onPrevClick: () => goTo((instance.getActiveIndex() ?? 0) - 1)
     }
 
+    // Loaded when a tour starts: nobody who does not take it needs driver.js (RD-1480-18).
+    const [{ driver }] = await Promise.all([import('driver.js'), import('driver.js/dist/driver.css')])
     const instance: Driver = driver(config)
     void prepare(tourSteps[0]).then(() => instance.drive())
   }

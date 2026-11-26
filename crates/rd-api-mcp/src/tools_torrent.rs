@@ -6,10 +6,8 @@
 //! had no way to do any of that. The six read-outs are one tool with a `view`, all priced
 //! `api:read` like their routes; the writes are one tool per decision, priced `api:queue`.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path, Query};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

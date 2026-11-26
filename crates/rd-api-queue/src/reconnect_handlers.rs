@@ -1,6 +1,7 @@
 //! Reading the reconnect state and asking for one by hand.
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::Json;
 
 use crate::{AppState, error::ApiError, reconnect_service::ReconnectStatus};
 

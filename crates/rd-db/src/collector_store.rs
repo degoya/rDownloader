@@ -387,12 +387,13 @@ async fn reread_candidates(
 /// A candidate that has already been handed to the queue has no reader of its own left: the
 /// enqueue copies the fields it saw when it claimed the row, and detaches the row when it is
 /// done. Fields that arrive after that claim therefore have to be carried onto the queue rows
-/// the candidate became, or they reach nothing (RD-108-15).
+/// the candidate became, or they reach nothing (RD-108-15). Answers that row, for the writer to
+/// announce: a client holding the queue learns of it nowhere else (RD-1480-18).
 pub(crate) async fn set_enrichment(
     connection: &mut SqliteConnection,
     id: rd_core::CandidateId,
     fields: &[rd_core::EnrichmentField],
-) -> Result<()> {
+) -> Result<Option<rd_core::DownloadId>> {
     let stored = if fields.is_empty() {
         None
     } else {
@@ -409,13 +410,14 @@ pub(crate) async fn set_enrichment(
             .bind(id.to_string())
             .fetch_optional(&mut *tx)
             .await?;
-    if let Some((state, url)) = handed_over
-        && matches!(state.as_str(), "resolving" | "enqueued")
-    {
-        crate::package_store::carry_enrichment_for_source(&mut tx, &url, fields).await?;
-    }
+    let carried = match handed_over {
+        Some((state, url)) if matches!(state.as_str(), "resolving" | "enqueued") => {
+            crate::package_store::carry_enrichment_for_source(&mut tx, &url, fields).await?
+        }
+        _ => None,
+    };
     tx.commit().await?;
-    Ok(())
+    Ok(carried)
 }
 
 fn provider_for(url: &Url) -> String {

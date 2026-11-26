@@ -16,7 +16,8 @@
 //! and keeps its triggers. Switching off lifts nothing here: only the agent knows the end of its
 //! hold, and it lifts the hold itself as soon as it has the switch.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_core::{
     CaptureAgentSettings, GameModeAction, GameModeInForce, GameModeProblem, SignedDuration,
     Timestamp,

@@ -6,6 +6,10 @@ name: Advisories
 # Advisories only: licences, bans and sources change with the tree, and ci.yml checks those on
 # every push. A finding here is fixed or waived in deny.toml in the development repository and
 # arrives with the next export.
+#
+# `osv` asks the same of what is no crate (RD-1480-14, SEC-5): the container's Python tools and the
+# interface's npm packages, through scripts/advisories.sh, which says how a finding is fixed or
+# waived. Nothing is installed for it.
 on:
   schedule:
     - cron: "17 5 * * 1"
@@ -21,6 +25,20 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: EmbarkStudios/cargo-deny-action@70f81531115945ba6eb6b941ec9d39d063438eb9 # v2.1.2
         with:
           command: check advisories
+
+  osv:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Python tools of the image and npm packages of the interface
+        run: scripts/advisories.sh

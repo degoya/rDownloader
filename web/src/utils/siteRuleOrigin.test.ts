@@ -33,7 +33,9 @@ const bundled: Bundle['rules'] = existsSync(examplesFile)
   : []
 
 describe('bundled site rule descriptions', () => {
-  it.skipIf(bundled.length === 0)('has every bundled rule described in every required language', () => {
+  // Skipped without the crates alone: a bundle that came out empty fails.
+  it.skipIf(!existsSync(examplesFile))('has every bundled rule described in every required language', () => {
+    expect(bundled.length).toBeGreaterThan(0)
     for (const { rule } of bundled) {
       const key = `siterules.bundled.${rule.id}`
       for (const locale of REQUIRED_LOCALES) {

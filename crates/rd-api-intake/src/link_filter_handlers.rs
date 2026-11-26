@@ -4,11 +4,8 @@
 //! The rules decide at intake on their own; applying them is for the list as it already is —
 //! after a rule changed, or after the online check learned the names and sizes a rule asks for.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path, Query};
 use rd_core::LinkFilterRuleId;
 use rd_db::StoreErrorKind;
 

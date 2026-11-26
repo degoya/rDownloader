@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue'
 
 import type { Download, DownloadPackage, DownloadState } from '@/api/types'
 import type { QueueGroup } from '@/composables/useQueueSelection'
+import { compareNatural } from '@/utils/collation'
 
 /** The columns the download list sorts by: the name and the four data columns (RD-1190-16). */
 export type QueueSortColumn = 'name' | 'state' | 'progress' | 'size' | 'meta'
@@ -20,8 +21,6 @@ const STATE_ORDER: readonly DownloadState[] = [
   'retry_wait', 'queued', 'paused', 'blocked', 'failed', 'cancelled', 'skipped', 'completed'
 ]
 
-const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
-
 function stateRank(state: DownloadState): number {
   const rank = STATE_ORDER.indexOf(state)
   return rank < 0 ? STATE_ORDER.length : rank
@@ -38,7 +37,7 @@ function ratio(committed: number, total: number): number {
 type Key = string | number
 
 function compareKeys(left: Key, right: Key): number {
-  if (typeof left === 'string' && typeof right === 'string') return collator.compare(left, right)
+  if (typeof left === 'string' && typeof right === 'string') return compareNatural(left, right)
   return Number(left) - Number(right)
 }
 

@@ -36,24 +36,50 @@
 :root {
   --ui-radius: 0.3rem;
   --signal-grid: color-mix(in srgb, var(--ui-primary) 8%, transparent);
+}
 
-  /*
-   * Contrast (WCAG 2.2, 1.4.3).
-   *
-   * Nuxt UI takes shade 500 as the accent in light mode. Against this application's light
-   * ground that is 2.36:1 for `signal` and 3.48:1 for `coral` — short of the 4.5:1 text needs,
-   * and short again as a button ground under white text. Shade 700 clears both (5.27:1 and
-   * 6.29:1) at the cost of a slightly deeper accent, which is a trade worth making: a label
-   * nobody can read is not a lighter design, it is a missing one.
-   *
-   * Dark mode keeps Nuxt UI's own choice: shade 400 is 10.98:1 there, and its buttons carry
-   * dark text on that ground.
-   *
-   * Shade 700 of the palette in use, not of `signal` by name: a colour theme (RD-1240-05) sets
-   * `--ui-color-primary-*` on `<html>`, and its 700 passes the same test (`contrast.test.ts`).
-   */
-  --ui-primary: var(--ui-color-primary-700);
-  --ui-error: var(--color-coral-700);
+/*
+ * Contrast (WCAG 2.2, 1.4.3), in light mode only.
+ *
+ * Nuxt UI takes shade 500 of every colour in light mode: as text on the page's white that is
+ * 2.13:1 for `warning`, 2.22:1 for `success` and 2.50:1 for `signal`, where text needs 4.5:1, and
+ * a solid button's white label is no better off. Shade 700 clears the page; what decides the shade
+ * is a badge or a notice, whose text stands on a tenth of its own colour over a card: 700 is
+ * 4.40:1 there for `signal` and under 4.1:1 for `amber` and `green`, 800 passes for all of them
+ * and for every colour theme's accent. `coral` and `blue` pass with 700 already.
+ *
+ * `text-muted` is shade 500 of the greys there, 4.35:1 on a card; 600 is 6.90:1.
+ *
+ * `:root:not(.dark)`, never a bare `:root`: this sheet is in no cascade layer and Nuxt UI's
+ * `.dark` is, so a bare `:root` painted the light shades in dark mode as well, down to 2.43:1
+ * (RD-1480-17). Dark mode keeps Nuxt UI's own choice, shade 400: 10.59:1 for `signal`.
+ *
+ * The shades of the palette in use, not of `signal` by name: a colour theme (RD-1240-05) sets
+ * `--ui-color-primary-*` on `<html>`. `contrast.test.ts` reads this sheet and works every one of
+ * these ratios out, in both modes and every theme.
+ */
+:root:not(.dark) {
+  --ui-primary: var(--ui-color-primary-800);
+  --ui-success: var(--ui-color-success-800);
+  --ui-info: var(--ui-color-info-700);
+  --ui-warning: var(--ui-color-warning-800);
+  --ui-error: var(--ui-color-error-700);
+  --ui-text-muted: var(--ui-color-neutral-600);
+}
+
+/* The one accent whose shade 400 falls short on its own tint over a card, at 4.48:1. */
+:root.dark[data-palette="violet"] {
+  --ui-primary: var(--ui-color-primary-300);
+}
+
+/*
+ * The focus ring (WCAG 2.2, 1.4.11). Nuxt UI draws it in a quarter of the accent, 1.43:1 against
+ * the page; the navigation draws it on `::before`. `!important` because the quarter is a utility
+ * class on every control.
+ */
+:focus-visible,
+:focus-visible::before {
+  outline-color: var(--ui-primary) !important;
 }
 
 html,

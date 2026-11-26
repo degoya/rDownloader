@@ -80,6 +80,11 @@ async fn the_api_answers_under_the_mount_point() {
         "the mount point was not stripped; got the app shell: {body}"
     );
 
+    // A path no route has is a coded 404 under the mount point as well, not the shell.
+    let (status, body) = get(&harness.router, "/downloads/api/v1/no-such-route").await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    assert!(body.contains("web.route_not_found"), "{body}");
+
     // The same route without the mount point still answers: a container health check and
     // anything else reaching the port directly must keep working.
     let (status, _) = get(&harness.router, "/api/v1/health").await;

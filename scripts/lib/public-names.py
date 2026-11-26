@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Refuses a public mention of another download manager outside the allowlist (RD-1250-11).
 
-    public-names.py <checkout> <exclude-list> <allowlist>
+    public-names.py <checkout> <exclude-list> <allowlist> [<names>]
 
 The owner, 2026-10-11: nothing public names JDownloader as the model or the source of a
 behaviour, written out (`jdownloader`, any case) or abbreviated (`JD` as a word, case-sensitive,
@@ -19,6 +19,10 @@ mention passes under a `## [X.Y.Z] - date` heading and fails under `## [Unreleas
 RELEASE-NOTES.md it passes in a `## X.Y.Z` section that carries no draft comment and whose
 version CHANGELOG.md dates, and fails in any other. An entry that no mention needs any more is
 a finding too, so the list cannot outgrow the tree.
+
+With a fourth argument the terms are that file's instead: one regular expression per line, any
+case, `#` starts a comment. Release pages are looked for that way (RD-1480-23): their list is left
+out of the public repository, so that the guard itself does not publish the names.
 
 Searches the working tree's tracked files (`git grep`), binaries left out. Prints one line per
 finding and exits 1 when there is any, 0 otherwise.
@@ -51,10 +55,6 @@ def excluded_paths(listing):
     return entries
 
 
-def is_excluded(path, entries):
-    return any(path == entry or path.startswith(entry + "/") for entry in entries)
-
-
 def allow_entries(listing):
     """[(line number, path glob, compiled expression or RELEASED, reason)], or findings."""
     entries, findings = [], []
@@ -82,12 +82,21 @@ def allow_entries(listing):
     return entries, findings
 
 
-def mentions(checkout):
-    """{(path, line number): (text, term)} of every tracked text line naming one of TERMS."""
+def named_terms(listing):
+    """The terms of a names file, in the shape of TERMS."""
+    with open(listing, encoding="utf-8") as handle:
+        names = [line.strip() for line in handle]
+    return [(["-i", "-E", "-e", name], name) for name in names if name and not name.startswith("#")]
+
+
+def mentions(checkout, terms, excluded):
+    """{(path, line number): (text, term)} of every tracked text line naming one of the terms; an
+    excluded path is not read at all."""
     found = {}
-    for arguments, term in TERMS:
+    paths = ["--", ":/", *(f":(top,exclude){entry}" for entry in excluded)]
+    for arguments, term in terms:
         result = subprocess.run(
-            ["git", "-C", checkout, "grep", "-n", "-I", "--full-name", *arguments],
+            ["git", "-C", checkout, "grep", "-n", "-I", "--full-name", *arguments, *paths],
             capture_output=True,
             text=True,
             check=False,
@@ -136,17 +145,19 @@ def notes_released(checkout, dated):
 
 
 def main(argv):
-    if len(argv) != 4:
-        print("usage: public-names.py <checkout> <exclude-list> <allowlist>", file=sys.stderr)
+    if len(argv) not in (4, 5):
+        print("usage: public-names.py <checkout> <exclude-list> <allowlist> [<names>]", file=sys.stderr)
         return 2
     checkout, excluded = argv[1], excluded_paths(argv[2])
     entries, findings = allow_entries(argv[3])
     changelog, dated = changelog_released(checkout)
     notes = notes_released(checkout, dated)
+    terms = named_terms(argv[4]) if len(argv) == 5 else TERMS
+    if not terms:
+        print(f"{argv[4]}: no names")
+        return 1
     used = set()
-    for (path, number), (text, term) in sorted(mentions(checkout).items()):
-        if is_excluded(path, excluded):
-            continue
+    for (path, number), (text, term) in sorted(mentions(checkout, terms, excluded).items()):
         allowed = False
         for line_number, glob, expression, _ in entries:
             if not fnmatch.fnmatchcase(path, glob):

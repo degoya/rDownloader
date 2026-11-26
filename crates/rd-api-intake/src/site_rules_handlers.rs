@@ -24,11 +24,8 @@
 
 use std::collections::BTreeMap;
 
-use axum::{
-    Json,
-    body::Bytes,
-    extract::{Path, State},
-};
+use axum::{body::Bytes, extract::State};
+use rd_api_core::extract::{Json, Path};
 use rd_db::NewUserSiteRule;
 /// What a write records as the rule's origin; the MCP tools name theirs through it.
 pub use rd_db::SiteRuleOriginKind;

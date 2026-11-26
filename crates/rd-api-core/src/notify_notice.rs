@@ -7,12 +7,14 @@
 //! matching rule at most once per key, in one transaction with the record that it did. So the
 //! twentieth check that finds the same version notifies nobody, after a restart too.
 //!
-//! Like the bus events, the text is English: the delivery goes to a webhook, a mail box or a
-//! chat, none of which knows the reader's language, and the event code is what a receiver
-//! translates or filters on.
+//! Like the bus events, the text is in the language the settings name for notifications, English
+//! while none is (RD-1480-11): a webhook, a mail box or a chat does not know the reader's. The
+//! event code and the body's fields are what a receiver filters on.
 
 use jiff::civil::Date;
-use rd_notify::{NotificationEvent, Placeholder as P, Values};
+use rd_notify::{
+    NotificationEvent, NotificationLanguage, Placeholder as P, Subject, Text, Values, Words,
+};
 
 /// How close a premium end is before an account check announces it.
 pub(crate) const EXPIRY_WARNING_DAYS: i64 = 7;
@@ -22,13 +24,13 @@ const PREMIUM_UNTIL: &str = "plugin.account.premium_until";
 /// The account-label code a plugin states an ended premium under.
 const PREMIUM_EXPIRED: &str = "plugin.account.premium_expired";
 
-/// One notice: its event, the key a rule gets it once under, and its text.
+/// One notice: its event, the key a rule gets it once under, and its text, in no language yet.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Notice {
     pub event: NotificationEvent,
     pub key: String,
-    pub title: String,
-    pub body: String,
+    pub title: Text,
+    pub body: Text,
     /// What a rule's own wording may name beyond the event and the moment (RD-1280-02): the
     /// version, the plugin, the account, the destination, the error.
     pub values: Values,
@@ -41,8 +43,10 @@ impl Notice {
         Self {
             event: NotificationEvent::BackupFailed,
             key: format!("backup_failed:{run_id}"),
-            title: "Scheduled backup failed".to_owned(),
-            body: format!("The scheduled backup failed ({code}): {detail}"),
+            title: Text::new("backup_failed.title"),
+            body: Text::new("backup_failed.body")
+                .with("code", code)
+                .with("detail", detail),
             values: Values::default().with(P::Error, rd_core::redact_text(detail)),
         }
     }
@@ -53,11 +57,8 @@ impl Notice {
         Self {
             event: NotificationEvent::BackupFailed,
             key: format!("backup_failed:{run_id}"),
-            title: "Scheduled backup incomplete".to_owned(),
-            body: format!(
-                "The scheduled backup was written, but not to every destination: {}",
-                failed.join("; ")
-            ),
+            title: Text::new("backup_partial.title"),
+            body: Text::new("backup_partial.body").with("failed", failed.join("; ")),
             values: Values::default().with(P::Error, rd_core::redact_text(&failed.join("; "))),
         }
     }
@@ -74,11 +75,12 @@ impl Notice {
         Self {
             event: NotificationEvent::BackupVerifyFailed,
             key: format!("backup_verify_failed:{verification_id}"),
-            title: "Backup verification failed".to_owned(),
-            body: format!(
-                "The scheduled verification of {archive} at {destination} failed ({code}): \
-                 {detail}"
-            ),
+            title: Text::new("backup_verify_failed.title"),
+            body: Text::new("backup_verify_failed.body")
+                .with("archive", archive)
+                .with("destination", destination)
+                .with("code", code)
+                .with("detail", detail),
             values: Values::default()
                 .with(P::StorageTarget, destination)
                 .with(P::Error, rd_core::redact_text(detail)),
@@ -91,11 +93,10 @@ impl Notice {
         Self {
             event: NotificationEvent::UpdateAvailable,
             key: format!("update_available:{version}"),
-            title: format!("rDownloader {version} is available"),
-            body: format!(
-                "rDownloader {version} is available; this installation runs {current}. \
-                 Settings -> System -> Updates shows the release notes and how to update."
-            ),
+            title: Text::new("update_available.title").with("version", version),
+            body: Text::new("update_available.body")
+                .with("version", version)
+                .with("current", current),
             values: Values::default().with(P::Version, version),
         }
     }
@@ -107,12 +108,10 @@ impl Notice {
         Self {
             event: NotificationEvent::UpdateAvailable,
             key: format!("update_installing:{version}"),
-            title: format!("Installing rDownloader {version}"),
-            body: format!(
-                "Nothing has run for a while, so rDownloader {version} is being installed \
-                 automatically over {current}. The service stops and starts again as the new \
-                 version; a version that does not start is taken back."
-            ),
+            title: Text::new("update_installing.title").with("version", version),
+            body: Text::new("update_installing.body")
+                .with("version", version)
+                .with("current", current),
             values: Values::default().with(P::Version, version),
         }
     }
@@ -123,8 +122,10 @@ impl Notice {
         Self {
             event: NotificationEvent::UpdateInstalled,
             key: format!("update_installed:{version}"),
-            title: format!("rDownloader {version} is installed"),
-            body: format!("rDownloader was updated from {from} to {version} and runs again."),
+            title: Text::new("update_installed.title").with("version", version),
+            body: Text::new("update_installed.body")
+                .with("from", from)
+                .with("version", version),
             values: Values::default().with(P::Version, version),
         }
     }
@@ -135,11 +136,11 @@ impl Notice {
         Self {
             event: NotificationEvent::UpdateFailed,
             key: format!("update_failed:{version}"),
-            title: format!("Update to rDownloader {version} failed"),
-            body: format!(
-                "The update to {version} did not go ahead ({code}); rDownloader {current} keeps \
-                 running. Settings -> System -> Updates shows what happened."
-            ),
+            title: Text::new("update_failed.title").with("version", version),
+            body: Text::new("update_failed.body")
+                .with("version", version)
+                .with("code", code)
+                .with("current", current),
             values: Values::default()
                 .with(P::Version, version)
                 .with(P::Error, code),
@@ -147,23 +148,20 @@ impl Notice {
     }
 
     /// The service restarts to apply what waits for the next start (RD-1240-32): `why` names it
-    /// in words, `automatic` says the service decided it. Keyed by the moment the restart began,
+    /// in words (nothing: what waits), `automatic` says the service decided it. Keyed by the moment the restart began,
     /// so each restart is announced once.
     #[must_use]
-    pub fn service_restarting(started: &str, why: &str, automatic: bool) -> Self {
-        let decided = if automatic {
-            "Nothing has run for a while, so rDownloader restarts by itself"
+    pub fn service_restarting(started: &str, why: impl Into<Words>, automatic: bool) -> Self {
+        let body = if automatic {
+            Text::new("service_restarting.body_automatic")
         } else {
-            "rDownloader restarts on request"
+            Text::new("service_restarting.body_requested")
         };
         Self {
             event: NotificationEvent::ServiceRestarting,
             key: format!("service_restarting:{started}"),
-            title: "rDownloader restarts".to_owned(),
-            body: format!(
-                "{decided} to apply {why}. Running downloads are saved by the stop and continue \
-                 once it is back."
-            ),
+            title: Text::new("service_restarting.title"),
+            body: body.with("why", why),
             values: Values::default(),
         }
     }
@@ -179,11 +177,13 @@ impl Notice {
         Self {
             event: NotificationEvent::PluginUpdateAvailable,
             key: format!("plugin_update_available:{plugin_id}:{version}"),
-            title: format!("Plugin update: {name} {version}"),
-            body: format!(
-                "{name} {version} is available; {installed} is installed. Plugins -> Updates \
-                 installs it."
-            ),
+            title: Text::new("plugin_update_available.title")
+                .with("name", name)
+                .with("version", version),
+            body: Text::new("plugin_update_available.body")
+                .with("name", name)
+                .with("version", version)
+                .with("installed", installed),
             values: Values::default()
                 .with(P::Plugin, name)
                 .with(P::Version, version),
@@ -197,11 +197,13 @@ impl Notice {
         Self {
             event: NotificationEvent::PluginUpdateFailed,
             key: format!("plugin_update_failed:{plugin_id}:{version}"),
-            title: format!("Plugin update failed: {name} {version}"),
-            body: format!(
-                "The automatic update of {name} to {version} was not installed ({code}). The \
-                 installed version keeps running; Plugins -> Updates offers it again."
-            ),
+            title: Text::new("plugin_update_failed.title")
+                .with("name", name)
+                .with("version", version),
+            body: Text::new("plugin_update_failed.body")
+                .with("name", name)
+                .with("version", version)
+                .with("code", code),
             values: Values::default()
                 .with(P::Plugin, name)
                 .with(P::Version, version)
@@ -217,38 +219,45 @@ impl Notice {
         let (when, body) = match until {
             Some(until) if until >= today => (
                 until.to_string(),
-                format!("The premium of {name} ends on {until}."),
+                Text::new("account_expiring.body_ends").with("date", until.to_string()),
             ),
             Some(until) => (
                 until.to_string(),
-                format!("The premium of {name} ended on {until}."),
+                Text::new("account_expiring.body_ended_on").with("date", until.to_string()),
             ),
-            None => (
-                "ended".to_owned(),
-                format!("The premium of {name} has ended."),
-            ),
+            None => ("ended".to_owned(), Text::new("account_expiring.body_ended")),
         };
         Self {
             event: NotificationEvent::AccountExpiring,
             key: format!("account_expiring:{}:{when}", account.id),
-            title: format!("Account expiring: {name}"),
-            body,
+            title: Text::new("account_expiring.title").with("account", name.as_str()),
+            body: body.with("account", name.as_str()),
             values: Values::default().with(P::Account, name.as_str()),
         }
     }
 
     /// An account no longer signs in. At most one a day per account, whichever way it is noticed.
+    /// The reason is the provider's words or the service's own.
     #[must_use]
-    pub fn account_invalid(account: &rd_core::Account, reason: &str, today: Date) -> Self {
+    pub fn account_invalid(
+        account: &rd_core::Account,
+        reason: impl Into<Words>,
+        today: Date,
+    ) -> Self {
+        let reason = reason.into();
+        // What a rule's own wording is filled with is not translated.
+        let error = rd_core::redact_text(&reason.say(NotificationLanguage::En));
         let name = account_name(account);
         Self {
             event: NotificationEvent::AccountInvalid,
             key: format!("account_invalid:{}:{today}", account.id),
-            title: format!("Account needs attention: {name}"),
-            body: format!("{name} could not sign in: {reason}"),
+            title: Text::new("account_invalid.title").with("account", name.as_str()),
+            body: Text::new("account_invalid.body")
+                .with("account", name.as_str())
+                .with("reason", reason),
             values: Values::default()
                 .with(P::Account, name.as_str())
-                .with(P::Error, rd_core::redact_text(reason)),
+                .with(P::Error, error),
         }
     }
 }
@@ -273,7 +282,7 @@ pub fn account_check_notices(
     if !status.valid {
         return vec![Notice::account_invalid(
             account,
-            "the provider refused the account",
+            Text::new("account_invalid.refused"),
             today,
         )];
     }
@@ -306,7 +315,7 @@ pub fn account_failure_notice(
         failure.category,
         rd_core::FailureKind::AccountInvalid | rd_core::FailureKind::AuthRequired
     )
-    .then(|| Notice::account_invalid(account, &failure.message, today))
+    .then(|| Notice::account_invalid(account, failure.message.as_str(), today))
 }
 
 /// The date a premium end starts with: `2027-01-31`, `2027-01-31 00:00:00` and RFC 3339 all
@@ -345,12 +354,15 @@ async fn queue(database: &rd_db::Database, notice: &Notice) -> anyhow::Result<u6
             values.extend(&notice.values);
             values
         });
+    let language = crate::notify_service::notification_language(database).await;
+    let (title, body) = (notice.title.say(language), notice.body.say(language));
+    let subject = Subject::now();
     let deliveries: Vec<_> = rules
         .into_iter()
         .map(|rule| {
             let (title, body) = values.as_ref().map_or_else(
-                || (notice.title.clone(), notice.body.clone()),
-                |values| rule.wording(&notice.title, &notice.body, values),
+                || (title.clone(), body.clone()),
+                |values| rule.wording(&title, &body, values),
             );
             rd_db::NewDelivery {
                 rule_id: rule.id,
@@ -360,6 +372,7 @@ async fn queue(database: &rd_db::Database, notice: &Notice) -> anyhow::Result<u6
                 title,
                 body,
                 package_path: None,
+                subject,
             }
         })
         .collect();

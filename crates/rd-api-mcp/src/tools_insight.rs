@@ -15,7 +15,8 @@
 //! store holds messages the service wrote with the redaction `rd-diagnostics` applies on the
 //! way in; `crates/rd-api/tests/mcp/mcp.rs` walks the answers looking for one anyway.
 
-use axum::extract::{Path as AxumPath, Query, State};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath, Query};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{
@@ -129,7 +130,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "How much the data directory holds that a clean-up would remove right now, and what stays: the database copies and encrypted archives taken before updates (pre_update), the database copies taken before migrations (pre_migration) and the compiled plugin code (plugin_cache), each as kept_files/kept_bytes and removable_files/removable_bytes. Behind a proven update (update_proven) only the newest copy of each kind stays, and after retention_days (the update_backup_retention_days setting, 0 = for good) that one goes too; an update not proven keeps all of them. Compiled code no installed plugin uses, from an older Wasmtime, or beyond 256 MiB is removable. And the database file (database): file_bytes, free_bytes (free pages inside it), event_rows/event_bytes, the subscription archive's item_rows/item_bytes and item_key_rows (keys of compacted items), compactable_items/compactable_bytes (skipped or dismissed items older than item_retention_days, the subscription_item_retention_days setting, 0 = for good; they keep only their key, so a feed still listing them brings nothing back) and removable_bytes (about how much smaller the file gets). incremental=false means a file from before 1.24 that the clean-up rewrites once; rewrite_refused says why it would not now (system.cleanup_rewrite_busy while something downloads, system.cleanup_rewrite_no_space without room for a second copy). Read-only; say the numbers before clean_up_data_directory."
+        description = "What a clean-up would remove from the data directory right now, and what stays: database copies and encrypted archives from before updates (pre_update), database copies from before migrations (pre_migration) and compiled plugin code (plugin_cache), each as kept_files/kept_bytes and removable_files/removable_bytes. Behind a proven update (update_proven) only the newest copy of each kind stays, and after retention_days (the update_backup_retention_days setting, 0 = for good) that one goes too; an update not proven keeps all of them. Compiled code no installed plugin uses, from an older Wasmtime, or beyond 256 MiB is removable. And the database file (database): file_bytes, free_bytes (free pages inside it), event_rows/event_bytes, the subscription archive's item_rows/item_bytes and item_key_rows (keys of compacted items), compactable_items/compactable_bytes (skipped or dismissed items older than item_retention_days, the subscription_item_retention_days setting, 0 = for good; they keep only their key, so a feed still listing them brings nothing back) and removable_bytes (about how much smaller the file gets). incremental=false means a file from before 1.24 that the clean-up rewrites once; rewrite_refused says why it would not now (system.cleanup_rewrite_busy while something downloads, system.cleanup_rewrite_no_space without room for a second copy). Read-only; say the numbers before clean_up_data_directory."
     )]
     pub async fn get_cleanup_preview(&self) -> McpToolResult {
         respond(
@@ -157,7 +158,7 @@ impl RdMcpServer {
             crate::system_cleanup::run_cleanup(
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
-                axum::Json(DataClearRequest {
+                Json(DataClearRequest {
                     confirmed: params.confirmed,
                 }),
             )
@@ -184,7 +185,7 @@ impl RdMcpServer {
             crate::data_reset_handlers::clear_log_records(
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
-                axum::Json(DataClearRequest {
+                Json(DataClearRequest {
                     confirmed: params.confirmed,
                 }),
             )
@@ -211,7 +212,7 @@ impl RdMcpServer {
             crate::data_reset_handlers::clear_audit_records(
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
-                axum::Json(DataClearRequest {
+                Json(DataClearRequest {
                     confirmed: params.confirmed,
                 }),
             )
@@ -238,7 +239,7 @@ impl RdMcpServer {
             crate::data_reset_handlers::clear_transfer_stats(
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
-                axum::Json(DataClearRequest {
+                Json(DataClearRequest {
                     confirmed: params.confirmed,
                 }),
             )
@@ -265,7 +266,7 @@ impl RdMcpServer {
             crate::data_reset_handlers::clear_notification_deliveries(
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
-                axum::Json(DataClearRequest {
+                Json(DataClearRequest {
                     confirmed: params.confirmed,
                 }),
             )
@@ -292,7 +293,7 @@ impl RdMcpServer {
             crate::data_reset_handlers::discard_pending_notification_deliveries(
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
-                axum::Json(DataClearRequest {
+                Json(DataClearRequest {
                     confirmed: params.confirmed,
                 }),
             )
@@ -319,7 +320,7 @@ impl RdMcpServer {
             crate::data_reset_handlers::clear_storage_operations(
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
-                axum::Json(DataClearRequest {
+                Json(DataClearRequest {
                     confirmed: params.confirmed,
                 }),
             )
@@ -346,7 +347,7 @@ impl RdMcpServer {
             crate::data_reset_handlers::clear_content_index(
                 State(self.state.clone()),
                 crate::audit::AuditContext::current(),
-                axum::Json(DataClearRequest {
+                Json(DataClearRequest {
                     confirmed: params.confirmed,
                 }),
             )
@@ -377,7 +378,7 @@ impl RdMcpServer {
             crate::site_rules_handlers::set_site_rule_enabled(
                 State(self.state.clone()),
                 AxumPath(params.id),
-                axum::Json(SiteRuleSwitchRequest {
+                Json(SiteRuleSwitchRequest {
                     enabled: params.enabled,
                 }),
             )
@@ -397,7 +398,7 @@ impl RdMcpServer {
             crate::site_rules_handlers::set_site_rule_group_enabled(
                 State(self.state.clone()),
                 AxumPath(params.group),
-                axum::Json(SiteRuleSwitchRequest {
+                Json(SiteRuleSwitchRequest {
                     enabled: params.enabled,
                 }),
             )

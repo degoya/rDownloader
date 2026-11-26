@@ -42,6 +42,7 @@ pub struct AuditQueryParams {
     /// Records older than this id, for paging backwards.
     pub before_id: Option<i64>,
     /// Newest rows to return (1-500; the export allows up to 10000).
+    #[param(minimum = 1, maximum = 10000)]
     pub limit: Option<u32>,
 }
 

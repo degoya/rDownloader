@@ -5,60 +5,60 @@
     "password": {
       "title": "Mot de passe",
       "description": "Sécuriser le service",
-      "lead": "Définissez le mot de passe administrateur local. Le service reste lié à l'interface loopback par défaut."
+      "lead": "Définissez le mot de passe administrateur local. Le service reste lié à l’interface loopback par défaut."
     },
     "pairing": {
       "title": "Client",
       "description": "Agent de capture et extension",
-      "lead": "Associez l'agent de capture ou l'extension de navigateur pour que les liens arrivent automatiquement dans rDownloader."
+      "lead": "Associez l’agent de capture ou l’extension de navigateur pour que les liens arrivent automatiquement dans rDownloader."
     },
     "storage": {
       "title": "Stockage",
       "description": "Destination des téléchargements",
-      "lead": "Les téléchargements ont besoin d'un répertoire cible. Ajoutez au moins un emplacement de stockage pour continuer."
+      "lead": "Les téléchargements ont besoin d’un répertoire cible. Ajoutez au moins un emplacement de stockage pour continuer."
     },
     "mcp": {
       "title": "API & MCP",
       "description": "Connecter des clients externes",
-      "lead": "Créez éventuellement un jeton d'API pour un client externe ou enregistrez le serveur MCP intégré auprès de votre assistant IA."
+      "lead": "Créez éventuellement un jeton d’API pour un client externe ou enregistrez le serveur MCP intégré auprès de votre assistant IA."
     },
     "services": {
       "title": "Comptes",
       "description": "Hébergeurs et Usenet",
-      "lead": "Ajoutez des comptes d'hébergeurs et des serveurs Usenet. Vous pouvez passer cette étape et le faire plus tard dans les paramètres."
+      "lead": "Ajoutez des comptes d’hébergeurs et des serveurs Usenet. Vous pouvez passer cette étape et le faire plus tard dans les paramètres."
     },
     "selection": {
       "title": "Vos services",
       "description": "Ce que vous utilisez",
-      "lead": "Choisissez les services que vous utilisez. Seuls leurs plugins sont installés ; tout le reste reste disponible dans Paramètres → Plugins, à un clic."
+      "lead": "Choisissez les services que vous utilisez. Seuls leurs plugins sont installés ; tout le reste reste disponible dans Paramètres → Plugins, à un clic."
     }
   },
   "password": {
     "rule": "au moins 10 caractères",
     "submit": "Définir le mot de passe",
     "configured": "Mot de passe déjà configuré",
-    "configured_hint": "Le mot de passe administrateur est défini. Vous pouvez le modifier à tout moment dans Paramètres → Général."
+    "configured_hint": "Le mot de passe administrateur est défini. Vous pouvez le modifier à tout moment dans Paramètres → Sécurité."
   },
   "pairing": {
-    "intro": "L'association est facultative — vous pouvez toujours ajouter des liens à la main. Un client associé envoie les liens capturés, Click'n'Load et les fichiers .nzb directement dans la file d'attente."
+    "intro": "L’association est facultative — vous pouvez toujours ajouter des liens à la main. Un client associé envoie les liens capturés, Click’n’Load et les fichiers .nzb dans le LinkGrabber."
   },
   "storage": {
-    "intro": "Un emplacement de stockage est le répertoire de base où les téléchargements sont écrits. Les chemins doivent être absolus et sont créés s'ils n'existent pas encore ; dans un conteneur, seul un chemin sur un volume monté survit à une recréation.",
-    "default_category_hint": "Une catégorie par défaut nommée « Downloads » est créée pour le premier emplacement afin que la file d'attente ait une destination.",
+    "intro": "Un emplacement de stockage est le répertoire de base où les téléchargements sont écrits. Les chemins doivent être absolus et sont créés s’ils n’existent pas encore ; dans un conteneur, seul un chemin sur un volume monté survit à une recréation.",
+    "default_category_hint": "Une catégorie par défaut nommée « Downloads » est créée pour le premier emplacement afin que la file d’attente ait une destination.",
     "default_category_name": "Downloads",
     "required_hint": "Ajoutez au moins un emplacement de stockage — sans lui, aucun téléchargement ne peut démarrer."
   },
   "services": {
-    "intro": "Facultatif : les comptes premium lèvent les limites de vitesse et de captcha, un serveur Usenet permet les téléchargements NZB.",
-    "accounts_tab": "Comptes d'hébergeurs",
+    "intro": "Facultatif : les comptes premium lèvent les limites de vitesse et de captcha, un serveur Usenet permet les téléchargements NZB.",
+    "accounts_tab": "Comptes d’hébergeurs",
     "usenet_tab": "Usenet",
-    "extension_title": "Ces comptes ont besoin de l'extension du navigateur",
-    "extension_hint": "{providers} peuvent reprendre la connexion de votre navigateur — cela ne fonctionne qu'avec l'extension du navigateur appairée, et aucune ne s'est encore signalée. Appairez-la maintenant, ou connectez-vous avec un mot de passe ou une clé d'API.",
-    "no_providers_title": "Aucun service avec compte n'est encore installé",
-    "no_providers": "Choisissez un hébergeur, un multihébergeur ou un service cloud dans « Vos services », puis ajoutez ici son compte. Les serveurs Usenet n'ont pas besoin de plugin.",
+    "extension_title": "Ces comptes ont besoin de l’extension du navigateur",
+    "extension_hint": "{providers} peuvent reprendre la connexion de votre navigateur — cela ne fonctionne qu’avec l’extension du navigateur appairée, et aucune ne s’est encore signalée. Appairez-la maintenant, ou connectez-vous avec un mot de passe ou une clé API.",
+    "no_providers_title": "Aucun service avec compte n’est encore installé",
+    "no_providers": "Choisissez un hébergeur, un multihébergeur ou un service cloud dans « Vos services », puis ajoutez ici son compte. Les serveurs Usenet n’ont pas besoin de plugin.",
     "choose_services": "Choisir des services",
     "restart_required_title": "Un redémarrage est encore nécessaire",
-    "restart_required": "Certains des plugins qui viennent d'être installés ne fonctionnent qu'après le prochain redémarrage. Vous pouvez déjà ajouter leurs comptes ; ils sont vérifiés dès que rDownloader a redémarré."
+    "restart_required": "Certains des plugins qui viennent d’être installés ne fonctionnent qu’après le prochain redémarrage. Vous pouvez déjà ajouter leurs comptes ; ils sont vérifiés dès que rDownloader a redémarré."
   },
   "actions": {
     "back": "Retour",
@@ -66,19 +66,19 @@
     "continue": "Continuer",
     "finish": "Terminer",
     "finish_with_tour": "Terminer et faire la visite",
-    "close": "Fermer l'assistant"
+    "close": "Fermer l’assistant"
   },
   "selection": {
     "progress": "Installation de {done} sur {total}…",
-    "hint": "Continuer n'installe rien de nouveau. | Continuer installe 1 service. Les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante. | Continuer installe {count} services. Les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage ; vous ajoutez les comptes à l'étape suivante.",
+    "hint": "Continuer n’installe rien de nouveau. | Continuer installe 1 service. Les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage ; vous ajoutez les comptes à l’étape suivante. | Continuer installe {count} services. Les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage ; vous ajoutez les comptes à l’étape suivante.",
     "installed_note_title": "Déjà installés",
-    "installed_note": "Les services qui n'ont besoin d'aucun compte sont déjà installés, pour que les liens fonctionnent aussitôt. Décochez-en un ici pour le supprimer en continuant, ou désactivez-le ou supprimez-le plus tard dans Paramètres → Plugins.",
+    "installed_note": "Les services qui n’ont besoin d’aucun compte sont déjà installés, pour que les liens fonctionnent aussitôt. Décochez-en un ici pour le supprimer en continuant, ou désactivez-le ou supprimez-le plus tard dans Paramètres → Plugins.",
     "open_plugins": "Ouvrir Paramètres → Plugins",
     "remove_hint": "Continuer ne supprime rien. | Continuer supprime 1 service. | Continuer supprime {count} services.",
-    "remove_title": "Supprimer des services ?",
+    "remove_title": "Supprimer des services ?",
     "remove_confirm": "{names} est supprimé avec tous ses plugins et ne fonctionne plus dès le prochain démarrage. Vous pouvez le réinstaller à tout moment dans Paramètres → Plugins. | {names} sont supprimés avec tous leurs plugins et ne fonctionnent plus dès le prochain démarrage. Vous pouvez les réinstaller à tout moment dans Paramètres → Plugins.",
     "remove_action": "Supprimer",
-    "remove_in_use": "{name} reste installé : un téléchargement inachevé l’utilise encore.",
-    "remove_failed": "{name} n’a pas pu être supprimé : {reason}"
+    "remove_in_use": "{name} reste installé : un téléchargement inachevé l’utilise encore.",
+    "remove_failed": "{name} n’a pas pu être supprimé : {reason}"
   }
 }

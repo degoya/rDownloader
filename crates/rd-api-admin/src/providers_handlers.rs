@@ -5,7 +5,8 @@
 //! not the registry's to answer — whether an authentication plugin can sign a provider in is
 //! a fact about what is installed right now, so it is filled in here.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 
 use crate::{AppState, dto::ProviderResponse};
 

@@ -6,11 +6,8 @@
 
 use std::time::Duration;
 
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path};
 use rd_api_core::input_checks::optional_text;
 use rd_core::{
     AuthMethod, AuthOrigin, AuthProfile, AuthProfileId, AuthScope, MAX_AUTH_CERTIFICATE,

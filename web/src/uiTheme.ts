@@ -28,7 +28,9 @@ export const uiTheme = {
   // A sub-section divider is the same muted hairline the hand-drawn `border-t` was.
   separator: { variants: { color: { neutral: { border: 'border-muted' } } } },
   // A notice is subtle (174 of 178 named it, RD-1120-14); `soft` and `outline` stay named.
-  alert: { defaultVariants: { variant: 'subtle' } },
+  // Its description in the full colour: Nuxt UI's `opacity-90` costs the text a tenth of its
+  // contrast (RD-1480-17).
+  alert: { slots: { description: 'opacity-100' }, defaultVariants: { variant: 'subtle' } },
   // A dialog footer ends right-aligned (`design.md`, *Forms*), named before at all 17 modals.
   modal: { slots: { footer: 'justify-end' } },
   // A toast breaks a long word — a package name without a space — instead of running past its

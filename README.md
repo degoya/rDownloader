@@ -104,4 +104,4 @@ Report vulnerabilities privately through GitHub; [`SECURITY.md`](SECURITY.md) ha
 
 ## License
 
-rDownloader is developed by Alexander Herling / DEGOYA.digital and licensed under the [GNU General Public License v3.0 or later](LICENSE). Use it only for content you are permitted to access and download.
+Copyright (C) 2026 Alexander Herling / DEGOYA.digital. rDownloader is licensed under the [GNU General Public License v3.0 or later](LICENSE); the licenses of what it contains of others are in `THIRD-PARTY-NOTICES.txt` in every package and under *Settings → About rDownloader*. The plugin templates and the plugin contract are under the [MIT license](sdk/LICENSE). Use it only for content you are permitted to access and download.

@@ -95,6 +95,10 @@ pub enum EventKind {
     /// A user-written site rule was written or removed (`site_rule.changed`, RD-110-04).
     /// The payload names the rule id and never carries the rule body.
     SiteRuleChanged,
+    /// The settings document was changed (`settings.changed`, RD-1480-07). The payload names the
+    /// changed fields and never a value. Broadcast only, never persisted: the document itself is
+    /// the stored state.
+    SettingsChanged,
     /// The queue's stop mark was set, cleared or reached (`queue.stop_mark`, RD-1210-02). The
     /// payload names the action and the file or package by id only. Broadcast only, never
     /// persisted: the mark itself is the stored state.
@@ -109,9 +113,13 @@ pub enum EventKind {
 /// Persistable event envelope.
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct EventEnvelope {
+    /// What a client resumes after, as `Last-Event-ID`.
     pub id: EventId,
+    /// What happened; the event's name on the stream says the same.
     pub kind: EventKind,
+    /// When it happened.
     pub occurred_at: Timestamp,
+    /// What it is about; the fields depend on the kind.
     pub payload: Value,
 }
 

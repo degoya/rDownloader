@@ -59,7 +59,7 @@
     "queue_done_title": "Lista de descargas completada",
     "queue_done_body": "Ningún archivo completado. | {count} archivo completado. | {count} archivos completados.",
     "package_failed_title": "Descargas fallidas: {package}",
-    "package_failed_body": "No se pudieron descargar {count} de {total} archivos."
+    "package_failed_body": "No se pudo descargar {count} de {total} archivos. | No se pudieron descargar {count} de {total} archivos."
   },
   "confirm": {
     "delete_package_title": "Eliminar paquete",
@@ -78,7 +78,7 @@
     "remove_download_completed": "¿Quitar la entrada de la lista de descargas? El archivo terminado se conserva.",
     "remove_download_partial": "¿Quitar la entrada de la lista de descargas? Un archivo incompleto existente también se eliminará.",
     "delete_package_active": "«{name}» todavía está trabajando. ¿Quitarlo de todos modos? Sus descargas en curso se cancelan y sus archivos incompletos se eliminan; los archivos terminados permanecen en la carpeta de destino.",
-    "delete_packages_active": "¿Quitar {count} paquete(s), de los cuales {busy} siguen trabajando? Las descargas en curso se cancelan y sus archivos incompletos se eliminan; los archivos terminados permanecen en la carpeta de destino."
+    "delete_packages_active": "¿Quitar {count} paquete, {busy} de ellos aún en curso? Las descargas en curso se cancelan y sus archivos incompletos se eliminan; los archivos terminados permanecen en la carpeta de destino. | ¿Quitar {count} paquetes, {busy} de ellos aún en curso? Las descargas en curso se cancelan y sus archivos incompletos se eliminan; los archivos terminados permanecen en la carpeta de destino."
   },
   "rename_file": {
     "title": "Renombrar archivo",
@@ -95,9 +95,9 @@
     "enqueue": "Descargar",
     "enqueue_paused": "Descargar en pausa",
     "enqueue_paused_hint": "Añadir la selección a la lista de descargas sin iniciarla",
-    "level_placeholder": "Posprocesamiento",
-    "level_aria": "Nivel de posprocesamiento para la selección",
-    "level_whole_packages": "El nivel de posprocesamiento se aplica a paquetes enteros – selecciona todos los archivos de un paquete",
+    "level_placeholder": "Posprocesado",
+    "level_aria": "Nivel de posprocesado para la selección",
+    "level_whole_packages": "El nivel de posprocesado se aplica a paquetes enteros – selecciona todos los archivos de un paquete",
     "level_packages_only": "El nivel de posprocesado solo existe para paquetes de enlaces, no para importaciones NZB.",
     "extract_no_archive": "La selección no contiene archivos comprimidos terminados",
     "reset": "Restablecer {count} archivo | Restablecer {count} archivos",
@@ -124,12 +124,12 @@
     "force_extract_aria": "Posprocesar de todas formas",
     "force_extract_title": "Ejecutar el posprocesado una vez pese a la comprobación fallida",
     "segments_aria": "Mostrar segmentos",
-    "postprocess_aria": "Mostrar posprocesamiento",
+    "postprocess_aria": "Mostrar posprocesado",
     "edit_aria": "Editar paquete",
     "delete_aria": "Eliminar paquete",
     "delete_title": "Quitar el paquete completo de la lista",
     "postprocess_progress": "{stage} · {percent} %",
-    "postprocess_failed": "Posprocesamiento fallido",
+    "postprocess_failed": "Posprocesado fallido",
     "complete": "Completo",
     "complete_title": "Todos los archivos de este paquete están terminados",
     "rate_aria": "Velocidad de descarga del paquete {rate}",
@@ -145,7 +145,7 @@
     "handed_over": "Entregado a {provider}",
     "handed_over_hint": "Abrir trabajos remotos",
     "waiting_for_parts": "Esperando archivos que faltan",
-    "waiting_for_parts_title": "El posprocesamiento empieza solo cuando han llegado todos los archivos del paquete.",
+    "waiting_for_parts_title": "El posprocesado empieza solo cuando han llegado todos los archivos del paquete.",
     "reset_failed": "Restablecer fallidos y bloqueados",
     "reset_failed_hint": "{count} archivo de este paquete | {count} archivos de este paquete",
     "connections_count": "{count} conexión | {count} conexiones",
@@ -177,11 +177,11 @@
     "trial_staged": "Probar con {name} v{version}",
     "sources": {
       "title": "Fuentes ({count})",
-      "pieces": "Comprobado en {count} piezas de {size} ({algorithm})",
+      "pieces": "Comprobado en {count} pieza de {size} ({algorithm}) | Comprobado en {count} piezas de {size} ({algorithm})",
       "no_pieces": "Sin hashes por pieza; el hash del archivo completo se comprueba antes de terminar, si existe.",
       "priority": "Prioridad {value}",
       "delivered": "{size} entregados",
-      "failures": "{count} fallos",
+      "failures": "{count} fallo | {count} fallos",
       "retry_after": "de nuevo desde {time}",
       "state": {
         "ready": "Lista",
@@ -244,10 +244,10 @@
     "password_stored": "La contraseña guardada se muestra aquí y puede editarse; vaciarla la elimina.",
     "password_optional": "Opcional; también se prueba la lista de contraseñas (passwords.txt).",
     "clear_password": "Quitar la contraseña guardada",
-    "postprocess_level": "Posprocesamiento",
+    "postprocess_level": "Posprocesado",
     "postprocess_level_hint": "«Heredar» usa el valor de la categoría o el global.",
     "script": "Script",
-    "script_hint": "Se ejecuta tras el posprocesamiento; «Heredar» usa el valor de la categoría o el global.",
+    "script_hint": "Se ejecuta tras el posprocesado; «Heredar» usa el valor de la categoría o el global.",
     "script_empty": "No se encontraron scripts en el directorio de scripts.",
     "script_inherit": "Heredar",
     "password_placeholder": "Sin contraseña",
@@ -259,8 +259,8 @@
     "speed_limit_aria": "Límite de velocidad del paquete en MiB/s"
   },
   "postprocess": {
-    "loading": "Cargando posprocesamiento …",
-    "empty": "Aún no hay pasos de posprocesamiento.",
+    "loading": "Cargando posprocesado …",
+    "empty": "Aún no hay pasos de posprocesado.",
     "kinds": {
       "par2": "Reparación PAR2",
       "sfv": "Verificación SFV",
@@ -305,7 +305,7 @@
       "sorting": "Ordenando"
     },
     "queue": {
-      "title": "Posprocesamiento",
+      "title": "Posprocesado",
       "pending": "pendiente"
     },
     "progress_label": "Progreso de {step}"
@@ -354,7 +354,7 @@
     "confirm": "Restablecer"
   },
   "list": {
-    "aria": "Cola de descargas, {count} filas"
+    "aria": "Cola de descargas, {count} fila | Cola de descargas, {count} filas"
   },
   "collision": {
     "policies": {
@@ -540,7 +540,7 @@
   "schedule_pause": {
     "label": "Pausado por el horario hasta {time}",
     "label_open": "Pausado por el horario",
-    "title": "El perfil de ancho de banda «{profile}» pausa las descargas. Los paquetes que ignoran la pausa del horario continúan; en Ajustes › Ancho de banda puedes cambiar a otro perfil.",
+    "title": "El perfil de ancho de banda «{profile}» pausa las descargas. Los paquetes que ignoran la pausa del horario continúan; en Ajustes → Ancho de banda puedes cambiar a otro perfil.",
     "open_settings": "Cambiar perfil"
   },
   "package_reset": {

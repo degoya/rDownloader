@@ -1,28 +1,35 @@
 import { hostPattern, isLoopback, normalizeServer, ping, sendsTokenInClear } from './api.js'
-import { api, loadConfig, message, saveConfig } from './browser.js'
+import { api, loadConfig, localizePage, message, saveConfig } from './browser.js'
 import { MAX_TYPES, browserOnlyEntries, normalizeMode, parseExtensions } from './file-types.js'
 import { loadSites, revokeSite } from './files.js'
+import { grantPattern, manifestOf } from './grants.js'
+
+/** The origin to request for a server, or null when it is not an address. */
+function requestPattern(server, manifest) {
+  return hostPattern(server) ? grantPattern(new URL(normalizeServer(server)), manifest) : null
+}
 
 /**
  * Makes sure the host permission this server needs is held.
  *
  * Returns `'granted'`, `'denied'`, `'deniedLoopback'` or `'invalid'`.
  *
- * There is no loopback shortcut any more. The manifest declares `http://127.0.0.1:8710/*` and
- * `http://localhost:8710/*` and nothing else, so a service on `http://127.0.0.1:9000` held no
- * host permission at all and worked only because rDownloader answers
- * `Access-Control-Allow-Origin: *` — an undocumented dependency on a server header
- * (RD-109-24). `permissions.contains` is what actually knows: for the two declared addresses it
- * answers yes and nothing is asked, for any other port it asks like it would for a remote host.
+ * Nothing is awaited before the request: Firefox takes `permissions.request` only while it
+ * handles the click and throws after any awaited call (bug 1398833). Nothing needs to be checked
+ * first either — for what is already granted it answers true without a prompt. There is no
+ * loopback shortcut: only the addresses the manifest declares are held from the start
+ * (RD-109-24).
  */
-export async function ensurePermission(server, permissions = api.permissions) {
-  const pattern = hostPattern(server)
+export async function ensurePermission(server, permissions = api.permissions, manifest = manifestOf(api)) {
+  const pattern = requestPattern(server, manifest)
   if (!pattern) return 'invalid'
+  const origins = [pattern]
   try {
-    if (await permissions.contains({ origins: [pattern] })) return 'granted'
-    if (await permissions.request({ origins: [pattern] })) return 'granted'
-  } catch {
-    return 'invalid'
+    if (await permissions.request({ origins })) return 'granted'
+  } catch (error) {
+    // The browser refused the call itself; a grant given elsewhere still counts.
+    console.warn('rDownloader: the permission request failed', error)
+    if (await Promise.resolve().then(() => permissions.contains({ origins })).catch(() => false)) return 'granted'
   }
   return isLoopback(server) ? 'deniedLoopback' : 'denied'
 }
@@ -73,13 +80,6 @@ function showTypes() {
   notice.hidden = notices.length === 0
 }
 
-function localize() {
-  for (const element of document.querySelectorAll('[data-i18n]')) {
-    element.textContent = message(element.dataset.i18n)
-  }
-  document.title = message('extName')
-}
-
 /** Shows the warning under the address while it points at another machine over plain http. */
 function showTransportWarning() {
   const server = document.getElementById('server').value.trim()
@@ -119,7 +119,7 @@ async function renderFileSites() {
 }
 
 async function init() {
-  localize()
+  localizePage(message('extName'))
   void renderFileSites()
   const config = await loadConfig()
   document.getElementById('server').value = config.server

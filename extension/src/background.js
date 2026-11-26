@@ -1,7 +1,7 @@
 import { PICK_WAITING, ping, submitCapture, submitLinks } from './api.js'
 import { api, loadConfig, message, openSendFilePage } from './browser.js'
 import { MESSAGE_TYPES as CAPTCHA_MESSAGES, POLL_ALARM, createCaptchaAnswerer } from './captcha.js'
-import { CNL_URL_PATTERNS } from './cnl.js'
+import { cnlUrlPatterns } from './cnl.js'
 import { createClickAndLoad } from './cnl-handover.js'
 import { createInterceptor } from './downloads.js'
 import { FILTERED_TYPES, SITES_KEY, createFileHandover } from './files.js'
@@ -9,6 +9,11 @@ import { MESSAGE_TYPES as HANDOVER_MESSAGES, createHandover } from './handover.j
 import { PAGE_FILE_MESSAGE, createPageFiles } from './page-files.js'
 import { fromOwnPage } from './sender.js'
 import { createSessionSharer } from './session.js'
+
+// The capture token lies in `storage.local`, and allowed sites run content scripts of ours
+// (`page-files.js`): those read no setting, so the area is closed to them. Chrome's call, made on
+// every start because a browser that forgets it would answer the renderer again (RD-1480-03).
+dispatch('storage.setAccessLevel', () => api.storage.local.setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' }))
 
 const MENU_LINK = 'rdownloader-link'
 const MENU_PAGE = 'rdownloader-page'
@@ -121,7 +126,10 @@ api.contextMenus.onClicked.addListener((info, tab) => {
   } else if (info.menuItemId === MENU_SELECTION && info.selectionText) {
     dispatch('contextMenus.onClicked', () => send({ text: info.selectionText, sourceLabel: 'Browser' }))
   } else if (info.menuItemId === MENU_SESSION && (info.pageUrl || tab?.url)) {
-    dispatch('contextMenus.onClicked', () => sessions.share(info.pageUrl || tab.url, { name: tab?.title }))
+    // Not inside `dispatch`, which runs its work a microtask later: the permission request has to
+    // be made while the browser handles this click (RD-1480-01).
+    const sharing = sessions.share(info.pageUrl || tab.url, { name: tab?.title })
+    dispatch('contextMenus.onClicked', () => sharing)
   } else if (info.menuItemId === MENU_FILE) {
     dispatch('contextMenus.onClicked', () => openSendFilePage())
   }
@@ -250,7 +258,7 @@ function addRequestListener(event, handler, extraInfoSpec) {
 // this extension ever requested the broad host access it needed, so in a default install it never
 // once ran. A download the page started with a POST is kept by the browser and explained instead
 // of being replayed as a GET. The one listener that reads a body is Click'n'Load's below, and it
-// sees nothing but requests to the agent's two addresses on port 9666.
+// sees nothing but requests to the agent's two addresses (in Firefox: to its paths there).
 if (api.webRequest) {
   addRequestListener(api.webRequest.onSendHeaders, interceptor.onSendHeaders, ['requestHeaders'])
   addRequestListener(api.webRequest.onHeadersReceived, interceptor.onHeadersReceived, ['responseHeaders'])
@@ -258,17 +266,18 @@ if (api.webRequest) {
   api.webRequest.onBeforeRequest.addListener(interceptor.onBeforeRequest, REQUEST_FILTER)
 }
 
-// Click'n'Load's form fields, from requests to `127.0.0.1:9666` and `localhost:9666` only.
-// Registered after the interceptor's, and never with `<all_urls>`.
+// Click'n'Load's form fields, from requests to the agent's port only: Chrome's filter names it,
+// Firefox's the agent's paths, and `cnlRoute` checks the port of either. Registered after the
+// interceptor's, and never with `<all_urls>`.
 if (api.webRequest && blocking) {
   try {
-    api.webRequest.onBeforeRequest.addListener(clickAndLoad.onBeforeRequest, { urls: CNL_URL_PATTERNS }, ['blocking', 'requestBody'])
+    api.webRequest.onBeforeRequest.addListener(clickAndLoad.onBeforeRequest, { urls: cnlUrlPatterns({ ports: false }) }, ['blocking', 'requestBody'])
   } catch (error) {
     console.error("rdownloader: Click'n'Load without the agent is unavailable", error)
   }
 } else if (api.webRequest) {
   const observeClickAndLoad = (details) => dispatch('clickAndLoad.onBeforeRequest', () => clickAndLoad.onBeforeRequest(details))
-  api.webRequest.onBeforeRequest.addListener(observeClickAndLoad, { urls: CNL_URL_PATTERNS }, ['requestBody'])
+  api.webRequest.onBeforeRequest.addListener(observeClickAndLoad, { urls: cnlUrlPatterns() }, ['requestBody'])
 }
 
 // The other blocking listener, and only where `filterResponseData` exists (Firefox, which the build

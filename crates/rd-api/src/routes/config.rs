@@ -45,12 +45,14 @@ fn configuration_routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/storage-roots/{id}",
-            axum::routing::put(config_handlers::update_storage_root)
+            get(rd_api_admin::single_reads::get_storage_root)
+                .put(config_handlers::update_storage_root)
                 .delete(config_handlers::delete_storage_root),
         )
         .route(
             "/api/v1/categories/{id}",
-            axum::routing::put(config_handlers::update_category)
+            get(rd_api_admin::single_reads::get_category)
+                .put(config_handlers::update_category)
                 .delete(config_handlers::delete_category),
         )
         .route(
@@ -59,7 +61,8 @@ fn configuration_routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/category-rules/{id}",
-            axum::routing::put(config_handlers::update_category_rule)
+            get(rd_api_admin::single_reads::get_category_rule)
+                .put(config_handlers::update_category_rule)
                 .delete(config_handlers::delete_category_rule),
         )
         .route(
@@ -68,7 +71,8 @@ fn configuration_routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/hotfolders/{id}",
-            axum::routing::put(config_handlers::update_hotfolder)
+            get(rd_api_admin::single_reads::get_hotfolder)
+                .put(config_handlers::update_hotfolder)
                 .delete(config_handlers::delete_hotfolder),
         )
         .route(
@@ -77,7 +81,8 @@ fn configuration_routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/accounts/{id}",
-            axum::routing::put(config_handlers::update_account)
+            get(rd_api_admin::single_reads::get_account)
+                .put(config_handlers::update_account)
                 .delete(config_handlers::delete_account),
         )
         .route(
@@ -96,7 +101,8 @@ fn configuration_routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/proxy-profiles/{id}",
-            axum::routing::put(config_handlers::update_proxy_profile)
+            get(rd_api_admin::single_reads::get_proxy_profile)
+                .put(config_handlers::update_proxy_profile)
                 .delete(config_handlers::delete_proxy_profile),
         )
         .route(
@@ -200,7 +206,8 @@ fn setup_and_backup_routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/backups/destinations/{id}",
-            axum::routing::put(backup_destination_handlers::update_backup_destination)
+            get(rd_api_admin::single_reads::get_backup_destination)
+                .put(backup_destination_handlers::update_backup_destination)
                 .delete(backup_destination_handlers::delete_backup_destination),
         )
         .route(
@@ -292,5 +299,12 @@ fn setup_and_backup_routes() -> Router<AppState> {
     remote_job_handlers::discard_remote_job,
     remote_job_handlers::forget_remote_job,
     remote_job_handlers::clear_remote_jobs,
+    rd_api_admin::single_reads::get_account,
+    rd_api_admin::single_reads::get_backup_destination,
+    rd_api_admin::single_reads::get_category,
+    rd_api_admin::single_reads::get_category_rule,
+    rd_api_admin::single_reads::get_hotfolder,
+    rd_api_admin::single_reads::get_proxy_profile,
+    rd_api_admin::single_reads::get_storage_root,
 ))]
 pub(crate) struct Doc;

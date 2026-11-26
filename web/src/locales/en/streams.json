@@ -10,12 +10,12 @@
   "empty": "No channels yet. Add one with the form and enable it to record automatically.",
   "delete": {
     "title": "Delete channel",
-    "description": "Delete \"{name}\"? Recordings already made are kept."
+    "description": "Delete “{name}”? Recordings already made are kept."
   },
   "messages": {
     "created": "Channel added.",
     "updated": "Channel saved.",
-    "recording_started": "Recording \"{name}\" started."
+    "recording_started": "Recording “{name}” started."
   },
   "form": {
     "url_label": "Channel URL",
@@ -63,7 +63,7 @@
     },
     "delete": {
       "title": "Delete schedule",
-      "description": "Delete \"{name}\"? Recordings already made are kept."
+      "description": "Delete “{name}”? Recordings already made are kept."
     },
     "eyebrow": "Time windows",
     "create": "Create schedule",

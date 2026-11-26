@@ -1,3 +1,4 @@
+import type { NotificationLanguageSettings } from '@/api/notificationLanguage'
 import type { PackageHandOverSettings } from '@/api/packageHandOver'
 import type { IndexerHandOverSettings } from '@/api/subscriptionHandOver'
 import type { RestartSettings } from '@/api/restart'
@@ -11,10 +12,11 @@ import { isNumber } from '@/utils/numberInput'
  * Only the shape matters here; the values the service reports replace all of it.
  * `RestartSettings` names `restart_when_needed` (RD-1240-32), and the return type
  * `sequential_packages` (RD-1410-01), `PackageHandOverSettings` the LinkGrabber package's
- * hand-over switches (RD-1440-07), `IndexerHandOverSettings` the indexer hit's (RD-1460-03), until
- * the schema is regenerated.
+ * hand-over switches (RD-1440-07), `IndexerHandOverSettings` the indexer hit's (RD-1460-03),
+ * `NotificationLanguageSettings` the notifications' language (RD-1480-11), until the schema is
+ * regenerated.
  */
-export function defaultSettings(): RestartSettings & PackageHandOverSettings & IndexerHandOverSettings & { sequential_packages: boolean } {
+export function defaultSettings(): RestartSettings & PackageHandOverSettings & IndexerHandOverSettings & NotificationLanguageSettings & { sequential_packages: boolean } {
   return {
     max_active_files: 3,
     sequential_packages: false,
@@ -87,6 +89,7 @@ export function defaultSettings(): RestartSettings & PackageHandOverSettings & I
     linkgrabber_packages_closed_by_default: false,
     dlc_service_endpoint: null,
     vendor_directory: null,
+    notification_language: 'en',
     update_check_enabled: true,
     update_channel: 'stable',
     update_check_interval_hours: 24,

@@ -40,10 +40,11 @@ vi.mock('@/api/client', () => apiClientMock({
 const confirmed = vi.fn<(options: Record<string, unknown>) => Promise<boolean>>()
 vi.mock('@/composables/useConfirm', () => confirmMock((...args: never[]) => (confirmed as (...args: never[]) => unknown)(...args)))
 // `formatMoment` reaches for the application's own i18n instance rather than the mounted one,
-// so the withdrawal dates a row prints need a `d()` here; without it the mock throws mid-render.
+// so the withdrawal dates a row prints need a `d()` here, and the group filter's sorting a locale;
+// without them the mock throws mid-render.
 vi.mock('@/i18n', () => ({
   currentLocale: () => 'en',
-  i18n: { global: { d: (value: Date) => value.toISOString(), t: (key: string) => key } }
+  i18n: { global: { locale: { value: 'en' }, d: (value: Date) => value.toISOString(), t: (key: string) => key } }
 }))
 vi.mock('@/i18n/plugins', () => ({
   providerText: () => undefined,

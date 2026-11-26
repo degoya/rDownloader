@@ -15,10 +15,10 @@
 //!   (`rd_core::CAPTURE_AGENT_PRODUCT`), and its file associations keep its own notice.
 
 use axum::{
-    Json,
     extract::State,
     http::{HeaderMap, StatusCode},
 };
+use rd_api_core::extract::Json;
 use rd_core::IngressSource;
 
 use crate::{

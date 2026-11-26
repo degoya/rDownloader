@@ -6,11 +6,8 @@
 //! Usenet server, an indexer edit writes no audit record, so there is no record to leak it into.
 //! The search and the grab that use the key are in [`crate::indexer_search`].
 
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path};
 use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_core::{Indexer, IndexerId, IndexerListStyle, IndexerSearch};
 use rd_db::{NewIndexer, StoreErrorKind};

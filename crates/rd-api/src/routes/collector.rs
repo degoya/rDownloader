@@ -65,7 +65,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/collector/packages/{id}",
-            axum::routing::patch(collector_handlers::update_collector_package)
+            get(rd_api_intake::single_reads::get_collector_package)
+                .patch(collector_handlers::update_collector_package)
                 .delete(collector_handlers::delete_collector_package),
         )
         .route(
@@ -115,7 +116,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/link-filters/{id}",
-            put(link_filter_handlers::update_link_filter_rule)
+            get(rd_api_intake::single_reads::get_link_filter_rule)
+                .put(link_filter_handlers::update_link_filter_rule)
                 .delete(link_filter_handlers::delete_link_filter_rule),
         )
         .route(
@@ -215,5 +217,7 @@ pub(crate) fn routes() -> Router<AppState> {
     captcha_handlers::answer_capture_captcha,
     captcha_handlers::skip_capture_captcha,
     captcha_handlers::report_capture_captcha_without_widget,
+    rd_api_intake::single_reads::get_link_filter_rule,
+    rd_api_intake::single_reads::get_collector_package,
 ))]
 pub(crate) struct Doc;

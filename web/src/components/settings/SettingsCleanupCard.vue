@@ -72,8 +72,8 @@ const databaseTiles = computed(() => {
   const database = summary.value?.database
   if (!database) return []
   return [
-    { key: 'events', label: t('settings.cleanup.events'), value: size(database.event_bytes), hint: t('settings.cleanup.rows', { count: n(database.event_rows) }) },
-    { key: 'items', label: t('settings.cleanup.items'), value: size(database.item_bytes), hint: t('settings.cleanup.compactable', { count: n(database.compactable_items) }) },
+    { key: 'events', label: t('settings.cleanup.events'), value: size(database.event_bytes), hint: t('settings.cleanup.rows', { count: n(database.event_rows) }, database.event_rows) },
+    { key: 'items', label: t('settings.cleanup.items'), value: size(database.item_bytes), hint: t('settings.cleanup.compactable', { count: n(database.compactable_items) }, database.compactable_items) },
     { key: 'database', label: t('settings.cleanup.database_file'), value: size(database.file_bytes), hint: t('settings.cleanup.removable', { size: size(database.removable_bytes) }) }
   ]
 })

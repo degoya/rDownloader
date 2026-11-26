@@ -70,6 +70,17 @@ expect_status "a tarball without VERSION.txt, as CI packed them until 1.8" 1
 expect_output "naming VERSION.txt" "lacks VERSION.txt"
 echo version > "$SCRATCH/linux/VERSION.txt"
 
+for platform in linux windows macos; do
+    stage "$platform" "$SCRATCH/$platform-bare"
+    rm "$SCRATCH/$platform-bare/THIRD-PARTY-NOTICES.txt"
+    tar --directory "$SCRATCH/$platform-bare" --create --gzip --file "$SCRATCH/$platform-bare.tar.gz" .
+    run_status rd_check_archive_layout "$SCRATCH/$platform-bare.tar.gz" "$platform"
+    expect_status "a $platform archive without the licence texts, as every one was until 1.48" 1
+    expect_output "naming them" "lacks THIRD-PARTY-NOTICES.txt"
+done
+expect "the checkout has the licence texts the archives carry" yes \
+    "$([[ -s "$ROOT/crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt" ]] && echo yes)"
+
 echo notes > "$SCRATCH/linux/plugins/README"
 tar --directory "$SCRATCH/linux" --create --gzip --file "$SCRATCH/stray.tar.gz" .
 run_status rd_check_archive_layout "$SCRATCH/stray.tar.gz" linux

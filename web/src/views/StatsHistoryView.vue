@@ -14,11 +14,11 @@
  * view's (`router.onError`), and the page is loaded again once the service is back.
  */
 import type { TabsItem } from '@nuxt/ui'
-import { computed, defineAsyncComponent, type Component } from 'vue'
+import { computed, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
-import { isChunkLoadError, reportViewLoadFailure } from '@/composables/serviceConnection'
+import { useLazySection } from '@/composables/useLazySection'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -26,12 +26,7 @@ const router = useRouter()
 
 type StatsHistoryTab = 'stats' | 'history'
 
-function lazyTab(load: () => Promise<{ default: Component }>): Component {
-  return defineAsyncComponent(() => load().then(module => module.default, (error: unknown) => {
-    if (isChunkLoadError(error)) reportViewLoadFailure(router.currentRoute.value.fullPath)
-    throw error
-  }))
-}
+const lazyTab = useLazySection()
 
 const TAB_CONTENT: Record<StatsHistoryTab, Component> = {
   stats: lazyTab(() => import('@/components/stats/StatsTab.vue')),

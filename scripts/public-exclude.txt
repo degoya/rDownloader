@@ -27,3 +27,8 @@ CLAUDE.md
 # the owner's rules as an export file goes with them.
 private/
 scripts/owner-site-rules.sh
+
+# The release pages the public tree does not name (RD-1480-23): the list would publish the names
+# it looks for. scripts/tests/public-names.sh reads both and skips them where they are missing.
+scripts/release-site-names.txt
+scripts/release-site-names-allow.txt

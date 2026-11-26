@@ -188,6 +188,7 @@ impl AppStateBuilder {
                 power_supervisor,
                 remote_jobs,
                 reconnect: reconnect_service::ReconnectService::default(),
+                idempotency: idempotency::IdempotencyStore::default(),
             },
             admin: AdminState {
                 plugins,
@@ -201,6 +202,7 @@ impl AppStateBuilder {
                     rd_plugin_ext::StorageDestinations::none(),
                 ),
                 capture_agents,
+                settings_turn: crate::SettingsTurn::default(),
             },
             runtime: RuntimeState::new(),
         }

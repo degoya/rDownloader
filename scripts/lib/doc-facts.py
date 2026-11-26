@@ -144,20 +144,53 @@ class Run:
             self.changed.append(path)
 
 
-def main(argv):
-    args = argv[1:]
-    check = "--check" in args
-    wiki_only = "--wiki-only" in args
-    flag = "--wiki-only" if wiki_only else "--wiki"
-    wiki = args[args.index(flag) + 1] if flag in args and args.index(flag) + 1 < len(args) else None
-    if ("--wiki" in args and wiki_only) or (flag in args and (wiki is None or wiki.startswith("--"))):
-        print("--wiki DIR or --wiki-only DIR, one of them, with its directory", file=sys.stderr)
+def usage():
+    """The usage lines of the module's documentation."""
+    return __doc__.split("\n\n")[1]
+
+
+def arguments(args):
+    """`(repo, check, wiki, wiki_only, date)`, or the exit status of a call that names none.
+
+    Every argument is one this script knows (RD-1480-14, PLAN-10): without `--check` a run writes,
+    and `--help` or a mistyped `--chekc` was read over and the documentation written.
+    """
+    values = {"--wiki": None, "--wiki-only": None, "--date": None}
+    repo, check, at = None, False, 0
+    while at < len(args):
+        argument = args[at]
+        at += 1
+        if argument in ("-h", "--help"):
+            print(usage())
+            return 0
+        if argument == "--check":
+            check = True
+        elif argument in values:
+            if at >= len(args) or args[at].startswith("-"):
+                print(f"{argument} needs a value", file=sys.stderr)
+                return 2
+            values[argument] = args[at]
+            at += 1
+        elif argument.startswith("-") or repo is not None:
+            print(f"unknown argument: {argument}", file=sys.stderr)
+            return 2
+        else:
+            repo = argument
+    if values["--wiki"] and values["--wiki-only"]:
+        print("--wiki DIR or --wiki-only DIR, not both", file=sys.stderr)
         return 2
-    date = args[args.index("--date") + 1] if "--date" in args else datetime.date.today().isoformat()
-    repo = next((a for a in args if not a.startswith("--") and a not in (wiki, date)), None)
     if repo is None:
-        print(__doc__.split("\n\n")[1], file=sys.stderr)
+        print(usage(), file=sys.stderr)
         return 2
+    date = values["--date"] or datetime.date.today().isoformat()
+    return repo, check, values["--wiki"] or values["--wiki-only"], bool(values["--wiki-only"]), date
+
+
+def main(argv):
+    parsed = arguments(argv[1:])
+    if isinstance(parsed, int):
+        return parsed
+    repo, check, wiki, wiki_only, date = parsed
 
     facts = read_facts(repo)
     run = Run(repo, facts, check, date)

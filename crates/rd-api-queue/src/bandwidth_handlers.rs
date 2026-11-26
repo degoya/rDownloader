@@ -1,7 +1,8 @@
 //! Bandwidth profiles, the weekly schedule, the live status and the capability matrix
 //! (RD-050-12), and a package's own speed limit (RD-1100-01).
 
-use axum::{Json, extract::Path as AxumPath, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_limits::{DaySet, LimitSource, MINUTES_PER_DAY, RunnerLimitSupport, ScopeLimit};
 use serde::{Deserialize, Serialize};
@@ -265,7 +266,9 @@ pub async fn put_schedule(
     // backup, but they are written directly: re-applying the whole document would also
     // re-apply the login, media, torrent and post-processing settings, which a schedule
     // edit has no business touching.
-    let mut settings = crate::settings_store::read_settings(&state).await?;
+    let turn = state.admin.settings_turn.take().await;
+    let before = crate::settings_store::read_settings(&state).await?;
+    let mut settings = before.clone();
     settings.bandwidth_timezone = request.timezone.clone();
     settings.bandwidth_default_profile_id = request.default_profile_id;
     state
@@ -275,6 +278,8 @@ pub async fn put_schedule(
             serde_json::to_value(&settings).map_err(anyhow::Error::new)?,
         )
         .await?;
+    rd_api_core::settings_change::announce(&state.database, Some(&before), &settings);
+    drop(turn);
     state.scheduler.reload_bandwidth().await?;
     Ok(Json(ScheduleResponse {
         timezone: request.timezone,

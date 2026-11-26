@@ -59,7 +59,7 @@ async function submit(): Promise<void> {
         <UFormField :label="t('torrent.move.path')">
           <UInput v-model="relativePath" :placeholder="t('torrent.move.path_placeholder')" icon="i-lucide-corner-down-right" class="w-full font-mono" />
         </UFormField>
-        <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error" />
+        <UAlert v-if="error" color="error" role="alert" icon="i-lucide-circle-alert" :description="error" />
       </form>
     </template>
     <template #footer>

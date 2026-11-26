@@ -12,6 +12,10 @@ use sqlx::{Connection, SqliteConnection};
 use super::{NewSubscriptionItem, PollResult, changed_event, item_state_string, reason_string};
 use crate::{error::StoreError, writer::insert_event};
 
+/// How many polls of a subscription are kept: ten days of one every fifteen minutes, and more than
+/// any list of them shows.
+pub(crate) const SUBSCRIPTION_RUNS_KEPT: i64 = 1_000;
+
 /// Serializes the attribute map, or `None` when there is nothing to say.
 ///
 /// `None` rather than `"{}"` matters: the upsert coalesces onto the stored value, so an
@@ -268,6 +272,7 @@ pub(crate) async fn finish_run(
     .bind(result.error.as_deref())
     .execute(&mut *tx)
     .await?;
+    prune_runs(&mut tx, subscription_id).await?;
     sqlx::query(
         "UPDATE subscriptions SET last_run_at = ?, next_run_at = ?, consecutive_failures = ?, \
          last_error = ?, etag = COALESCE(?, etag), last_modified = COALESCE(?, last_modified), \
@@ -287,4 +292,25 @@ pub(crate) async fn finish_run(
     insert_event(&mut tx, &event).await?;
     tx.commit().await?;
     Ok(event)
+}
+
+/// Drops a subscription's polls beyond [`SUBSCRIPTION_RUNS_KEPT`], oldest first, through
+/// `subscription_runs_recent_idx`. They were kept for the life of the subscription and a poll
+/// every few minutes adds hundreds a day (RD-1480-19).
+async fn prune_runs(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    subscription_id: SubscriptionId,
+) -> Result<()> {
+    // No row at that place means fewer polls than are kept, and a comparison with NULL deletes
+    // nothing.
+    sqlx::query(
+        "DELETE FROM subscription_runs WHERE subscription_id = ?1 AND started_at < \
+         (SELECT started_at FROM subscription_runs WHERE subscription_id = ?1 \
+          ORDER BY started_at DESC LIMIT 1 OFFSET ?2)",
+    )
+    .bind(subscription_id.to_string())
+    .bind(SUBSCRIPTION_RUNS_KEPT - 1)
+    .execute(&mut **tx)
+    .await?;
+    Ok(())
 }

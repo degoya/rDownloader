@@ -25,8 +25,3 @@ allowBuilds:
 overrides:
   glob: ^14.0.2
   editorconfig>minimatch: ^11.0.5
-
-# Nuxt UI 4.13.0 is younger than pnpm's minimum release age; the owner took it on 2026-11-19.
-# Remove the entry once the version is older than the age.
-minimumReleaseAgeExclude:
-  - '@nuxt/ui@4.13.0'

@@ -137,7 +137,7 @@ export function useNzbHandOver(place: NzbHandOverPlace) {
     const summary = { done: results.length - reasons.length, total: results.length, failed: reasons.length, provider }
     if (reasons.length) {
       // The first reason stands for the rest: a batch to one account tends to fail for one cause.
-      toast.add({ title: t('linkgrabber.nzb.hand_over.summary_failed', { ...summary, reason: reasons[0] }), color: 'warning', icon: 'i-lucide-circle-alert' })
+      toast.add({ title: t('linkgrabber.nzb.hand_over.summary_failed', { ...summary, reason: reasons[0] }, summary.failed), color: 'warning', icon: 'i-lucide-circle-alert' })
     } else {
       toast.add({ title: t('linkgrabber.nzb.hand_over.summary', summary), color: 'success', icon: 'i-lucide-cloud-upload' })
     }

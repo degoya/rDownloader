@@ -122,11 +122,19 @@ enum Read {
 /// test instead of searching an error page.
 const PLACES: &[Read] = &[
     Read::Get("/api/v1/accounts"),
+    Read::Get("/api/v1/accounts/{key-account}"),
+    Read::Get("/api/v1/accounts/{login-account}"),
     Read::Get("/api/v1/proxy-profiles"),
+    Read::Get("/api/v1/proxy-profiles/{proxy}"),
     Read::Get("/api/v1/object-storage/profiles"),
+    Read::Get("/api/v1/object-storage/profiles/{bucket}"),
+    Read::Get("/api/v1/object-storage/profiles/{blob}"),
+    Read::Get("/api/v1/object-storage/profiles/{gcs}"),
     Read::Get("/api/v1/remote-credentials"),
+    Read::Get("/api/v1/remote-credentials/{ftp}"),
     Read::Get("/api/v1/remote-credentials/ssh-hosts"),
     Read::Get("/api/v1/notifications/targets"),
+    Read::Get("/api/v1/notifications/targets/{webhook}"),
     Read::Get("/api/v1/notifications/deliveries?limit=500"),
     Read::Get("/api/v1/usenet/servers"),
     Read::Get("/api/v1/auth-profiles"),
@@ -420,9 +428,10 @@ async fn read_places(router: &Router, planted: &Planted, scan: &mut Scan) {
     let mut refused = Vec::new();
     for (index, place) in PLACES.iter().enumerate() {
         let (name, answered, bytes) = match place {
-            Read::Get(uri) => {
-                let (status, bytes) = rest(router, "GET", uri, None).await;
-                (format!("GET {uri}"), status.is_success(), bytes)
+            Read::Get(template) => {
+                let uri = planted.expand(template);
+                let (status, bytes) = rest(router, "GET", &uri, None).await;
+                (format!("GET {template}"), status.is_success(), bytes)
             }
             Read::Post(uri, template) => {
                 let body = serde_json::from_str(&planted.expand(template)).expect("a JSON body");

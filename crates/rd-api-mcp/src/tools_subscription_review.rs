@@ -13,10 +13,8 @@
 //! goes through [`super::params_handling::public`] as every other row-returning tool does; the
 //! key is masked on the way out of every tool, by `super::mask` (RD-120-57).
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path, Query};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

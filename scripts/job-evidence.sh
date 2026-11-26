@@ -209,7 +209,8 @@ if [[ -n "$generators" ]]; then
                 api-contract:web/openapi.json | api-contract:web/src/api/schema.d.ts | \
                     mcp-coverage:crates/rd-api/mcp-coverage.md | \
                     web-declarations:web/components.d.ts | web-declarations:web/auto-imports.d.ts | \
-                    licenses:crates/rd-api/licenses/third-party.json | archive-jobs:docs/roadmap/jobs/*)
+                    licenses:crates/rd-api/licenses/third-party.json | \
+                    licenses:crates/rd-api/licenses/THIRD-PARTY-NOTICES.txt | archive-jobs:docs/roadmap/jobs/*)
                     if [[ "$generator" == web-declarations ]]; then
                         generated+=(Web-Deklarationen)
                     else

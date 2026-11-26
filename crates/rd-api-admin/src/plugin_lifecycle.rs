@@ -10,10 +10,8 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_plugin_host::{PluginType, StartedVersions, VersionChoice, default_version};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -123,8 +121,8 @@ pub struct PluginTrialRequest {
     request_body = PluginVersionRequest,
     responses(
         (status = 200, body = MessageResponse),
-        (status = 404, body = MessageResponse),
-        (status = 409, body = MessageResponse, description = "The version would not load")
+        (status = 404, body = crate::error::ErrorBody),
+        (status = 409, body = crate::error::ErrorBody, description = "The version would not load")
     )
 )]
 pub async fn activate_plugin_version(
@@ -177,8 +175,8 @@ pub async fn activate_plugin_version(
     request_body = PluginVersionRequest,
     responses(
         (status = 200, body = MessageResponse),
-        (status = 404, body = MessageResponse),
-        (status = 409, body = MessageResponse, description = "The version is active or would not load")
+        (status = 404, body = crate::error::ErrorBody),
+        (status = 409, body = crate::error::ErrorBody, description = "The version is active or would not load")
     )
 )]
 pub async fn stage_plugin_version(
@@ -236,7 +234,7 @@ pub async fn stage_plugin_version(
     path = "/api/v1/plugins/{id}/lifecycle/stage",
     tag = "plugins",
     params(("id" = String, Path, description = "Plugin id")),
-    responses((status = 200, body = MessageResponse), (status = 404, body = MessageResponse))
+    responses((status = 200, body = MessageResponse), (status = 404, body = crate::error::ErrorBody))
 )]
 pub async fn discard_staged_plugin_version(
     State(state): State<AppState>,
@@ -274,8 +272,8 @@ pub async fn discard_staged_plugin_version(
     params(("id" = String, Path, description = "Plugin id")),
     responses(
         (status = 200, body = MessageResponse),
-        (status = 404, body = MessageResponse),
-        (status = 409, body = MessageResponse, description = "No earlier version to return to")
+        (status = 404, body = crate::error::ErrorBody),
+        (status = 409, body = crate::error::ErrorBody, description = "No earlier version to return to")
     )
 )]
 pub async fn roll_back_plugin_version(
@@ -326,7 +324,7 @@ pub async fn roll_back_plugin_version(
     tag = "plugins",
     params(("id" = String, Path, description = "Plugin id")),
     request_body = PluginUpdatePolicyRequest,
-    responses((status = 200, body = MessageResponse), (status = 404, body = MessageResponse))
+    responses((status = 200, body = MessageResponse), (status = 404, body = crate::error::ErrorBody))
 )]
 pub async fn set_plugin_update_policy(
     State(state): State<AppState>,
@@ -360,8 +358,8 @@ pub async fn set_plugin_update_policy(
     request_body = PluginTrialRequest,
     responses(
         (status = 200, body = MessageResponse),
-        (status = 404, body = MessageResponse),
-        (status = 409, body = MessageResponse, description = "Nothing staged, not loaded yet, or the download is running")
+        (status = 404, body = crate::error::ErrorBody),
+        (status = 409, body = crate::error::ErrorBody, description = "Nothing staged, not loaded yet, or the download is running")
     )
 )]
 pub async fn trial_staged_plugin_version(

@@ -4,7 +4,8 @@
 //! request means what the person looked at even when a row moved in between. Per row it is the
 //! same as the two single-job requests; `RemoteJobService::clear` says how.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_core::{RemoteJobId, RemoteJobState};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

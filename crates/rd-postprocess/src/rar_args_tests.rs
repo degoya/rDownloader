@@ -435,16 +435,17 @@ const HELLO_RAR: [u8; 80] = [
 
 /// A real `unrar` extracts into a folder with a space through `-op`. It needs the program, which
 /// the build machines do not carry: `RD_TEST_UNRAR` names it (the vendor `unrar` of a package
-/// build), otherwise `unrar` on `PATH`; without either the test says so and passes.
+/// build), otherwise `unrar` on `PATH`. `#[ignore]`, and a failure without either (RD-1480-14): it
+/// used to say so and pass. No CI job runs it; by hand: `RD_TEST_UNRAR=<unrar> cargo nextest run
+/// -p rd-postprocess --lib --run-ignored only -E 'test(/a_real_unrar/)'`.
 #[tokio::test]
+#[ignore = "needs unrar, named by RD_TEST_UNRAR or on PATH"]
 async fn a_real_unrar_extracts_into_a_folder_with_a_space() {
     use crate::{ArchiveKind, ArchiveLimits, ArchiveSet, ExternalRarTool, ExtractRequest};
 
     let explicit = std::env::var("RD_TEST_UNRAR").ok();
-    let Some(unrar) = rd_core::locate_tool(explicit.as_deref(), None, "unrar") else {
-        eprintln!("skipped: no unrar (set RD_TEST_UNRAR)");
-        return;
-    };
+    let unrar = rd_core::locate_tool(explicit.as_deref(), None, "unrar")
+        .expect("no unrar; set RD_TEST_UNRAR");
     let temp = tempfile::tempdir().expect("temporary directory");
     let package = temp.path().join("Lust auf Genuss Nr 11 - November 2026");
     std::fs::create_dir_all(&package).expect("package");

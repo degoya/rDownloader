@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use crate::{
     AuthService, BuildInfo, HotFolderService, auth_flow_service, automation_service,
-    browser_session, capture_agents, link_check_service, local_control, notify_service,
-    oidc_client, power_service, qbittorrent_sessions, reconnect_service, remote_job_service,
-    restart_state, stream_monitor, subscription_service, update_service,
+    browser_session, capture_agents, idempotency, link_check_service, local_control,
+    notify_service, oidc_client, power_service, qbittorrent_sessions, reconnect_service,
+    remote_job_service, restart_state, stream_monitor, subscription_service, update_service,
 };
 
 /// Sign-in and who may speak: sessions, the proxy contract, the ceremonies in flight and the
@@ -128,6 +128,8 @@ pub struct QueueState {
     /// point that starts one.
     pub remote_jobs: remote_job_service::RemoteJobService,
     pub reconnect: reconnect_service::ReconnectService,
+    /// The `Idempotency-Key`s of the last hour and the downloads they created.
+    pub idempotency: idempotency::IdempotencyStore,
 }
 
 /// What an administrator configures: plugins and their repositories, managed tools, the
@@ -156,6 +158,8 @@ pub struct AdminState {
     /// The capture agents holding their event stream open and the version each reported
     /// (RD-190-07), for the update status. In memory only.
     pub capture_agents: capture_agents::CaptureAgents,
+    /// Whose turn it is to write the settings document (RD-1480-07): taken by every writer of it.
+    pub settings_turn: crate::SettingsTurn,
 }
 
 /// The running process itself: its build, the local control token, the stop and the restart.

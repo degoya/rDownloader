@@ -11,10 +11,10 @@
   "empty": "Aucune automatisation pour l’instant.",
   "no_runs": "Jamais exécutée.",
   "version": "Version {version}",
-  "action_count": "{count} action(s)",
+  "action_count": "{count} action | {count} actions",
   "remove": {
     "title": "Supprimer l’automatisation",
-    "description": "« {name} » et son historique sont supprimés. Les exécutions en cours vont à leur terme.",
+    "description": "« {name} » et son historique sont supprimés. Les exécutions en cours vont à leur terme.",
     "confirm": "Supprimer l’automatisation"
   },
   "condition": {
@@ -29,7 +29,8 @@
     "predicate": "Comparaison",
     "all": "Toutes",
     "any": "Au moins une",
-    "not": "Non"
+    "not": "Non",
+    "comparison": "{field} {operator} « {value} »"
   },
   "action": {
     "heading": "Actions",
@@ -40,8 +41,8 @@
     "no_scripts": "Aucun script dans le dossier des scripts. Placez-en un et rouvrez ceci.",
     "category": "Catégorie",
     "target": "Destinataire de notification",
-    "no_targets": "Aucun destinataire de notification n'existe encore. Créez-en un dans Paramètres, Notifications.",
-    "at_least_once": "Les actions s’exécutent au moins une fois : une automatisation démarre une fois par événement, mais une action interrompue après avoir pris effet sera réessayée.",
+    "no_targets": "Aucun destinataire de notification n’existe encore. Créez-en un dans Paramètres → Notifications.",
+    "at_least_once": "Les actions s’exécutent au moins une fois : une automatisation démarre une fois par événement, mais une action interrompue après avoir pris effet sera réessayée.",
     "webhook": "Appeler le webhook",
     "script": "Exécuter le script",
     "set_category": "Déplacer vers la catégorie",
@@ -65,7 +66,7 @@
       "link_grabber": "LinkGrabber",
       "downloads": "Téléchargements"
     },
-    "link_count": "{count} liens",
+    "link_count": "{count} lien | {count} liens",
     "pause_queue": "Mettre la file en pause"
   },
   "dry_run": {
@@ -132,24 +133,24 @@
   "list_title": "Automatisations",
   "pick_or_create": "Choisissez une automatisation dans la liste pour la modifier, ou créez-en une nouvelle.",
   "eyebrow": "Si – alors",
-  "duplicate_hint": "Crée une copie désactivée et l’ouvre pour la modifier ; activée, elle agirait une seconde fois à côté de l’original",
+  "duplicate_hint": "Crée une copie désactivée et l’ouvre pour la modifier ; activée, elle agirait une seconde fois à côté de l’original",
   "history": {
     "open": "Historique des versions",
-    "title": "Versions de « {name} »",
-    "description": "Chaque enregistrement conserve la définition précédente. Restaurer une version l’enregistre à nouveau comme la plus récente ; l’historique des exécutions reste.",
+    "title": "Versions de « {name} »",
+    "description": "Chaque enregistrement conserve la définition précédente. Restaurer une version l’enregistre à nouveau comme la plus récente ; l’historique des exécutions reste.",
     "current": "Actuelle",
     "changed": "modifié",
     "empty": "Aucune version enregistrée pour l’instant.",
     "restore": "Restaurer",
-    "restore_title": "Restaurer la version {version} ?",
-    "restore_description": "Le déclencheur, la condition et les actions de la version {version} redeviennent la définition de « {name} », enregistrés comme une nouvelle version. Le nom et l’interrupteur d’activation restent tels quels.",
+    "restore_title": "Restaurer la version {version} ?",
+    "restore_description": "Le déclencheur, la condition et les actions de la version {version} redeviennent la définition de « {name} », enregistrés comme une nouvelle version. Le nom et l’interrupteur d’activation restent tels quels.",
     "restored": "La version {version} est de nouveau en vigueur, enregistrée comme version {current}.",
     "reset": "Réinitialiser les versions",
-    "reset_title": "Réinitialiser les versions de « {name} » ?",
+    "reset_title": "Réinitialiser les versions de « {name} » ?",
     "reset_versions": "{count} version antérieure | {count} versions antérieures",
     "reset_runs": "aucune exécution | {count} de leurs exécutions | {count} de leurs exécutions",
     "reset_description": "{versions} et {runs} sont supprimées. La version {version} reste, devient la version 1 et garde ses propres exécutions. Cette action est irréversible.",
-    "reset_done": "Historique réinitialisé : {versions} et {runs} ont été supprimées, la version actuelle est désormais la version 1."
+    "reset_done": "Historique réinitialisé : {versions} et {runs} ont été supprimées, la version actuelle est désormais la version 1."
   },
   "schedule": {
     "heading": "Planification",
@@ -157,14 +158,14 @@
     "cron": "Expression cron",
     "minutes": "Minutes",
     "expression": "Expression",
-    "help": "Lu dans le fuseau horaire du service. Une heure manquée de plus de deux minutes, par exemple parce que le service était arrêté, n'est pas rattrapée.",
-    "interval_help": "Compté depuis minuit : 60 s'exécute à l'heure pile, au plus 1440 (un jour).",
-    "cron_help": "Minute heure jour mois jour de la semaine, par exemple « 0 6 * * 1-5 » pour les jours ouvrés à six heures.",
-    "every_minutes": "toutes les {minutes} minutes",
-    "no_package": "Une planification ne désigne aucun paquet : les actions de paquet ne sont pas disponibles ici."
+    "help": "Lu dans le fuseau horaire du service. Une heure manquée de plus de deux minutes, par exemple parce que le service était arrêté, n’est pas rattrapée.",
+    "interval_help": "Compté depuis minuit : 60 s’exécute à l’heure pile, au plus 1440 (un jour).",
+    "cron_help": "Minute heure jour mois jour de la semaine, par exemple « 0 6 * * 1-5 » pour les jours ouvrés à six heures.",
+    "every_minutes": "toutes les {minutes} min",
+    "no_package": "Une planification ne désigne aucun paquet : les actions de paquet ne sont pas disponibles ici."
   },
-  "storage_threshold_help": "S’exécute lorsqu’un emplacement de stockage passe sous sa réserve d’espace libre. Pour l’exécuter quand la place revient, ajoutez la condition « Changement de stockage » égal à « released ». Pour un seul emplacement, choisissez-le sous « Cible de stockage ».",
+  "storage_threshold_help": "S’exécute lorsqu’un emplacement de stockage passe sous sa réserve d’espace libre. Pour l’exécuter quand la place revient, ajoutez la condition « Changement de stockage » égal à « released ». Pour un seul emplacement, choisissez-le sous « Cible de stockage ».",
   "storage_target_fallback": "Répertoire de téléchargement",
-  "queue_paused_help": "S’exécute quand toute la file est mise en pause. Pour une seule cause : condition « Source » égale à manual (à la main), automation, schedule (planning), stop_mark (marque d’arrêt) ou game_mode (mode jeu).",
-  "queue_no_package": "La file entière ne désigne aucun paquet : les actions de paquet ne sont pas disponibles ici."
+  "queue_paused_help": "S’exécute quand toute la file est mise en pause. Pour une seule cause : condition « Source » égale à manual (à la main), automation, schedule (planning), stop_mark (marque d’arrêt) ou game_mode (mode jeu).",
+  "queue_no_package": "La file entière ne désigne aucun paquet : les actions de paquet ne sont pas disponibles ici."
 }

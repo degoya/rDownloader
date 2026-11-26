@@ -67,7 +67,7 @@
     "wrong_type": "Solo se pueden entregar archivos .torrent y .nzb",
     "unreadable": "No se pudo leer el archivo",
     "summary": "{done} de {total} archivos entregados.",
-    "summary_failed": "{failed} de {total} archivos no se pudieron entregar; cada uno indica el motivo. Los demás siguieron adelante.",
+    "summary_failed": "{failed} de {total} archivos no se pudo entregar; indica el motivo. Los demás siguieron adelante. | {failed} de {total} archivos no se pudieron entregar; cada uno indica el motivo. Los demás siguieron adelante.",
     "states": {
       "waiting": "En espera",
       "sending": "Entregándose",

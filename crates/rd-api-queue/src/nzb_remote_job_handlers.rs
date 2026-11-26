@@ -17,10 +17,8 @@
 //! all, whose articles the own servers no longer had. The package stays; the mark is the
 //! import's, as in the LinkGrabber.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_api_core::nzb_hand_over::{self, NzbHandedOver};
 use rd_core::{AccountId, NzbImportId, NzbImportState, PackageId, RemoteJob};
 use rd_db::StoreErrorKind;

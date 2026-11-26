@@ -1,5 +1,5 @@
 /**
- * WEB-01: the PUT replaces the whole settings document, and until the GET has answered the form
+ * WEB-01: until the GET of the settings document has answered, the form
  * holds the placeholders of `defaultSettings()`. A save while the load failed or was still running
  * — the service restarting while the page was open — wrote those placeholders over the real
  * configuration. The pages bound to the document, the save bar and the reset now wait for a
@@ -18,6 +18,7 @@ import settingsCatalogue from '@/locales/en/settings.json'
 import { defaultSettings } from '@/settingsDefaults'
 import { loadEveryLocale } from '@/test/locales'
 import { mountComponent } from '@/test/mount'
+import { loadSettingsPages } from '@/test/settingsPages'
 
 beforeAll(loadEveryLocale)
 
@@ -51,12 +52,14 @@ function button(name: string): HTMLElement | null {
   return screen.queryByRole('button', { name })
 }
 
+beforeAll(loadSettingsPages, 60_000)
+
 describe('saving before the settings document has loaded', () => {
   beforeEach(() => {
     vi.mocked(api.GET).mockReset()
-    vi.mocked(api.PUT).mockReset()
+    vi.mocked(api.PATCH).mockReset()
     vi.mocked(api.POST).mockClear()
-    vi.mocked(api.PUT).mockImplementation((async (_path: string, init: { body: unknown }) => ({ data: init.body })) as never)
+    vi.mocked(api.PATCH).mockImplementation((async (_path: string, init: { body: object }) => ({ data: { ...stored, ...init.body } })) as never)
   })
 
   it('shows the failure instead of the form and offers no save or reset', async () => {
@@ -67,7 +70,7 @@ describe('saving before the settings document has loaded', () => {
     expect(button(settingsCatalogue.save)).toBeNull()
     expect(button(settingsCatalogue.reset.button)).toBeNull()
     expect(document.querySelector('[data-tour="settings-tabs"]')).toBeNull()
-    expect(api.PUT).not.toHaveBeenCalled()
+    expect(api.PATCH).not.toHaveBeenCalled()
     expect(api.POST).not.toHaveBeenCalledWith('/api/v1/settings/reset')
   })
 
@@ -86,7 +89,7 @@ describe('saving before the settings document has loaded', () => {
     await waitFor(() => expect(button(settingsCatalogue.save)).not.toBeNull())
   })
 
-  it('loads again on retry and saves the stored document, not the placeholders', async () => {
+  it('loads again on retry and sends nothing of the placeholders', async () => {
     vi.mocked(api.GET).mockImplementation((async () => failed) as never)
     await mountSection('system?tab=retention')
     await waitFor(() => expect(button(commonCatalogue.actions.retry)).not.toBeNull())
@@ -98,9 +101,9 @@ describe('saving before the settings document has loaded', () => {
     await waitFor(() => expect(button(settingsCatalogue.save)).not.toBeNull())
 
     await fireEvent.click(button(settingsCatalogue.save) as HTMLElement)
-    await waitFor(() => expect(api.PUT).toHaveBeenCalledTimes(1))
-    const [, init] = vi.mocked(api.PUT).mock.calls[0] as unknown as [string, { body: { log_retention_records: number } }]
-    expect(init.body.log_retention_records).toBe(50000)
+    await waitFor(() => expect(screen.getByText(settingsCatalogue.messages.saved)).toBeTruthy())
+    // Nothing was edited, so there is nothing to save (RD-1480-07).
+    expect(api.PATCH).not.toHaveBeenCalled()
   })
 
   /**
@@ -154,7 +157,7 @@ describe('saving before the settings document has loaded', () => {
 
     await waitFor(() => expect(button(settingsCatalogue.save)).not.toBeNull())
     expect(screen.queryByTestId('settings-document-card-state')).toBeNull()
-    expect(document.querySelector('[data-settings-anchor="usenet.nntp_connections"]')).not.toBeNull()
+    await waitFor(() => expect(document.querySelector('[data-settings-anchor="usenet.nntp_connections"]')).not.toBeNull())
   })
 
   // RD-1160-01: three self-saving pages took tabs; none waits for the document or gets a save bar.

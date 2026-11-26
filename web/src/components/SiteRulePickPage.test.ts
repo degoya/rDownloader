@@ -15,9 +15,9 @@ function entry(index: number, attributes: Record<string, string>, state = 'pendi
 function page(entries: CollectorPickEntry[], extra: Partial<CollectorPick> = {}): CollectorPick {
   return {
     id: 'p1',
-    rule: 'serienjunkies.org',
-    rule_id: 'serienjunkies',
-    address: 'https://serienjunkies.org/serie/the-show/',
+    rule: 'series.example',
+    rule_id: 'series',
+    address: 'https://series.example/serie/the-show/',
     package_name: 'The Show',
     created_at: '2026-10-07T20:00:00Z',
     running: false,

@@ -70,11 +70,11 @@
     "secret_apprise_description": "For example tgram://token/chat_id — handed to apprise in its environment, never as an argument.",
     "secret_keep": "Leave empty to keep the stored secret.",
     "test": "Send a test",
-    "test_ok": "Test notification delivered to \"{name}\".",
-    "test_failed": "\"{name}\" did not accept the test: {detail}",
+    "test_ok": "Test notification delivered to “{name}”.",
+    "test_failed": "“{name}” did not accept the test: {detail}",
     "empty": "No target yet.",
     "delete_title": "Delete target",
-    "delete_description": "Delete the target \"{name}\"? Its rules go with it.",
+    "delete_description": "Delete the target “{name}”? Its rules go with it.",
     "endpoint_plugin": "Destination",
     "endpoint_plugin_description": "Where this plugin sends: an ntfy topic or the full address of your own ntfy server (https; http only inside your own network), a Telegram chat id, or whatever the plugin asks for. Never a token.",
     "secret_plugin": "Token",
@@ -84,7 +84,7 @@
     "form_new": "New target",
     "secret_copy": "Not copied — enter it again; until then the copy has none.",
     "setting_unset": "Not set",
-    "web_push_description": "Sends to every browser that turned on “Push on this device” under Settings › Interface. No address or secret needed; the first browser creates this destination by itself."
+    "web_push_description": "Sends to every browser that turned on “Push on this device” under Settings → Interface. No address or secret needed; the first browser creates this destination by itself."
   },
   "smtp": {
     "from": "Sender",
@@ -117,7 +117,7 @@
     "empty": "No rule yet.",
     "needs_target": "Create a target first.",
     "delete_title": "Delete rule",
-    "delete_description": "Delete the rule \"{name}\"?",
+    "delete_description": "Delete the rule “{name}”?",
     "form_new": "New rule"
   },
   "history": {
@@ -129,7 +129,7 @@
     "target_removed": "removed destination"
   },
   "desktop": {
-    "quiet_summary_title": "While it was quiet: {count} notifications",
+    "quiet_summary_title": "While it was quiet: {count} notification | While it was quiet: {count} notifications",
     "quiet_summary_more": "and {count} more"
   },
   "template": {
@@ -172,5 +172,11 @@
     "count": "How many times the event happened in the burst: imports or starts",
     "items": "Links or downloads in the burst altogether",
     "names": "The burst's first names: the files started, the rest as “and N more”, or the links' sources"
+  },
+  "language": {
+    "eyebrow": "Wording",
+    "title": "Language of the notifications",
+    "description": "The language rDownloader writes its own texts in, for push, mail, Telegram and webhooks. What you word yourself in a rule stays as you wrote it.",
+    "label": "Language"
   }
 }

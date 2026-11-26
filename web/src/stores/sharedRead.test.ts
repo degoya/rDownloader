@@ -137,7 +137,7 @@ describe('the shared lists', () => {
     expect(handlers.get('category.changed')?.size).toBe(0)
   })
 
-  it('reads the settings document without a subscription, since no event says it changed', async () => {
+  it('reads the settings document without a subscription: the settings page follows it itself', async () => {
     answer({ '/api/v1/settings': { byte_unit: 'si' } })
     const store = useSettingsStore()
 

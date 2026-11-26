@@ -20,12 +20,12 @@
 use std::collections::HashMap;
 
 use axum::{
-    Json,
     body::Body,
     extract::State,
     http::{HeaderValue, header},
     response::{IntoResponse, Response},
 };
+use rd_api_core::extract::Json;
 use rd_collector::{LinksDocument, LinksEntry, LinksPackage};
 use rd_core::{DownloadFile, DownloadKind, PackageId, Timestamp};
 

@@ -1,58 +1,32 @@
 //! RD-1290-04: every pause source announces `paused` once, its end `resumed` once, a queue that
 //! ran empty `finished` once, and a pause set again announces nothing.
 
-use rd_core::{DownloadFile, DownloadState, Timestamp};
+use rd_core::{DownloadFigures, DownloadState};
 use rd_scheduler::PauseReason;
 
 use super::{QueueStateWatch, Sample};
 
-fn file(state: DownloadState) -> DownloadFile {
-    let now = Timestamp::now();
-    DownloadFile {
-        recording: None,
+fn file(state: DownloadState) -> DownloadFigures {
+    DownloadFigures {
         id: rd_core::DownloadId::new(),
-        package_id: rd_core::PackageId::new(),
-        source: "https://hoster.example/a".parse().expect("url"),
-        file_name: "a.bin".to_owned(),
         state,
         total_bytes: None,
         committed_bytes: rd_core::ByteCount::default(),
-        retry_count: 0,
-        next_retry_at: None,
-        expected_checksum: None,
-        computed_checksum: None,
-        last_error: None,
-        account_id: None,
-        proxy_profile_id: None,
-        remote_credential_id: None,
-        mirror_group: None,
-        auth_profile: rd_core::AuthProfileSelection::Auto,
-        position: 0,
-        kind: rd_core::DownloadKind::Http,
-        nzb_file_id: None,
-        recovery: false,
-        media: None,
-        enrichment: Vec::new(),
-        created_at: now,
-        updated_at: now,
     }
 }
 
 /// The same files in other states, as the next tick reads them.
-fn now_in(files: &[DownloadFile], state: DownloadState) -> Vec<DownloadFile> {
+fn now_in(files: &[DownloadFigures], state: DownloadState) -> Vec<DownloadFigures> {
     files
         .iter()
-        .map(|file| DownloadFile {
-            state,
-            ..file.clone()
-        })
+        .map(|file| DownloadFigures { state, ..*file })
         .collect()
 }
 
 /// One tick: the states announced, and the reason of a pause.
 fn tick(
     watch: &mut QueueStateWatch,
-    downloads: &[DownloadFile],
+    downloads: &[DownloadFigures],
     queue_pause: Option<PauseReason>,
     schedule_pauses: bool,
 ) -> Vec<String> {
@@ -141,12 +115,12 @@ fn a_queue_that_ran_empty_is_finished_once() {
     let mut watch = QueueStateWatch::default();
     // A file paused long before is no pause of the queue: around it, the queue ran empty.
     let held_back = file(DownloadState::Paused);
-    let running = vec![file(DownloadState::Downloading), held_back.clone()];
+    let running = vec![file(DownloadState::Downloading), held_back];
     tick(&mut watch, &running, None, false);
     let done = vec![
-        DownloadFile {
+        DownloadFigures {
             state: DownloadState::Completed,
-            ..running[0].clone()
+            ..running[0]
         },
         held_back,
     ];
@@ -181,13 +155,13 @@ fn a_paused_queue_never_finishes() {
     tick(&mut watch, &running, None, false);
     // The stop mark: the waiting file pauses, the running one finishes.
     let at_mark = vec![
-        DownloadFile {
+        DownloadFigures {
             state: DownloadState::Completed,
-            ..running[0].clone()
+            ..running[0]
         },
-        DownloadFile {
+        DownloadFigures {
             state: DownloadState::Paused,
-            ..running[1].clone()
+            ..running[1]
         },
     ];
     assert_eq!(
@@ -197,8 +171,8 @@ fn a_paused_queue_never_finishes() {
     assert!(tick(&mut watch, &at_mark, Some(PauseReason::StopMark), false).is_empty());
     // Resumed, it runs the last file and then ran empty.
     let last = vec![
-        at_mark[0].clone(),
-        now_in(&at_mark[1..], DownloadState::Downloading)[0].clone(),
+        at_mark[0],
+        now_in(&at_mark[1..], DownloadState::Downloading)[0],
     ];
     assert_eq!(tick(&mut watch, &last, None, false), ["resumed"]);
     let done = now_in(&last, DownloadState::Completed);
@@ -213,22 +187,18 @@ fn a_download_finished_before_any_tick_saw_it_is_finished_once() {
     let mut watch = QueueStateWatch::default();
     let earlier = file(DownloadState::Completed);
     assert!(tick(&mut watch, std::slice::from_ref(&earlier), None, false).is_empty());
-    let quick = vec![earlier.clone(), file(DownloadState::Completed)];
+    let quick = vec![earlier, file(DownloadState::Completed)];
     assert_eq!(tick(&mut watch, &quick, None, false), ["finished"]);
     assert!(tick(&mut watch, &quick, None, false).is_empty(), "once");
 
     // One that failed at once ends the queue's work too, as a failure after a seen tick does.
-    let failed = vec![
-        earlier.clone(),
-        quick[1].clone(),
-        file(DownloadState::Failed),
-    ];
+    let failed = vec![earlier, quick[1], file(DownloadState::Failed)];
     assert_eq!(tick(&mut watch, &failed, None, false), ["finished"]);
 
     // A paused file resumed and finished between ticks is work as well.
     let held = file(DownloadState::Paused);
     let mut queue = failed.clone();
-    queue.push(held.clone());
+    queue.push(held);
     assert!(tick(&mut watch, &queue, None, false).is_empty());
     let resumed = now_in(std::slice::from_ref(&held), DownloadState::Completed);
     let mut queue = failed;
@@ -251,7 +221,7 @@ fn an_unseen_finish_is_no_moment_at_start_while_paused_or_while_busy() {
     let mut watch = QueueStateWatch::default();
     let running = file(DownloadState::Downloading);
     tick(&mut watch, std::slice::from_ref(&running), None, false);
-    let beside = vec![running.clone(), file(DownloadState::Completed)];
+    let beside = vec![running, file(DownloadState::Completed)];
     assert!(
         tick(&mut watch, &beside, None, false).is_empty(),
         "still busy"

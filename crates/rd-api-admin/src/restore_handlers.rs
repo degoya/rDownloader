@@ -10,7 +10,8 @@
 
 use std::collections::BTreeMap;
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::Json;
 use rd_backup::manifest::{PARTIAL_TRANSFERS_PART, PLUGIN_TRUST_PART, PartKind, SETTINGS_PART};
 use rd_backup::restore::cutover::{self, Phase};
 use rd_backup::restore::inspect;

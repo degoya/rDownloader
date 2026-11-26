@@ -3,6 +3,7 @@ import { cancelIndexerSearchRequest, focusIndexerSearch } from '@/composables/in
 import { runLinkGrabberAction } from '@/composables/linkGrabberActions'
 import { requestFileImport } from '@/composables/nzbImportRequest'
 import { openPalette } from '@/composables/searchPalette'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
 import { toggleSidebarCollapsed } from '@/composables/sidebarCollapse'
 import { i18n } from '@/i18n'
 import { router } from '@/router'
@@ -231,15 +232,24 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   { keys: 'meta_k', labelKeys: ['meta', 'k'], descriptionKey: 'common.shortcuts.open_search', group: 'actions', handler: openPalette, register: false }
 ]
 
-/** What `useAppShortcuts()` hands to `defineShortcuts`: every entry this module binds itself. */
+/**
+ * What `useAppShortcuts()` hands to `defineShortcuts`: every entry this module binds itself, and
+ * nothing while the shortcuts are off — an unbound key keeps what the browser does with it, where
+ * a handler that only returned would still have swallowed the key.
+ */
 export function registeredShortcuts(): Record<string, () => void> {
+  if (!shortcutsEnabled.value) return {}
   return Object.fromEntries(SHORTCUT_DEFINITIONS
     .filter(definition => definition.register !== false)
     .map(definition => [definition.keys, definition.handler]))
 }
 
-/** The keys of the entry `descriptionKey` names, as the help lists them; none for an entry that does not exist. */
+/**
+ * The keys of the entry `descriptionKey` names, as the help lists them; none for an entry that does
+ * not exist, and none while the shortcuts are off: no tooltip or menu names a key that does nothing.
+ */
 export function shortcutKeys(descriptionKey: string): string[] {
+  if (!shortcutsEnabled.value) return []
   return SHORTCUT_DEFINITIONS.find(definition => definition.descriptionKey === descriptionKey)?.labelKeys ?? []
 }
 

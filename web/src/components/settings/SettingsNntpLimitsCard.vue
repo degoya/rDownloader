@@ -46,7 +46,7 @@ const nntpCapHint = computed(() => {
   if (cap === 0) return { text: live.value ?? t('settings.nntp_connections.follows_servers', { largest }), binding: false }
   const now = live.value ? ` ${live.value}` : ''
   if (cap < largest) return { text: t('settings.nntp_connections.capped', { cap, largest }) + now, binding: true }
-  return { text: t('settings.nntp_connections.not_binding', { largest }) + now, binding: false }
+  return { text: t('settings.nntp_connections.not_binding', { largest }, largest) + now, binding: false }
 })
 </script>
 

@@ -116,7 +116,7 @@ pub(crate) async fn checks(database: &Database) -> BTreeMap<String, rd_db::SiteR
 /// This installation's value for the rule variable `device_id` (RD-1170-03): 32 hexadecimal
 /// digits, drawn once and kept, the same for every run from then on.
 ///
-/// A page whose script sends a browser fingerprint along with a request -- serienjunkies.org
+/// A page whose script sends a browser fingerprint along with a request -- a series page
 /// posts a fingerprintjs2 hash beside the captcha token -- is sent this instead. It is not a
 /// fingerprint of anything: random, stable, and naming nothing about the machine. `None` when
 /// the settings cannot be read or written, which leaves a rule reading it to refuse.

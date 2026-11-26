@@ -14,7 +14,8 @@
 # Idempotent: with nothing due it writes nothing and exits 0. It refuses (exit 2) to run over
 # uncommitted changes under docs/roadmap/jobs/, so it never mixes into someone's work. It stages
 # the moves only; the rewritten files are left for the commit that takes them. With nothing due
-# it still recounts a Job Inventory that disagrees with the catalogs (RD-140-24).
+# it still recounts a Job Inventory that disagrees with the catalogs (RD-140-24) and writes the
+# index's status words from the job files (RD-1480-24); --check names those without failing.
 #
 # The release pipeline runs it as its `archive-jobs` step, between docs-gate and commit-guard,
 # so the jobs a release finished move within the release commit.

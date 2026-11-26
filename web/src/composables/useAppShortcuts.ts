@@ -1,4 +1,5 @@
 import { defineShortcuts, useOverlay, useToast } from '@nuxt/ui/composables'
+import { computed } from 'vue'
 
 import ShortcutsHelpModal from '@/components/ShortcutsHelpModal.vue'
 import { registeredShortcuts, setShortcutFeedback, shouldSuppressShortcuts } from '@/composables/shortcutDefinitions'
@@ -23,5 +24,6 @@ export function useAppShortcuts(): void {
     isOverlayOpen: () => shouldSuppressShortcuts(overlay.overlays)
   })
 
-  defineShortcuts(registeredShortcuts())
+  // Computed: the switch under *Interface* binds and unbinds the keys at once.
+  defineShortcuts(computed(registeredShortcuts))
 }

@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { mountComponent } from '@/test/mount'
 
 import ConfirmModal from './ConfirmModal.vue'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
+
+// Off by default (RD-1480-17); these tests are about the keys.
+shortcutsEnabled.value = true
 
 /** The footer alone, and a button that shows its trailing key the way the real one does. */
 const stubs = {
@@ -43,6 +47,15 @@ describe('ConfirmModal', () => {
       expect(emitted('close')).toEqual([[true]])
       unmount()
     }
+  })
+
+  it('neither shows nor takes its key while the shortcuts are off', async () => {
+    shortcutsEnabled.value = false
+    const { emitted, queryByText } = mount('k')
+    expect(queryByText('k')).toBeNull()
+    await press('k')
+    expect(emitted('close')).toBeUndefined()
+    shortcutsEnabled.value = true
   })
 
   it('takes no key without one, so a stray press answers nothing', async () => {

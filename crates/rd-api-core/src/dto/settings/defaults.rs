@@ -207,6 +207,7 @@ impl Default for SettingsResponse {
             stats_hourly_days: default_stats_hourly_days(),
             stats_retention_days: default_stats_retention_days(),
             vendor_directory: None,
+            notification_language: rd_notify::NotificationLanguage::default(),
             managed_tools_enabled: false,
             managed_tools_manifest_url: None,
             tool_compatibility_overrides: Vec::new(),

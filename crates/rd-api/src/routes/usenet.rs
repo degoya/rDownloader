@@ -40,7 +40,8 @@ pub(crate) fn routes() -> Router<AppState> {
         )
         .route(
             "/api/v1/usenet/servers/{id}",
-            axum::routing::put(usenet_handlers::update_usenet_server)
+            get(rd_api_queue::single_reads::get_usenet_server)
+                .put(usenet_handlers::update_usenet_server)
                 .delete(usenet_handlers::delete_usenet_server),
         )
         .route(
@@ -67,5 +68,6 @@ pub(crate) fn routes() -> Router<AppState> {
     usenet_handlers::enqueue_nzb_import,
     nzb_remote_job_handlers::submit_nzb_import_remote_job,
     nzb_remote_job_handlers::submit_package_remote_job,
+    rd_api_queue::single_reads::get_usenet_server,
 ))]
 pub(crate) struct Doc;

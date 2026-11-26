@@ -43,6 +43,33 @@ export function openSendFilePage() {
   return api.tabs.create({ url: api.runtime.getURL('src/send-file.html') })
 }
 
+/**
+ * The messages that count something, with the key of their singular. `chrome.i18n` has no plural;
+ * the first substitution is the number, and the rule is that of the catalogue's own language — in
+ * French zero is singular (RD-1480-03).
+ */
+const SINGULAR = { sentLinks: 'sentLinksOne', pickWaiting: 'pickWaitingOne', cnlSent: 'cnlSentOne' }
+
+/** The language the texts are in: the catalogue's own, English where the browser's is not one. */
+function language() {
+  return api.i18n.getMessage('pageLanguage') || 'en'
+}
+
 export function message(key, substitutions) {
-  return api.i18n.getMessage(key, substitutions) || key
+  const one = SINGULAR[key]
+  const form = one && new Intl.PluralRules(language()).select(Number(substitutions?.[0])) === 'one' ? one : key
+  return api.i18n.getMessage(form, substitutions) || key
+}
+
+/**
+ * Words one of the extension's pages: its texts, its title, and the language a screen reader
+ * speaks them in. That is the catalogue's language and not `i18n.getUILanguage()`: an Italian
+ * browser shows the English texts (RD-1480-03).
+ */
+export function localizePage(title) {
+  document.documentElement.lang = language()
+  for (const element of document.querySelectorAll('[data-i18n]')) {
+    element.textContent = message(element.dataset.i18n)
+  }
+  document.title = title
 }

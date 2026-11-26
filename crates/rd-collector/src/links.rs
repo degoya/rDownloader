@@ -126,16 +126,16 @@ pub(crate) mod tests {
     #[test]
     fn an_apostrophe_in_the_path_stays_part_of_the_link() {
         let urls = extract_urls(
-            "https://downup.me/8q6i5f7qn2r1/c't_Sonderhefte_Home_Assistant_26_de.downmagaz.net.pdf.html",
+            "https://downup.me/8q6i5f7qn2r1/c't_Sonderhefte_Home_Assistant_26_de.magazines.example.pdf.html",
         );
         assert_eq!(urls.len(), 1);
         assert!(
             urls[0]
                 .as_str()
-                .ends_with("/c't_Sonderhefte_Home_Assistant_26_de.downmagaz.net.pdf.html")
-                || urls[0]
-                    .as_str()
-                    .ends_with("/c%27t_Sonderhefte_Home_Assistant_26_de.downmagaz.net.pdf.html"),
+                .ends_with("/c't_Sonderhefte_Home_Assistant_26_de.magazines.example.pdf.html")
+                || urls[0].as_str().ends_with(
+                    "/c%27t_Sonderhefte_Home_Assistant_26_de.magazines.example.pdf.html"
+                ),
             "{}",
             urls[0]
         );

@@ -2,18 +2,18 @@
   "header": {
     "eyebrow": "Registre des résolveurs",
     "title": "Plugins",
-    "description": "Avant l’installation atomique, les paquets sont vérifiés : signature, manifeste, format de composant et imports autorisés. Les paquets non signés ne fonctionnent que si le service est explicitement en mode développement."
+    "description": "Avant l’installation atomique, les paquets sont vérifiés : signature, manifeste, format de composant et imports autorisés. Les paquets non signés ne fonctionnent que si le service est explicitement en mode développement."
   },
   "install": {
     "label": "Paquet .rdplug",
-    "hint": "65 MiB maximum ; les données binaires ne sont pas stockées comme envoi temporaire.",
+    "hint": "65 Mio maximum ; les données binaires ne sont pas stockées comme envoi temporaire.",
     "submit": "Vérifier et installer",
     "drop": "Déposez un paquet .rdplug ici ou choisissez-en un"
   },
   "installed": {
     "eyebrow": "Versions installées",
     "title": "Inventaire local",
-    "empty": "Aucun plugin installé pour le moment. Les liens d’hébergeurs ont besoin d’un plugin résolveur : installez un service du lot fourni dans l’onglet « Ajouter » ou d’un dépôt.",
+    "empty": "Aucun plugin installé pour le moment. Les liens d’hébergeurs ont besoin d’un plugin résolveur : installez un service du lot fourni dans l’onglet « Ajouter » ou d’un dépôt.",
     "filter_label": "Filtrer par groupe de plugins"
   },
   "card": {
@@ -21,16 +21,16 @@
     "homepage": "Site web",
     "support": "Assistance",
     "concurrency": "en parallèle",
-    "concurrency_hint": "Au maximum {count} téléchargements simultanés via ce plugin",
+    "concurrency_hint": "Au maximum {count} téléchargement simultané via ce plugin | Au maximum {count} téléchargements simultanés via ce plugin",
     "api_version": "ABI {version}",
     "capabilities": "Accordé",
     "superseded": "Non utilisée",
-    "superseded_hint": "Une autre version de ce plugin est chargée à sa place. Elle reste sur le disque tant qu'un travail inachevé y est rattaché ; sinon, elle peut être supprimée.",
-    "active_version_hint": "C'est la version chargée.",
+    "superseded_hint": "Une autre version de ce plugin est chargée à sa place. Elle reste sur le disque tant qu’un travail inachevé y est rattaché ; sinon, elle peut être supprimée.",
+    "active_version_hint": "C’est la version chargée.",
     "superseded_versions": "Versions remplacées ({count})",
     "remove_superseded": "Supprimer la version {version}",
     "withdrawn_badge": "Retiré",
-    "withdrawn_hint": "Cette version est refusée à partir du prochain démarrage ; la clé de signature reste intacte.",
+    "withdrawn_hint": "Cette version est refusée à partir du prochain démarrage ; la clé de signature reste intacte.",
     "withdraw_version": "Retirer la version {version}",
     "staged_badge": "En test",
     "more_hosts": "+{count} de plus",
@@ -70,19 +70,19 @@
     "net_http": "Requêtes web",
     "cookies": "Cookies du compte",
     "captcha": "Résolution de CAPTCHA",
-    "secret": "Identifiant : {reference}",
+    "secret": "Identifiant : {reference}",
     "net_stream": "Connexions directes (ports {ports})",
     "key_derivation": "Dérivation de clés"
   },
   "incompatible": {
     "eyebrow": "Paquets refusés",
     "title": "Installés mais non exécutables",
-    "description": "Ces paquets sont présents sur le disque, mais cette version ne peut pas les exécuter. Ils sont laissés en place jusqu'à ce que vous les supprimiez : les effacer automatiquement ferait simplement disparaître un hébergeur sans explication. Un paquet qui exige une version plus récente refonctionnera dès que son auteur l'aura recompilé.",
+    "description": "Ces paquets sont présents sur le disque, mais cette version ne peut pas les exécuter. Ils sont laissés en place jusqu’à ce que vous les supprimiez : les effacer automatiquement ferait simplement disparaître un hébergeur sans explication. Un paquet qui exige une version plus récente refonctionnera dès que son auteur l’aura recompilé.",
     "remove": "Supprimer",
     "reason": {
       "plugin.manifest_outdated": "Compilé pour un contrat de plugins plus ancien. Son auteur doit le recompiler pour cette version.",
       "plugin.capability_unknown": "Demande une permission ou un type de plugin que cette version ne connaît pas.",
-      "plugin.manifest_unreadable": "Le manifeste est totalement illisible ; le paquet est endommagé."
+      "plugin.manifest_unreadable": "Le manifeste est totalement illisible ; le paquet est endommagé."
     }
   },
   "diagnostics": {
@@ -95,7 +95,7 @@
       "timeout": "Délai dépassé",
       "fuel": "Budget épuisé",
       "memory": "Mémoire épuisée",
-      "host_error": "Erreur de l'hôte",
+      "host_error": "Erreur de l’hôte",
       "denied": "Non autorisé"
     }
   },
@@ -107,19 +107,19 @@
     "remove_all_superseded": "Supprimer les versions remplacées ({count})"
   },
   "remove": {
-    "title": "Supprimer le plugin ?",
-    "description": "« {name} » est retiré du disque. Le récupérer implique de le réinstaller.",
-    "superseded_title": "Supprimer la version remplacée ?",
-    "superseded_description": "La version {version} de « {name} » est retirée du disque. La version {active} reste installée et continue d'être chargée.",
-    "superseded_all_title": "Supprimer les versions remplacées ?",
-    "superseded_all_description": "{count} version remplacée est retirée du disque. La version que charge chaque plugin reste, de même qu'une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test. | {count} versions remplacées sont retirées du disque. La version que charge chaque plugin reste, de même qu'une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test.",
-    "superseded_plugin_description": "{count} version remplacée de « {name} » est retirée du disque. La version chargée reste, de même qu'une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test. | {count} versions remplacées de « {name} » sont retirées du disque. La version chargée reste, de même qu'une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test.",
-    "superseded_done": "Versions remplacées – supprimées : {removed}, conservées : {kept}"
+    "title": "Supprimer le plugin ?",
+    "description": "« {name} » est retiré du disque. Le récupérer implique de le réinstaller.",
+    "superseded_title": "Supprimer la version remplacée ?",
+    "superseded_description": "La version {version} de « {name} » est retirée du disque. La version {active} reste installée et continue d’être chargée.",
+    "superseded_all_title": "Supprimer les versions remplacées ?",
+    "superseded_all_description": "{count} version remplacée est retirée du disque. La version que charge chaque plugin reste, de même qu’une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test. | {count} versions remplacées sont retirées du disque. La version que charge chaque plugin reste, de même qu’une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test.",
+    "superseded_plugin_description": "{count} version remplacée de « {name} » est retirée du disque. La version chargée reste, de même qu’une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test. | {count} versions remplacées de « {name} » sont retirées du disque. La version chargée reste, de même qu’une version à laquelle un travail inachevé est encore rattaché ou qui est choisie pour le prochain démarrage ou en test.",
+    "superseded_done": "Versions remplacées – supprimées : {removed}, conservées : {kept}"
   },
   "withdraw": {
-    "title": "Retirer cette version ?",
-    "intro": "« {name} » {version} est refusé d’après le contenu exact du paquet, et non d’après son numéro de version.",
-    "restart": "Il continue de fonctionner jusqu’au redémarrage du service ; à partir du prochain démarrage, il est ignoré.",
+    "title": "Retirer cette version ?",
+    "intro": "« {name} » {version} est refusé d’après le contenu exact du paquet, et non d’après son numéro de version.",
+    "restart": "Il continue de fonctionner jusqu’au redémarrage du service ; à partir du prochain démarrage, il est ignoré.",
     "key_untouched": "La clé de signature reste approuvée. Tous les autres plugins signés avec elle, ainsi que les autres versions de celui-ci, continuent d’être chargés.",
     "reason_label": "Motif (facultatif)",
     "reason_hint": "Conservé tel quel et affiché à côté de l’entrée.",
@@ -128,33 +128,33 @@
   "withdrawn": {
     "eyebrow": "Paquets retirés",
     "title": "Paquets que cette machine refuse",
-    "description": "Un retrait prend effet au prochain démarrage : un paquet déjà chargé continue de fonctionner jusque-là, puis est ignoré. Seule cette version précise est concernée — la clé de signature reste approuvée et tous les autres plugins signés avec elle continuent d’être chargés.",
+    "description": "Un retrait prend effet au prochain démarrage : un paquet déjà chargé continue de fonctionner jusque-là, puis est ignoré. Seule cette version précise est concernée — la clé de signature reste approuvée et tous les autres plugins signés avec elle continuent d’être chargés.",
     "empty": "Aucun paquet n’est retiré. Toute version installée qui se vérifie est chargée.",
     "installed": "Installé ici",
-    "not_installed": "Ce paquet n’est pas installé ici ; seule son empreinte l’identifie.",
+    "not_installed": "Ce paquet n’est pas installé ici ; seule son empreinte l’identifie.",
     "unknown_package": "Paquet sans nom",
     "digest": "Empreinte du paquet",
-    "reason": "Motif : {reason}",
+    "reason": "Motif : {reason}",
     "since": "Retiré {when}",
     "lift": "Lever le retrait"
   },
   "versions": {
     "title": "Versions",
-    "running": "En service : v{version}",
-    "next": "Au prochain démarrage : v{version}",
+    "running": "En service : v{version}",
+    "next": "Au prochain démarrage : v{version}",
     "restart_required": "Redémarrage requis",
-    "staged": "En test : v{version}",
-    "staged_hint": "Seuls les téléchargements lancés exprès avec cette version l'utilisent, jusqu'à ce que vous l'activiez.",
+    "staged": "En test : v{version}",
+    "staged_hint": "Seuls les téléchargements lancés exprès avec cette version l’utilisent, jusqu’à ce que vous l’activiez.",
     "activate": "Activer",
     "discard": "Abandonner",
     "roll_back": "Revenir à v{version}",
     "pick": "Autre version installée",
     "stage": "Tester",
     "auto_update": "Installer les mises à jour automatiquement",
-    "auto_update_hint": "Sinon, une mise à jour est affichée et installée d'un clic. Dans les deux cas, elle devient active après un redémarrage.",
+    "auto_update_hint": "Sinon, une mise à jour est affichée et installée d’un clic. Dans les deux cas, elle devient active après un redémarrage.",
     "release_notes": "Notes de version ({count})",
     "release_notes_from": "depuis {repository}",
-    "auto_update_global_hint": "S'applique en ce moment à tous les plugins : « Installer automatiquement les mises à jour de tous les plugins » est activé sous Mises à jour. Désactivez-le là-bas et le choix propre à ce plugin s'applique de nouveau.",
+    "auto_update_global_hint": "S’applique en ce moment à tous les plugins : « Installer automatiquement les mises à jour de tous les plugins » est activé sous Mises à jour. Désactivez-le là-bas et le choix propre à ce plugin s’applique de nouveau.",
     "release_notes_more": "Plus",
     "release_notes_less": "Moins"
   },
@@ -162,15 +162,15 @@
     "title": "Vérifier avant l’installation",
     "source_upload": "Paquet téléversé",
     "source_repository": "Depuis {repository}",
-    "installed_versions": "Installé ici : {versions}",
+    "installed_versions": "Installé ici : {versions}",
     "publisher": "Éditeur",
-    "author": "Auteur : {author}",
+    "author": "Auteur : {author}",
     "key": {
       "trusted": "Signé avec une clé à laquelle vous faites déjà confiance.",
       "untrusted": "Signé avec une clé que cette installation ne connaît pas encore. L’installer lui accorde votre confiance.",
       "mismatch": "L’identifiant de clé appartient à une autre clé de confiance. Ce paquet ne peut pas être installé.",
       "withdrawn": "Un dépôt de plugins a retiré cette clé de signature. Ce paquet ne peut pas être installé.",
-      "unsigned": "Paquet non signé ; seule une installation de développement l’accepte."
+      "unsigned": "Paquet non signé ; seule une installation de développement l’accepte."
     },
     "permissions": "Autorisations",
     "no_permissions": "Ne demande aucune autorisation.",
@@ -179,7 +179,7 @@
     "release_notes": "Notes de version",
     "digest": "Empreinte du paquet",
     "withdrawn": "Ce paquet précis a été retiré et ne peut pas être installé.",
-    "incompatible": "Cette version ne peut pas l’exécuter : {reason}",
+    "incompatible": "Cette version ne peut pas l’exécuter : {reason}",
     "restart": "Un plugin devient actif après le prochain redémarrage.",
     "install": "Installer",
     "added_permissions": "Nouveau par rapport à v{version}",
@@ -188,28 +188,28 @@
   "updates": {
     "version_change": "v{from} → v{to}",
     "automatic": "Automatique",
-    "automatic_hint": "Installée à la prochaine vérification ; active après un redémarrage.",
+    "automatic_hint": "Installée à la prochaine vérification ; active après un redémarrage.",
     "review": "Vérifier la mise à jour",
     "review_package": "Vérifier",
     "adds_permissions": "Nouvelles autorisations",
-    "adds_permissions_hint": "Demande plus que la version installée ; elle ne s’installe donc qu’après votre examen, même si les mises à jour sont automatiques.",
-    "added_permissions": "Nouveau : {permissions}",
+    "adds_permissions_hint": "Demande plus que la version installée ; elle ne s’installe donc qu’après votre examen, même si les mises à jour sont automatiques.",
+    "added_permissions": "Nouveau : {permissions}",
     "automatic_all": "Installer automatiquement les mises à jour de tous les plugins",
-    "automatic_all_hint": "S'applique à chaque plugin installé, y compris ceux installés plus tard, quel que soit son réglage. Une mise à jour qui demande de nouvelles autorisations attend toujours votre clic, et chaque mise à jour ne devient active qu'après un redémarrage.",
-    "automatic_all_on": "Les mises à jour de tous les plugins s'installent désormais automatiquement.",
+    "automatic_all_hint": "S’applique à chaque plugin installé, y compris ceux installés plus tard, quel que soit son réglage. Une mise à jour qui demande de nouvelles autorisations attend toujours votre clic, et chaque mise à jour ne devient active qu’après un redémarrage.",
+    "automatic_all_on": "Les mises à jour de tous les plugins s’installent désormais automatiquement.",
     "automatic_all_off": "Chaque plugin se met de nouveau à jour selon son propre réglage."
   },
   "repositories": {
     "eyebrow": "Sources",
     "title": "Dépôts de plugins",
-    "description": "Un dépôt ne fait que livrer des paquets : chacun doit toujours être signé par une clé de plugin à laquelle vous faites confiance. Désactiver un dépôt arrête ses mises à jour et ses offres et conserve ce qui en a été installé.",
+    "description": "Un dépôt ne fait que livrer des paquets : chacun doit toujours être signé par une clé de plugin à laquelle vous faites confiance. Désactiver un dépôt arrête ses mises à jour et ses offres et conserve ce qui en a été installé.",
     "official": "Officiel",
     "enabled_label": "Utiliser {name}",
     "key": "Clé du dépôt {key_id}",
     "checked": "Dernière vérification réussie {when}",
     "never_checked": "Pas encore vérifié",
     "expires": "Index valable jusqu’au {when}",
-    "last_error": "La dernière vérification a échoué : {reason}",
+    "last_error": "La dernière vérification a échoué : {reason}",
     "refresh": "Vérifier maintenant",
     "refreshed": "Dépôts vérifiés.",
     "interval_label": "Vérifier toutes les (heures)",
@@ -222,12 +222,12 @@
     "name_label": "Nom (facultatif)",
     "add": "Ajouter le dépôt",
     "approve_title": "Approuver la clé du dépôt",
-    "approve_intro": "L’index à l’adresse {url} est signé avec cette clé et propose {count} paquets.",
-    "approve_warning": "N’approuvez que si cette empreinte correspond à celle publiée par l’éditeur du dépôt. Le dépôt pourra alors proposer des paquets et retirer ce qu’il a livré ; chaque paquet doit toujours être signé par une clé de plugin de confiance.",
+    "approve_intro": "L’index à l’adresse {url} est signé avec cette clé et propose {count} paquet. | L’index à l’adresse {url} est signé avec cette clé et propose {count} paquets.",
+    "approve_warning": "N’approuvez que si cette empreinte correspond à celle publiée par l’éditeur du dépôt. Le dépôt pourra alors proposer des paquets et retirer ce qu’il a livré ; chaque paquet doit toujours être signé par une clé de plugin de confiance.",
     "approve": "Approuver et ajouter",
     "added": "Dépôt ajouté.",
     "remove": "Retirer le dépôt",
-    "remove_title": "Retirer ce dépôt ?",
+    "remove_title": "Retirer ce dépôt ?",
     "remove_description": "{name} ne proposera plus de mises à jour. Les plugins qui en proviennent restent installés.",
     "empty": "Aucun dépôt configuré."
   },
@@ -252,11 +252,11 @@
     },
     "needs_account": "Nécessite un compte ou une destination",
     "install": "Installer",
-    "no_match": "Aucun service ne correspond à « {query} ».",
-    "none": "Cette version ne fournit aucun lot. Les plugins viennent alors d'un dépôt.",
-    "failed": "{name} n'a pas pu être installé : {reason}",
-    "installed": "Rien n'a été installé. | 1 plugin installé ; un plugin d’hébergeur ou de connexion fonctionne aussitôt, les autres types dès le prochain démarrage. | {count} plugins installés ; ceux d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage.",
-    "installed_live": "Rien n'a été installé. | 1 plugin installé ; il fonctionne dès maintenant. | {count} plugins installés ; ils fonctionnent dès maintenant."
+    "no_match": "Aucun service ne correspond à « {query} ».",
+    "none": "Cette version ne fournit aucun lot. Les plugins viennent alors d’un dépôt.",
+    "failed": "{name} n’a pas pu être installé : {reason}",
+    "installed": "Rien n’a été installé. | 1 plugin installé ; un plugin d’hébergeur ou de connexion fonctionne aussitôt, les autres types dès le prochain démarrage. | {count} plugins installés ; ceux d’hébergeur et de connexion fonctionnent aussitôt, les autres types dès le prochain démarrage.",
+    "installed_live": "Rien n’a été installé. | 1 plugin installé ; il fonctionne dès maintenant. | {count} plugins installés ; ils fonctionnent dès maintenant."
   },
   "tabs": {
     "installed": "Installés",
@@ -267,13 +267,13 @@
   "catalogue": {
     "eyebrow": "Plugins",
     "title": "Services et plugins",
-    "description": "Tout ce que cette version fournit et que les dépôts de plugins proposent : installé, disponible ou avec une mise à jour en attente. Un service vient du dépôt quand il répond, sinon du lot fourni ; les plugins d'hébergeur et de connexion fonctionnent aussitôt, les autres types au prochain démarrage.",
+    "description": "Tout ce que cette version fournit et que les dépôts de plugins proposent : installé, disponible ou avec une mise à jour en attente. Un service vient du dépôt quand il répond, sinon du lot fourni ; les plugins d’hébergeur et de connexion fonctionnent aussitôt, les autres types au prochain démarrage.",
     "origin": {
       "bundled": "Fourni",
       "repository": "Dépôt",
       "upload": "Téléversé"
     },
-    "origin_hint": "D'où vient le plugin : pour un service installé, d'où vient la version installée, sinon d'où une installation le prendrait maintenant.",
+    "origin_hint": "D’où vient le plugin : pour un service installé, d’où vient la version installée, sinon d’où une installation le prendrait maintenant.",
     "state": {
       "update": "Mise à jour disponible"
     },

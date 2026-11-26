@@ -46,7 +46,7 @@ const ASSERTIONS = new Set(['start', 'end', 'word_boundary', 'not_word_boundary'
   <UBadge v-else-if="node.kind === 'literal'" color="neutral" variant="outline" class="whitespace-pre font-mono" data-kind="literal">{{ node.text }}</UBadge>
   <UBadge v-else-if="node.kind === 'range'" color="neutral" variant="outline" class="font-mono" data-kind="range">{{ node.from }}–{{ node.to }}</UBadge>
   <UBadge v-else-if="ASSERTIONS.has(node.kind)" color="neutral" variant="soft" class="whitespace-nowrap" :data-kind="node.kind">{{ label }}</UBadge>
-  <UBadge v-else-if="node.kind === 'flags'" color="warning" variant="subtle" class="whitespace-nowrap" data-kind="flags">{{ label }}: {{ flagWords(node, t) }}</UBadge>
+  <UBadge v-else-if="node.kind === 'flags'" color="warning" variant="subtle" class="whitespace-nowrap" data-kind="flags">{{ t('common.text.labelled', { label, value: flagWords(node, t) }) }}</UBadge>
   <UBadge v-else-if="node.kind === 'empty'" color="neutral" variant="outline" class="text-muted" data-kind="empty">{{ label }}</UBadge>
   <UBadge v-else color="secondary" variant="subtle" class="whitespace-nowrap" :data-kind="node.kind">{{ label }}</UBadge>
 </template>

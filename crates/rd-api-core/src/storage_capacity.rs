@@ -1,10 +1,11 @@
 //! Free-space status and the manual release of a blocked storage root (RD-050-15).
 
-use axum::{Json, extract::Path as AxumPath, extract::State};
+use axum::extract::State;
 use rd_files::StorageTarget;
 use serde::Serialize;
 use utoipa::ToSchema;
 
+use crate::extract::{Json, Path as AxumPath};
 use crate::{AppState, error::ApiError};
 
 /// Why a target is holding back work; all four numbers are shown verbatim in the UI.

@@ -39,5 +39,5 @@ function label(name: string): string {
     class="font-mono"
     data-testid="enrichment-chip"
     :title="t('common.enrichment.source', { name: field.name, at: formatMoment(field.fetched_at) })"
-  >{{ label(field.name) }}: {{ field.value }}</UBadge>
+  >{{ t('common.text.labelled', { label: label(field.name), value: field.value }) }}</UBadge>
 </template>

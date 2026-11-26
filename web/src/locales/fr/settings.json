@@ -29,12 +29,12 @@
     "postprocess": {
       "eyebrow": "Après le téléchargement",
       "title": "Post-traitement et livraison",
-      "description": "Ce qui arrive à un paquet terminé : réparer, extraire, nettoyer, exécuter un script et, en option, envoyer vers un dépôt rclone."
+      "description": "Ce qui arrive à un paquet terminé : réparer, extraire, nettoyer, exécuter un script et, en option, envoyer vers un dépôt rclone."
     },
     "interface": {
       "eyebrow": "Apparence",
       "title": "Interface",
-      "description": "Langue, thème et notifications de ce navigateur et, pour tous les navigateurs, l'affichage des tailles, du titre de l'onglet, des couvertures et de la remise des NZB."
+      "description": "Langue, thème et notifications de ce navigateur et, pour tous les navigateurs, l’affichage des tailles, du titre de l’onglet, des couvertures et de la remise des NZB."
     },
     "bandwidth": {
       "eyebrow": "Charge planifiée",
@@ -49,17 +49,17 @@
     "services": {
       "eyebrow": "Activer les protocoles",
       "title": "Services",
-      "description": "Désactivez ce que cette installation ne doit pas faire. Un service désactivé refuse les nouveaux liens et arrête ceux qu'il avait déjà."
+      "description": "Désactivez ce que cette installation ne doit pas faire. Un service désactivé refuse les nouveaux liens et arrête ceux qu’il avait déjà."
     },
     "accounts": {
       "eyebrow": "Accès aux fournisseurs",
       "title": "Comptes fournisseur",
-      "description": "Identifiants pour les hébergeurs, les services debrid et les autres fournisseurs. Chaque compte utilise sa propre identité client isolée — cookie jar, proxy, TLS — et l'API ne renvoie jamais un secret ni un cookie. S'y ajoutent les connexions aux sites protégés."
+      "description": "Identifiants pour les hébergeurs, les services debrid et les autres fournisseurs. Chaque compte utilise sa propre identité client isolée — cookie jar, proxy, TLS — et l’API ne renvoie jamais un secret ni un cookie. S’y ajoutent les connexions aux sites protégés."
     },
     "security": {
       "eyebrow": "Qui entre",
       "title": "Sécurité",
-      "description": "Second facteur et passkeys pour la connexion, les sessions ouvertes en ce moment et le proxy inverse auquel ce service peut se fier."
+      "description": "Second facteur et clés d’accès pour la connexion, les sessions ouvertes en ce moment et le proxy inverse auquel ce service peut se fier."
     },
     "hotfolders": {
       "eyebrow": "Dossiers surveillés",
@@ -79,12 +79,12 @@
     "torrent": {
       "eyebrow": "Pair-à-pair",
       "title": "BitTorrent",
-      "description": "Port d'écoute, limites de partage et de seed, interface réseau et kill switch, liste de blocage et proxy du moteur intégré."
+      "description": "Port d’écoute, limites de partage et de seed, interface réseau et kill switch, liste de blocage et proxy du moteur intégré."
     },
     "transfers": {
       "eyebrow": "Serveurs distants",
       "title": "FTP, SFTP, WebDAV et S3",
-      "description": "Identifiants enregistrés pour les serveurs FTP, FTPS et SFTP, les clés d'hôte SSH que vous avez confirmées, les limites des transferts distants et les profils de stockage objet compatible S3."
+      "description": "Identifiants enregistrés pour les serveurs FTP, FTPS et SFTP, les clés d’hôte SSH que vous avez confirmées, les limites des transferts distants et les profils de stockage objet compatible S3."
     },
     "tools": {
       "eyebrow": "Assistants externes",
@@ -94,22 +94,22 @@
     "about": {
       "eyebrow": "Origine et licences",
       "title": "À propos de rDownloader",
-      "description": "Quelle version tourne, d'où elle vient, qui l'a faite et sous quelles licences sont les parties livrées."
+      "description": "Quelle version tourne, d’où elle vient, qui l’a faite et sous quelles licences sont les parties livrées."
     },
     "linkgrabber": {
       "eyebrow": "Réception des liens",
       "title": "LinkGrabber",
-      "description": "Les liens que le LinkGrabber écarte avant qu'ils ne lui parviennent, la façon dont il ouvre les conteneurs DLC et s'il regroupe les copies d'un même fichier comme miroirs."
+      "description": "Les liens que le LinkGrabber écarte avant qu’ils ne lui parviennent, la façon dont il ouvre les conteneurs DLC et s’il regroupe les copies d’un même fichier comme miroirs."
     },
     "clients": {
       "eyebrow": "Ce qui parle au service",
       "title": "Clients et API",
-      "description": "Associe le client de bureau et l'extension du navigateur à ce serveur et délivre des jetons d'API pour REST, la CLI, les clients compatibles SABnzbd et qBittorrent et le serveur MCP."
+      "description": "Associez le client de bureau et l’extension du navigateur à ce serveur et délivrez des jetons d’API pour REST, la CLI, les clients compatibles SABnzbd et qBittorrent et le serveur MCP."
     }
   },
   "active_files": {
     "label": "Téléchargements simultanés",
-    "description": "Combien de téléchargements tournent en même temps ; se règle aussi dans la barre d'état et s'applique sans redémarrage."
+    "description": "Combien de téléchargements tournent en même temps ; se règle aussi dans la barre d’état et s’applique sans redémarrage."
   },
   "chunks": {
     "label": "Segments par fichier",
@@ -117,14 +117,14 @@
   },
   "connections_per_host": {
     "label": "Connexions par hôte",
-    "description": "S'applique à tous les téléchargements du même hôte ; 0 supprime la limite"
+    "description": "S’applique à tous les téléchargements du même hôte ; 0 supprime la limite"
   },
   "nntp_connections": {
     "label": "Connexions NNTP par serveur",
-    "description": "0 = autant que les serveurs le permettent ; une valeur inférieure réduit les connexions par serveur que se partagent tous les fichiers Usenet téléchargés en même temps",
+    "description": "0 = autant que les serveurs le permettent ; une valeur inférieure réduit les connexions par serveur que se partagent tous les fichiers Usenet téléchargés en même temps",
     "follows_servers": "Les fichiers simultanés se partagent les connexions des fournisseurs ({largest} sur le plus grand).",
-    "capped": "Le plus grand serveur actif autorise {largest} connexions ; les fichiers simultanés en reçoivent ensemble au plus {cap} par serveur. Avec 0, ils les utilisent toutes.",
-    "not_binding": "Sans effet : aucun serveur actif n’autorise plus de {largest} connexions.",
+    "capped": "Le plus grand serveur actif autorise {largest} connexions ; les fichiers simultanés en reçoivent ensemble au plus {cap} par serveur. Avec 0, ils les utilisent toutes.",
+    "not_binding": "Sans effet : aucun serveur actif n’autorise plus de {largest} connexion. | Sans effet : aucun serveur actif n’autorise plus de {largest} connexions.",
     "live_even": "En ce moment {files} fichier avec {per} des {limit} connexions. | En ce moment {files} fichiers avec {per} des {limit} connexions chacun.",
     "live_mixed": "En ce moment {files} fichiers avec {busy} des {limit} connexions au total ({split})."
   },
@@ -134,11 +134,11 @@
   },
   "retries": {
     "label": "Nouvelles tentatives par fichier",
-    "description": "Tentatives après des erreurs temporaires avant qu'un téléchargement soit considéré comme échoué (0–100) : cinq en quelques secondes, puis les tentatives espacées de minutes, puis la longue attente. L’attente d’une limite ou d’un blocage d’IP de l’hébergeur ne compte pas."
+    "description": "Tentatives après des erreurs temporaires avant qu’un téléchargement soit considéré comme échoué (0–100) : cinq en quelques secondes, puis les tentatives espacées de minutes, puis la longue attente. L’attente d’une limite ou d’un blocage d’IP de l’hébergeur ne compte pas."
   },
   "import_history": {
-    "label": "Conserver l'historique d'importation",
-    "description": "Conserver les entrées NZB importées et les fichiers .torrent stockés après la fin du téléchargement. Si désactivé, ils sont supprimés automatiquement une fois le téléchargement terminé ; la détection des doublons pour les NZB réimportés n'est alors plus disponible.",
+    "label": "Conserver l’historique d’importation",
+    "description": "Conserver les entrées NZB importées et les fichiers .torrent stockés après la fin du téléchargement. Si désactivé, ils sont supprimés automatiquement une fois le téléchargement terminé ; la détection des doublons pour les NZB réimportés n’est alors plus disponible.",
     "eyebrow": "Importations",
     "title": "Historique des imports"
   },
@@ -156,11 +156,11 @@
   },
   "sha256": {
     "label": "Calculer le SHA-256",
-    "description": "Calculer un SHA-256 pour chaque fichier terminé dont la source n'indique pas de somme de contrôle ; il est enregistré avec le téléchargement."
+    "description": "Calculer un SHA-256 pour chaque fichier terminé dont la source n’indique pas de somme de contrôle ; il est enregistré avec le téléchargement."
   },
   "admin_login": {
     "label": "Désactiver la connexion admin",
-    "description": "Quiconque ouvre l'interface sur cet ordinateur peut tout contrôler sans se connecter. Toute autre machine — sur le LAN, via une redirection de port, un conteneur ou un proxy inverse — doit toujours se connecter avec le mot de passe. Prend effet immédiatement après l'enregistrement.",
+    "description": "Quiconque ouvre l’interface sur cet ordinateur peut tout contrôler sans se connecter. Toute autre machine — sur le LAN, via une redirection de port, un conteneur ou un proxy inverse — doit toujours se connecter avec le mot de passe. Prend effet immédiatement après l’enregistrement.",
     "warning": "La protection par mot de passe est désactivée.",
     "eyebrow": "Accès local",
     "title": "Connexion sur cet ordinateur"
@@ -192,16 +192,16 @@
     "updated": "Profil proxy enregistré.",
     "deleted": "Profil proxy supprimé.",
     "password_keep": "Laissez vide pour conserver le mot de passe enregistré",
-    "password_copy": "La copie de {name} n'a pas de mot de passe : saisissez-le à nouveau, le service n'accepte le nom d'utilisateur qu'avec lui.",
+    "password_copy": "La copie de {name} n’a pas de mot de passe : saisissez-le à nouveau, le service n’accepte le nom d’utilisateur qu’avec lui.",
     "delete": {
       "title": "Supprimer le profil proxy",
-      "description": "Le profil proxy « {name} » et son mot de passe chiffré seront supprimés définitivement. Tant qu’un compte, un serveur Usenet, un téléchargement en cours, la connexion globale ou le proxy de pairs torrent l’utilise, le service refuse.",
+      "description": "Le profil proxy « {name} » et son mot de passe chiffré seront supprimés définitivement. Tant qu’un compte, un serveur Usenet, un téléchargement en cours, la connexion globale ou le proxy de pairs torrent l’utilise, le service refuse.",
       "in_use_here": "Il est choisi ici comme connexion globale ou comme proxy de pairs torrent — choisissez-en un autre d’abord et enregistrez.",
       "confirm": "Supprimer le profil"
     },
-    "password_host_changed": "L’adresse a changé : le mot de passe enregistré n’est pas envoyé au nouveau proxy. Saisissez-le à nouveau.",
+    "password_host_changed": "L’adresse a changé : le mot de passe enregistré n’est pas envoyé au nouveau proxy. Saisissez-le à nouveau.",
     "resolves_names_label": "Le proxy résout les noms lui-même",
-    "resolves_names_description": "Désactivé (recommandé) : rDownloader résout et vérifie lui-même les adresses indiquées par une page, un document ou un plugin et les endpoints du stockage objet, et demande au proxy un tunnel (CONNECT) vers l'adresse vérifiée. Le proxy doit alors autoriser CONNECT vers le port de la cible — Squid n'autorise que le 443 par défaut — et un proxy qui filtre par nom voit une adresse IP. Activez-le uniquement si, sur votre réseau, seul le proxy peut résoudre les noms."
+    "resolves_names_description": "Désactivé (recommandé) : rDownloader résout et vérifie lui-même les adresses indiquées par une page, un document ou un plugin et les endpoints du stockage objet, et demande au proxy un tunnel (CONNECT) vers l’adresse vérifiée. Le proxy doit alors autoriser CONNECT vers le port de la cible — Squid n’autorise que le 443 par défaut — et un proxy qui filtre par nom voit une adresse IP. Activez-le uniquement si, sur votre réseau, seul le proxy peut résoudre les noms."
   },
   "global_proxy": {
     "eyebrow": "Repli réseau",
@@ -211,7 +211,7 @@
   },
   "custom_ca": {
     "label": "CA personnalisée (PEM)",
-    "description": "Autorité de certification de confiance supplémentaire ; vide utilise uniquement le magasin de confiance de la plateforme."
+    "description": "Autorité de certification de confiance supplémentaire ; vide utilise uniquement le magasin de confiance de la plateforme."
   },
   "postprocess": {
     "eyebrow": "Post-traitement",
@@ -236,27 +236,27 @@
     },
     "recursive_unpack": {
       "label": "Extraction récursive",
-      "description": "Extraire aussi les archives trouvées dans les archives extraites (jusqu'à 3 niveaux). Les archives internes sont supprimées après extraction."
+      "description": "Extraire aussi les archives trouvées dans les archives extraites (jusqu’à 3 niveaux). Les archives internes sont supprimées après extraction."
     },
     "sfv_verify": {
       "label": "Vérification SFV",
-      "description": "Vérifier les sommes CRC32 d'un index .sfv du paquet avant l'extraction. Un fichier différent ou absent fait échouer le paquet."
+      "description": "Vérifier les sommes CRC32 d’un index .sfv du paquet avant l’extraction. Un fichier différent ou absent fait échouer le paquet."
     },
     "safe_postproc": {
       "label": "Ne post-traiter que les paquets vérifiés",
-      "description": "Après un échec de la vérification PAR2, SFV ou RAR, rien n'est extrait, nettoyé ni transmis aux étapes de plugin. Activé par défaut, comme dans SABnzbd. Désactivé : un jeu de récupération défectueux à côté d'archives intactes ne bloque plus le paquet."
+      "description": "Après un échec de la vérification PAR2, SFV ou RAR, rien n’est extrait, nettoyé ni transmis aux étapes de plugin. Activé par défaut, comme dans SABnzbd. Désactivé : un jeu de récupération défectueux à côté d’archives intactes ne bloque plus le paquet."
     },
     "delete_par2": {
       "label": "Supprimer les fichiers PAR2 après extraction",
-      "description": "Retire le jeu de récupération une fois la réparation et l'extraction réussies. Désactivé par défaut : les données PAR2 sont la seule chose qui puisse sauver un paquet endommagé, et une nouvelle tentative après un échec d'extraction en a encore besoin."
+      "description": "Retire le jeu de récupération une fois la réparation et l’extraction réussies. Désactivé par défaut : les données PAR2 sont la seule chose qui puisse sauver un paquet endommagé, et une nouvelle tentative après un échec d’extraction en a encore besoin."
     },
     "enable_all_par": {
       "label": "Télécharger tous les volumes PAR2",
-      "description": "Récupère immédiatement chaque volume de récupération d'un NZB. Désactivé : seul l'index principal est téléchargé avec les données, les volumes vol attendent, et une réparation en remet en file exactement autant que la brèche en demande."
+      "description": "Récupère immédiatement chaque volume de récupération d’un NZB. Désactivé : seul l’index principal est téléchargé avec les données, les volumes vol attendent, et une réparation en remet en file exactement autant que la brèche en demande."
     },
     "plugin_steps": {
       "label": "Étapes de plugin",
-      "description": "Étapes supplémentaires fournies par les plugins installés. Elles s'exécutent après le nettoyage et avant un script utilisateur, dans l'ordre où vous les activez ; une catégorie peut remplacer cette liste."
+      "description": "Étapes supplémentaires fournies par les plugins installés. Elles s’exécutent après le nettoyage et avant un script utilisateur, dans l’ordre où vous les activez ; une catégorie peut remplacer cette liste."
     },
     "sample_max": {
       "label": "Taille maximale des samples",
@@ -264,7 +264,7 @@
     },
     "scripts_directory": {
       "label": "Dossier des scripts",
-      "description": "Chemin absolu ; vide = scripts à côté de la base de données. Seuls les noms de fichiers de ce dossier peuvent être choisis."
+      "description": "Chemin absolu ; vide = scripts à côté de la base de données. Seuls les noms de fichiers de ce dossier peuvent être choisis."
     },
     "script_timeout": {
       "label": "Délai du script",
@@ -272,72 +272,72 @@
     },
     "passwords_file": {
       "label": "Liste de mots de passe",
-      "description": "Un mot de passe par ligne ; vide = passwords.txt à côté de la base de données. Essayée après le mot de passe du paquet et « sans mot de passe »."
+      "description": "Un mot de passe par ligne ; vide = passwords.txt à côté de la base de données. Essayée après le mot de passe du paquet et « sans mot de passe »."
     },
     "max_files": "Fichiers maximum",
     "max_bytes": "Taille maximale décompressée",
     "rar_executable": {
       "label": "Outil RAR externe",
-      "description": "Chemin absolu facultatif vers unrar ou 7z ; appelé sans shell."
+      "description": "Chemin absolu facultatif vers unrar ou 7z ; appelé sans shell."
     },
-    "rar_tool": "Type d'outil",
+    "rar_tool": "Type d’outil",
     "upload": {
       "label": "Envoi vers un remote rclone",
       "description": "Copie ou déplace le dossier du paquet terminé vers un remote rclone en dernière étape. Les remotes proviennent de votre rclone.conf."
     },
     "upload_remote": {
-      "label": "Cible d'envoi",
-      "description": "Cible rclone au format remote:chemin ; chaque paquet reçoit son propre dossier en dessous."
+      "label": "Cible d’envoi",
+      "description": "Cible rclone au format remote:chemin ; chaque paquet reçoit son propre dossier en dessous."
     },
     "upload_mode": {
-      "label": "Mode d'envoi",
+      "label": "Mode d’envoi",
       "description": "Déplacer supprime les fichiers locaux après un envoi réussi.",
       "copy": "Copier (garder les fichiers locaux)",
       "move": "Déplacer (supprimer les fichiers locaux)"
     },
     "rclone_executable": {
       "label": "Exécutable rclone",
-      "description": "Chemin absolu facultatif de rclone ; vide = dossiers vendor et PATH."
+      "description": "Chemin absolu facultatif de rclone ; vide = dossiers vendor et PATH."
     },
     "upload_destinations": {
-      "hint": "Utiliser une destination par plugin :",
-      "object_storage_hint": "Utiliser un profil de stockage objet :"
+      "hint": "Utiliser une destination par plugin :",
+      "object_storage_hint": "Utiliser un profil de stockage objet :"
     },
     "enrichment": {
       "label": "Interroger les plugins enrichisseurs",
-      "description": "Désactivé par défaut. Un enrichisseur interroge un service extérieur à cette machine — SponsorBlock, par exemple — donc rien n'est demandé sans votre accord. Seuls les liens qu'un plugin revendique sont envoyés, et la réponse s'affiche à côté des données du cœur, jamais à leur place."
+      "description": "Désactivé par défaut. Un enrichisseur interroge un service extérieur à cette machine — SponsorBlock, par exemple — donc rien n’est demandé sans votre accord. Seuls les liens qu’un plugin revendique sont envoyés, et la réponse s’affiche à côté des données du cœur, jamais à leur place."
     },
     "unpack_to_subfolder": {
       "label": "Extraire dans des sous-dossiers",
-      "description": "Extrait chaque archive dans un dossier à part dans le dossier du paquet, nommé d'après l'archive (Film.part1.rar → Film/). Les archives elles-mêmes ne sont pas déplacées."
+      "description": "Extrait chaque archive dans un dossier à part dans le dossier du paquet, nommé d’après l’archive (Film.part1.rar → Film/). Les archives elles-mêmes ne sont pas déplacées."
     },
     "malware_scan": {
       "label": "Analyser les paquets avec ClamAV",
-      "description": "Chaque paquet terminé est envoyé à votre clamd après l’extraction, avant les étapes de plugins, le script ou l’envoi. Une détection arrête le paquet ; si clamd est injoignable, il continue avec un avertissement. Rien ne quitte la machine, sauf vers cette adresse.",
+      "description": "Chaque paquet terminé est envoyé à votre clamd après l’extraction, avant les étapes de plugins, le script ou l’envoi. Une détection arrête le paquet ; si clamd est injoignable, il continue avec un avertissement. Rien ne quitte la machine, sauf vers cette adresse.",
       "address_label": "Adresse de clamd",
-      "address_description": "hôte:port pour TCP ou unix:/chemin pour le socket local ; vide = 127.0.0.1:3310.",
+      "address_description": "hôte:port pour TCP ou unix:/chemin pour le socket local ; vide = 127.0.0.1:3310.",
       "max_label": "Plus gros fichier analysé",
       "max_description": "Les fichiers plus gros ne sont pas analysés et sont comptés dans l’étape. StreamMaxLength dans clamd.conf doit être au moins aussi grand.",
       "timeout_label": "Délai par échange",
       "timeout_description": "Durée maximale de la connexion, d’un bloc ou du verdict de clamd (5–3600 s).",
       "test": "Tester clamd",
-      "test_ok": "clamd à {address} répond : {version}"
+      "test_ok": "clamd à {address} répond : {version}"
     },
     "fail_hopeless_jobs": {
       "label": "Abandonner les téléchargements Usenet sans espoir",
-      "description": "S'il manque plus de blocs PAR2 que les volumes de récupération de l'ensemble ne peuvent en remplacer, le reste n'est plus téléchargé et le paquet échoue. Ce qui est déjà téléchargé est conservé. Économise du volume sur les comptes à blocs. Désactivé : chaque fichier est téléchargé jusqu'au bout, comme avant."
+      "description": "S’il manque plus de blocs PAR2 que les volumes de récupération de l’ensemble ne peuvent en remplacer, le reste n’est plus téléchargé et le paquet échoue. Ce qui est déjà téléchargé est conservé. Économise du volume sur les comptes à blocs. Désactivé : chaque fichier est téléchargé jusqu’au bout."
     },
     "direct_unpack": {
       "label": "Extraire pendant le téléchargement",
-      "description": "Les archives RAR multiparties d'Usenet sont extraites partie par partie dès que chaque partie est complète, au lieu d'après le téléchargement. Si une réparation est nécessaire ou s'il manque quelque chose à une partie, la tentative est abandonnée et l'archive est extraite ensuite comme d'habitude. Nécessite unrar et de la place pour les fichiers extraits à côté du téléchargement en cours."
+      "description": "Les archives RAR multiparties d’Usenet sont extraites partie par partie dès que chaque partie est complète, au lieu d’après le téléchargement. Si une réparation est nécessaire ou s’il manque quelque chose à une partie, la tentative est abandonnée et l’archive est extraite ensuite comme d’habitude. Nécessite unrar et de la place pour les fichiers extraits à côté du téléchargement en cours."
     },
     "unwrap_package_folder": {
       "label": "Dissoudre le dossier portant le nom du paquet",
-      "description": "Si, après le post-traitement, le dossier du paquet ne contient qu’un seul dossier portant le nom du paquet (Release/Release/…), son contenu remonte d’un niveau et le dossier vide est supprimé. Avec un sous-dossier par archive, il en va de même pour le dossier de chaque archive. Rien n’est jamais écrasé. Ne s’applique que s’il ne reste rien d’autre dans le dossier du paquet : laisse supprimer l’archive source, p. ex. avec le niveau « +Supprimer »."
+      "description": "Si, après le post-traitement, le dossier du paquet ne contient qu’un seul dossier portant le nom du paquet (Release/Release/…), son contenu remonte d’un niveau et le dossier vide est supprimé. Avec un sous-dossier par archive, il en va de même pour le dossier de chaque archive. Rien n’est jamais écrasé. Ne s’applique que s’il ne reste rien d’autre dans le dossier du paquet : laisse supprimer l’archive source, p. ex. avec le niveau « +Supprimer »."
     },
     "package_names": {
       "label": "Ranger les noms de paquets",
-      "description": "Range le nom d'un nouveau paquet avant la création de son dossier, avec les mêmes règles que le plugin « Tidy file names », qui renomme les fichiers dans le dossier. Ne s'applique qu'aux noms que rDownloader déduit lui-même (noms de fichiers, fichiers NZB, torrents) ; un nom que vous indiquez ou modifiez reste tel quel. Chaque catégorie peut remplacer les interrupteurs.",
+      "description": "Range le nom d’un nouveau paquet avant la création de son dossier, avec les mêmes règles que le plugin « Tidy file names », qui renomme les fichiers dans le dossier. Ne s’applique qu’aux noms que rDownloader déduit lui-même (noms de fichiers, fichiers NZB, torrents) ; un nom que vous indiquez ou modifiez reste tel quel. Chaque catégorie peut remplacer les interrupteurs.",
       "strip_bracket_tags": {
         "label": "Retirer les balises entre crochets",
         "description": "Les balises entre crochets, parenthèses ou accolades comme [1080p] ou (x264) disparaissent, signes compris."
@@ -348,16 +348,16 @@
       },
       "collapse_separators": {
         "label": "Fusionner les séparateurs",
-        "description": "Les suites de points, tirets bas, tirets et espaces deviennent un seul séparateur et sont retirées au début et à la fin : Big..Buck_-_Bunny → Big.Buck.Bunny"
+        "description": "Les suites de points, tirets bas, tirets et espaces deviennent un seul séparateur et sont retirées au début et à la fin : Big..Buck_-_Bunny → Big.Buck.Bunny"
       },
       "lowercase": {
         "label": "Minuscules",
         "description": "Big.Buck.Bunny → big.buck.bunny"
       },
-      "example": "Exemple : « {name} » reçoit le dossier",
+      "example": "Exemple : « {name} » reçoit le dossier",
       "regex": {
         "label": "Règles regex",
-        "description": "Rechercher et remplacer après les interrupteurs, dans cet ordre ; chaque correspondance est remplacée, $1, $2 … insèrent des groupes. Au plus 10 règles. Un nom qui deviendrait vide reste tel quel.",
+        "description": "Rechercher et remplacer après les interrupteurs, dans cet ordre ; chaque correspondance est remplacée, $1, $2 … insèrent des groupes. Au plus 10 règles. Un nom qui deviendrait vide reste tel quel.",
         "empty": "Aucune règle regex.",
         "add": "Ajouter une règle",
         "edit": "Modifier la règle",
@@ -369,31 +369,31 @@
     },
     "mcp_scripts_allowed": {
       "label": "Les assistants IA (MCP) peuvent définir des scripts",
-      "description": "Désactivé par défaut. Activé, un outil MCP peut attribuer à un paquet, une catégorie ou une automatisation un script du dossier des scripts et choisir le script de fin et de reconnexion. Seul ce réglage le permet ; aucun outil ne peut le modifier."
+      "description": "Désactivé par défaut. Activé, un outil MCP peut attribuer à un paquet, une catégorie ou une automatisation un script du dossier des scripts et choisir le script de fin et de reconnexion. Seul ce réglage le permet ; aucun outil ne peut le modifier."
     },
     "refuse_unknown_archive_tool_version": {
       "label": "Refuser les outils d’extraction de version inconnue",
       "description": "Si la version d’unrar ou de 7-Zip ne peut pas être lue (programme renommé ou encapsulé), l’extraction avec cet outil est refusée au lieu de continuer avec un avertissement. Leur version minimale empêche les liens d’une archive d’écrire hors du dossier de destination, et une version inconnue ne peut pas être vérifiée."
     },
-    "rar_tool_password_note": "unrar lit le mot de passe d’une archive sur son entrée ; 7-Zip le reçoit sur sa ligne de commande, où d’autres programmes de cet ordinateur peuvent le voir pendant son exécution."
+    "rar_tool_password_note": "unrar lit le mot de passe d’une archive sur son entrée ; 7-Zip le reçoit sur sa ligne de commande, où d’autres programmes de cet ordinateur peuvent le voir pendant son exécution."
   },
   "appearance": {
     "eyebrow": "Ce navigateur uniquement",
     "title": "Apparence",
-    "description": "La langue, le thème et les notifications du navigateur sont enregistrés uniquement dans ce navigateur et s'appliquent immédiatement.",
+    "description": "La langue, le thème et les notifications du navigateur sont enregistrés uniquement dans ce navigateur et s’appliquent immédiatement.",
     "language_description": "Prend effet immédiatement, sans enregistrer.",
-    "theme_description": "« Système » suit le réglage du système d’exploitation.",
+    "theme_description": "« Système » suit le réglage du système d’exploitation.",
     "byte_display": {
       "label": "Tailles de données",
-      "description": "Détermine l'affichage des tailles et des débits dans toute l'interface.",
+      "description": "Détermine l’affichage des tailles et des débits dans toute l’interface.",
       "binary": "Binaire – Kio, Mio, Gio (1024)",
       "decimal": "Décimal – ko, Mo, Go (1000)"
     },
     "byte_unit": {
       "label": "Unité des tailles",
-      "description": "Automatique choisit l'ordre de grandeur adapté à chaque valeur. Une unité fixe affiche toutes les valeurs dans la même, afin de comparer une liste colonne par colonne.",
-      "auto": "Mise à l'échelle automatique",
-      "byte": "Octets – B",
+      "description": "Automatique choisit l’ordre de grandeur adapté à chaque valeur. Une unité fixe affiche toutes les valeurs dans la même, afin de comparer une liste colonne par colonne.",
+      "auto": "Mise à l’échelle automatique",
+      "byte": "Octets – o",
       "kilo": "Kilo – Kio / ko",
       "mega": "Méga – Mio / Mo",
       "giga": "Giga – Gio / Go",
@@ -401,30 +401,34 @@
       "peta": "Péta – Pio / Po"
     },
     "title_status": {
-      "label": "État dans l'onglet du navigateur",
-      "description": "Tant que quelque chose est en cours, l'onglet affiche le débit global et le nombre de transferts actifs, sinon le seul nom de l'application. À désactiver si un titre qui change sans cesse vous dérange."
+      "label": "État dans l’onglet du navigateur",
+      "description": "Tant que quelque chose est en cours, l’onglet affiche le débit global et le nombre de transferts actifs, sinon seulement la vue et le nom de l’application. À désactiver si un titre qui change sans cesse vous dérange."
     },
     "palette": {
       "label": "Thème de couleurs",
-      "description": "Les tons d’accent et de gris de l’interface, dans ce navigateur seulement ; clair et sombre se règlent au-dessus.",
+      "description": "Les tons d’accent et de gris de l’interface, dans ce navigateur seulement ; clair et sombre se règlent au-dessus.",
       "signal": "Signal (par défaut)",
       "ocean": "Océan",
       "violet": "Violet",
       "forest": "Forêt",
       "rose": "Rose",
       "amber": "Ambre"
+    },
+    "shortcuts": {
+      "label": "Raccourcis clavier",
+      "description": "Des touches seules lancent des actions, par exemple P pour mettre en pause, dans ce navigateur seulement. Le point d’interrogation les affiche toutes. Désactivé si la saisie vocale ou un appui involontaire peut déclencher quelque chose."
     }
   },
   "messages": {
     "saved": "Paramètres enregistrés.",
-    "reset_done": "Tous les paramètres d'exécution ont été réinitialisés aux valeurs par défaut.",
+    "reset_done": "Tous les paramètres d’exécution ont été réinitialisés aux valeurs par défaut.",
     "number_empty": "Un champ numérique est vide. Saisissez une valeur pour enregistrer."
   },
   "reset": {
-    "title": "Restaurer les paramètres d'usine ?",
-    "description": "Tous les paramètres d'exécution seront réinitialisés aux valeurs intégrées. Les emplacements, catégories, règles, comptes, serveurs, jetons et téléchargements sont conservés.",
+    "title": "Restaurer les paramètres d’usine ?",
+    "description": "Tous les paramètres d’exécution seront réinitialisés aux valeurs intégrées. Les emplacements, catégories, règles, comptes, serveurs, jetons et téléchargements sont conservés.",
     "confirm": "Réinitialiser",
-    "button": "Paramètres d'usine"
+    "button": "Paramètres d’usine"
   },
   "save": "Enregistrer la configuration",
   "media": {
@@ -443,7 +447,7 @@
     },
     "default_variant": {
       "label": "Variante par défaut",
-      "description": "Présélectionnée pour les nouveaux liens médias ; modifiable par lien dans le LinkGrabber."
+      "description": "Présélectionnée pour les nouveaux liens médias ; modifiable par lien dans le LinkGrabber."
     },
     "variants": {
       "video_best": "Vidéo (meilleure qualité)",
@@ -474,14 +478,14 @@
     "status": {
       "loading": "Vérification des outils …",
       "not_found": "introuvable",
-      "unavailable": "L'état des outils n'a pas pu être chargé.",
+      "unavailable": "L’état des outils n’a pas pu être chargé.",
       "hint": "La sortie MP3 et la fusion de flux vidéo/audio séparés nécessitent ffmpeg."
     },
     "output_template": {
       "label": "Modèle de sortie",
       "description": "Organise les téléchargements médias dans le dossier du paquet. Les dossiers sont séparés par /. Vide conserve le nom de fichier simple. Chaque lien peut le remplacer.",
       "placeholder": "{uploader}/{upload_year}/{title}",
-      "fields": "Champs disponibles : {fields}"
+      "fields": "Champs disponibles : {fields}"
     },
     "sleep_requests": {
       "label": "Pause entre les requêtes",
@@ -529,7 +533,7 @@
   },
   "ui_port": {
     "label": "Port de l’interface web",
-    "description": "Port sur lequel l’interface web écoute (1024–65535) ; vide conserve la valeur par défaut intégrée.",
+    "description": "Port sur lequel l’interface web écoute (1024–65535) ; vide conserve la valeur par défaut intégrée.",
     "placeholder": "8710",
     "restart_hint": "Prend effet après un redémarrage. --listen et RDOWNLOADER_LISTEN sont prioritaires."
   },
@@ -539,7 +543,7 @@
     "description": "Les liens dont l’hôte figure sur la liste de blocage sont écartés avant d’atteindre le LinkGrabber.",
     "excluded_domains": {
       "label": "Fichier des domaines exclus",
-      "description": "Chemin absolu vers la liste de blocage ; vide = excluded_domains.txt à côté de la base de données."
+      "description": "Chemin absolu vers la liste de blocage ; vide = excluded_domains.txt à côté de la base de données."
     },
     "format": {
       "title": "Format du fichier",
@@ -565,46 +569,46 @@
     },
     "indexer_images": {
       "title": "Images de couverture",
-      "description": "Un indexeur fournit l'adresse d'une couverture avec chaque résultat, dans la même réponse de recherche que l'abonnement effectue déjà. L'afficher ne coûte aucune requête supplémentaire ; l'image est chargée par le navigateur.",
+      "description": "Un indexeur fournit l’adresse d’une couverture avec chaque résultat, dans la même réponse de recherche que l’abonnement effectue déjà. L’afficher ne coûte aucune requête supplémentaire ; l’image est chargée par le navigateur.",
       "enabled": {
         "label": "Afficher les images de couverture",
-        "description": "Activé par défaut. Lorsqu'il est désactivé, les détails d'un résultat restent visibles et seules les images ne sont pas chargées, de sorte que l'indexeur ne sait pas quels résultats sont à l'écran."
+        "description": "Activé par défaut. Lorsqu’il est désactivé, les détails d’un résultat restent visibles et seules les images ne sont pas chargées, de sorte que l’indexeur ne sait pas quels résultats sont à l’écran."
       }
     },
     "nzb_hand_over": {
       "eyebrow": "NZB",
       "title": "Confier à un fournisseur",
-      "description": "Un NZB peut être confié à un compte dont le fournisseur accepte les fichiers NZB (comme TorBox ou Premiumize) : depuis le LinkGrabber avant sa mise en file, ou depuis les téléchargements, par exemple quand un paquet a échoué. Le fournisseur récupère le NZB sur Usenet lui-même ; les fichiers terminés reviennent dans le LinkGrabber sous forme de liens.",
+      "description": "Un NZB peut être confié à un compte dont le fournisseur accepte les fichiers NZB (comme TorBox ou Premiumize) : depuis le LinkGrabber avant sa mise en file, ou depuis les téléchargements, par exemple quand un paquet a échoué. Le fournisseur récupère le NZB sur Usenet lui-même ; les fichiers terminés reviennent dans le LinkGrabber sous forme de liens.",
       "linkgrabber": {
         "label": "Afficher la remise dans le LinkGrabber",
-        "description": "Activé par défaut. Le menu de chaque ligne NZB et l'entrée de la barre de sélection n'apparaissent que si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Un import déjà confié garde son badge."
+        "description": "Activé par défaut. Le menu de chaque ligne NZB et l’entrée de la barre de sélection n’apparaissent que si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Un import déjà confié garde son badge."
       },
       "downloads": {
         "label": "Afficher la remise dans les téléchargements",
-        "description": "Activé par défaut. L'entrée du menu d'un paquet issu d'un NZB apparaît quel que soit l'état du paquet, échec compris, mais seulement si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Un paquet déjà confié garde son badge."
+        "description": "Activé par défaut. L’entrée du menu d’un paquet issu d’un NZB apparaît quel que soit l’état du paquet, échec compris, mais seulement si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Un paquet déjà confié garde son badge."
       },
       "indexers": {
-        "label": "Afficher la remise sur les résultats d'indexeur",
-        "description": "Activé par défaut. Dans le cadre des abonnements d'indexeur du LinkGrabber, chaque résultat NZB en attente de votre décision reçoit un bouton qui confie son NZB directement à un fournisseur – mais seulement si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Le résultat compte ensuite comme mis en file."
+        "label": "Afficher la remise sur les résultats d’indexeur",
+        "description": "Activé par défaut. Dans le cadre des abonnements d’indexeur du LinkGrabber, chaque résultat NZB en attente de votre décision reçoit un bouton qui confie son NZB directement à un fournisseur – mais seulement si vous avez un compte chez un fournisseur qui accepte les fichiers NZB (TorBox, Premiumize). Le résultat compte ensuite comme mis en file."
       }
     },
     "package_hand_over": {
       "eyebrow": "Fournisseurs distants",
       "title": "Confier des paquets à un fournisseur",
-      "description": "Un paquet du LinkGrabber peut être confié à un compte dont le fournisseur exécute des travaux distants (comme TorBox, Real-Debrid ou Premiumize) : chaque magnet, adresse et fichier torrent importé devient un travail. Le fournisseur récupère le contenu lui-même ; les fichiers terminés reviennent dans le LinkGrabber sous forme de liens.",
+      "description": "Un paquet du LinkGrabber peut être confié à un compte dont le fournisseur exécute des travaux distants (comme TorBox, Real-Debrid ou Premiumize) : chaque magnet, adresse et fichier torrent importé devient un travail. Le fournisseur récupère le contenu lui-même ; les fichiers terminés reviennent dans le LinkGrabber sous forme de liens.",
       "enabled": {
         "label": "Afficher la remise dans le menu du paquet",
-        "description": "Activé par défaut. L'entrée n'apparaît que si vous avez un compte chez un fournisseur qui accepte l'une des sources du paquet. Un lien déjà confié garde sa marque."
+        "description": "Activé par défaut. L’entrée n’apparaît que si vous avez un compte chez un fournisseur qui accepte l’une des sources du paquet. Un lien déjà confié garde sa marque."
       },
       "remove": {
         "label": "Retirer les liens du LinkGrabber après la remise",
-        "description": "Activé par défaut : chaque lien confié quitte le LinkGrabber, et un paquet resté vide est supprimé. Désactivé : les liens restent, marqués avec leur travail, et confier à nouveau le paquet n'envoie rien deux fois. Ce qui n'a pas pu être confié reste toujours."
+        "description": "Activé par défaut : chaque lien confié quitte le LinkGrabber, et un paquet resté vide est supprimé. Désactivé : les liens restent, marqués avec leur travail, et confier à nouveau le paquet n’envoie rien deux fois. Ce qui n’a pas pu être confié reste toujours."
       }
     }
   },
   "notifications": {
     "label": "Notifications du navigateur",
-    "description": "Affiche une notification de bureau quand la liste de téléchargements est terminée, que des téléchargements d’un paquet échouent ou que des liens arrivent – une seule fois, depuis l’un des onglets ouverts. Ce que le push envoie déjà à ce navigateur et les liens qu’annonce un agent de bureau en marche leur restent ; les heures calmes les retiennent. Enregistré uniquement dans ce navigateur.",
+    "description": "Affiche une notification de bureau quand la liste de téléchargements est terminée, que des téléchargements d’un paquet échouent ou que des liens arrivent – une seule fois, depuis l’un des onglets ouverts. Ce que le push envoie déjà à ce navigateur et les liens qu’annonce un agent de bureau en marche leur restent ; les heures calmes les retiennent. Enregistré uniquement dans ce navigateur.",
     "denied": "Le navigateur bloque les notifications pour cette page. Autorisez-les dans les permissions du site puis réactivez l’interrupteur.",
     "unsupported": "Ce navigateur ne prend pas en charge les notifications."
   },
@@ -616,14 +620,14 @@
       "eyebrow": "Emplacement des outils",
       "title": "Dossier vendor",
       "label": "Répertoire vendor",
-      "description": "Répertoire absolu consulté avant le PATH ; vide = les dossiers vendor intégrés à côté de l’exécutable et dans le répertoire de données.",
+      "description": "Répertoire absolu consulté avant le PATH ; vide = les dossiers vendor intégrés à côté de l’exécutable et dans le répertoire de données.",
       "placeholder": "Vide = dossiers vendor intégrés"
     },
     "searched": "Dossiers consultés (dans cet ordre)",
     "searched_empty": "Aucun dossier vendor signalé.",
     "not_found": "introuvable",
     "loading": "Vérification des outils …",
-    "hint": "Déposez les binaires dans un dossier vendor à côté de l’exécutable : ils fonctionnent sans modifier le PATH.",
+    "hint": "Déposez les binaires dans un dossier vendor à côté de l’exécutable : ils fonctionnent sans modifier le PATH.",
     "ffprobe_warning_title": "ffprobe est absent",
     "ffprobe_warning": "ffmpeg a été trouvé, mais pas ffprobe. Sans ffprobe, yt-dlp ne peut ni fusionner des flux vidéo et audio séparés ni convertir l’audio en MP3. Les deux binaires sont livrés ensemble – copiez ffprobe à côté de ffmpeg.",
     "source": {
@@ -642,16 +646,16 @@
       "affects": "Concerne {capabilities}",
       "overridden": "Règle ignorée",
       "warning_title": "Versions d’outils non prises en charge",
-      "warning": "Au moins un outil est trop ancien ou signalé comme défectueux. Seules les capacités indiquées sont bloquées ; tout le reste continue de se télécharger."
+      "warning": "Au moins un outil est trop ancien ou signalé comme défectueux. Seules les capacités indiquées sont bloquées ; tout le reste continue de se télécharger."
     }
   },
   "gallery": {
     "eyebrow": "Galeries",
     "title": "Téléchargements de galeries (gallery-dl)",
-    "description": "Les galeries d’images des hôtes listés sont récupérées avec gallery-dl ; chaque galerie devient une entrée de file avec son propre dossier. Les identifiants de sites vivent dans votre gallery-dl.conf.",
+    "description": "Les galeries d’images des hôtes listés sont récupérées avec gallery-dl ; chaque galerie devient une entrée de file avec son propre dossier. Les identifiants de sites vivent dans votre gallery-dl.conf.",
     "executable": {
       "label": "Exécutable gallery-dl",
-      "description": "Chemin absolu facultatif ; vide = dossiers vendor et PATH."
+      "description": "Chemin absolu facultatif ; vide = dossiers vendor et PATH."
     },
     "max_parallel": {
       "label": "Galeries simultanées",
@@ -662,16 +666,16 @@
       "description": "Les liens de ces hôtes sont routés vers gallery-dl (les hôtes média gagnent s’ils figurent dans les deux listes).",
       "placeholder": "pixiv.net, deviantart.com, …",
       "add_defaults": "Ajouter les hôtes par défaut",
-      "hint": "gallery-dl prend en charge bien plus de sites ; ajoutez tout hôte compatible."
+      "hint": "gallery-dl prend en charge bien plus de sites ; ajoutez tout hôte compatible."
     }
   },
   "streams": {
     "eyebrow": "Directs",
     "title": "Enregistrement de streams (streamlink)",
-    "description": "Les enregistrements sont exemptés des slots de téléchargement globaux ; seule leur propre limite s’applique.",
+    "description": "Les enregistrements sont exemptés des slots de téléchargement globaux ; seule leur propre limite s’applique.",
     "executable": {
       "label": "Exécutable streamlink",
-      "description": "Chemin absolu facultatif ; vide = dossiers vendor (incl. vendor/streamlink/bin) et PATH."
+      "description": "Chemin absolu facultatif ; vide = dossiers vendor (incl. vendor/streamlink/bin) et PATH."
     },
     "quality": {
       "label": "Qualité par défaut",
@@ -692,42 +696,42 @@
     "description": "Les torrents et liens magnet tournent dans le moteur intégré avec DHT, trackers et PEX. Les web seeds (BEP 19) ne sont pas pris en charge.",
     "sharing": {
       "label": "Partager des données avec les autres pairs",
-      "description": "Désactivé par défaut : rien n'est envoyé, pas même pendant le téléchargement d'un torrent.",
-      "leech_only_warning": "Télécharger sans jamais envoyer dessert l'essaim, et certains trackers privés bannissent les clients qui le font."
+      "description": "Désactivé par défaut : rien n’est envoyé, pas même pendant le téléchargement d’un torrent.",
+      "leech_only_warning": "Télécharger sans jamais envoyer dessert l’essaim, et certains trackers privés bannissent les clients qui le font."
     },
     "seeding": {
       "label": "Seeder les torrents terminés",
-      "description": "Continuer l’envoi après le téléchargement ; la ligne se termine quand une limite est atteinte."
+      "description": "Continuer l’envoi après le téléchargement ; la ligne se termine quand une limite est atteinte."
     },
     "seed_ratio": {
       "label": "Limite de ratio",
-      "description": "Arrêter le seed à ce ratio envoyé/téléchargé ; 0 désactive cet arrêt."
+      "description": "Arrêter le seed à ce ratio envoyé/téléchargé ; 0 désactive cet arrêt."
     },
     "seed_time": {
       "label": "Limite de durée",
-      "description": "Arrêter le seed après ce nombre de minutes ; vide = pas de limite."
+      "description": "Arrêter le seed après ce nombre de minutes ; vide = pas de limite."
     },
     "listen_port": {
       "label": "Port d’écoute",
-      "description": "Connexions entrantes des pairs ; vide = port aléatoire."
+      "description": "Connexions entrantes des pairs ; vide = port aléatoire."
     },
     "upload_limit": {
       "label": "Limite d’envoi",
-      "description": "Limite globale d’envoi des torrents ; vide = illimité."
+      "description": "Limite globale d’envoi des torrents ; vide = illimité."
     },
-    "restart_hint": "Le port et la limite d’envoi s’appliquent au prochain redémarrage ; les limites de seed immédiatement.",
+    "restart_hint": "Le port et la limite d’envoi s’appliquent au prochain redémarrage ; les limites de seed immédiatement.",
     "peer_addresses": {
       "label": "Afficher les adresses complètes des pairs",
-      "description": "Désactivé par défaut : l'adresse d'un pair est une donnée personnelle d'un tiers, et le préfixe réseau suffit pour juger d'un essaim. Les adresses ne sont de toute façon jamais écrites dans un journal ni un événement."
+      "description": "Désactivé par défaut : l’adresse d’un pair est une donnée personnelle d’un tiers, et le préfixe réseau suffit pour juger d’un essaim. Les adresses ne sont de toute façon jamais écrites dans un journal ni un événement."
     },
     "bind_interface": {
       "label": "Lier à une interface réseau",
-      "description": "Tous les sockets torrent n'utilisent que cette interface. Associé au coupe-circuit, c'est ce qui rend un tunnel VPN sûr.",
+      "description": "Tous les sockets torrent n’utilisent que cette interface. Associé au coupe-circuit, c’est ce qui rend un tunnel VPN sûr.",
       "any": "Toutes les interfaces"
     },
     "kill_switch": {
-      "label": "Arrêter si l'interface disparaît",
-      "description": "Met en pause chaque torrent dans les dix secondes suivant la disparition de l'interface liée, et reprend à son retour."
+      "label": "Arrêter si l’interface disparaît",
+      "description": "Met en pause chaque torrent dans les dix secondes suivant la disparition de l’interface liée, et reprend à son retour."
     },
     "listen_mode": {
       "label": "Transports des pairs",
@@ -738,70 +742,70 @@
     },
     "peer_limit": {
       "label": "Pairs par torrent",
-      "description": "Nombre maximal de connexions de pairs par torrent ; vide laisse le moteur décider."
+      "description": "Nombre maximal de connexions de pairs par torrent ; vide laisse le moteur décider."
     },
     "blocklist": {
       "label": "URL de la liste de blocage IP",
-      "description": "Une URL http ou https que le moteur charge au démarrage. Une liste qui échoue n'affecte que les torrents, jamais les autres téléchargements."
+      "description": "Une URL http ou https que le moteur charge au démarrage. Une liste qui échoue n’affecte que les torrents, jamais les autres téléchargements."
     },
     "proxy": {
       "label": "Proxy SOCKS5 pour les connexions de pairs",
-      "description": "S'applique uniquement aux connexions sortantes vers les pairs. Les annonces aux trackers et les requêtes de métadonnées ne passent pas par ce proxy — ce moteur ne peut pas les router séparément.",
+      "description": "S’applique uniquement aux connexions sortantes vers les pairs. Les annonces aux trackers et les requêtes de métadonnées ne passent pas par ce proxy — ce moteur ne peut pas les router séparément.",
       "none": "Aucun proxy"
     },
     "upnp": {
-      "label": "Rediriger le port d'écoute (UPnP)",
-      "description": "Demande au routeur de mapper le port d'écoute. Un mappage qui échoue ne bloque jamais les téléchargements sortants. NAT-PMP et PCP ne sont pas pris en charge."
+      "label": "Rediriger le port d’écoute (UPnP)",
+      "description": "Demande au routeur de mapper le port d’écoute. Un mappage qui échoue ne bloque jamais les téléchargements sortants. NAT-PMP et PCP ne sont pas pris en charge."
     },
     "announce_port": {
       "label": "Port annoncé",
-      "description": "Port annoncé aux trackers lorsque le routeur mappe le port d'écoute vers un port externe différent. Vide annonce le port d'écoute."
+      "description": "Port annoncé aux trackers lorsque le routeur mappe le port d’écoute vers un port externe différent. Vide annonce le port d’écoute."
     },
     "network_status": {
       "title": "État du réseau",
-      "description": "Ce que fait le moteur torrent en ce moment : l’interface liée, le coupe-circuit et la dernière reconstruction de la session.",
+      "description": "Ce que fait le moteur torrent en ce moment : l’interface liée, le coupe-circuit et la dernière reconstruction de la session.",
       "interface": "Interface liée",
       "interface_present": "présente",
       "interface_missing": "absente",
       "kill_switch": "Coupe-circuit",
       "kill_switch_off": "Désactivé",
-      "kill_switch_armed": "Armé : met les torrents en pause dans les {seconds} s si l’interface disparaît",
-      "kill_switch_engaged": "Déclenché : tous les torrents sont en pause",
+      "kill_switch_armed": "Armé : met les torrents en pause dans les {seconds} s si l’interface disparaît",
+      "kill_switch_engaged": "Déclenché : tous les torrents sont en pause",
       "engaged_title": "Le coupe-circuit a mis les torrents en pause",
       "engaged_description": "L’interface {name} a disparu. Dès son retour, les torrents reprennent d’eux-mêmes.",
       "peer_proxy": "Proxy de pairs",
       "peer_proxy_on": "configuré",
       "peer_proxy_off": "aucun",
-      "rebuild_failed": "La dernière reconstruction de la session a échoué ; la session précédente continue.",
-      "proxy_failed": "Le proxy de pairs ne peut pas être résolu ; sans lui la session ne démarre pas.",
+      "rebuild_failed": "La dernière reconstruction de la session a échoué ; la session précédente continue.",
+      "proxy_failed": "Le proxy de pairs ne peut pas être résolu ; sans lui la session ne démarre pas.",
       "port_in_use": "Port occupé"
     },
     "max_active_downloads": {
       "label": "Téléchargements torrent actifs",
-      "description": "Nombre de torrents téléchargés en même temps ; les autres attendent dans la file. La limite générale de téléchargements actifs s'applique toujours."
+      "description": "Nombre de torrents téléchargés en même temps ; les autres attendent dans la file. La limite générale de téléchargements actifs s’applique toujours."
     },
     "max_active_seeds": {
       "label": "Seeds actifs",
-      "description": "Nombre de torrents terminés partagés en même temps ; vide signifie sans limite. Au-delà, ceux qui partagent depuis le plus longtemps s'arrêtent en premier."
+      "description": "Nombre de torrents terminés partagés en même temps ; vide signifie sans limite. Au-delà, ceux qui partagent depuis le plus longtemps s’arrêtent en premier."
     },
     "port_test": {
       "label": "Test du port",
-      "description": "Vérifie le port entrant depuis cette seule machine, avec les réglages enregistrés ; aucun service extérieur n'est sollicité.",
+      "description": "Vérifie le port entrant depuis cette seule machine, avec les réglages enregistrés ; aucun service extérieur n’est sollicité.",
       "action": "Tester le port",
       "verdict": {
-        "reachable": "Joignable : un pair s'est connecté via le port {port}.",
-        "listening": "Le port {port} écoute, mais aucun pair ne s'est encore connecté. Qu'internet l'atteigne n'est pas prouvé : vérifiez la redirection du routeur ou l'UPnP, puis testez à nouveau pendant qu'un torrent tourne.",
-        "not_listening": "Le moteur n'accepte pas de pairs entrants.",
-        "unavailable": "Le moteur torrent n'a pas pu démarrer : {error}"
+        "reachable": "Joignable : un pair s’est connecté via le port {port}.",
+        "listening": "Le port {port} écoute, mais aucun pair ne s’est encore connecté. Qu’internet l’atteigne n’est pas prouvé : vérifiez la redirection du routeur ou l’UPnP, puis testez à nouveau pendant qu’un torrent tourne.",
+        "not_listening": "Le moteur n’accepte pas de pairs entrants.",
+        "unavailable": "Le moteur torrent n’a pas pu démarrer : {error}"
       },
-      "details": "Torrents actifs : {torrents} · pairs entrants : {peers}",
-      "proxy_hint": "Un proxy de pairs ne transporte que les connexions sortantes ; les pairs entrants arrivent toujours directement."
+      "details": "Torrents actifs : {torrents} · pairs entrants : {peers}",
+      "proxy_hint": "Un proxy de pairs ne transporte que les connexions sortantes ; les pairs entrants arrivent toujours directement."
     },
-    "port_in_use": "Un autre programme occupe le port {port} : le moteur torrent n'y écoute donc pas. Choisis un autre port ou ferme ce programme."
+    "port_in_use": "Un autre programme occupe le port {port} : le moteur torrent n’y écoute donc pas. Choisissez un autre port ou fermez ce programme."
   },
   "auth_profiles": {
-    "approval_description": "Ces sessions ont été envoyées par l'extension. Elles ne sont utilisées qu'après votre approbation.",
-    "approval_title": "En attente d'approbation",
+    "approval_description": "Ces sessions ont été envoyées par l’extension. Elles ne sont utilisées qu’après votre approbation.",
+    "approval_title": "En attente d’approbation",
     "approve": "Approuver",
     "badge_captured": "Depuis le navigateur",
     "badge_certificate": "Certificat client",
@@ -810,13 +814,13 @@
     "certificate_clear": "Supprimer le certificat enregistré",
     "certificate_description": "Clé privée et chaîne de certificats en un seul PEM déchiffré. Les clés protégées par phrase secrète ne sont pas prises en charge.",
     "certificate_label": "Certificat client (facultatif)",
-    "created": "Profil d'authentification créé",
-    "delete_description": "Les identifiants enregistrés sont supprimés avec lui. Les tâches qui l'utilisaient reviennent à la correspondance automatique.",
-    "delete_title": "Supprimer le profil ?",
+    "created": "Profil d’authentification créé",
+    "delete_description": "Les identifiants enregistrés sont supprimés avec lui. Les tâches qui l’utilisaient reviennent à la correspondance automatique.",
+    "delete_title": "Supprimer le profil ?",
     "description": "Réutilisez une session de navigateur ou envoyez des identifiants HTTP à un seul domaine approuvé. Les cookies, jetons et clés privées sont chiffrés et ne sont plus jamais affichés.",
-    "empty": "Aucun profil d'authentification pour l'instant.",
+    "empty": "Aucun profil d’authentification pour l’instant.",
     "enabled_label": "Actif",
-    "expires_description": "Facultatif. Un profil expiré reste listé mais n'est plus utilisé.",
+    "expires_description": "Facultatif. Un profil expiré reste listé mais n’est plus utilisé.",
     "expires_label": "Expire le",
     "eyebrow": "Sessions",
     "method_basic": "HTTP Basic",
@@ -825,24 +829,24 @@
     "method_label": "Méthode",
     "name_label": "Nom",
     "name_placeholder": "Intranet",
-    "saved": "Profil d'authentification enregistré",
-    "scope_description": "Hôte, éventuellement avec un préfixe de chemin. Le chemin détermine quel profil correspond, il ne confine pas l'identifiant.",
+    "saved": "Profil d’authentification enregistré",
+    "scope_description": "Hôte, éventuellement avec un préfixe de chemin. Le chemin détermine quel profil correspond, il ne confine pas l’identifiant.",
     "scope_label": "Domaine",
     "secret_basic": "Mot de passe",
     "secret_bearer": "Jeton",
     "secret_cookies": "Cookies",
-    "secret_cookies_description": "Contenu d'un cookies.txt Netscape ou un en-tête Cookie.",
+    "secret_cookies_description": "Contenu d’un cookies.txt Netscape ou un en-tête Cookie.",
     "secret_keep": "Laissez vide pour conserver la valeur enregistrée.",
     "subdomains_label": "Inclure les sous-domaines",
-    "title": "Profils d'authentification",
-    "username_label": "Nom d'utilisateur",
-    "form_new": "Nouveau profil d'authentification",
-    "form_edit": "Modifier le profil d'authentification",
+    "title": "Profils d’authentification",
+    "username_label": "Nom d’utilisateur",
+    "form_new": "Nouveau profil d’authentification",
+    "form_edit": "Modifier le profil d’authentification",
     "create_action": "Créer le profil"
   },
   "storage": {
     "title": "Capacité de stockage",
-    "description": "S’applique à tous les transports. Une destination sous son seuil n’accepte plus de téléchargements tant que l’espace n’est pas libéré. L’« Espace libre minimal » propre à une racine, ci-dessus, remplace la valeur globale pour cette racine.",
+    "description": "S’applique à tous les transports. Une destination sous son seuil n’accepte plus de téléchargements tant que l’espace n’est pas libéré. L’« Espace libre minimal » propre à une racine, ci-dessus, remplace la valeur globale pour cette racine.",
     "minimum_free": {
       "label": "Espace libre minimal",
       "description": "Conservé libre sur chaque racine sans seuil propre."
@@ -853,7 +857,7 @@
     },
     "auto_resume": {
       "label": "Reprendre automatiquement",
-      "description": "Libère une destination bloquée dès qu'elle a de la place ; désactivé, la reprise manuelle est requise."
+      "description": "Libère une destination bloquée dès qu’elle a de la place ; désactivé, la reprise manuelle est requise."
     },
     "collision": {
       "label": "En cas de collision de noms",
@@ -863,13 +867,13 @@
       "eyebrow": "Stockage",
       "title": "Déplacements, liens et réutilisation",
       "description": "Déplacements vérifiés entre dossiers, liens de doublons et ce que chaque type de transfert réutilise des données déjà présentes.",
-      "index_checked": "Index de contenu vérifié : {checked} entrées, {missing} manquantes, {restored} retrouvées, {backfilled} ajoutées.",
+      "index_checked": "Index de contenu vérifié – entrées : {checked}, manquantes : {missing}, retrouvées : {restored}, ajoutées : {backfilled}.",
       "links_title": "Liens physiques par emplacement",
       "links_description": "Déterminé en essayant. Cette version ne crée pas de reflinks.",
       "hardlink_yes": "Liens physiques possibles",
       "hardlink_no": "pas de liens physiques",
       "reuse_title": "Réutilisation par type de transfert",
-      "reuse_description": "Déclaré par chaque runner : reprendre, revérifier, adopter, vérifier, et si la règle de collision s’applique.",
+      "reuse_description": "Déclaré par chaque runner : reprendre, revérifier, adopter, vérifier, et si la règle de collision s’applique.",
       "kind": "Type",
       "yes": "oui",
       "no": "non",
@@ -914,7 +918,7 @@
     "eyebrow": "Disponibilité",
     "title": "Services de transfert",
     "description": "Chaque service est actif tant que vous ne le désactivez pas ici. Ce qui est désactivé refuse les liens correspondants dès la réception et bloque, avec un motif, ce qui attendait déjà dans la file.",
-    "hint": "Réactiver un service renvoie ses entrées bloquées dans la file d'attente.",
+    "hint": "Réactiver un service renvoie ses entrées bloquées dans la file d’attente.",
     "torrent": {
       "label": "BitTorrent",
       "description": "Liens magnet, fichiers .torrent et le moteur pair-à-pair."
@@ -929,7 +933,7 @@
     },
     "gallery": {
       "label": "Galeries",
-      "description": "Galeries d'images résolues par gallery-dl."
+      "description": "Galeries d’images résolues par gallery-dl."
     },
     "recording": {
       "label": "Enregistrements de flux",
@@ -940,22 +944,22 @@
       "description": "Liens FTP, FTPS, SFTP et WebDAV."
     },
     "off": {
-      "title": "Service désactivé : {name}",
-      "description": "Les liens correspondants sont refusés dès la réception et les entrées de ce type dans la file attendent, bloquées. Les réglages ci-dessous s'appliquent dès que vous réactivez le service.",
-      "open": "Aller à l'interrupteur"
+      "title": "Service désactivé : {name}",
+      "description": "Les liens correspondants sont refusés dès la réception et les entrées de ce type dans la file attendent, bloquées. Les réglages ci-dessous s’appliquent dès que vous réactivez le service.",
+      "open": "Aller à l’interrupteur"
     }
   },
   "managed_tools": {
     "eyebrow": "Outils gérés",
     "title": "Versions des outils",
-    "description": "rDownloader peut télécharger, vérifier et activer lui-même yt-dlp, gallery-dl, Streamlink, ffmpeg et ffprobe. Chaque version provient d'un manifeste signé et est confirmée par sa somme de contrôle avant d'être activée.",
+    "description": "rDownloader peut télécharger, vérifier et activer lui-même yt-dlp, gallery-dl, Streamlink, ffmpeg et ffprobe. Chaque version provient d’un manifeste signé et est confirmée par sa somme de contrôle avant d’être activée.",
     "enabled_label": "Gérer les outils automatiquement",
-    "enabled_description": "Désactivé sauf indication contraire : télécharger des exécutables n'est pas une chose à entreprendre sans qu'on le demande. Un chemin explicitement configuré reste prioritaire.",
+    "enabled_description": "Désactivé sauf indication contraire : télécharger des exécutables n’est pas une chose à entreprendre sans qu’on le demande. Un chemin explicitement configuré reste prioritaire.",
     "manifest_url_label": "Adresse du manifeste",
-    "manifest_url_description": "Adresse https du manifeste d'outils signé. Vide = uniquement le manifeste livré avec cette version, ce qui fonctionne sans réseau.",
+    "manifest_url_description": "Adresse https du manifeste d’outils signé. Vide = uniquement le manifeste livré avec cette version, ce qui fonctionne sans réseau.",
     "manifest_url_placeholder": "Vide = manifeste intégré",
     "disabled_title": "La gestion est désactivée",
-    "disabled_description": "Activez « Gérer les outils automatiquement » ci-dessus pour télécharger et activer des versions. Les programmes déjà trouvés restent inchangés.",
+    "disabled_description": "Activez « Gérer les outils automatiquement » ci-dessus pour télécharger et activer des versions. Les programmes déjà trouvés restent inchangés.",
     "manifest": "Manifeste",
     "manifest_detail": "Séquence {sequence} · plateforme {platform}",
     "manifest_built_in": "Manifeste intégré à cette version",
@@ -973,7 +977,7 @@
     "rolled_back": "{tool} est revenu à sa version précédente.",
     "refreshed": "Le manifeste a été vérifié et adopté.",
     "loading": "Lecture des outils gérés …",
-    "hint": "Une tâche en cours conserve la version avec laquelle elle a commencé : activer une autre prend effet pour la tâche suivante, et une version utilisée n'est jamais supprimée.",
+    "hint": "Une tâche en cours conserve la version avec laquelle elle a commencé : activer une autre prend effet pour la tâche suivante, et une version utilisée n’est jamais supprimée.",
     "overrides_label": "Ignorer les règles de compatibilité",
     "overrides_description": "Pour les outils choisis ici, le verdict reste affiché mais n’est pas appliqué. Chaque blocage ainsi ignoré est consigné dans le journal.",
     "overrides_placeholder": "Aucun outil ignoré"
@@ -981,33 +985,33 @@
   "logs": {
     "eyebrow": "Stockage du journal",
     "title": "Niveau et rétention du journal",
-    "description": "Ce que le service journalise et quelle part il en conserve. Les entrées anciennes sont supprimées en arrière-plan ; la file d'attente n'attend jamais.",
+    "description": "Ce que le service journalise et quelle part il en conserve. Les entrées anciennes sont supprimées en arrière-plan ; la file d’attente n’attend jamais.",
     "records_label": "Entrées conservées",
     "records_description": "Les entrées les plus anciennes partent en premier (1000-500000).",
     "days_label": "Jours conservés",
     "days_description": "Les entrées plus anciennes sont supprimées quel que soit leur nombre (1-365).",
     "open": "Ouvrir le journal",
     "level_label": "Niveau de journalisation",
-    "level_description": "Ce que le service écrit dans la console, le journal et l’export des traces : erreurs, avertissements, info (par défaut) ou débogage. S’applique dès la ligne suivante après l’enregistrement, sans redémarrage."
+    "level_description": "Ce que le service écrit dans la console, le journal et l’export des traces : erreurs, avertissements, info (par défaut) ou débogage. S’applique dès la ligne suivante après l’enregistrement, sans redémarrage."
   },
   "audit": {
     "eyebrow": "Audit et traçage",
-    "title": "Journal d'audit et export des traces",
-    "description": "Combien de temps le journal d'audit en ajout seul est conservé, et si les spans terminés partent vers un collecteur OpenTelemetry. L'export est désactivé tant que vous ne l'activez pas.",
-    "records_label": "Entrées d'audit conservées",
+    "title": "Journal d’audit et export des traces",
+    "description": "Combien de temps le journal d’audit en ajout seul est conservé, et si les spans terminés partent vers un collecteur OpenTelemetry. L’export est désactivé tant que vous ne l’activez pas.",
+    "records_label": "Entrées d’audit conservées",
     "records_description": "Les entrées entières les plus anciennes partent en premier (10000-2000000).",
     "days_label": "Jours conservés",
     "days_description": "Les entrées plus anciennes sont supprimées quel que soit le nombre (30-3650).",
-    "open": "Ouvrir le journal d'audit",
+    "open": "Ouvrir le journal d’audit",
     "otlp_enabled_label": "Exporter les traces via OTLP",
     "otlp_enabled_description": "Désactivé par défaut. Un collecteur en panne ou lent ne retarde jamais un téléchargement ni une requête.",
     "otlp_endpoint_label": "Point de terminaison du collecteur",
-    "otlp_endpoint_description": "L'URL des traces OTLP/HTTP, par exemple http://127.0.0.1:4318/v1/traces.",
-    "otlp_timeout_label": "Délai d'export",
-    "otlp_timeout_description": "Durée maximale d'une tentative avant abandon (1-60 secondes)."
+    "otlp_endpoint_description": "L’URL des traces OTLP/HTTP, par exemple http://127.0.0.1:4318/v1/traces.",
+    "otlp_timeout_label": "Délai d’export",
+    "otlp_timeout_description": "Durée maximale d’une tentative avant abandon (1-60 secondes)."
   },
   "overview": {
-    "eyebrow": "Vue d'ensemble",
+    "eyebrow": "Vue d’ensemble",
     "title": "Paramètres",
     "description": "Toutes les pages, regroupées par sujet. Ouvrez-en une ici ou choisissez-la dans la barre latérale."
   },
@@ -1043,13 +1047,12 @@
       "eyebrow": "Licences",
       "title": "Ce qui est livré",
       "own": "rDownloader lui-même",
-      "own_text": "Logiciel libre sous {license} ; le texte complet est LICENSE dans le paquet.",
+      "own_text": "Logiciel libre sous {license} ; le texte complet est LICENSE dans le paquet.",
       "tools": "Outils fournis",
-      "tools_hint": "Les paquets Linux et Windows les livrent sous vendor/, leurs textes de licence sous vendor/licenses/.",
       "dependencies": "Dépendances",
-      "dependencies_hint": "Tout ce que contient un paquet livré : les crates que lient le service, l'agent de capture et les plugins sous Linux, Windows et macOS, et les paquets de l'interface. Générées au build à partir de Cargo.lock et pnpm-lock.yaml, jamais à la main.",
+      "dependencies_hint": "Tout ce que contient un paquet livré : les crates que lient le service, l’agent de capture et les plugins sous Linux, Windows et macOS, et les paquets de l’interface. Générées au build à partir de Cargo.lock et pnpm-lock.yaml, jamais à la main.",
       "rust": "Crates Rust",
-      "npm": "Paquets npm de l'interface",
+      "npm": "Paquets npm de l’interface",
       "show": "Afficher les {count}",
       "hide": "Masquer la liste",
       "filter": "Filtrer par nom ou licence",
@@ -1057,16 +1060,21 @@
       "column_name": "Nom",
       "column_version": "Version",
       "column_license": "Licence",
-      "column_file": "Texte de licence"
+      "column_file": "Texte de licence",
+      "tools_used": "Programmes auxiliaires",
+      "tools_hint_used": "rDownloader les utilise s’ils sont sur ce système ou si vous les installez sous Outils. Aucun paquet ne les livre, sauf l’image de conteneur.",
+      "tools_hint_shipped": "Cette image de conteneur les contient ; leurs textes de licence se trouvent dans l’image, au chemin indiqué.",
+      "notices": "Afficher tous les textes de licence",
+      "other": "Autres composants"
     }
   },
   "nntp_parallel_files": {
     "label": "Fichiers Usenet simultanés",
-    "description": "0 = automatique : autant qu’il en faut pour occuper chaque connexion (2 à 8). Ensemble, ils n’occupent qu’une seule place de fichiers parallèles."
+    "description": "0 = automatique : autant qu’il en faut pour occuper chaque connexion (2 à 8). Ensemble, ils n’occupent qu’une seule place de fichiers parallèles."
   },
   "upload_limit": {
-    "label": "Limite d'envoi",
-    "description": "S'applique à chaque envoi : seed de torrents, stockage objet, rclone et destinations d'envoi. Vide signifie illimité"
+    "label": "Limite d’envoi",
+    "description": "S’applique à chaque envoi : seed de torrents, stockage objet, rclone et destinations d’envoi. Vide signifie illimité"
   },
   "subtabs": {
     "network": {
@@ -1095,7 +1103,7 @@
     "clients": {
       "desktop": "Bureau",
       "browser": "Navigateur",
-      "api": "API & MCP"
+      "api": "API et MCP"
     },
     "notifications": {
       "targets": "Cibles et règles",
@@ -1148,7 +1156,7 @@
     "interval_label": "Intervalle",
     "interval_description": "Heures entre l’échec et la tentative suivante (1–24).",
     "rounds_label": "Tours par téléchargement",
-    "rounds_description": "Nombre maximal de retours d’un téléchargement dans la file ; 0 signifie sans limite (0–100)."
+    "rounds_description": "Nombre maximal de retours d’un téléchargement dans la file ; 0 signifie sans limite (0–100)."
   },
   "history": {
     "eyebrow": "Historique des téléchargements",
@@ -1163,7 +1171,7 @@
   "limits": {
     "eyebrow": "Réglage manuel",
     "title": "Limites de téléchargement et d’envoi",
-    "description": "S’appliquent en permanence, quelle que soit la planification. Un profil actif s’y superpose : la plus stricte des deux limites s’applique."
+    "description": "S’appliquent en permanence, quelle que soit la planification. Un profil actif s’y superpose : la plus stricte des deux limites s’applique."
   },
   "nntp_limits": {
     "eyebrow": "Par serveur",
@@ -1177,56 +1185,56 @@
   "tool_paths": {
     "eyebrow": "Programmes",
     "title": "Chemins personnalisés",
-    "description": "Un chemin ici passe avant la recherche dans les dossiers vendor et le PATH ; un champ vide la laisse faire. Le fichier trouvé est indiqué par la recherche d'outils ci-dessous."
+    "description": "Un chemin ici passe avant la recherche dans les dossiers vendor et le PATH ; un champ vide la laisse faire. Le fichier trouvé est indiqué par la recherche d’outils ci-dessous."
   },
   "display": {
     "eyebrow": "Tous les navigateurs",
     "title": "Affichage",
-    "description": "Enregistré avec les réglages dans le service et appliqué dans chaque navigateur qui l'ouvre."
+    "description": "Enregistré avec les réglages dans le service et appliqué dans chaque navigateur qui l’ouvre."
   },
   "package_groups": {
     "eyebrow": "Paquets",
     "title": "Groupes de paquets",
-    "description": "Si un paquet apparaît ouvert ou fermé dans la liste tant que vous ne l'avez pas ouvert ou fermé vous-même. Ce que vous ouvrez ou fermez à la main le reste dans ce navigateur, même après un rechargement.",
+    "description": "Si un paquet apparaît ouvert ou fermé dans la liste tant que vous ne l’avez pas ouvert ou fermé vous-même. Ce que vous ouvrez ou fermez à la main le reste dans ce navigateur, même après un rechargement.",
     "downloads": {
       "label": "Afficher les paquets fermés dans les téléchargements",
-      "description": "Activé par défaut : un nouveau paquet n'affiche que sa ligne d'en-tête jusqu'à ce que vous l'ouvriez."
+      "description": "Activé par défaut : un nouveau paquet n’affiche que sa ligne d’en-tête jusqu’à ce que vous l’ouvriez."
     },
     "linkgrabber": {
       "label": "Afficher les paquets fermés dans le LinkGrabber",
-      "description": "Désactivé par défaut : le LinkGrabber affiche chaque lien d'un paquet pour que vous puissiez le vérifier avant de le mettre en file."
+      "description": "Désactivé par défaut : le LinkGrabber affiche chaque lien d’un paquet pour que vous puissiez le vérifier avant de le mettre en file."
     }
   },
   "capture_agent": {
     "eyebrow": "Agent de bureau",
     "title": "Presse-papiers et raccourcis clavier",
-    "description": "Ce que fait l'agent de capture sur votre ordinateur. Il applique les changements en quelques secondes, sans redémarrage.",
+    "description": "Ce que fait l’agent de capture sur votre ordinateur. Il applique les changements en quelques secondes, sans redémarrage.",
     "clipboard_paused": {
       "label": "Mettre en pause la surveillance du presse-papiers",
-      "description": "Les liens copiés n'arrivent plus d'eux-mêmes dans rDownloader. Click'n'Load, l'extension du navigateur et les liens rdownloader:// restent actifs. Ce qui est copié pendant la pause n'est pas transmis ensuite."
+      "description": "Les liens copiés n’arrivent plus d’eux-mêmes dans rDownloader. Click’n’Load, l’extension du navigateur et les liens rdownloader:// restent actifs. Ce qui est copié pendant la pause n’est pas transmis ensuite."
     },
     "paused_badge": "Capture en pause",
     "watching_badge": "Surveille le presse-papiers",
     "shortcuts": {
       "eyebrow": "Commandes de la zone de notification",
       "title": "Raccourcis clavier",
-      "description": "Raccourcis pour tout le système, pour les commandes du menu de la zone de notification ; le menu les affiche à côté de chaque entrée. Une combinaison demande deux touches parmi Ctrl, Alt et Win/Cmd. Sous Linux, ils ne fonctionnent que dans une session X11.",
+      "description": "Raccourcis pour tout le système, pour les commandes du menu de la zone de notification ; le menu les affiche à côté de chaque entrée. Une combinaison demande deux touches parmi Ctrl, Alt et Win/Cmd. Sous Linux, ils ne fonctionnent que dans une session X11.",
       "record": "Enregistrer",
       "recording": "Appuyez sur la combinaison…",
-      "recording_hint": "Appuyez maintenant sur la combinaison de touches ; Échap annule.",
+      "recording_hint": "Appuyez maintenant sur la combinaison de touches ; Échap annule.",
       "reset": "Réinitialiser",
       "none": "Aucun raccourci",
       "none_set": "Non défini",
       "save": "Enregistrer les raccourcis",
-      "saved": "Raccourcis enregistrés. L'agent les applique en quelques secondes.",
-      "duplicate": "Déjà utilisé par « {other} »."
+      "saved": "Raccourcis enregistrés. L’agent les applique en quelques secondes.",
+      "duplicate": "Déjà utilisé par « {other} »."
     },
     "commands": {
       "open": "Ouvrir rDownloader",
       "start_all": "Tout démarrer",
       "pause_all": "Tout mettre en pause",
       "pause_half_hour": "Pause de 30 minutes",
-      "pause_hour": "Pause d'une heure",
+      "pause_hour": "Pause d’une heure",
       "clipboard_watch": "Mettre en pause la surveillance du presse-papiers",
       "send_clipboard": "Transmettre le presse-papiers maintenant",
       "quit": "Quitter",
@@ -1235,35 +1243,35 @@
       "auto_install": "Installer les mises à jour automatiquement",
       "add_all_from_linkgrabber": "Tout ajouter depuis le LinkGrabber",
       "add_all_from_linkgrabber_paused": "Tout ajouter depuis le LinkGrabber en pause",
-      "install_update": "Installer la mise à jour de l'agent",
+      "install_update": "Installer la mise à jour de l’agent",
       "restart_server": "Redémarrer le serveur",
       "about": "À propos de rDownloader",
-      "link": "Associer l'agent de capture",
-      "autostart": "Démarrer à l'ouverture de session"
+      "link": "Associer l’agent de capture",
+      "autostart": "Démarrer à l’ouverture de session"
     },
     "report": {
       "title_unavailable": "Raccourcis indisponibles",
       "title_refused": "Certains raccourcis sont déjà pris",
-      "refused": "Un autre programme utilise déjà : {commands}. Choisissez une autre combinaison.",
+      "refused": "Un autre programme utilise déjà : {commands}. Choisissez une autre combinaison.",
       "reported_at": "(Signalé {time})",
       "unavailable": {
-        "wayland": "Wayland n'a pas de raccourcis pour tout le système. Utilisez une session X11 ou les commandes de rdownloader-capture.",
-        "no_display": "L'agent n'a trouvé aucun écran (pas de DISPLAY) auprès duquel enregistrer les raccourcis.",
-        "no_tray": "L'agent tourne sans son icône (--no-tray) ; sous Windows et macOS, les raccourcis en ont besoin.",
-        "failed": "Le système a refusé d'enregistrer les raccourcis."
+        "wayland": "Wayland n’a pas de raccourcis pour tout le système. Utilisez une session X11 ou les commandes de rdownloader-capture.",
+        "no_display": "L’agent n’a trouvé aucun écran (pas de DISPLAY) auprès duquel enregistrer les raccourcis.",
+        "no_tray": "L’agent tourne sans son icône (--no-tray) ; sous Windows et macOS, les raccourcis en ont besoin.",
+        "failed": "Le système a refusé d’enregistrer les raccourcis."
       }
     },
     "game_mode": {
       "eyebrow": "Mode jeu",
       "title": "Pause pendant le jeu",
-      "description": "Tant qu’un programme en plein écran est au premier plan ou que l’un des programmes ci-dessous s’exécute, l’agent met la file en pause ou active un profil de bande passante, puis l’annule ensuite. Il n’annule que ce qu’il a lui-même mis en place : une pause que vous reprenez entre-temps reste reprise. Windows et macOS.",
+      "description": "Tant qu’un programme en plein écran est au premier plan ou que l’un des programmes ci-dessous s’exécute, l’agent met la file en pause ou active un profil de bande passante, puis l’annule ensuite. Il n’annule que ce qu’il a lui-même mis en place : une pause que vous reprenez entre-temps reste reprise. Windows et macOS.",
       "full_screen": {
         "label": "Avec les programmes en plein écran",
-        "description": "Jeux, vidéos et présentations en plein écran. Windows uniquement : macOS ne peut pas le savoir sans l’autorisation d’enregistrement de l’écran."
+        "description": "Jeux, vidéos et présentations en plein écran. Windows uniquement : macOS ne peut pas le savoir sans l’autorisation d’enregistrement de l’écran."
       },
       "processes": {
         "label": "Pendant que ces programmes tournent",
-        "description": "Noms de processus comme game.exe ou obs64, sans chemin ; la casse et l’extension .exe ne comptent pas.",
+        "description": "Noms de processus comme game.exe ou obs64, sans chemin ; la casse et l’extension .exe ne comptent pas.",
         "placeholder": "game.exe"
       },
       "action": {
@@ -1271,19 +1279,19 @@
         "pause": "Mettre la file en pause",
         "pause_description": "Les téléchargements en cours et en attente s’arrêtent et reprennent ensuite.",
         "profile": "Activer un profil de bande passante",
-        "profile_description": "Les téléchargements continuent avec les limites du profil ; ensuite, le planning décide de nouveau."
+        "profile_description": "Les téléchargements continuent avec les limites du profil ; ensuite, le planning décide de nouveau."
       },
       "profile": {
         "label": "Profil",
         "placeholder": "Choisissez un profil",
-        "none": "Aucun profil de bande passante pour l’instant ; créez-en un sous Bande passante."
+        "none": "Aucun profil de bande passante pour l’instant ; créez-en un sous Bande passante."
       },
       "profile_required": "Choisissez le profil à activer.",
       "save": "Enregistrer le mode jeu",
       "saved": "Mode jeu enregistré. L’agent l’applique en quelques secondes.",
       "enabled": {
         "label": "Mode jeu activé",
-        "description": "Aussi dans le menu de la zone de notification de l'agent, sous « Pause while gaming ». Désactivé, les programmes ci-dessous sont conservés et une pause posée par l'agent prend fin aussitôt."
+        "description": "Aussi dans le menu de la zone de notification de l’agent, sous « Pause while gaming ». Désactivé, les programmes ci-dessous sont conservés et une pause posée par l’agent prend fin aussitôt."
       }
     }
   },
@@ -1303,18 +1311,18 @@
     "list_title": "Règles LinkFilter",
     "form_new": "Nouvelle règle",
     "form_edit": "Modifier la règle",
-    "description": "Décide à l'arrivée d'un lien et après sa vérification en ligne : le masquer, le garder, le placer dans un paquet ou une catégorie, ou le supprimer. La première règle active de la liste qui correspond décide ; les liens masqués sont conservés.",
+    "description": "Décide à l’arrivée d’un lien et après sa vérification en ligne : le masquer, le garder, le placer dans un paquet ou une catégorie, ou le supprimer. La première règle active de la liste qui correspond décide ; les liens masqués sont conservés.",
     "create": "Créer la règle",
     "created": "Règle créée",
     "updated": "Règle enregistrée",
     "duplicated": "Règle copiée",
-    "delete_title": "Supprimer la règle ?",
-    "delete_description": "« {name} » est supprimée. Les liens qu'elle masquait sont de nouveau affichés.",
-    "empty": "Aucune règle pour l'instant. Sans règle, chaque lien arrive visible dans le LinkGrabber.",
+    "delete_title": "Supprimer la règle ?",
+    "delete_description": "« {name} » est supprimée. Les liens qu’elle masquait sont de nouveau affichés.",
+    "empty": "Aucune règle pour l’instant. Sans règle, chaque lien arrive visible dans le LinkGrabber.",
     "matches_everything": "tout lien",
     "apply": "Appliquer au LinkGrabber",
     "name_label": "Nom",
-    "name_placeholder": "p. ex. Masquer les fichiers d'information",
+    "name_placeholder": "p. ex. Masquer les fichiers d’information",
     "action_label": "Action",
     "actions": {
       "hide": "Masquer",
@@ -1323,21 +1331,21 @@
       "delete": "Supprimer"
     },
     "action_descriptions": {
-      "hide": "Le lien reste dans le LinkGrabber mais n'est affiché qu'avec « Afficher les masqués », et la mise en file de son paquet le laisse de côté.",
-      "accept": "Le lien reste tel quel et aucune règle suivante n'est consultée : une exception au-dessus d'une règle plus large.",
+      "hide": "Le lien reste dans le LinkGrabber mais n’est affiché qu’avec « Afficher les masqués », et la mise en file de son paquet le laisse de côté.",
+      "accept": "Le lien reste tel quel et aucune règle suivante n’est consultée : une exception au-dessus d’une règle plus large.",
       "route": "Le lien va dans le paquet portant ce nom et/ou son paquet reçoit cette catégorie.",
-      "delete": "Le lien est supprimé du LinkGrabber, ainsi qu'un paquet qu'il laisse vide ; à l'arrivée et après la vérification en ligne, sans demander."
+      "delete": "Le lien est supprimé du LinkGrabber, ainsi qu’un paquet qu’il laisse vide ; à l’arrivée et après la vérification en ligne, sans demander."
     },
     "package_label": "Paquet",
-    "package_description": "Nom du paquet ; vide garde le paquet formé par le regroupement.",
+    "package_description": "Nom du paquet ; vide garde le paquet formé par le regroupement.",
     "category_label": "Catégorie",
     "category_none": "Aucune",
     "enabled_label": "Active",
     "conditions": "Conditions",
     "pattern_label": "Nom de fichier",
     "pattern_descriptions": {
-      "glob": "* représente une suite quelconque de caractères, ? un seul ; le nom entier, sans tenir compte de la casse. Vide correspond à tout nom.",
-      "regex": "Expression régulière, cherchée dans le nom telle qu'écrite ; (?i) ignore la casse."
+      "glob": "* représente une suite quelconque de caractères, ? un seul ; le nom entier, sans tenir compte de la casse. Vide correspond à tout nom.",
+      "regex": "Expression régulière, cherchée dans le nom telle qu’écrite ; (?i) ignore la casse."
     },
     "syntax_label": "Type de motif",
     "syntax": {
@@ -1345,39 +1353,39 @@
       "regex": "Regex"
     },
     "extensions_label": "Types de fichier",
-    "extensions_description": "Terminaisons sans point, p. ex. nfo ou part1.rar ; une seule correspondance suffit.",
+    "extensions_description": "Terminaisons sans point, p. ex. nfo ou part1.rar ; une seule correspondance suffit.",
     "size_label": "Taille (Mio)",
-    "size_description": "De–à, bornes incluses. Un lien dont la taille est encore inconnue ne correspond à aucune borne : appliquer de nouveau après la vérification en ligne.",
+    "size_description": "De–à, bornes incluses. Un lien dont la taille est encore inconnue ne correspond à aucune borne : appliquer de nouveau après la vérification en ligne.",
     "size_min": "à partir de",
-    "size_max": "jusqu'à",
+    "size_max": "jusqu’à",
     "hoster_label": "Hébergeur",
-    "hoster_description": "Nom d'hôte sans schéma ; les sous-domaines correspondent aussi.",
+    "hoster_description": "Nom d’hôte sans schéma ; les sous-domaines correspondent aussi.",
     "source_label": "Source",
     "move_up": "Monter",
     "move_down": "Descendre",
     "without_resolver_label": "Sans résolveur",
-    "without_resolver_description": "Seulement les liens que la vérification en ligne a identifiés comme une page sans résolveur installé. Ne s'applique qu'après la vérification ; un lien direct vers un fichier et la page d'un hébergeur connu ne comptent pas.",
+    "without_resolver_description": "Seulement les liens que la vérification en ligne a identifiés comme une page sans résolveur installé. Ne s’applique qu’après la vérification ; un lien direct vers un fichier et la page d’un hébergeur connu ne comptent pas.",
     "without_resolver_token": "sans résolveur"
   },
   "aria2": {
     "eyebrow": "Interface aria2",
     "title": "Clients compatibles aria2",
-    "description": "AriaNg, les interfaces de type Motrix, les extensions de navigateur et les applis Android transmettent des liens via le JSON-RPC d'aria2 et affichent la file.",
+    "description": "AriaNg, les interfaces de type Motrix, les extensions de navigateur et les applis Android transmettent des liens via le JSON-RPC d’aria2 et affichent la file.",
     "enabled": {
-      "label": "Répondre au JSON-RPC d'aria2",
-      "description": "Désactivé par défaut. Désactivé, le chemin /jsonrpc n'existe pas."
+      "label": "Répondre au JSON-RPC d’aria2",
+      "description": "Désactivé par défaut. Désactivé, le chemin /jsonrpc n’existe pas."
     },
-    "endpoint": "Saisissez cette adresse comme adresse RPC dans le client :",
-    "copy_endpoint": "Copier l'adresse RPC",
-    "secret": "Le secret RPC (secret token) est un jeton d'API possédant les domaines ajout, file et lecture (api:intake, api:queue, api:read) ; créez-le ci-dessus."
+    "endpoint": "Saisissez cette adresse comme adresse RPC dans le client :",
+    "copy_endpoint": "Copier l’adresse RPC",
+    "secret": "Le secret RPC (secret token) est un jeton d’API possédant les domaines ajout, file et lecture (api:intake, api:queue, api:read) ; créez-le ci-dessus."
   },
   "web_push": {
     "label": "Push sur cet appareil",
     "description": "Les notifications arrivent même sans onglet ouvert, tant que ce navigateur fonctionne — idéalement dans l’application installée. Uniquement pour ce navigateur.",
-    "insecure": "Le push nécessite un contexte sécurisé : ouvrez rDownloader en https, ou via localhost sur cette machine.",
+    "insecure": "Le push nécessite un contexte sécurisé : ouvrez rDownloader en https, ou via localhost sur cette machine.",
     "unsupported": "Ce navigateur ne prend pas en charge le web push.",
     "events_label": "Événements",
-    "events_description": "Les événements qui parviennent à cet appareil ; sans choix, tous."
+    "events_description": "Les événements qui parviennent à cet appareil ; sans choix, tous."
   },
   "duplicates_history": {
     "label": "Chercher les doublons aussi dans l’historique",
@@ -1386,46 +1394,52 @@
   "cleanup": {
     "eyebrow": "Dossier de données",
     "title": "Sauvegardes de mise à jour, cache des plugins et base de données",
-    "description": "Chaque mise à jour garde une copie de la base de données pour revenir en arrière, et les plugins compilés sont mis en cache. Une fois la mise à jour confirmée, seule la copie la plus récente reste ; le cache ne garde que ce qu'utilisent les plugins installés. Les anciennes entrées d'abonnement ignorées ne gardent que ce qui permet de les reconnaître, et le fichier de base de données rend l'espace libre. Cela s'exécute aussi tout seul dix minutes après chaque démarrage et chaque jour.",
+    "description": "Chaque mise à jour garde une copie de la base de données pour revenir en arrière, et les plugins compilés sont mis en cache. Une fois la mise à jour confirmée, seule la copie la plus récente reste ; le cache ne garde que ce qu’utilisent les plugins installés. Les anciennes entrées d’abonnement ignorées ne gardent que ce qui permet de les reconnaître, et le fichier de base de données rend l’espace libre. Cela s’exécute aussi tout seul dix minutes après chaque démarrage et chaque jour.",
     "days_label": "Conserver la copie la plus récente",
-    "days_description": "Jours pendant lesquels la copie la plus récente reste après une mise à jour confirmée ; 0 la garde pour toujours (0-3650).",
+    "days_description": "Jours pendant lesquels la copie la plus récente reste après une mise à jour confirmée ; 0 la garde pour toujours (0-3650).",
     "pre_update": "Avant les mises à jour",
     "pre_migration": "Avant les mises à niveau de la base",
     "plugin_cache": "Cache des plugins",
     "removable": "dont {size} supprimables",
-    "unproven": "La dernière mise à jour n'est pas encore confirmée, toutes les copies précédentes restent donc.",
+    "unproven": "La dernière mise à jour n’est pas encore confirmée, toutes les copies précédentes restent donc.",
     "button": "Nettoyer maintenant",
-    "confirm_title": "Nettoyer le dossier de données ?",
-    "confirm_description": "Environ {size} d'anciennes sauvegardes de mise à jour, de code de plugin compilé inutilisé et d'espace libre de la base de données seront libérés définitivement ; les anciennes entrées d'abonnement ignorées perdent leur titre et leur lien. Les plugins sont recompilés au besoin ; les téléchargements, les réglages et les entrées en attente restent.",
+    "confirm_title": "Nettoyer le dossier de données ?",
+    "confirm_description": "Environ {size} d’anciennes sauvegardes de mise à jour, de code de plugin compilé inutilisé et d’espace libre de la base de données seront libérés définitivement ; les anciennes entrées d’abonnement ignorées perdent leur titre et leur lien. Les plugins sont recompilés au besoin ; les téléchargements, les réglages et les entrées en attente restent.",
     "confirm": "Nettoyer",
     "done": "{size} libérés",
     "events": "Événements",
-    "rows": "{count} entrées des 30 derniers jours",
+    "rows": "{count} entrée des 30 derniers jours | {count} entrées des 30 derniers jours",
     "items": "Archive des abonnements",
-    "compactable": "{count} anciennes entrées à compacter",
+    "compactable": "{count} ancienne entrée à compacter | {count} anciennes entrées à compacter",
     "database_file": "Fichier de base de données",
     "items_days_label": "Garder entières les entrées ignorées",
-    "items_days_description": "Jours pendant lesquels une entrée ignorée ou écartée garde son titre et son lien ; ensuite il ne reste que ce qui permet de la reconnaître, pour qu'elle ne revienne pas. 0 garde tout (0-3650).",
-    "rewrite": "La base de données vient d'une version antérieure à 1.24 : « Nettoyer maintenant » la réécrit une fois, ensuite elle rend l'espace libre d'elle-même. Il faut de la place pour une seconde copie dans le dossier de données et que rien ne tourne."
+    "items_days_description": "Jours pendant lesquels une entrée ignorée ou écartée garde son titre et son lien ; ensuite il ne reste que ce qui permet de la reconnaître, pour qu’elle ne revienne pas. 0 garde tout (0-3650).",
+    "rewrite": "La base de données vient d’une version antérieure à 1.24 : « Nettoyer maintenant » la réécrit une fois, ensuite elle rend l’espace libre d’elle-même. Il faut de la place pour une seconde copie dans le dossier de données et que rien ne tourne."
   },
   "retry_middle": {
     "label": "Tentatives espacées de minutes",
-    "description": "Après les cinq tentatives en quelques secondes : combien d’autres attendent une, deux, quatre minutes ou plus avant la longue attente ; 0 passe directement à la longue attente (0–10). Utile quand un serveur est surchargé quelques minutes."
+    "description": "Après les cinq tentatives en quelques secondes : combien d’autres attendent une, deux, quatre minutes ou plus avant la longue attente ; 0 passe directement à la longue attente (0–10). Utile quand un serveur est surchargé quelques minutes."
   },
   "retry_long_wait": {
     "label": "Longue attente entre les tentatives",
-    "description": "Minutes qu’un téléchargement attend entre ses tentatives suivantes ; les fichiers après lui avancent entre-temps (1–1440)."
+    "description": "Minutes qu’un téléchargement attend entre ses tentatives suivantes ; les fichiers après lui avancent entre-temps (1–1440)."
   },
   "clear_failed_delete_files": {
     "label": "Supprimer les paquets en échec avec leurs fichiers",
-    "description": "« Supprimer les paquets en échec + fichiers » efface du disque tous les fichiers de ces paquets, terminés compris. Désactivé : seulement ce qui n'a pas abouti."
+    "description": "« Supprimer les paquets en échec + fichiers » efface du disque tous les fichiers de ces paquets, terminés compris. Désactivé : seulement ce qui n’a pas abouti."
   },
   "package_reset_delete_extracted": {
     "label": "Supprimer les fichiers extraits lors d’une réinitialisation",
-    "description": "« Réinitialiser entièrement le paquet » supprime aussi ce que l’extraction de ce paquet a produit. Désactivé : les fichiers extraits restent et seuls les téléchargements sont supprimés."
+    "description": "« Réinitialiser entièrement le paquet » supprime aussi ce que l’extraction de ce paquet a produit. Désactivé : les fichiers extraits restent et seuls les téléchargements sont supprimés."
   },
   "sequential_packages": {
     "label": "Paquet par paquet",
-    "description": "Un téléchargement ne démarre que lorsqu'aucun paquet plus haut dans la liste n'a encore de fichier en attente. Le prix : si le premier paquet attend (limite de l'hébergeur ou trafic épuisé), toute la liste attend avec lui. L'activer n'arrête rien de ce qui tourne déjà."
+    "description": "Un téléchargement ne démarre que lorsqu’aucun paquet plus haut dans la liste n’a encore de fichier en attente. Le prix : si le premier paquet attend (limite de l’hébergeur ou trafic épuisé), toute la liste attend avec lui. L’activer n’arrête rien de ce qui tourne déjà."
+  },
+  "foreign": {
+    "title": "Modifié ailleurs",
+    "merged": "Les réglages ont été modifiés ailleurs. Les nouvelles valeurs sont affichées ici ; ce que vous n’avez pas encore enregistré est conservé.",
+    "conflict": "Ces champs ont été modifiés ailleurs pendant que vous les modifiiez ici : {fields}. L’enregistrement remplace les valeurs de là-bas par les vôtres.",
+    "take": "Reprendre les valeurs de là-bas"
   }
 }

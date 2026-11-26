@@ -318,3 +318,11 @@ has the rules.
 holds in its own cache right now. That is not the same as `online`. The host shows it with the
 time of the check and never as a promise, so answer it only when the provider actually said
 "cached".
+
+## License
+
+Everything under `sdk/` — the templates and the CI workflows — and the plugin contract
+`crates/rd-plugin-api/wit/rdownloader.wit` with its copies in the templates are under the MIT
+license ([LICENSE](LICENSE)). The rest of rDownloader, the bundled plugins under `plugins/` and the
+crates they link included, is GPL-3.0-or-later. Every scaffold carries the MIT text as its own
+`LICENSE`, which covers what it came with.

@@ -30,7 +30,8 @@ obfuscated JavaScript whose site id, base64 payloads and timestamp are **differe
 request**, which is the only thing that differs between two fetches of the same entry. That one
 line is replaced by a comment naming what it was, so the fixture is deterministic and the tree
 carries no advertising payload. The recorded sizes above are the sizes before that replacement;
-the files are correspondingly shorter. Nothing else is altered.
+the files are correspondingly shorter. The headings of three entries, which named a work, are
+replaced by a neutral one (RD-1480-23); no test reads them. Nothing else is altered.
 
 Nothing user-specific was present to remove: no cookie, no session id, no address, no e-mail,
 no token. The `data-sitekey` values of reCAPTCHA and hCaptcha and the `QapTcha` block are left

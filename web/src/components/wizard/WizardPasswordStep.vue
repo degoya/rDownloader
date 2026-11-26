@@ -52,7 +52,7 @@ async function submit(): Promise<void> {
         class="w-full"
       />
     </UFormField>
-    <UAlert v-if="session.error" color="error" icon="i-lucide-circle-alert" :description="session.error" />
+    <UAlert v-if="session.error" color="error" role="alert" icon="i-lucide-circle-alert" :description="session.error" />
     <UButton
       type="submit"
       size="lg"

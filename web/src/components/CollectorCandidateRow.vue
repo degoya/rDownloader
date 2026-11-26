@@ -301,7 +301,7 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
           </div>
           <!-- Each of these is one idea with one icon; the word it dropped is its name. -->
           <UBadge v-if="props.candidate.provider === 'media'" color="primary" variant="outline" size="sm" class="shrink-0" role="img" :icon="mediaIcon" :title="t('linkgrabber.media.badge')" :aria-label="t('linkgrabber.media.badge')" />
-          <UBadge v-if="torrent" color="primary" variant="outline" size="sm" class="shrink-0" :title="t('torrent.tree.files_badge', { selected: torrent.selected_count, total: torrent.file_count })" :aria-label="t('torrent.tree.files_badge', { selected: torrent.selected_count, total: torrent.file_count })">
+          <UBadge v-if="torrent" color="primary" variant="outline" size="sm" class="shrink-0" role="img" :title="t('torrent.tree.files_badge', { selected: torrent.selected_count, total: torrent.file_count })" :aria-label="t('torrent.tree.files_badge', { selected: torrent.selected_count, total: torrent.file_count })">
             <UIcon name="i-lucide-list-tree" class="mr-1 size-3.5" />{{ torrent.selected_count }}/{{ torrent.file_count }}
           </UBadge>
           <UBadge v-if="consent" color="warning" variant="subtle" size="sm" class="shrink-0" role="img" icon="i-lucide-shield-check" :title="t('linkgrabber.replay.consent.granted')" :aria-label="t('linkgrabber.replay.consent.granted')" />
@@ -363,7 +363,7 @@ const mirrorToggleLabel = computed(() => props.mirrorOpen
         class="font-mono"
         data-testid="candidate-cached"
         :title="cacheHint"
-      >{{ t('linkgrabber.cache.label') }}: {{ formatMoment(cachedAt) }}</UBadge>
+      >{{ t('common.text.labelled', { label: t('linkgrabber.cache.label'), value: formatMoment(cachedAt) }) }}</UBadge>
       <EnrichmentChips v-if="!props.hideMetadata" :fields="enrichment" />
     </div>
     <div v-if="sources.length && expanded" class="border-t border-muted px-12 py-2">

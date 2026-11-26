@@ -4,10 +4,8 @@
 //! tree is fetched per candidate rather than inlined into every list response, and the
 //! selection is stored as exclusions.
 
-use axum::{
-    Json,
-    extract::{Path, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path};
 use rd_core::{CandidateId, ResolvedRemoteListing};
 
 use crate::{ApiError, AppState, dto::RemoteListingPlanRequest};

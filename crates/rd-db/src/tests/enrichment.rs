@@ -267,7 +267,15 @@ async fn enrichment_survives_the_enqueue(when_written: EnrichedAt) {
         .await
         .expect("finish");
     if matches!(when_written, EnrichedAt::AfterTheEnqueue) {
+        let mut events = database.subscribe();
         enrich().await.expect("enrichment");
+        // The queue row changed and nothing else says so (RD-1480-18).
+        let event = events.try_recv().expect("event");
+        assert_eq!(event.kind, rd_core::EventKind::DownloadState);
+        assert_eq!(
+            event.payload,
+            serde_json::json!({ "download_id": download.id, "enrichment": true })
+        );
     }
 
     let package = database

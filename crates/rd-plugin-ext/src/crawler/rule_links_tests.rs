@@ -119,7 +119,7 @@ fn a_rule_without_groups_proposes_what_it_did_before() {
     ));
 }
 
-/// A picked entry keeps the hosters as mirrors (RD-1190-17): warez.cx's releases are picked
+/// A picked entry keeps the hosters as mirrors (RD-1190-17): a release page's entries are picked
 /// since 1.19, and before that every release reached the LinkGrabber with its mirror groups.
 #[test]
 fn a_picked_entry_is_one_package_with_its_mirror_sets() {

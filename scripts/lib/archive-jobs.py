@@ -37,7 +37,9 @@ Job Inventory row whose numbers the catalogs do not bear out and every job file,
 archive/, whose status line is missing or starts with a word that is not one of STATUS_WORDS
 (RD-120-14: `Done` is not one), and every counted status line (`gezählt: <n> offen, <m>
 abgehakt`, archive_jobs_counts.py, RD-1270-17) its file's checkboxes do not bear out - which a
-plain run rewrites - and exits 1 when there is any of the six. With --due-ok a
+plain run rewrites - and exits 1 when there is any of the six. A status word of the index
+that is not its file's (archive_jobs_words.py, RD-1480-24) is named and written by the next run, but
+no failure. With --due-ok a
 due file is named but does not count: the release chain's checks before its archive-jobs step
 run that way (RD_RELEASE_VERSION, scripts/lib/preflight.sh), because that step moves them. A working file `<NNN>-00-*.md` and README.md
 need no status line; one that has a line is checked all the same. scripts/check.sh runs it that
@@ -58,6 +60,7 @@ import sys
 sys.dont_write_bytecode = True
 from archive_jobs_counts import stale_counts  # noqa: E402
 from archive_jobs_links import rewrite_references  # noqa: E402
+from archive_jobs_words import stale_words  # noqa: E402
 from archive_jobs_rows import row_problems, row_target  # noqa: E402
 from archive_jobs_status import (  # noqa: E402
     ARCHIVE, JOBS, bad_status_files, due_files, git, misplaced_files, status_line, status_word,
@@ -326,6 +329,10 @@ def main(argv):
                   "— run scripts/archive-jobs.sh")
         else:
             print(f"recounted: {path} status `{written}` -> `{fresh}`")
+    # The index repeats each file's status word (RD-1480-24): a run writes it, --check only names it.
+    for name, _, _ in stale_words(repo, write=not check):
+        print(f"index word: {JOBS}/README.md has another status for {name} — "
+              + ("a run of scripts/archive-jobs.sh writes it" if check else "written from its file"))
     if check:
         bad = bad_status_files(repo)
         for path, problem in bad:

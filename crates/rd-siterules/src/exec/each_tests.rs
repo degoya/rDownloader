@@ -27,29 +27,29 @@ fn asked(fetcher: &Recorded) -> Vec<String> {
         .collect()
 }
 
-/// The shape of hide.cx as the owner measured it on 2026-10-01: the page carries no links,
+/// The shape of a container page as the owner measured it on 2026-10-01: the page carries no links,
 /// the container answer names only link ids, and each id's own answer holds the address.
 fn hide_cx() -> Rule {
     let rule: Rule = serde_json::from_value(json!({
-        "id": "hide-cx",
-        "name": "hide.cx",
+        "id": "container",
+        "name": "container.example",
         "group": "paste",
         "version": 1,
-        "match": { "hosts": ["hide.cx", "*.hide.cx"] },
+        "match": { "hosts": ["container.example", "*.container.example"] },
         "steps": [
             { "kind": "regex", "from": "url", "pattern": "/container/([0-9a-f-]+)",
               "into": "cid" },
-            { "kind": "fetch", "url": "https://api.hide.cx/containers/${cid}",
+            { "kind": "fetch", "url": "https://api.container.example/containers/${cid}",
               "into": "container" },
             { "kind": "regex", "from": "container",
               "pattern": "\\{\\s*\"id\"\\s*:\\s*\"([^\"]+)\"\\s*,\\s*\"host\"",
               "into": "lid", "all": true },
-            { "kind": "fetch-json", "url": "https://api.hide.cx/containers/${cid}/links/${lid}",
+            { "kind": "fetch-json", "url": "https://api.container.example/containers/${cid}/links/${lid}",
               "path": "/url", "into": "links" }
         ],
         "package": { "from": "regex", "pattern": "\"title\"\\s*:\\s*\"([^\"]+)\"",
                      "source": "container" },
-        "probe": "https://hide.cx/container/0a1b2c3d",
+        "probe": "https://container.example/container/0a1b2c3d",
         "checked": "2026-10-01"
     }))
     .expect("rule");
@@ -64,18 +64,25 @@ async fn a_hide_cx_shaped_container_yields_every_link_in_order() {
         {"id":"k1","host":"ddownload.com","file":"some.release.part1.rar"},
         {"id":"k2","host":"ddownload.com","file":"some.release.part2.rar"}]}"#;
     let fetcher = Recorded::new()
-        .page("https://api.hide.cx/containers/0a1b2c3d", container)
         .page(
-            "https://api.hide.cx/containers/0a1b2c3d/links/k1",
+            "https://api.container.example/containers/0a1b2c3d",
+            container,
+        )
+        .page(
+            "https://api.container.example/containers/0a1b2c3d/links/k1",
             r#"{"id":"k1","url":"https://ddownload.com/k7tsb1mdymxh"}"#,
         )
         .page(
-            "https://api.hide.cx/containers/0a1b2c3d/links/k2",
+            "https://api.container.example/containers/0a1b2c3d/links/k2",
             r#"{"id":"k2","url":"https://ddownload.com/p2q8wz0rt5ab"}"#,
         );
-    let crawl = run(&rule, &fetcher, "https://hide.cx/container/0a1b2c3d")
-        .await
-        .expect("crawled");
+    let crawl = run(
+        &rule,
+        &fetcher,
+        "https://container.example/container/0a1b2c3d",
+    )
+    .await
+    .expect("crawled");
     assert_eq!(
         crawl.links,
         [
@@ -87,9 +94,9 @@ async fn a_hide_cx_shaped_container_yields_every_link_in_order() {
     assert_eq!(
         asked(&fetcher),
         [
-            "https://api.hide.cx/containers/0a1b2c3d",
-            "https://api.hide.cx/containers/0a1b2c3d/links/k1",
-            "https://api.hide.cx/containers/0a1b2c3d/links/k2"
+            "https://api.container.example/containers/0a1b2c3d",
+            "https://api.container.example/containers/0a1b2c3d/links/k1",
+            "https://api.container.example/containers/0a1b2c3d/links/k2"
         ]
     );
     assert_eq!(crawl.pages_fetched, 3);

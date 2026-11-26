@@ -32,11 +32,12 @@
     },
     "settings": {
       "title": "Ajustes",
-      "description": "Cada área es una subpágina propia: el enrutamiento decide dónde acaban los archivos, cuentas y Usenet guardan las credenciales, el posprocesado repara y desempaqueta, el cliente de escritorio y MCP conectan el exterior, y la copia de seguridad protege la configuración."
+      "description": "Cada área es una subpágina propia: «Almacenamiento y reglas» decide dónde acaban los archivos, «Cuentas» y «Usenet» guardan las credenciales, «Posprocesado» repara y desempaqueta, «Clientes y API» conecta el agente de escritorio, la extensión del navegador y MCP, y «Copia y restauración» protege la configuración."
     },
     "done": {
       "title": "Todo listo",
-      "description": "Pulsa ? en cualquier momento para ver los atajos. Esta visita y el asistente de configuración se reinician en Ajustes, Sistema, donde también se indica si la configuración está completa."
+      "description": "Pulsa ? en cualquier momento para ver los atajos. Esta visita y el asistente de configuración se reinician en Ajustes → Sistema, donde también se indica si la configuración está completa.",
+      "description_shortcuts_off": "Los atajos de teclado se activan en Ajustes → Interfaz. Esta visita y el asistente de configuración se reinician en Ajustes → Sistema, donde también se indica si la configuración está completa."
     }
   }
 }

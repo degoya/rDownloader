@@ -4,11 +4,8 @@
 //! precedent: the database is handed an already-clean `NewSubscription`, and every refusal
 //! carries a stable code the UI translates.
 
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path, Query};
 use rd_api_core::input_checks::{TextLimit, required_text};
 use rd_core::{
     BacklogPolicy, DownloadPriority, MAX_FILTER_PATTERNS, MAX_POLL_INTERVAL_SECONDS, Subscription,
@@ -49,7 +46,10 @@ const DEFAULT_ITEM_PAGE_LIMIT: i64 = 50;
 /// How many rows a listing returns.
 #[derive(Debug, Deserialize, IntoParams)]
 pub struct PageQuery {
+    /// Newest rows to return, 1 to 200; 200 when left out. A value outside is brought to the
+    /// nearest bound.
     #[serde(default)]
+    #[param(minimum = 1, maximum = 200)]
     pub limit: Option<i64>,
 }
 
@@ -76,9 +76,14 @@ pub enum SubscriptionItemFilter {
 pub struct SubscriptionItemPageQuery {
     #[serde(default)]
     pub state: SubscriptionItemFilter,
+    /// Items of one page, 1 to 200; 50 when left out. A value outside is brought to the nearest
+    /// bound.
     #[serde(default)]
+    #[param(minimum = 1, maximum = 200)]
     pub limit: Option<i64>,
+    /// Items to skip first; a negative value skips none.
     #[serde(default)]
+    #[param(minimum = 0)]
     pub offset: Option<i64>,
     /// Only items found at or before this moment (RD-1250-13): the `newest_discovered_at` of
     /// an earlier read, so paging a list held still under the reader shows no hit found since.

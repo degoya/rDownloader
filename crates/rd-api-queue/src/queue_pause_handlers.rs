@@ -6,7 +6,8 @@
 //! and a bandwidth profile that pauses downloads (RD-1240-30), the other things that hold
 //! downloads back without anybody pressing pause.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rd_core::{SignedDuration, Timestamp};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

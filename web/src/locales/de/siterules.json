@@ -142,7 +142,7 @@
     "import_unreadable": "Diese Datei ist kein Regel-Export.",
     "imported": "Übernommen: {stored} neu, {replaced} ersetzt, von {total} Regeln der Datei.",
     "refused_one": "{name} wurde abgelehnt",
-    "export_selected": "{count} Regeln exportieren",
+    "export_selected": "{count} Regel exportieren | {count} Regeln exportieren",
     "export_hint": "Schreibt die angehakten Regeln in eine Datei, ohne Haken alle, jede mit ihrem Schalter. Eine andere Installation importiert die Datei ohne Nacharbeit.",
     "select": "{name} für den Export auswählen"
   },
@@ -202,13 +202,13 @@
   "clear": {
     "button": "Alle löschen",
     "title": "Alle Seitenregeln löschen?",
-    "description": "Alle {count} Regeln werden samt ihren Prüfergebnissen aus dieser Installation gelöscht. Exportiere sie vorher, wenn du sie behalten willst. Die Gruppen-Schalter bleiben.",
+    "description": "{count} Regel wird samt ihren Prüfergebnissen aus dieser Installation gelöscht. Exportiere sie vorher, wenn du sie behalten willst. Die Gruppen-Schalter bleiben. | Alle {count} Regeln werden samt ihren Prüfergebnissen aus dieser Installation gelöscht. Exportiere sie vorher, wenn du sie behalten willst. Die Gruppen-Schalter bleiben.",
     "confirm": "Alle löschen",
-    "done": "{count} Regeln gelöscht."
+    "done": "{count} Regel gelöscht. | {count} Regeln gelöscht."
   },
   "examples": {
     "restore": "Mitgelieferte wiederherstellen",
-    "restored": "{count} mitgelieferte Regeln wiederhergestellt, abgeschaltet.",
+    "restored": "{count} mitgelieferte Regel wiederhergestellt, abgeschaltet. | {count} mitgelieferte Regeln wiederhergestellt, abgeschaltet.",
     "none_missing": "Alle mitgelieferten Regeln sind schon da."
   },
   "bundled": {

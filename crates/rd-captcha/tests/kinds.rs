@@ -60,7 +60,7 @@ fn cutcaptcha() -> CaptchaChallenge {
     CaptchaChallenge::Cutcaptcha(CutcaptchaChallenge {
         site_key: "SAs61IAI".to_owned(),
         misery_key: "a1488b66da00bf332a1488993a5443c79047e752".to_owned(),
-        page_url: "https://filecrypt.cc/Container/ABC.html".to_owned(),
+        page_url: "https://container.example/Container/ABC.html".to_owned(),
     })
 }
 

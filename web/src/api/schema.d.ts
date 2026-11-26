@@ -27,7 +27,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One provider account, without its credentials.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_account"];
         put: operations["update_account"];
         post?: never;
         delete: operations["delete_account"];
@@ -188,7 +192,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One API token: its name, scopes and limits, never its secret.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_api_token"];
         put?: never;
         post?: never;
         delete: operations["revoke_api_token"];
@@ -316,7 +324,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One stored browser profile, without its cookies and passwords.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_auth_profile"];
         put: operations["update_auth_profile"];
         post?: never;
         delete: operations["delete_auth_profile"];
@@ -751,7 +763,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One automation with the definition in force.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_automation"];
         put: operations["update_automation"];
         post?: never;
         delete: operations["delete_automation"];
@@ -884,7 +900,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One destination of the full backup, as `GET /api/v1/backups` lists it.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_backup_destination"];
         put: operations["update_backup_destination"];
         post?: never;
         delete: operations["delete_backup_destination"];
@@ -1108,7 +1128,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One bandwidth profile.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_bandwidth_profile"];
         put: operations["update_profile"];
         post?: never;
         delete: operations["delete_profile"];
@@ -1537,6 +1561,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/capture/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A capture agent's events as Server-Sent Events
+         * @description The events a capture agent needs and no others: `collector.intake` as the web stream sends it, and `captcha.changed` reduced to how many widgets wait.
+         *
+         *     `Last-Event-ID` resumes: the service first sends what it buffered after that id. The buffer is in memory and ends with the service. The stream opens with the `retry:` interval to reconnect at, and ends when the credential it was opened with stops standing or the service stops.
+         *
+         *     Two markers name nothing from the bus, carry no `id` and say that the client's view is stale: `stream.lagged` (`dropped`, how many events this subscriber was too slow for) and `stream.expired` (`last_event_id`, the id the buffer no longer reaches back to). Read the lists again after either.
+         */
+        get: operations["capture_events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/capture/file": {
         parameters: {
             query?: never;
@@ -1627,6 +1675,26 @@ export interface paths {
          *     interface's `E` and `W` do; what holds a duplicate stays behind.
          */
         post: operations["enqueue_capture_linkgrabber"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/capture/nzb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The capture agent's NZB drop: the same import, but multipart only — the agent's contract
+         *     did not change when the interface's route learned JSON (RD-120-31).
+         */
+        post: operations["capture_nzb"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1833,7 +1901,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One category.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_category"];
         put: operations["update_category"];
         post?: never;
         delete: operations["delete_category"];
@@ -1951,7 +2023,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One routing rule.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_category_rule"];
         put: operations["update_category_rule"];
         post?: never;
         delete: operations["delete_category_rule"];
@@ -2076,7 +2152,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One link of the LinkGrabber. A link already queued is gone from here, as it is from the list.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_candidate"];
         put?: never;
         post?: never;
         delete: operations["delete_candidate"];
@@ -2509,7 +2589,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One package of the LinkGrabber. One whose links are all queued is gone from here, as it is
+         *     from the list.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_collector_package"];
         put?: never;
         post?: never;
         delete: operations["delete_collector_package"];
@@ -2944,7 +3029,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One download. What `POST /api/v1/downloads` created is followed here, without reading the
+         *     whole queue.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_download"];
         put?: never;
         post?: never;
         delete: operations["delete_download"];
@@ -3339,6 +3429,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Live events as Server-Sent Events
+         * @description Every event has an `id`, the name in the table as `event` and an `EventEnvelope` as JSON in `data`. A subscriber is sent the events whose permission area its credential holds; a session holds all of them.
+         *
+         *     `Last-Event-ID` resumes: the service first sends what it buffered after that id. The buffer is in memory and ends with the service. The stream opens with the `retry:` interval to reconnect at, and ends when the credential it was opened with stops standing or the service stops.
+         *
+         *     | Event | Permission area | `payload` |
+         *     | --- | --- | --- |
+         *     | `download.progress` | `api:read` | `download_id`; `recording` about a stream recording |
+         *     | `download.state` | `api:read` | `download_id`, `previous`, `state`, `failure`; about many files `count` and the first 100 `download_ids`; `true` under the name of another change, `renamed` for one |
+         *     | `package.state` | `api:read` | `package_id`, `previous`, `state`, `stage`, `percent`, `current`, `files`, `failed_files`; `created`, `removed`, `reset` or `reordered_downloads` |
+         *     | `collector.changed` | `api:queue` | `batch_id` and `candidate_count`, or `candidate_id`, or what else changed |
+         *     | `collector.intake` | `api:queue` | `batch_id` or `nzb_import_id`, `candidate_count` or `file_count`, `package_count`, `source`, `extension_notice`, `agent_toast`; `quiet_until` on the capture stream |
+         *     | `category.changed` | `api:config` | `resource` (`category`, `category_rule`, `storage_root`) and `id` |
+         *     | `hotfolder.changed` | `api:config` | `resource` and `id` |
+         *     | `capture.changed` | `api:secrets` | `capture_token_id` with `issued`, `revoked`, `scopes_changed` or `limits_changed`, or `resource` |
+         *     | `account.changed` | `api:secrets` | `resource` and `id`, or `entity` (`auth_flow`), `account_id` and `state` |
+         *     | `auth_profile.changed` | `api:secrets` | `resource` |
+         *     | `remote_credential.changed` | `api:secrets` | `resource` |
+         *     | `proxy.changed` | `api:secrets` | `resource` and `id` |
+         *     | `usenet.changed` | `api:secrets` | `nzb_import_id`, `nzb_segment_id` or `package_id` with `state` or `removed`, or `resource` |
+         *     | `plugin.changed` | `api:admin` | `resource` (`plugin`, `plugin_repository`, `plugin_updates`), `plugin_id` or `repository_id`, `action` |
+         *     | `plugin_trust.changed` | `api:secrets` | `resource` with `key_id` or `digest` |
+         *     | `plugin_catalog.changed` | `api:config` | `resource`, `plugin_id`, `action` |
+         *     | `postprocess_catalog.changed` | `api:queue` | `resource`, `plugin_id`, `action` |
+         *     | `managed_tool.changed` | `api:config` | `resource` (`tool`, `tool_manifest`) with `name` and `version`, or `sequence` |
+         *     | `stream.changed` | `api:config` | `resource` |
+         *     | `subscription.changed` | `api:config` | `resource`; after a poll `poll`, `subscription_id`, `found`, `accepted`, `skipped` |
+         *     | `postprocess.progress` | `api:read` | `owner_id`, `kind`, `source_path`, with `stage`, `percent` and `current`, or `state` |
+         *     | `captcha.changed` | `api:queue` | `pending` and `change`; on the capture stream only `widgets`, how many wait |
+         *     | `torrent.stats` | `api:read` | `download_id`, `stats` |
+         *     | `storage.capacity` | `api:read` | `blocked`, `change`, `target`, `name`, `path` |
+         *     | `bandwidth.changed` | `api:config` | `entity` (`active`, `manual`, `profile`, `schedule`, `budget`) and what it names |
+         *     | `power.changed` | `api:read` | `state` (`pending`, `running`, `cancelled`) with `pending` and `runs_at`, or `action` and `reason` |
+         *     | `notification.changed` | `api:config` | `entity` and `id` |
+         *     | `automation.changed` | `api:config` | `automation_id` |
+         *     | `reconnect.changed` | `api:config` | `success`, `old_address`, `new_address`, `error` |
+         *     | `remote_job.changed` | `api:read` | `entity`, `id`, `account_id`, with `state` or `removed` |
+         *     | `site_rule.changed` | `api:config` | `resource` with `rule_id`, `removed`, `rules` or `key` |
+         *     | `settings.changed` | `api:config` | `fields`: the names of the changed settings, empty when unknown |
+         *     | `queue.stop_mark` | `api:read` | `action`, `download_id`, `package_id` |
+         *     | `queue.state` | `api:read` | `state` (`paused`, `resumed`, `finished`); `reason` when paused |
+         *     | `system` | `api:config` | not sent by this version |
+         *
+         *     Two markers name nothing from the bus, carry no `id` and say that the client's view is stale: `stream.lagged` (`dropped`, how many events this subscriber was too slow for) and `stream.expired` (`last_event_id`, the id the buffer no longer reaches back to). Read the lists again after either.
+         */
+        get: operations["events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -3467,7 +3619,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One watched folder.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_hotfolder"];
         put: operations["update_hotfolder"];
         post?: never;
         delete: operations["delete_hotfolder"];
@@ -3542,7 +3698,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One indexer, without its API key.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_indexer"];
         put: operations["update_indexer"];
         post?: never;
         delete: operations["delete_indexer"];
@@ -3667,7 +3827,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One link filter rule.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_link_filter_rule"];
         put: operations["update_link_filter_rule"];
         post?: never;
         /** Deletes a rule; the links it hid are shown again, nothing else changes. */
@@ -3942,7 +4106,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One notification rule.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_notification_rule"];
         put: operations["update_rule"];
         post?: never;
         delete: operations["delete_rule"];
@@ -3974,7 +4142,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One notification target, without its secret.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_notification_target"];
         put: operations["update_target"];
         post?: never;
         delete: operations["delete_target"];
@@ -4082,7 +4254,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One imported NZB.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_nzb_import"];
         put?: never;
         post?: never;
         delete: operations["delete_nzb_import"];
@@ -4218,7 +4394,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One object storage profile, without its keys.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_object_storage_profile"];
         put: operations["update_object_storage_profile"];
         post?: never;
         delete: operations["delete_object_storage_profile"];
@@ -4363,7 +4543,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One package, with its archive password as the list shows it.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_package"];
         put?: never;
         post?: never;
         delete: operations["delete_package"];
@@ -4809,7 +4993,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One plugin repository.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_plugin_repository"];
         put?: never;
         post?: never;
         delete: operations["remove_plugin_repository"];
@@ -4959,7 +5147,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Everything the inventory holds about one plugin: its installed versions, the ones this build
+         *     cannot load, and its lifecycle.
+         * @description The inventory's own shape rather than one row, because a plugin id has several rows: each
+         *     installed version is one.
+         */
+        get: operations["get_plugin"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5357,7 +5551,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One proxy profile, without its password.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_proxy_profile"];
         put: operations["update_proxy_profile"];
         post?: never;
         delete: operations["delete_proxy_profile"];
@@ -5510,7 +5708,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One stored FTP or SFTP login, without its password and key.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_remote_credential"];
         put: operations["update_remote_credential"];
         post?: never;
         delete: operations["delete_remote_credential"];
@@ -5752,12 +5954,21 @@ export interface paths {
             cookie?: never;
         };
         get: operations["get_settings"];
+        /**
+         * Replaces the settings document.
+         * @description A field left out of the body falls back to its default; `PATCH` changes single fields.
+         */
         put: operations["put_settings"];
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Changes the fields the body names and leaves every other one as stored.
+         * @description A field named is replaced whole, an object or a list in it included; `null` empties a field
+         *     that can be empty and is refused for any other.
+         */
+        patch: operations["patch_settings"];
         trace?: never;
     };
     "/api/v1/settings/capture-agent": {
@@ -6014,7 +6225,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One site rule with its switch, its origin and its last check.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_site_rule"];
         put: operations["update_site_rule"];
         post?: never;
         delete: operations["delete_site_rule"];
@@ -6119,7 +6334,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One storage root.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_storage_root"];
         put: operations["update_storage_root"];
         post?: never;
         delete: operations["delete_storage_root"];
@@ -6301,7 +6520,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One watched livestream channel.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_stream_channel"];
         put: operations["update_stream_channel"];
         post?: never;
         delete: operations["delete_stream_channel"];
@@ -6402,7 +6625,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One recording schedule.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_stream_schedule"];
         put: operations["update_stream_schedule"];
         post?: never;
         delete: operations["delete_stream_schedule"];
@@ -6551,7 +6778,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One subscription.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_subscription"];
         put: operations["update_subscription"];
         post?: never;
         delete: operations["delete_subscription"];
@@ -6753,6 +6984,26 @@ export interface paths {
          *     MCP tool that reads the head has no use for it.
          */
         get: operations["system_about_licenses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/about/notices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The licence and copyright texts of everything a package ships, in full. A route of its own:
+         *     the file is close to two megabytes.
+         */
+        get: operations["system_about_notices"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7147,7 +7398,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * One Usenet server, without its password.
+         * @description The row as its list shows it, at the list's permission; an unknown id is a `404` with a code.
+         */
+        get: operations["get_usenet_server"];
         put: operations["update_usenet_server"];
         post?: never;
         delete: operations["delete_usenet_server"];
@@ -7219,6 +7474,10 @@ export interface components {
             authors: string[];
             /** @description UTC, `YYYY-MM-DDTHH:MM:SSZ`. `null` when unknown. */
             built?: string | null;
+            /**
+             * @description The helper programs this installation runs: the ones the container image contains, or,
+             *     everywhere else, the ones rDownloader fetches or finds on the machine.
+             */
             bundled_tools: components["schemas"]["BundledTool"][];
             /**
              * @description Eight characters of the commit, `-dirty` when the tree differed from it, or the form
@@ -7232,6 +7491,8 @@ export interface components {
             platform: string;
             /** @description The `rdownloader:plugin` contract versions a plugin can be built against. */
             plugin_contracts: string[];
+            /** @description Whether this installation came with them. Only the container image does. */
+            tools_shipped: boolean;
             version: string;
         };
         /** @description Public account metadata. Secret values remain in the secret store. */
@@ -8600,9 +8861,9 @@ export interface components {
          * @enum {string}
          */
         BundledServiceState: "installed" | "partial" | "available";
-        /** @description A helper program the packages ship in `vendor/`, with the licence it ships under. */
+        /** @description A helper program, with the licence it is under. */
         BundledTool: {
-            /** @description Where the full text lies in an installed package. */
+            /** @description Where the full text lies in this installation; empty where it came without the program. */
             file: string;
             homepage: string;
             /** @description SPDX expression; `LicenseRef-…` where the licence has no SPDX identifier. */
@@ -8714,10 +8975,15 @@ export interface components {
         /** @description One link that stayed, and why. */
         CandidateStayed: {
             candidate_id: components["schemas"]["CandidateId"];
-            /** @description Stable code: `collector.remote_job_*`, `remote_job.*`, or a provider's own. */
+            /**
+             * @description Stable code: `collector.remote_job_*`, `collector.nzb_*`, `nzb.remote_job_*`,
+             *     `remote_job.*`, or a provider's own.
+             */
             code: string;
             /** @description The English wording, shown when no catalogue translates the code. */
             message: string;
+            /** @description What the translation of the code names (an indexer's reason, a limit). */
+            params?: components["schemas"]["BTreeMap"];
         };
         /** @description Hidden links to show again. */
         CandidateUnhideRequest: {
@@ -10647,6 +10913,13 @@ export interface components {
          * @enum {string}
          */
         DownloadPriority: "low" | "normal" | "high";
+        /** @description How far one entry is that a runner works on right now (RD-1480-18). */
+        DownloadProgressEntry: {
+            committed_bytes: components["schemas"]["ByteCount"];
+            id: components["schemas"]["DownloadId"];
+            state: components["schemas"]["DownloadState"];
+            total_bytes?: components["schemas"]["ByteCount"] | null;
+        };
         /** @description One entry's live rate and the remaining time it implies. */
         DownloadRateEntry: {
             /** Format: int64 */
@@ -10667,8 +10940,8 @@ export interface components {
             id: components["schemas"]["DownloadId"];
         };
         /**
-         * @description Live transfer rates: the queue as a whole, every entry that is moving, and every queued
-         *     entry that waits for a connection to its host.
+         * @description Live transfer rates: the queue as a whole, every entry that is moving, how far every entry
+         *     at work is, and every queued entry that waits for a connection to its host.
          *
          *     Entries at rest are left out — their rate is zero and their remaining time is nothing, and
          *     saying so for every finished download in a long list is pure payload.
@@ -10682,6 +10955,13 @@ export interface components {
              * @description Seconds until the queue is through, or `None` when no honest figure exists.
              */
             eta_seconds?: number | null;
+            /**
+             * @description Every entry a runner works on - resolving, downloading, verifying, repairing or
+             *     extracting - with its bytes, so a client that holds the list follows a transfer without
+             *     reading the list again. An entry missing here is no longer at work, and one whose `state`
+             *     differs from the client's copy changed state: both mean the list has to be read.
+             */
+            progress: components["schemas"]["DownloadProgressEntry"][];
             transferring_remaining_bytes?: components["schemas"]["ByteCount"] | null;
             /**
              * @description The Usenet servers of the connection pool in force, in the order they are asked, with
@@ -10960,6 +11240,27 @@ export interface components {
             /** @description Flat parameters referenced by the translated text. */
             params?: components["schemas"]["BTreeMap"];
         };
+        /** @description Persistable event envelope. */
+        EventEnvelope: {
+            /** @description What a client resumes after, as `Last-Event-ID`. */
+            id: components["schemas"]["EventId"];
+            /** @description What happened; the event's name on the stream says the same. */
+            kind: components["schemas"]["EventKind"];
+            /**
+             * Format: date-time
+             * @description When it happened.
+             */
+            occurred_at: string;
+            /** @description What it is about; the fields depend on the kind. */
+            payload: unknown;
+        };
+        /** Format: uuid */
+        EventId: string;
+        /**
+         * @description Event channel families exposed through SSE.
+         * @enum {string}
+         */
+        EventKind: "download_progress" | "download_state" | "package_state" | "collector_changed" | "collector_intake" | "category_changed" | "hot_folder_changed" | "capture_changed" | "account_changed" | "auth_profile_changed" | "remote_credential_changed" | "proxy_changed" | "usenet_changed" | "plugin_changed" | "plugin_trust_changed" | "plugin_catalog_changed" | "postprocess_catalog_changed" | "managed_tool_changed" | "stream_changed" | "subscription_changed" | "postprocess_progress" | "captcha_changed" | "torrent_stats" | "storage_capacity" | "bandwidth_changed" | "power_changed" | "notification_changed" | "automation_changed" | "reconnect_changed" | "remote_job_changed" | "site_rule_changed" | "settings_changed" | "queue_stop_mark" | "queue_state" | "system";
         /** @description Checksum expected from metadata or the user. */
         ExpectedChecksum: {
             algorithm: components["schemas"]["ChecksumAlgorithm"];
@@ -11127,6 +11428,15 @@ export interface components {
         GrabberEntryReorderRequest: {
             after?: components["schemas"]["GrabberEntryRef"] | null;
             entries: components["schemas"]["GrabberEntryRef"][];
+        };
+        /** @description Whether the service works, and which version it is. */
+        HealthResponse: {
+            /** @description Always `rDownloader`. */
+            service: string;
+            /** @description `ok`, or `unavailable` once nothing can be stored any more. */
+            status: string;
+            /** @description The service's version, `1.48.0`. */
+            version: string;
         };
         /** @description A package of the download history with the same source (RD-1240-14). */
         HistoryDuplicate: {
@@ -12947,6 +13257,11 @@ export interface components {
             /** @description Whether a rule's own wording applies; true for every event a rule can name. */
             takes_template: boolean;
         };
+        /**
+         * @description The language the built-in wording of a notification is written in.
+         * @enum {string}
+         */
+        NotificationLanguage: "en" | "de" | "es" | "fr";
         /** @description One placeholder, written `{name}` in a template. */
         NotificationPlaceholder: {
             example: string;
@@ -16196,6 +16511,13 @@ export interface components {
              */
             nntp_parallel_files: number;
             /**
+             * @description The language the built-in notification texts are written in (RD-1480-11): push, mail,
+             *     Telegram and the webhook's `title` and `body`. English by default; a rule's own wording
+             *     is sent as it was written.
+             * @default en
+             */
+            notification_language: components["schemas"]["NotificationLanguage"];
+            /**
              * @description The same offer in the Downloads view, in the menu of a package that came from an NZB
              *     (RD-191-13). A switch of its own (owner, 2026-10-04): handing over a failed package is a
              *     different habit from handing over before the queue.
@@ -18049,6 +18371,8 @@ export interface components {
         ThirdPartyLicenses: {
             /** @description Every package of `web/pnpm-lock.yaml` the production dependencies reach. */
             npm: components["schemas"]["ThirdPartyPackage"][];
+            /** @description What ships and is neither: the Rust standard library and runtime. */
+            other: components["schemas"]["ThirdPartyPackage"][];
             /**
              * @description Every crate a shipped artefact contains: what the binaries link on Linux, Windows and
              *     macOS, and what the plugin components link.
@@ -18068,6 +18392,8 @@ export interface components {
              */
             license: string;
             name: string;
+            /** @description Where the source code of exactly this version is offered. */
+            source: string;
             version: string;
         };
         /**
@@ -19163,7 +19489,73 @@ export interface components {
             start_minute: number;
         };
     };
-    responses: never;
+    responses: {
+        /** @description The request does not read or a value in it is refused: `request.body_invalid`, `request.invalid_id`, `request.query_invalid` or a code of the operation's own */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorBody"];
+            };
+        };
+        /** @description The credential does not hold the permission area of the operation: `auth.scope_insufficient` with `scope` */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorBody"];
+            };
+        };
+        /** @description The body is larger than the operation takes: `request.body_too_large` */
+        PayloadTooLarge: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorBody"];
+            };
+        };
+        /** @description The API token made more calls this minute than its limit allows: `api.token_rate_limited` with `limit` and `seconds` */
+        TooManyRequests: {
+            headers: {
+                /** @description Seconds until the next call is admitted */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorBody"];
+            };
+        };
+        /** @description No credential, or one that does not stand: `auth.session_required`, `auth.setup_pending` or `capture.token_required` */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorBody"];
+            };
+        };
+        /** @description The JSON does not have the expected shape: `request.body_invalid` */
+        UnprocessableContent: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorBody"];
+            };
+        };
+        /** @description The body is not declared as the type the operation reads: `request.content_type_unsupported` with `expected` */
+        UnsupportedMediaType: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["ErrorBody"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
@@ -19189,6 +19581,9 @@ export interface operations {
                     "application/json": components["schemas"]["Account"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_account: {
@@ -19207,12 +19602,57 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Account"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_account: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["AccountId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_account: {
@@ -19239,13 +19679,22 @@ export interface operations {
                     "application/json": components["schemas"]["Account"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_account: {
@@ -19268,20 +19717,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_auth: {
@@ -19304,13 +19761,19 @@ export interface operations {
                     "application/json": components["schemas"]["AuthFlow"] | null;
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     cancel_auth: {
@@ -19333,13 +19796,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     begin_auth: {
@@ -19367,21 +19836,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -19405,6 +19883,9 @@ export interface operations {
                     "application/json": components["schemas"]["BrowserSessionResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -19414,6 +19895,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     begin_browser_session: {
@@ -19445,6 +19927,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -19454,6 +19938,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     cancel_browser_session: {
@@ -19476,6 +19961,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -19485,6 +19973,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_account_hosters: {
@@ -19507,13 +19996,19 @@ export interface operations {
                     "application/json": components["schemas"]["AccountHostersResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     submit_remote_job: {
@@ -19545,28 +20040,41 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description The container decodes to more than 16 MiB */
             413: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -19590,19 +20098,27 @@ export interface operations {
                     "application/json": components["schemas"]["AccountTestResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -19624,6 +20140,9 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureToken"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     pair_api_token: {
@@ -19642,12 +20161,21 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["CapturePairResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_token_scopes: {
@@ -19668,6 +20196,45 @@ export interface operations {
                     "application/json": components["schemas"]["ScopeDescriptor"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_api_token: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["CaptureTokenId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptureToken"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     revoke_api_token: {
@@ -19690,13 +20257,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_api_token_scopes: {
@@ -19728,15 +20301,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_api_token_limits: {
@@ -19768,15 +20351,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     export_audit_records: {
@@ -19827,8 +20420,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_audit_records: {
@@ -19879,8 +20477,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_audit_records: {
@@ -19910,8 +20513,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_auth_profiles: {
@@ -19932,6 +20543,9 @@ export interface operations {
                     "application/json": components["schemas"]["AuthProfile"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_auth_profile: {
@@ -19950,6 +20564,8 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -19961,8 +20577,52 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_auth_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["AuthProfileId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthProfile"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_auth_profile: {
@@ -19994,15 +20654,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_auth_profile: {
@@ -20025,13 +20695,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     disable_auth_profile: {
@@ -20054,13 +20730,19 @@ export interface operations {
                     "application/json": components["schemas"]["AuthProfile"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     enable_auth_profile: {
@@ -20083,13 +20765,19 @@ export interface operations {
                     "application/json": components["schemas"]["AuthProfile"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_auth_profile: {
@@ -20112,19 +20800,27 @@ export interface operations {
                     "application/json": components["schemas"]["AuthProfileTestResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -20150,6 +20846,10 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
             /** @description Too many failed attempts from this address */
             429: {
                 headers: {
@@ -20199,6 +20899,9 @@ export interface operations {
                     "application/json": components["schemas"]["OidcSettings"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_oidc_settings: {
@@ -20259,6 +20962,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description The provider breaks a rule */
             422: {
                 headers: {
@@ -20268,6 +20973,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description The provider could not be reached */
             502: {
                 headers: {
@@ -20301,6 +21007,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description The password did not match */
             401: {
                 headers: {
@@ -20328,6 +21035,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     oidc_callback: {
@@ -20353,6 +21064,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
         };
     };
     unlink_oidc_identity: {
@@ -20377,6 +21089,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description The password did not match */
             401: {
                 headers: {
@@ -20413,6 +21126,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     link_oidc_identity: {
@@ -20437,6 +21154,7 @@ export interface operations {
                     "application/json": components["schemas"]["OidcLinkStart"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description The password did not match */
             401: {
                 headers: {
@@ -20464,6 +21182,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     oidc_start: {
@@ -20492,6 +21214,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
         };
     };
     passkey_challenge: {
@@ -20554,6 +21277,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description The passkey did not verify */
             401: {
                 headers: {
@@ -20563,6 +21287,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     change_password: {
@@ -20605,6 +21332,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
             /** @description Too many failed attempts from this address */
             429: {
                 headers: {
@@ -20638,6 +21369,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description The password did not match */
             401: {
                 headers: {
@@ -20665,6 +21397,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     switch_password_login_on: {
@@ -20685,6 +21421,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             /** @description Not the command line on this machine */
             403: {
                 headers: {
@@ -20694,6 +21431,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reset_password_locally: {
@@ -20727,6 +21465,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             /** @description Not the command line on this machine */
             403: {
                 headers: {
@@ -20745,6 +21484,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     setup: {
@@ -20769,6 +21512,10 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     auth_status: {
@@ -20809,6 +21556,9 @@ export interface operations {
                     "application/json": components["schemas"]["AutomationResponse"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_automation: {
@@ -20827,6 +21577,8 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -20838,8 +21590,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     dry_run_automations: {
@@ -20869,15 +21629,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     export_automations: {
@@ -20898,6 +21668,9 @@ export interface operations {
                     "application/json": components["schemas"]["AreaBundle"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_automations: {
@@ -20931,6 +21704,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_automation_runs: {
@@ -20938,7 +21717,7 @@ export interface operations {
             query?: {
                 /** @description Only this automation's runs */
                 automation_id?: components["schemas"]["AutomationId"];
-                /** @description Newest runs to return, 1-500 */
+                /** @description Newest runs to return, 1-500; a value outside is brought to the nearest bound */
                 limit?: number;
             };
             header?: never;
@@ -20956,6 +21735,10 @@ export interface operations {
                     "application/json": components["schemas"]["Run"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     automation_vocabulary: {
@@ -20976,6 +21759,45 @@ export interface operations {
                     "application/json": components["schemas"]["AutomationVocabulary"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_automation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["AutomationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_automation: {
@@ -21007,15 +21829,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_automation: {
@@ -21038,13 +21870,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     enable_automation: {
@@ -21071,13 +21909,22 @@ export interface operations {
                     "application/json": components["schemas"]["Automation"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_automation_versions: {
@@ -21100,6 +21947,10 @@ export interface operations {
                     "application/json": components["schemas"]["AutomationVersion"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reset_automation_versions: {
@@ -21122,20 +21973,28 @@ export interface operations {
                     "application/json": components["schemas"]["VersionReset"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_backup_config: {
@@ -21156,6 +22015,9 @@ export interface operations {
                     "application/json": components["schemas"]["BackupConfigResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_backup_config: {
@@ -21189,6 +22051,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -21198,6 +22064,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_backup_archives: {
@@ -21221,6 +22088,10 @@ export interface operations {
                     "application/json": components["schemas"]["BackupArchiveResponse"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     verify_backup_archive: {
@@ -21244,6 +22115,9 @@ export interface operations {
                     "application/json": components["schemas"]["BackupVerificationResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -21262,6 +22136,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_backup_destination: {
@@ -21280,6 +22155,8 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -21295,6 +22172,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -21304,6 +22185,43 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_backup_destination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupDestinationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_backup_destination: {
@@ -21340,6 +22258,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -21358,6 +22278,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_backup_destination: {
@@ -21381,6 +22305,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -21399,6 +22326,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     preview_backup_retention: {
@@ -21436,6 +22364,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -21445,6 +22375,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_backup_passphrase: {
@@ -21478,6 +22409,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
@@ -21487,6 +22419,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_restore_status: {
@@ -21507,6 +22443,9 @@ export interface operations {
                     "application/json": components["schemas"]["RestoreStatusResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     start_restore: {
@@ -21567,6 +22506,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -21576,6 +22517,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     discard_restore: {
@@ -21596,6 +22538,8 @@ export interface operations {
                     "application/json": components["schemas"]["RestoreStatusResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
@@ -21605,6 +22549,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     preview_restore: {
@@ -21638,6 +22583,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
@@ -21656,6 +22602,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_restore: {
@@ -21689,6 +22639,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
@@ -21707,6 +22658,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -21716,6 +22669,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_restore_upload: {
@@ -21736,6 +22690,8 @@ export interface operations {
                     "application/json": components["schemas"]["RestoreUploadResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
@@ -21745,6 +22701,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     append_restore_upload: {
@@ -21774,6 +22731,9 @@ export interface operations {
                     "application/json": components["schemas"]["RestoreUploadResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -21801,6 +22761,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_restore_upload: {
@@ -21822,6 +22783,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -21831,6 +22795,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_backup_runs: {
@@ -21851,6 +22816,9 @@ export interface operations {
                     "application/json": components["schemas"]["BackupRunResponse"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     run_backup: {
@@ -21871,6 +22839,8 @@ export interface operations {
                     "application/json": components["schemas"]["BackupRunResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
@@ -21880,6 +22850,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_backup_verifications: {
@@ -21900,6 +22871,9 @@ export interface operations {
                     "application/json": components["schemas"]["BackupVerificationResponse"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     bandwidth_capabilities: {
@@ -21920,6 +22894,9 @@ export interface operations {
                     "application/json": components["schemas"]["RunnerLimitSupport"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     switch_bandwidth_profile: {
@@ -21953,6 +22930,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     return_to_bandwidth_schedule: {
@@ -21973,6 +22956,9 @@ export interface operations {
                     "application/json": components["schemas"]["BandwidthStatusResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_profiles: {
@@ -21993,6 +22979,9 @@ export interface operations {
                     "application/json": components["schemas"]["BandwidthProfile"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_profile: {
@@ -22011,19 +23000,66 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["BandwidthProfile"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_bandwidth_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["BandwidthProfileId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BandwidthProfile"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_profile: {
@@ -22050,20 +23086,31 @@ export interface operations {
                     "application/json": components["schemas"]["BandwidthProfile"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_profile: {
@@ -22086,13 +23133,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_schedule: {
@@ -22113,6 +23166,9 @@ export interface operations {
                     "application/json": components["schemas"]["ScheduleResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_schedule: {
@@ -22146,6 +23202,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     bandwidth_status: {
@@ -22166,6 +23228,9 @@ export interface operations {
                     "application/json": components["schemas"]["BandwidthStatusResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_captcha_answerers: {
@@ -22186,6 +23251,9 @@ export interface operations {
                     "application/json": components["schemas"]["CaptchaAnswerers"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_captcha_config: {
@@ -22206,6 +23274,9 @@ export interface operations {
                     "application/json": components["schemas"]["CaptchaConfigResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_captcha_config: {
@@ -22239,6 +23310,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_captcha_solver: {
@@ -22272,6 +23349,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
@@ -22301,6 +23384,9 @@ export interface operations {
                     "application/json": components["schemas"]["PendingCaptcha"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     click_captcha: {
@@ -22336,6 +23422,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -22345,6 +23433,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     skip_captcha: {
@@ -22367,6 +23459,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -22376,6 +23471,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     solve_captcha: {
@@ -22411,6 +23507,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -22420,6 +23518,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     read_capture_agent_settings: {
@@ -22471,6 +23573,9 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureToken"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     revoke_capture_agent: {
@@ -22493,13 +23598,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     capture_intake: {
@@ -22529,15 +23640,22 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Capture token missing or revoked */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     list_capture_browser_sessions: {
@@ -22563,7 +23681,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -22605,7 +23725,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Not Found */
             404: {
@@ -22616,6 +23738,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     decline_capture_browser_session: {
@@ -22638,12 +23763,15 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Not Found */
             404: {
@@ -22677,12 +23805,15 @@ export interface operations {
                     "application/json": components["schemas"]["PendingWidget"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -22720,7 +23851,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Not Found */
             404: {
@@ -22753,12 +23886,15 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description Unauthorized */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Not Found */
             404: {
@@ -22809,7 +23945,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Not Found */
             404: {
@@ -22820,6 +23958,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     capture_click_and_load: {
@@ -22849,28 +23990,38 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Capture token missing or revoked */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description cnl.payload_too_large: the payload or a field exceeds its limit */
             413: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
             /** @description cnl.rate_limited: more hand-overs than the service accepts per minute */
             429: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -22896,6 +24047,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureAgentSettings"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -22905,6 +24057,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     capture_cookies: {
@@ -22934,8 +24089,38 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+        };
+    };
+    capture_events: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The last event id the client saw; the stream resumes after it */
+                "last-event-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The event stream, open until either side ends it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     capture_file: {
@@ -22966,35 +24151,45 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Capture token missing or revoked */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description The address, or one a redirect leads to, is on this machine or otherwise not one the service may request */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description The file exceeds 64 MiB (48 MiB as base64 JSON) */
             413: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description The address could not be fetched, the proxy cannot be used, or the decryption service did not answer */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -23020,6 +24215,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureAgentSettings"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -23038,6 +24234,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     hold_capture_game_mode: {
@@ -23089,6 +24288,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     release_capture_game_mode: {
@@ -23113,6 +24315,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureGameModeReleaseResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -23131,6 +24334,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     enqueue_capture_linkgrabber: {
@@ -23155,6 +24361,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureLinkGrabberResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -23173,6 +24380,43 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+        };
+    };
+    capture_nzb: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": number[];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NzbImport"];
+                };
+            };
+            /** @description The form or the NZB cannot be read, or a field is invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     pair_capture: {
@@ -23197,6 +24441,13 @@ export interface operations {
                     "application/json": components["schemas"]["CapturePairResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     capture_ping: {
@@ -23222,7 +24473,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -23275,6 +24528,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     resume_capture_queue: {
@@ -23333,6 +24589,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureServerUpdateResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
         };
     };
     install_capture_server_update: {
@@ -23357,6 +24614,8 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureServerUpdateInstall"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             /** @description The agent was not paired with capture:server_update */
             403: {
                 headers: {
@@ -23375,6 +24634,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     restart_capture_server: {
@@ -23399,6 +24661,8 @@ export interface operations {
                     "application/json": components["schemas"]["RestartStartedResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             /** @description The agent was not paired with capture:server_update */
             403: {
                 headers: {
@@ -23417,6 +24681,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     report_capture_shortcuts: {
@@ -23439,6 +24706,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -23448,6 +24716,9 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
         };
     };
     capture_summary: {
@@ -23468,6 +24739,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureSummaryResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
         };
     };
     list_categories: {
@@ -23488,6 +24760,9 @@ export interface operations {
                     "application/json": components["schemas"]["Category"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_category: {
@@ -23506,19 +24781,66 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Category"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_category: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["CategoryId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_category: {
@@ -23545,20 +24867,31 @@ export interface operations {
                     "application/json": components["schemas"]["Category"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_category: {
@@ -23581,20 +24914,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_category_collision_policy: {
@@ -23621,13 +24962,22 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_category_download_window: {
@@ -23663,6 +25013,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -23672,6 +25024,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_category_postprocess: {
@@ -23698,13 +25054,22 @@ export interface operations {
                     "application/json": components["schemas"]["Category"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_category_seeding: {
@@ -23740,6 +25105,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -23749,6 +25116,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_category_seeding: {
@@ -23771,6 +25142,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -23780,6 +25154,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_category_rules: {
@@ -23800,6 +25175,9 @@ export interface operations {
                     "application/json": components["schemas"]["CategoryRule"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_category_rule: {
@@ -23818,12 +25196,21 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryRule"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_category_rule_regex: {
@@ -23848,6 +25235,49 @@ export interface operations {
                     "application/json": components["schemas"]["TestRegexResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_category_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["CategoryRuleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRule"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_category_rule: {
@@ -23874,13 +25304,22 @@ export interface operations {
                     "application/json": components["schemas"]["CategoryRule"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_category_rule: {
@@ -23903,13 +25342,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_batches: {
@@ -23945,8 +25390,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     collector_intake: {
@@ -23971,6 +25421,13 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorIntakeResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_candidates: {
@@ -24006,8 +25463,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_candidates: {
@@ -24028,6 +25490,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     check_candidates: {
@@ -24052,6 +25517,13 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     move_candidates: {
@@ -24076,6 +25548,13 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorPackage"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reorder_candidates: {
@@ -24105,8 +25584,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     unhide_candidates: {
@@ -24140,6 +25627,48 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_candidate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["CandidateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkCandidate"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_candidate: {
@@ -24162,20 +25691,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     rename_candidate: {
@@ -24202,13 +25739,22 @@ export interface operations {
                     "application/json": components["schemas"]["LinkCandidate"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_candidate_auth_profile: {
@@ -24244,6 +25790,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -24262,6 +25810,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -24271,6 +25821,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     enqueue_candidate: {
@@ -24293,13 +25844,19 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_candidate_listing: {
@@ -24322,6 +25879,9 @@ export interface operations {
                     "application/json": components["schemas"]["ResolvedRemoteListing"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -24331,6 +25891,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_candidate_listing_plan: {
@@ -24366,6 +25927,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -24375,6 +25938,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_candidate_media_formats: {
@@ -24397,6 +25964,9 @@ export interface operations {
                     "application/json": components["schemas"]["MediaFormatsResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -24415,6 +25985,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     preview_media_output: {
@@ -24450,6 +26021,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -24459,6 +26032,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     preview_media_selection: {
@@ -24494,6 +26071,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -24503,6 +26082,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -24512,6 +26093,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_candidate_media_selection: {
@@ -24547,6 +26129,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -24565,6 +26149,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -24574,6 +26160,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     pin_mirror: {
@@ -24596,13 +26183,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     release_mirror: {
@@ -24625,13 +26218,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     dissolve_mirror: {
@@ -24654,20 +26253,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     grant_replay_consent: {
@@ -24700,22 +26307,34 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Candidate not found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description The capture changed, or cannot be reproduced */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     revoke_replay_consent: {
@@ -24739,13 +26358,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Candidate not found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     replay_preview: {
@@ -24769,20 +26394,28 @@ export interface operations {
                     "application/json": components["schemas"]["ReplayPreviewResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Candidate not found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description The candidate carries no captured request */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_candidate_torrent: {
@@ -24805,6 +26438,9 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentDetailResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -24814,6 +26450,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_candidate_torrent_plan: {
@@ -24849,6 +26486,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -24858,6 +26497,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     resolve_candidate_torrent: {
@@ -24889,6 +26532,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -24898,6 +26543,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reorder_grabber_entries: {
@@ -24927,22 +26573,34 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_mirror_preference: {
@@ -24963,6 +26621,9 @@ export interface operations {
                     "application/json": components["schemas"]["MirrorPreference"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_mirror_preference: {
@@ -24987,6 +26648,13 @@ export interface operations {
                     "application/json": components["schemas"]["MirrorPreference"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_collector_packages: {
@@ -25022,8 +26690,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     bulk_update_collector_packages: {
@@ -25048,6 +26721,13 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorPackage"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     enqueue_collector_packages: {
@@ -25072,6 +26752,13 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorEnqueueBatchResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     regroup_collector_packages: {
@@ -25092,6 +26779,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reorder_collector_packages: {
@@ -25116,6 +26806,49 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_collector_package: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["CollectorPackageId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectorPackage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_collector_package: {
@@ -25138,20 +26871,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_collector_package: {
@@ -25178,13 +26919,22 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorPackage"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     enqueue_collector_package: {
@@ -25207,13 +26957,19 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     submit_collector_package_remote_job: {
@@ -25245,15 +27001,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description The package or the account does not exist */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_collector_picks: {
@@ -25274,6 +27040,9 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorPicksResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_collector_pick: {
@@ -25298,6 +27067,13 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorPickResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_collector_pick: {
@@ -25321,6 +27097,10 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorPickResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_collector_pick: {
@@ -25344,6 +27124,10 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     cancel_collector_pick: {
@@ -25367,6 +27151,10 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorPickResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     resolve_collector_pick: {
@@ -25394,6 +27182,13 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorPickResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_collision_policies: {
@@ -25414,6 +27209,9 @@ export interface operations {
                     "application/json": components["schemas"]["CollisionPoliciesResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_collision_prompts: {
@@ -25434,6 +27232,9 @@ export interface operations {
                     "application/json": components["schemas"]["CollisionPromptResponse"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_container: {
@@ -25464,21 +27265,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit */
             413: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description The decryption service did not answer */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -25509,15 +27319,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description diagnostics.preview_stale */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     preview_diagnostic_bundle: {
@@ -25538,6 +27358,9 @@ export interface operations {
                     "application/json": components["schemas"]["BundlePreviewResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     download_diagnostic_bundle: {
@@ -25561,13 +27384,19 @@ export interface operations {
                     "application/zip": number[];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description diagnostics.bundle_not_found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_log_level: {
@@ -25588,6 +27417,9 @@ export interface operations {
                     "application/json": components["schemas"]["LogLevelResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_log_level: {
@@ -25612,6 +27444,9 @@ export interface operations {
                     "application/json": components["schemas"]["LogLevelResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description `RUST_LOG` decides the filter (`diagnostics.log_level_locked`) */
             409: {
                 headers: {
@@ -25621,6 +27456,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     start_log_debug: {
@@ -25654,6 +27493,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description `RUST_LOG` decides the filter (`diagnostics.log_level_locked`) */
             409: {
                 headers: {
@@ -25663,6 +27504,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     stop_log_debug: {
@@ -25683,6 +27528,9 @@ export interface operations {
                     "application/json": components["schemas"]["LogLevelResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_log_records: {
@@ -25722,6 +27570,10 @@ export interface operations {
                     "application/json": components["schemas"]["LogRecordsResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_log_records: {
@@ -25751,8 +27603,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_dlc: {
@@ -25783,21 +27643,30 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit */
             413: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description The decryption service did not answer */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -25834,14 +27703,22 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_download: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description 1 to 128 visible ASCII characters the client chooses, e.g. a UUID. A repeat with the same key and the same body is answered the download the first request created, in its state by then, instead of creating another one. Kept per credential for an hour and not across a restart; the same key with another body is refused as `request.idempotency_key_reused` */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -25854,12 +27731,46 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["DownloadFile"];
                 };
             };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The download this `Idempotency-Key` created was removed since */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            /** @description The `Idempotency-Key` was used for a different request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     bulk_downloads: {
@@ -25884,6 +27795,13 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadBulkResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     extract_downloads: {
@@ -25908,13 +27826,22 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     download_rates: {
@@ -25935,6 +27862,9 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadRatesResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reorder_downloads: {
@@ -25964,8 +27894,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reresolve_downloads: {
@@ -25995,15 +27933,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description A named package does not exist */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     download_summary: {
@@ -26024,6 +27972,45 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadSummaryResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_download: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["DownloadId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadFile"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_download: {
@@ -26046,13 +28033,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     rename_download: {
@@ -26079,20 +28072,31 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadFile"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_download_auth_profile: {
@@ -26119,13 +28123,22 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadFile"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     cancel_download: {
@@ -26148,20 +28161,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     decide_collision: {
@@ -26188,20 +28209,31 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     dedupe_download: {
@@ -26228,27 +28260,39 @@ export interface operations {
                     "application/json": components["schemas"]["DedupeResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     download_duplicates: {
@@ -26271,13 +28315,19 @@ export interface operations {
                     "application/json": components["schemas"]["DuplicateReport"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     pause_download: {
@@ -26300,20 +28350,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reset_download: {
@@ -26340,20 +28398,31 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     resume_download: {
@@ -26376,20 +28445,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     stop_seeding: {
@@ -26412,13 +28489,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_download_sources: {
@@ -26441,13 +28524,19 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadSourcesResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_download_torrent: {
@@ -26470,6 +28559,9 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentDetailResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26479,6 +28571,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     move_torrent: {
@@ -26514,6 +28607,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26532,12 +28627,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     torrent_peers: {
         parameters: {
             query?: {
-                /** @description Page size; clamped to the server maximum. */
+                /** @description Page size, 1 to 200; 50 when left out. A value outside is brought to the nearest bound. */
                 limit?: number | null;
                 /** @description Opaque cursor from the previous page. */
                 cursor?: string | null;
@@ -26568,6 +28667,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26577,6 +28678,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     torrent_pieces: {
@@ -26608,6 +28710,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26617,6 +28721,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_download_torrent_plan: {
@@ -26652,6 +28757,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26661,6 +28768,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     recheck_torrent: {
@@ -26692,6 +28803,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26710,6 +28823,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_download_seeding: {
@@ -26732,6 +28846,9 @@ export interface operations {
                     "application/json": components["schemas"]["SeedingPolicyResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26741,6 +28858,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_download_seeding: {
@@ -26776,6 +28894,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26785,6 +28905,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_download_seeding: {
@@ -26807,6 +28931,9 @@ export interface operations {
                     "application/json": components["schemas"]["SeedingPolicyResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26816,6 +28943,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     torrent_stats: {
@@ -26838,6 +28966,9 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentAggregateStats"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26847,6 +28978,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_trackers: {
@@ -26869,6 +29001,9 @@ export interface operations {
                     "application/json": components["schemas"]["TrackerListResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26878,6 +29013,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_trackers: {
@@ -26913,6 +29049,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -26931,6 +29069,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reannounce: {
@@ -26953,6 +29095,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -27002,6 +29147,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -27011,6 +29158,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     lookup_duplicates: {
@@ -27040,8 +29188,42 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    events: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The last event id the client saw; the stream resumes after it */
+                "last-event-id"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The event stream, open until either side ends it */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     health: {
@@ -27053,22 +29235,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description OK */
+            /** @description The service works */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["HealthResponse"];
                 };
             };
-            /** @description Service Unavailable */
+            /** @description The database writer is gone */
             503: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["HealthResponse"];
                 };
             };
         };
@@ -27116,8 +29298,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_download_history: {
@@ -27147,8 +29334,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     export_download_history: {
@@ -27190,8 +29385,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     readd_history_entry: {
@@ -27215,20 +29415,28 @@ export interface operations {
                     "application/json": components["schemas"]["CollectorIntakeResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description history.not_found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description history.nothing_to_readd */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_hotfolders: {
@@ -27249,6 +29457,9 @@ export interface operations {
                     "application/json": components["schemas"]["HotFolderConfig"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_hotfolder: {
@@ -27267,19 +29478,66 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["HotFolderConfig"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_hotfolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["HotFolderId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HotFolderConfig"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_hotfolder: {
@@ -27306,20 +29564,31 @@ export interface operations {
                     "application/json": components["schemas"]["HotFolderConfig"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_hotfolder: {
@@ -27342,13 +29611,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_indexers: {
@@ -27369,6 +29644,9 @@ export interface operations {
                     "application/json": components["schemas"]["Indexer"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_indexer: {
@@ -27387,6 +29665,8 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27402,6 +29682,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
@@ -27411,6 +29693,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -27420,6 +29704,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     grab_indexer_results: {
@@ -27453,6 +29738,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -27462,6 +29751,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     search_indexers: {
@@ -27486,6 +29776,9 @@ export interface operations {
                     "application/json": components["schemas"]["IndexerSearchResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -27495,6 +29788,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -27504,6 +29799,43 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_indexer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["IndexerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Indexer"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_indexer: {
@@ -27539,6 +29871,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -27557,6 +29891,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -27566,6 +29902,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_indexer: {
@@ -27586,6 +29923,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -27595,6 +29935,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     indexer_caps: {
@@ -27617,6 +29958,9 @@ export interface operations {
                     "application/json": components["schemas"]["IndexerCaps"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -27635,6 +29979,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
@@ -27664,6 +30009,9 @@ export interface operations {
                     "application/json": components["schemas"]["LinkFilterRule"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_link_filter_rule: {
@@ -27682,6 +30030,8 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -27697,6 +30047,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     apply_link_filters: {
@@ -27723,6 +30079,10 @@ export interface operations {
                     "application/json": components["schemas"]["LinkFilterApplyResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     export_link_filters: {
@@ -27743,6 +30103,9 @@ export interface operations {
                     "application/json": components["schemas"]["AreaBundle"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_link_filters: {
@@ -27776,6 +30139,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reorder_link_filter_rules: {
@@ -27809,6 +30178,48 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_link_filter_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["LinkFilterRuleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkFilterRule"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_link_filter_rule: {
@@ -27844,13 +30255,21 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_link_filter_rule: {
@@ -27873,13 +30292,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     scrape_metrics: {
@@ -27900,6 +30325,9 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     mfa_status: {
@@ -27920,6 +30348,9 @@ export interface operations {
                     "application/json": components["schemas"]["MfaStatus"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_credential: {
@@ -27946,6 +30377,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description The password did not match */
             401: {
                 headers: {
@@ -27964,6 +30396,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     disable_mfa: {
@@ -27988,6 +30424,7 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description The password did not match */
             401: {
                 headers: {
@@ -27997,6 +30434,11 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     enrol_passkey: {
@@ -28021,6 +30463,7 @@ export interface operations {
                     "application/json": components["schemas"]["PasskeyChallenge"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description The password did not match */
             401: {
                 headers: {
@@ -28048,6 +30491,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     confirm_passkey: {
@@ -28081,6 +30528,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     regenerate_recovery_codes: {
@@ -28105,6 +30558,7 @@ export interface operations {
                     "application/json": string[];
                 };
             };
+            400: components["responses"]["BadRequest"];
             /** @description The password did not match */
             401: {
                 headers: {
@@ -28114,6 +30568,11 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     enrol_totp: {
@@ -28138,6 +30597,13 @@ export interface operations {
                     "application/json": components["schemas"]["TotpEnrolment"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     confirm_totp: {
@@ -28173,12 +30639,18 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_deliveries: {
         parameters: {
             query?: {
-                /** @description Newest rows to return (1–500). */
+                /** @description Newest rows to return (1–500). A value outside is brought to the nearest bound. */
                 limit?: number | null;
             };
             header?: never;
@@ -28196,6 +30668,10 @@ export interface operations {
                     "application/json": components["schemas"]["Delivery"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_notification_deliveries: {
@@ -28225,8 +30701,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     discard_pending_notification_deliveries: {
@@ -28256,8 +30740,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_destinations: {
@@ -28278,6 +30770,9 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationDestination"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_notification_placeholders: {
@@ -28298,6 +30793,9 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationPlaceholders"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_rules: {
@@ -28318,6 +30816,9 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationRule"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_rule: {
@@ -28336,12 +30837,57 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationRule"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_notification_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["NotificationRuleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationRule"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_rule: {
@@ -28368,13 +30914,22 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationRule"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_rule: {
@@ -28397,13 +30952,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_targets: {
@@ -28424,6 +30985,9 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationTarget"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_target: {
@@ -28442,19 +31006,66 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationTarget"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_notification_target: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["NotificationTargetId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationTarget"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_target: {
@@ -28481,20 +31092,31 @@ export interface operations {
                     "application/json": components["schemas"]["NotificationTarget"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_target: {
@@ -28517,13 +31139,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_target: {
@@ -28546,13 +31174,19 @@ export interface operations {
                     "application/json": components["schemas"]["TargetTestResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     web_push_key: {
@@ -28573,6 +31207,9 @@ export interface operations {
                     "application/json": components["schemas"]["WebPushKeyResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_web_push_subscriptions: {
@@ -28593,6 +31230,9 @@ export interface operations {
                     "application/json": components["schemas"]["WebPushSubscription"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_web_push_subscription: {
@@ -28622,8 +31262,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_web_push_subscription: {
@@ -28646,13 +31294,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_nzb_imports: {
@@ -28688,8 +31342,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_nzb: {
@@ -28709,6 +31368,8 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -28720,15 +31381,58 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit */
             413: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_nzb_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["NzbImportId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NzbImport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_nzb_import: {
@@ -28751,20 +31455,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_nzb_import: {
@@ -28796,22 +31508,34 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     enqueue_nzb_import: {
@@ -28838,20 +31562,31 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_nzb_files: {
@@ -28874,6 +31609,10 @@ export interface operations {
                     "application/json": components["schemas"]["NzbFileStatus"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_postprocess_steps: {
@@ -28896,6 +31635,10 @@ export interface operations {
                     "application/json": components["schemas"]["PostprocessStep"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     submit_nzb_import_remote_job: {
@@ -28927,35 +31670,50 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description The import failed or is already queued */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description The NZB exceeds 16 MiB */
             413: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -28978,6 +31736,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
         };
     };
     list_object_storage_profiles: {
@@ -28998,6 +31757,9 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectStorageProfile"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_object_storage_profile: {
@@ -29016,6 +31778,8 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -29027,15 +31791,61 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_object_storage_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["ObjectStorageProfileId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ObjectStorageProfile"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_object_storage_profile: {
@@ -29067,22 +31877,34 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_object_storage_profile: {
@@ -29105,13 +31927,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_object_storage_profile: {
@@ -29134,13 +31962,19 @@ export interface operations {
                     "application/json": components["schemas"]["ObjectStorageTestResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_packages: {
@@ -29176,8 +32010,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     bulk_update_packages: {
@@ -29202,13 +32041,22 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_packages: {
@@ -29238,15 +32086,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_packages: {
@@ -29271,13 +32129,22 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     export_packages: {
@@ -29316,15 +32183,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description A named package or download does not exist */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     extract_packages: {
@@ -29349,13 +32226,22 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reorder_packages: {
@@ -29380,6 +32266,49 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_package: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["PackageId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadPackage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_package: {
@@ -29404,20 +32333,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_package: {
@@ -29444,20 +32381,31 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_package_collision_policy: {
@@ -29480,13 +32428,19 @@ export interface operations {
                     "application/json": components["schemas"]["PackageCollisionPolicyResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_package_collision_policy: {
@@ -29513,13 +32467,22 @@ export interface operations {
                     "application/json": components["schemas"]["PackageCollisionPolicyResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_package_download_window: {
@@ -29542,6 +32505,9 @@ export interface operations {
                     "application/json": components["schemas"]["PackageDownloadWindowStatus"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -29551,6 +32517,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_package_download_window: {
@@ -29586,6 +32553,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -29595,6 +32564,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     extract_package: {
@@ -29617,13 +32590,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     force_extract_package: {
@@ -29646,13 +32625,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     rename_package_folder: {
@@ -29679,20 +32664,31 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_package_postprocess: {
@@ -29715,6 +32711,10 @@ export interface operations {
                     "application/json": components["schemas"]["PostprocessStep"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     submit_package_remote_job: {
@@ -29746,28 +32746,41 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description The NZB exceeds 16 MiB */
             413: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -29791,6 +32804,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -29809,6 +32825,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_package_speed_limit: {
@@ -29831,6 +32848,9 @@ export interface operations {
                     "application/json": components["schemas"]["PackageSpeedLimitResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -29840,6 +32860,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_package_speed_limit: {
@@ -29875,6 +32896,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -29884,6 +32907,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_package_start_after: {
@@ -29910,6 +32937,9 @@ export interface operations {
                     "application/json": components["schemas"]["PackageStartAfterResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -29919,6 +32949,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_plugins: {
@@ -29939,6 +32973,9 @@ export interface operations {
                     "application/json": components["schemas"]["PluginInventoryResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_bundled_services: {
@@ -29965,6 +33002,10 @@ export interface operations {
                     "application/json": components["schemas"]["BundledCatalogueResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     install_bundled_services: {
@@ -29995,18 +33036,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description The bundle has no service of that key */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     remove_bundled_services: {
@@ -30037,18 +33084,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description The bundle has no service of that key */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     plugin_messages: {
@@ -30071,6 +33124,10 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     install_plugin: {
@@ -30098,15 +33155,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Signed by a key the user has not confirmed yet */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_plugin_keys: {
@@ -30127,6 +33188,9 @@ export interface operations {
                     "application/json": components["schemas"]["PluginTrustedKeyResponse"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     revoke_plugin_key: {
@@ -30149,6 +33213,10 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     preview_plugin_package: {
@@ -30179,9 +33247,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_plugin_repositories: {
@@ -30202,6 +33273,9 @@ export interface operations {
                     "application/json": components["schemas"]["PluginRepositoriesResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     add_plugin_repository: {
@@ -30223,21 +33297,30 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["PluginRepositoryResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description The repository key has not been confirmed yet */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     refresh_plugin_repositories: {
@@ -30258,6 +33341,9 @@ export interface operations {
                     "application/json": components["schemas"]["PluginRepositoriesResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_plugin_repository_settings: {
@@ -30288,9 +33374,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_plugin_repository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginRepositoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     remove_plugin_repository: {
@@ -30320,18 +33448,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_plugin_repository: {
@@ -30359,15 +33490,22 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     install_repository_package: {
@@ -30395,22 +33533,29 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Signed by a key the user has not confirmed yet */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -30440,22 +33585,29 @@ export interface operations {
                     "application/json": components["schemas"]["PluginPreviewResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };
@@ -30478,6 +33630,9 @@ export interface operations {
                     "application/json": components["schemas"]["PluginDigestRevocationResponse"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     revoke_plugin_digest: {
@@ -30507,15 +33662,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     unrevoke_plugin_digest: {
@@ -30543,15 +33708,22 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     remove_superseded_plugin_versions: {
@@ -30572,6 +33744,9 @@ export interface operations {
                     "application/json": components["schemas"]["SupersededRemovalResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_plugin_updates: {
@@ -30592,6 +33767,9 @@ export interface operations {
                     "application/json": components["schemas"]["PluginOffersResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_plugin_update_settings: {
@@ -30612,6 +33790,9 @@ export interface operations {
                     "application/json": components["schemas"]["PluginUpdateSettingsResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_plugin_update_settings: {
@@ -30642,9 +33823,51 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_plugin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginInventoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_plugin_enabled: {
@@ -30672,6 +33895,13 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_plugin_executions: {
@@ -30695,6 +33925,10 @@ export interface operations {
                     "application/json": components["schemas"]["PluginExecutionResponse"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     activate_plugin_version: {
@@ -30722,13 +33956,16 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description The version would not load */
@@ -30737,9 +33974,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_plugin_update_policy: {
@@ -30767,15 +34008,22 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     roll_back_plugin_version: {
@@ -30799,13 +34047,16 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description No earlier version to return to */
@@ -30814,9 +34065,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     stage_plugin_version: {
@@ -30844,13 +34096,16 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description The version is active or would not load */
@@ -30859,9 +34114,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     discard_staged_plugin_version: {
@@ -30885,15 +34144,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     trial_staged_plugin_version: {
@@ -30921,13 +34184,16 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description Nothing staged, not loaded yet, or the download is running */
@@ -30936,9 +34202,13 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     remove_superseded_versions_of_plugin: {
@@ -30962,15 +34232,19 @@ export interface operations {
                     "application/json": components["schemas"]["SupersededRemovalResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     remove_plugin_version: {
@@ -30996,13 +34270,16 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description Unfinished work is bound to this version */
@@ -31011,9 +34288,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MessageResponse"];
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_malware_scanner: {
@@ -31043,21 +34321,32 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -31092,6 +34381,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_plugin_steps: {
@@ -31112,6 +34407,9 @@ export interface operations {
                     "application/json": components["schemas"]["PostprocessPluginStep"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_postprocess_queue: {
@@ -31132,6 +34430,9 @@ export interface operations {
                     "application/json": components["schemas"]["PostprocessQueueEntry"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_postprocess_scripts: {
@@ -31152,6 +34453,9 @@ export interface operations {
                     "application/json": components["schemas"]["PostprocessScriptsResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     preview_category_sorting: {
@@ -31185,6 +34489,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_upload_destinations: {
@@ -31205,6 +34515,9 @@ export interface operations {
                     "application/json": components["schemas"]["UploadDestination"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     cancel_power_action: {
@@ -31225,6 +34538,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     power_status: {
@@ -31245,6 +34561,9 @@ export interface operations {
                     "application/json": components["schemas"]["PowerStatus"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_providers: {
@@ -31265,6 +34584,9 @@ export interface operations {
                     "application/json": components["schemas"]["ProviderResponse"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_proxy_profiles: {
@@ -31285,6 +34607,9 @@ export interface operations {
                     "application/json": components["schemas"]["ProxyProfile"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_proxy_profile: {
@@ -31303,12 +34628,57 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["ProxyProfile"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_proxy_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["ProxyProfileId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProxyProfile"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_proxy_profile: {
@@ -31335,13 +34705,22 @@ export interface operations {
                     "application/json": components["schemas"]["ProxyProfile"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_proxy_profile: {
@@ -31364,20 +34743,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_queue_pause: {
@@ -31398,6 +34785,9 @@ export interface operations {
                     "application/json": components["schemas"]["QueuePauseResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     pause_queue: {
@@ -31431,6 +34821,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     resume_queue: {
@@ -31451,6 +34847,9 @@ export interface operations {
                     "application/json": components["schemas"]["QueueResumeResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     search_queue: {
@@ -31481,8 +34880,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_queue_stop_mark: {
@@ -31503,6 +34907,9 @@ export interface operations {
                     "application/json": components["schemas"]["QueueStopMarkStateResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_queue_stop_mark: {
@@ -31536,6 +34943,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -31554,6 +34963,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_queue_stop_mark: {
@@ -31574,6 +34987,9 @@ export interface operations {
                     "application/json": components["schemas"]["QueueStopMarkClearResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reconnect_status: {
@@ -31594,6 +35010,9 @@ export interface operations {
                     "application/json": components["schemas"]["ReconnectStatus"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     trigger_reconnect: {
@@ -31623,6 +35042,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
@@ -31632,6 +35053,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_remote_credentials: {
@@ -31652,6 +35074,9 @@ export interface operations {
                     "application/json": components["schemas"]["RemoteCredential"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_remote_credential: {
@@ -31670,6 +35095,8 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -31681,15 +35108,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_ssh_host_keys: {
@@ -31710,6 +35147,9 @@ export interface operations {
                     "application/json": components["schemas"]["SshHostKey"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     trust_ssh_host_key: {
@@ -31739,8 +35179,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     forget_ssh_host_key: {
@@ -31765,6 +35213,46 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_remote_credential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["RemoteCredentialId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RemoteCredential"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_remote_credential: {
@@ -31796,22 +35284,34 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_remote_credential: {
@@ -31834,13 +35334,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_remote_credential: {
@@ -31863,13 +35369,19 @@ export interface operations {
                     "application/json": components["schemas"]["RemoteCredentialTestResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_remote_jobs: {
@@ -31890,6 +35402,9 @@ export interface operations {
                     "application/json": components["schemas"]["RemoteJob"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_remote_jobs: {
@@ -31919,8 +35434,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_remote_job_providers: {
@@ -31947,6 +35470,10 @@ export interface operations {
                     "application/json": string[];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     forget_remote_job: {
@@ -31969,13 +35496,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     choose_remote_job_entries: {
@@ -32007,21 +35540,33 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -32054,21 +35599,33 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };
@@ -32092,6 +35649,10 @@ export interface operations {
                     "application/json": components["schemas"]["RoutingBundle"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_routing: {
@@ -32125,6 +35686,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_sessions: {
@@ -32145,6 +35712,9 @@ export interface operations {
                     "application/json": components["schemas"]["Session"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     revoke_other_sessions: {
@@ -32165,6 +35735,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     revoke_session: {
@@ -32187,6 +35760,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description No live session with that id */
             404: {
                 headers: {
@@ -32196,6 +35772,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_settings: {
@@ -32210,18 +35787,26 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description The tag of this document; `If-Match` on a write names it */
+                    etag?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["SettingsResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     put_settings: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description The `ETag` the document was read with; another one is answered `412` */
+                "If-Match"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -32234,19 +35819,109 @@ export interface operations {
             /** @description OK */
             200: {
                 headers: {
+                    /** @description The tag of the document as saved */
+                    etag?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["SettingsResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`; `torrent.port_in_use` when another program holds the fixed listen port) */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            /** @description `settings.document_changed`: the stored document is not the one `If-Match` names; nothing was saved */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    patch_settings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The `ETag` the document was read with; another one is answered `412` */
+                "If-Match"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsResponse"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    /** @description The tag of the document as saved */
+                    etag?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+            /** @description `settings.patch_empty`, `settings.unknown_key` or `settings.invalid`, the last two with the field in `key`, or the code of a value that is out of its range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description `auth.scope_insufficient`: the field in `setting` takes `api:admin` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Saved, but the torrent engine kept its previous settings (`torrent.session_rebuild_failed`, `torrent.port_in_use`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description `settings.document_changed`: the stored document is not the one `If-Match` names; nothing was saved */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_capture_agent_settings: {
@@ -32267,6 +35942,9 @@ export interface operations {
                     "application/json": components["schemas"]["CaptureAgentSettingsResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_capture_agent_settings: {
@@ -32300,6 +35978,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     export_settings: {
@@ -32333,6 +36017,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_settings: {
@@ -32384,6 +36074,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reset_settings: {
@@ -32404,6 +36098,9 @@ export interface operations {
                     "application/json": components["schemas"]["SettingsResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     complete_setup: {
@@ -32424,6 +36121,9 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     setup_status: {
@@ -32444,6 +36144,9 @@ export interface operations {
                     "application/json": components["schemas"]["SetupStatus"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_site_rule_group_enabled: {
@@ -32471,6 +36174,13 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_site_rules: {
@@ -32491,6 +36201,9 @@ export interface operations {
                     "application/json": components["schemas"]["SiteRulesResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_site_rule: {
@@ -32515,6 +36228,13 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_site_rules: {
@@ -32544,8 +36264,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     restore_site_rule_examples: {
@@ -32566,6 +36294,9 @@ export interface operations {
                     "application/json": components["schemas"]["SiteRuleExamplesResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     export_site_rules: {
@@ -32589,6 +36320,10 @@ export interface operations {
                     "application/json": components["schemas"]["SiteRuleDocument"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_site_rules: {
@@ -32613,6 +36348,12 @@ export interface operations {
                     "application/json": components["schemas"]["ImportSiteRulesResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     preview_site_rule_import: {
@@ -32637,6 +36378,12 @@ export interface operations {
                     "application/json": components["schemas"]["SiteRuleImportPreviewResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_site_rule: {
@@ -32661,6 +36408,49 @@ export interface operations {
                     "application/json": components["schemas"]["TestSiteRuleResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_site_rule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteRuleResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_site_rule: {
@@ -32688,6 +36478,13 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_site_rule: {
@@ -32711,6 +36508,10 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_site_rule_enabled: {
@@ -32738,6 +36539,13 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     transfer_stats: {
@@ -32761,6 +36569,10 @@ export interface operations {
                     "application/json": components["schemas"]["TransferStatsResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_transfer_stats: {
@@ -32790,8 +36602,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     usenet_server_traffic: {
@@ -32812,6 +36632,9 @@ export interface operations {
                     "application/json": components["schemas"]["UsenetTrafficResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_storage_roots: {
@@ -32832,6 +36655,9 @@ export interface operations {
                     "application/json": components["schemas"]["StorageRootResponse"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_storage_root: {
@@ -32850,19 +36676,66 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["StorageRootResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_storage_root: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["StorageRootId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageRootResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_storage_root: {
@@ -32889,20 +36762,31 @@ export interface operations {
                     "application/json": components["schemas"]["StorageRootResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_storage_root: {
@@ -32925,20 +36809,28 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     storage_capacity: {
@@ -32959,6 +36851,9 @@ export interface operations {
                     "application/json": components["schemas"]["StorageCapacityResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     resume_storage: {
@@ -32982,13 +36877,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     check_content_index: {
@@ -33009,6 +36910,9 @@ export interface operations {
                     "application/json": components["schemas"]["ContentIndexCheckResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_content_index: {
@@ -33038,8 +36942,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     link_support: {
@@ -33060,6 +36972,9 @@ export interface operations {
                     "application/json": components["schemas"]["LinkSupportEntry"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_storage_operations: {
@@ -33088,8 +37003,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_storage_operations: {
@@ -33119,8 +37039,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     reuse_capabilities: {
@@ -33141,6 +37069,9 @@ export interface operations {
                     "application/json": components["schemas"]["RunnerReuseResponse"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_stream_channels: {
@@ -33161,6 +37092,9 @@ export interface operations {
                     "application/json": components["schemas"]["StreamChannel"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_stream_channel: {
@@ -33179,12 +37113,57 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["StreamChannel"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_stream_channel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["StreamChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreamChannel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_stream_channel: {
@@ -33211,13 +37190,22 @@ export interface operations {
                     "application/json": components["schemas"]["StreamChannel"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_stream_channel: {
@@ -33238,13 +37226,19 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     export_streams: {
@@ -33265,6 +37259,9 @@ export interface operations {
                     "application/json": components["schemas"]["AreaBundle"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_streams: {
@@ -33298,6 +37295,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     record_now: {
@@ -33322,12 +37325,23 @@ export interface operations {
                     "application/json": components["schemas"]["DownloadPackage"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_stream_runs: {
         parameters: {
             query?: {
                 schedule_id?: components["schemas"]["StreamScheduleId"] | null;
+                /**
+                 * @description Newest runs to return, 1 to 200; 200 when left out. A value outside is brought to the
+                 *     nearest bound.
+                 */
                 limit?: number | null;
             };
             header?: never;
@@ -33345,6 +37359,10 @@ export interface operations {
                     "application/json": components["schemas"]["StreamScheduledRun"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_stream_schedules: {
@@ -33365,6 +37383,9 @@ export interface operations {
                     "application/json": components["schemas"]["StreamSchedule"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_stream_schedule: {
@@ -33383,6 +37404,8 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33398,6 +37421,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -33407,6 +37434,43 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_stream_schedule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["StreamScheduleId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreamSchedule"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_stream_schedule: {
@@ -33433,6 +37497,9 @@ export interface operations {
                     "application/json": components["schemas"]["StreamSchedule"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -33442,6 +37509,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -33451,6 +37520,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_stream_schedule: {
@@ -33471,6 +37541,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -33480,6 +37553,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_subscriptions: {
@@ -33500,6 +37574,9 @@ export interface operations {
                     "application/json": components["schemas"]["Subscription"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_subscription: {
@@ -33518,6 +37595,8 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -33533,6 +37612,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
@@ -33542,6 +37622,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -33551,6 +37633,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     probe_caps: {
@@ -33575,6 +37658,11 @@ export interface operations {
                     "application/json": components["schemas"]["IndexerCaps"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -33584,6 +37672,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
@@ -33613,6 +37702,9 @@ export interface operations {
                     "application/json": components["schemas"]["AreaBundle"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_subscriptions: {
@@ -33646,6 +37738,12 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_subscription_item_state: {
@@ -33670,6 +37768,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -33679,6 +37780,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
@@ -33723,6 +37828,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description The hit, its subscription or the account does not exist */
             404: {
                 headers: {
@@ -33750,6 +37857,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description The indexer answered with no NZB */
             422: {
                 headers: {
@@ -33759,6 +37867,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description The indexer or the provider refused */
             502: {
                 headers: {
@@ -33788,6 +37897,45 @@ export interface operations {
                     "application/json": components["schemas"]["SubscriptionReviewSummary"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_subscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["SubscriptionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Subscription"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_subscription: {
@@ -33814,6 +37962,8 @@ export interface operations {
                     "application/json": components["schemas"]["Subscription"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
@@ -33832,6 +37982,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -33841,6 +37993,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_subscription: {
@@ -33861,6 +38014,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -33870,6 +38026,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     subscription_caps: {
@@ -33892,6 +38049,9 @@ export interface operations {
                     "application/json": components["schemas"]["IndexerCaps"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -33910,6 +38070,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description Bad Gateway */
             502: {
                 headers: {
@@ -33941,6 +38102,8 @@ export interface operations {
                     "application/json": components["schemas"]["Subscription"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
@@ -33959,6 +38122,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     enable_subscription: {
@@ -33981,6 +38145,8 @@ export interface operations {
                     "application/json": components["schemas"]["Subscription"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
@@ -33999,6 +38165,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     clear_subscription_history: {
@@ -34021,6 +38188,9 @@ export interface operations {
                     "application/json": components["schemas"]["SubscriptionHistoryClearResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -34030,13 +38200,19 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_subscription_item_page: {
         parameters: {
             query?: {
                 state?: components["schemas"]["SubscriptionItemFilter"];
+                /**
+                 * @description Items of one page, 1 to 200; 50 when left out. A value outside is brought to the nearest
+                 *     bound.
+                 */
                 limit?: number | null;
+                /** @description Items to skip first; a negative value skips none. */
                 offset?: number | null;
                 /**
                  * @description Only items found at or before this moment (RD-1250-13): the `newest_discovered_at` of
@@ -34061,6 +38237,9 @@ export interface operations {
                     "application/json": components["schemas"]["SubscriptionItemPage"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -34070,6 +38249,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_pending_subscription_items_state: {
@@ -34096,6 +38276,9 @@ export interface operations {
                     "application/json": components["schemas"]["SubscriptionBulkStateResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -34105,6 +38288,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -34114,6 +38299,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     requeue_subscription_items: {
@@ -34149,6 +38335,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
@@ -34158,6 +38346,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     poll_subscription: {
@@ -34178,6 +38370,8 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
@@ -34196,11 +38390,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_subscription_runs: {
         parameters: {
             query?: {
+                /**
+                 * @description Newest rows to return, 1 to 200; 200 when left out. A value outside is brought to the
+                 *     nearest bound.
+                 */
                 limit?: number | null;
             };
             header?: never;
@@ -34220,6 +38419,10 @@ export interface operations {
                     "application/json": components["schemas"]["SubscriptionRun"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     system_about: {
@@ -34240,6 +38443,9 @@ export interface operations {
                     "application/json": components["schemas"]["AboutResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     system_about_licenses: {
@@ -34260,6 +38466,32 @@ export interface operations {
                     "application/json": components["schemas"]["ThirdPartyLicenses"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    system_about_notices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The licence and copyright texts of every component a package ships */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     cleanup_preview: {
@@ -34280,6 +38512,9 @@ export interface operations {
                     "application/json": components["schemas"]["CleanupSummary"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     run_cleanup: {
@@ -34309,8 +38544,16 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     data_reset_preview: {
@@ -34331,6 +38574,9 @@ export interface operations {
                     "application/json": components["schemas"]["DataResetPreview"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     media_status: {
@@ -34351,6 +38597,9 @@ export interface operations {
                     "application/json": components["schemas"]["MediaStatusResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_restart_status: {
@@ -34371,6 +38620,9 @@ export interface operations {
                     "application/json": components["schemas"]["RestartStatusResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     restart_service: {
@@ -34395,6 +38647,9 @@ export interface operations {
                     "application/json": components["schemas"]["RestartStartedResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description An update is being installed, a restart runs already, downloads are running, or the relauncher could not be started */
             409: {
                 headers: {
@@ -34404,6 +38659,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     shutdown_service: {
@@ -34424,6 +38683,7 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceStopResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
@@ -34433,6 +38693,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_managed_tools: {
@@ -34453,6 +38714,9 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedToolsResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     refresh_tool_manifest: {
@@ -34473,13 +38737,18 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedToolsResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Managed tools are off (`tools.disabled`) or no manifest URL is set (`tools.manifest_url_missing`) */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     activate_managed_tool: {
@@ -34507,6 +38776,13 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedToolsResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     install_managed_tool: {
@@ -34534,6 +38810,13 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedToolsResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     rollback_managed_tool: {
@@ -34557,6 +38840,10 @@ export interface operations {
                     "application/json": components["schemas"]["ManagedToolsResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     get_update_status: {
@@ -34577,6 +38864,9 @@ export interface operations {
                     "application/json": components["schemas"]["UpdateStatusResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     check_for_updates: {
@@ -34597,13 +38887,18 @@ export interface operations {
                     "application/json": components["schemas"]["UpdateStatusResponse"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description This build carries no update signing key */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     download_update: {
@@ -34624,6 +38919,8 @@ export interface operations {
                     "application/json": components["schemas"]["UpdateDownloadStatus"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Nothing to download, or not an installation that installs itself */
             409: {
                 headers: {
@@ -34633,6 +38930,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     install_update: {
@@ -34657,6 +38955,9 @@ export interface operations {
                     "application/json": components["schemas"]["UpdateInstallStatus"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Nothing to install, not an installation that installs itself, downloads running, or the program folder is not fit */
             409: {
                 headers: {
@@ -34666,6 +38967,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     prepare_update_backup: {
@@ -34699,6 +39004,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
             /** @description Forbidden */
             403: {
                 headers: {
@@ -34717,6 +39023,10 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     torrent_capabilities: {
@@ -34737,6 +39047,9 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentEngineCapabilities"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     import_torrent: {
@@ -34767,22 +39080,31 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description `enqueue` was set and the package could not be queued; it stays in the LinkGrabber */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description The JSON content decodes to more than 48 MiB, or the body exceeds the service's limit */
             413: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     torrent_interfaces: {
@@ -34803,6 +39125,9 @@ export interface operations {
                     "application/json": components["schemas"]["NetworkInterface"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_torrent_port: {
@@ -34828,8 +39153,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     torrent_network_status: {
@@ -34850,6 +39180,9 @@ export interface operations {
                     "application/json": components["schemas"]["TorrentNetworkStatus"];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     list_usenet_servers: {
@@ -34870,6 +39203,9 @@ export interface operations {
                     "application/json": components["schemas"]["UsenetServer"][];
                 };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     create_usenet_server: {
@@ -34888,19 +39224,66 @@ export interface operations {
             /** @description Created */
             201: {
                 headers: {
+                    /** @description Where the created resource is read */
+                    location?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["UsenetServer"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    get_usenet_server: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The id the list shows */
+                id: components["schemas"]["UsenetServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsenetServer"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     update_usenet_server: {
@@ -34927,20 +39310,31 @@ export interface operations {
                     "application/json": components["schemas"]["UsenetServer"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
             /** @description Conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     delete_usenet_server: {
@@ -34963,13 +39357,19 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     set_usenet_server_quota: {
@@ -35001,15 +39401,25 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            422: components["responses"]["UnprocessableContent"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     test_usenet_server: {
@@ -35032,6 +39442,10 @@ export interface operations {
                     "application/json": components["schemas"]["MessageResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
 }

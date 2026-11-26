@@ -16,10 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use axum::{
-    http::{HeaderValue, header},
-    response::{IntoResponse, Response},
-};
+use axum::response::{IntoResponse, Response};
 
 use crate::ApiError;
 
@@ -111,17 +108,13 @@ pub(super) fn admit(
 }
 
 fn refusal(limit: u32, seconds: u64) -> Response {
-    let mut response = ApiError::too_many_requests(
+    ApiError::too_many_requests(
         "api.token_rate_limited",
         "This token has made more calls this minute than its limit allows",
     )
     .with_param("limit", limit)
     .with_param("seconds", seconds)
-    .into_response();
-    if let Ok(value) = HeaderValue::from_str(&seconds.to_string()) {
-        response.headers_mut().insert(header::RETRY_AFTER, value);
-    }
-    response
+    .into_response()
 }
 
 #[cfg(test)]

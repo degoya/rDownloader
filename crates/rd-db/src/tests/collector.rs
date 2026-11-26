@@ -423,7 +423,7 @@ async fn regrouping_splits_a_batch_once_the_check_revealed_the_real_names() {
     assert_eq!(package_ids.len(), 2, "the two links no longer share one");
 }
 
-/// The downmagaz case of RD-120-17, in the order it actually happens.
+/// The magazine case of RD-120-17, in the order it actually happens.
 ///
 /// A site rule reads the release title off the page and hands it to every link it found as
 /// `package_hint`, so intake names the package after it. The online check then runs, one of
@@ -498,7 +498,7 @@ async fn a_package_name_a_site_rule_stated_survives_the_regroup_after_the_check(
 
     for (candidate, name) in candidates.iter().zip([
         None,
-        Some("The_Economist_USA_-_19_September_2026_downmagaz.net.pdf"),
+        Some("The_Economist_USA_-_19_September_2026_magazines.example.pdf"),
     ]) {
         match name {
             Some(name) => database
@@ -569,7 +569,7 @@ async fn a_package_name_a_site_rule_stated_survives_the_regroup_after_the_check(
 /// the owner saw -- so the regroup had no common stem either and fell straight through to the
 /// host of the first link: the comic's title became `1024terabox.com`. From the outside that
 /// reads as "the name did not come through at all", which is how the owner reported it, but
-/// it is the same regroup as the downmagaz case. Had the check read a name out of the
+/// it is the same regroup as the magazine case. Had the check read a name out of the
 /// `datanodes.to` path instead, the package would have been renamed to that file's stem --
 /// still not the comic's title, and still the same line.
 #[tokio::test]

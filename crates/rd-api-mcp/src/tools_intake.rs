@@ -9,10 +9,8 @@
 //! A script subscription (RD-130-19) is refused outright, by [`refuse_script`]: it starts code
 //! on this machine, and the owner's line is that no tool does.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{

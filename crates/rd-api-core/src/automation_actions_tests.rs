@@ -2,6 +2,7 @@
 
 use rd_automation::{Action, LinkDestination, Trigger};
 use rd_core::{DownloadPriority, PackageId};
+use rd_notify::NotificationLanguage as L;
 
 use super::{About, automation_message, execute, message_body};
 use crate::automation_test_support::context;
@@ -189,13 +190,18 @@ async fn notify_needs_a_target_that_still_exists() {
 #[test]
 fn a_notification_says_the_author_s_words_first() {
     assert_eq!(
-        message_body(Some(" Done "), Some("Release")),
+        message_body(Some(" Done "), Some("Release"), L::De),
         "Done\nRelease"
     );
-    assert_eq!(message_body(Some("Done"), None), "Done");
+    assert_eq!(message_body(Some("Done"), None, L::De), "Done");
     // A webhook keeps what it always sent.
-    assert_eq!(message_body(None, Some("Release")), "Release");
-    assert_eq!(message_body(None, None), "no package");
+    assert_eq!(message_body(None, Some("Release"), L::De), "Release");
+    assert_eq!(message_body(None, None, L::En), "no package");
+    // Only the built-in word is translated (RD-1480-11).
+    assert_eq!(
+        message_body(None, None, L::De),
+        rd_notify::Text::new("automation.no_package").say(L::De)
+    );
 }
 
 #[tokio::test]
@@ -295,7 +301,7 @@ fn an_automation_message_is_keyed_by_its_run_and_labelled_as_an_automation() {
         trigger: Trigger::Schedule,
         delivery_key: "01a12636-f214-701a-ab2b-57f171851bd9:2",
     };
-    let message = automation_message(&about, Some(" lca tick "), None);
+    let message = automation_message(&about, Some(" lca tick "), None, L::En);
     assert_eq!(
         message.idempotency_key,
         "01a12636-f214-701a-ab2b-57f171851bd9:2"
@@ -305,4 +311,9 @@ fn an_automation_message_is_keyed_by_its_run_and_labelled_as_an_automation() {
     assert_eq!(message.payload["trigger"], "schedule");
     assert_eq!(message.payload["message"], "lca tick");
     assert_eq!(message.body, "lca tick");
+    assert_eq!(message.title, "Automation: schedule");
+    // RD-1480-11: the body's version and moment beside what it always held.
+    assert_eq!(message.payload["version"], 1);
+    assert!(message.payload["occurred_at"].is_string());
+    assert!(message.payload["package_id"].is_null());
 }

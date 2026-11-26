@@ -69,7 +69,10 @@ jobs:
       jobs: ${{ steps.platforms.outputs.jobs }}
       warm: ${{ steps.platforms.outputs.warm }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - &checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: The runner images still to check
         id: platforms
         shell: bash
@@ -79,7 +82,7 @@ jobs:
           REQUESTED_JOBS: ${{ inputs.jobs }}
           ONCE: '["docker","s3-live","clamav-live","supply-chain","scripts"]'
           # Once per run as well, but a call, whose check no tree green finds by name: run on
-          # every push to `main` for the cache release.yml reads, left out only by `jobs`.
+          # every push to `main` for the cache the next branches read, left out only by `jobs`.
           CALLED: '["components"]'
         run: scripts/ci-gate.sh
 
@@ -95,7 +98,7 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - *checkout
       - uses: ./.github/actions/setup-web
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck:full
@@ -130,12 +133,10 @@ jobs:
     permissions:
       contents: read
     # A hang is cut off rather than left running for six hours: on 2026-09-25 a keychain call
-    # blocked the macOS tests for an hour. On Windows the test build plus the crash matrix ran past
-    # 90 minutes twice in 1.8 (runs 36734111741, 36743221728) and was cancelled in the matrix
-    # step, not hung; the matrix is its own job since, `crash-matrix`.
+    # blocked the macOS tests for an hour. The crash matrix is a job of its own for Windows' time.
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - *checkout
       # A debug test build does not fit on a hosted runner as it comes: every rd-api integration
       # binary links the whole dependency graph at ~550 MB (RD-120-67). Windows has room to spare.
       - name: Free runner disk
@@ -199,9 +200,8 @@ jobs:
         shell: bash
         run: |
           "$(command -v python3 || command -v python)" scripts/lib/junit-flaky.py "${RUNNER_TEMP}"/junit/*.xml
-      # What the runner had when a step failed, if it is still alive to say so. A linker that
-      # failed prints "No space left on device" or "ld terminated with signal 9 [Killed]" just
-      # under "linking with cc failed"; these lines say which limit it was near.
+      # What the runner had when a step failed, if it is still alive to say so: which limit a
+      # linker that failed was near.
       - name: Disk and memory after a failure
         if: failure()
         shell: bash
@@ -232,10 +232,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: ./scripts/defender-scan.ps1 -Report -SkipUpdate -Release v1.38.0,v1.39.1,v1.40.0
-      # A prebuilt binary instead of a source build in every run. install-action has no manifest
-      # of its own for sqlx-cli and hands it to cargo-binstall, which takes
-      # the signed build from cargo-quickinstall (default features: a superset of the
-      # `sqlite-unbundled` build this replaced, and `prepare --check` needs no more).
+      # A prebuilt binary instead of a source build in every run: install-action hands sqlx-cli to
+      # cargo-binstall, which takes the signed build from cargo-quickinstall.
       - name: Install SQLx CLI
         if: runner.os == 'Linux'
         uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
@@ -313,7 +311,7 @@ jobs:
       RD_S3_LIVE_ACCESS_KEY: rd-live
       RD_S3_LIVE_SECRET: rd-live-throwaway
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - *checkout
       - name: Start the S3 service
         shell: bash
         run: scripts/ci-services.sh s3-start
@@ -332,10 +330,9 @@ jobs:
         run: docker logs s3 || true
 
   # The malware scan against a real clamd (RD-190-14): PING, VERSION and INSTREAM from the client,
-  # and an EICAR package stopped by the whole pipeline — what the stand-in clamd of
-  # crates/rd-extract/src/fake_clamd.rs can only imitate. The tests are `#[ignore]` and fail
-  # without RD_CLAMD_LIVE_ADDRESS, so only this job runs them.
-  # The official image, pinned by its index digest (1.5.4, 2026-10-02), ships a signature database.
+  # and an EICAR package stopped by the whole pipeline, which the stand-in clamd of
+  # crates/rd-extract/src/fake_clamd.rs can only imitate; `#[ignore]` tests that fail without
+  # RD_CLAMD_LIVE_ADDRESS. The official image, pinned by digest, ships a signature database.
   clamav-live:
     needs: gate
     if: contains(fromJSON(needs.gate.outputs.jobs), 'clamav-live')
@@ -351,10 +348,16 @@ jobs:
     env:
       RD_CLAMD_LIVE_ADDRESS: 127.0.0.1:3310
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - *checkout
       - uses: ./.github/actions/rust-tests-cache
       - name: Build the live clamd tests
         run: cargo nextest run --locked --no-run -p rd-extract --test clamd_live
+      # `#[ignore]` as well (RD-1480-14, TST-11): without the program it passed unrun everywhere.
+      - name: Archive passwords through a real 7-Zip
+        run: |
+          scripts/ci-tools.sh seven-zip
+          RD_TEST_7Z="${RUNNER_TEMP}/seven-zip/7zz" cargo nextest run --locked -p rd-postprocess --lib \
+            --run-ignored only --no-tests fail -E 'test(/a_real_seven_zip/)'
       - name: Wait for clamd
         shell: bash
         run: scripts/ci-services.sh clamd-ready "${{ job.services.clamav.id }}"
@@ -372,18 +375,15 @@ jobs:
   # `release-test` — the release's optimisation without LTO and the single code unit, which cost
   # 15-19 minutes per leg (RD-191-09); release.yml still builds and ships `release`.
   #
-  # No Rust cache (RD-1270-11): a cache is saved on main only, and on main this job runs only for
-  # a tree no branch checked — a release pushes one its candidate passed — so the one it restored
-  # was never there (`gh cache list`, 2026-10-12: no `v0-rust-docker-*`). Saving one elsewhere
-  # would put two legs of ~1 GB beside `rust-tests`' 5 GB in the repository's 10 GB, for a job
-  # that runs beside `rust` and ends before it (amd64 19, arm64 14 minutes, run 38230317485).
+  # No Rust cache (RD-1270-11): a cache is saved on main only, where this job runs only for a tree
+  # no branch checked; saving one elsewhere would put ~2 GB into the repository's 10 GB for a job
+  # that ends before `rust`.
   #
   # Both legs start the binary through the portable launchers before the image is built; the arm64
   # leg is the only run that starts a Linux aarch64 binary (RD-190-12).
   #
-  # It waits for `web` alone (RD-150-10). It builds its own binary and takes nothing from `rust`
-  # or `components`; waiting for the whole `rust` matrix made it start after Windows, and the
-  # 1.4.2 chain's public-ci step ran out of time with only this job still going.
+  # It waits for `web` alone (RD-150-10): it builds its own binary and takes nothing from `rust`
+  # or `components`.
   docker:
     needs: [gate, web]
     if: contains(fromJSON(needs.gate.outputs.jobs), 'docker')
@@ -401,7 +401,7 @@ jobs:
       contents: read
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - *checkout
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: web-dist
@@ -443,6 +443,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           # The compatibility gate compares with the last release tag; the public repository
           # carries one commit per release, so its whole history is small.
           fetch-depth: 0
@@ -482,7 +483,7 @@ jobs:
       contents: read
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - *checkout
       # The versions and checksums are scripts/lib/tool-versions.sh's (RD-1280-12).
       - name: Install shellcheck and actionlint
         run: scripts/ci-tools.sh linters

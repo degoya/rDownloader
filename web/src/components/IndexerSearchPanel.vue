@@ -37,6 +37,7 @@ import CoverPlaceholder from '@/components/CoverPlaceholder.vue'
 import IndexerHitBadges from '@/components/IndexerHitBadges.vue'
 import IndexerSearchTypeFields from '@/components/IndexerSearchTypeFields.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
+import { shortcutsEnabled } from '@/composables/shortcutsEnabled'
 import { MAX_GRAB, useIndexerSearchState } from '@/composables/useIndexerSearch'
 import { translateServerMessage } from '@/i18n/server'
 import { formatBytes } from '@/utils/format'
@@ -105,7 +106,7 @@ defineExpose({ focusField })
           autocomplete="off"
           data-testid="indexer-search-query"
         >
-          <template #trailing><UKbd value="f" /></template>
+          <template v-if="shortcutsEnabled" #trailing><UKbd value="f" /></template>
         </UInput>
         <p v-if="queryError" class="mt-1 text-xs text-error" data-testid="indexer-search-query-error">{{ queryError }}</p>
         <p v-if="unavailable" :id="hintId" ref="hint" class="mt-1 text-xs text-muted" data-testid="indexer-search-unavailable">
@@ -136,7 +137,7 @@ defineExpose({ focusField })
       <UButton type="submit" icon="i-lucide-search" :label="t('linkgrabber.search.submit')" :disabled="!available" :loading="searching" data-testid="indexer-search-submit" />
     </form>
 
-    <UAlert v-if="searchError" class="mt-3" color="error" :description="searchError" />
+    <UAlert v-if="searchError" class="mt-3" color="error" role="alert" :description="searchError" />
     <template v-if="result">
       <UAlert
         v-for="outcome in failures"

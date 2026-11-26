@@ -17,6 +17,29 @@ vi.mock('@/locales/languages.json', () => ({
   }
 }))
 
+describe('the detected language', () => {
+  afterEach(async () => {
+    await setLocale('en')
+    localStorage.clear()
+  })
+
+  it('is applied without becoming a choice, so a later browser language is followed', async () => {
+    const languages = vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['de-AT'])
+    await setLocale(detectLocale(), { remember: false })
+    expect(currentLocale()).toBe('de')
+    expect(document.documentElement.lang).toBe('de')
+    expect(localStorage.getItem('rd.locale')).toBeNull()
+
+    languages.mockReturnValue(['fr-FR'])
+    expect(detectLocale()).toBe('fr')
+
+    await setLocale('es')
+    expect(localStorage.getItem('rd.locale')).toBe('es')
+    expect(detectLocale()).toBe('es')
+    languages.mockRestore()
+  })
+})
+
 describe('an in-progress language from the list', () => {
   afterEach(async () => {
     await setLocale('en')

@@ -123,6 +123,7 @@ fn a_read_only_subscriber_never_sees_configuration_events() {
         EventKind::PluginTrustChanged,
         EventKind::ProxyChanged,
         EventKind::RemoteCredentialChanged,
+        EventKind::SettingsChanged,
         EventKind::System,
         EventKind::UsenetChanged,
     ] {

@@ -36,9 +36,11 @@ pub mod download_window_input;
 pub mod dto;
 pub mod error;
 pub mod error_codes;
+pub mod extract;
 pub mod host_check;
 pub mod hosters;
 pub mod hotfolder_service;
+pub mod idempotency;
 pub mod input_checks;
 pub mod link_check_cache;
 pub mod link_check_probe;
@@ -65,7 +67,9 @@ pub mod reconnect_service;
 pub mod remote_job_service;
 pub mod restart_state;
 pub mod scope_policy;
+pub mod settings_change;
 pub mod settings_store;
+pub mod single_read;
 pub mod step_up;
 pub mod storage_capacity;
 pub mod stream_monitor;
@@ -94,6 +98,7 @@ pub use remote_job_service::{
     RemoteJobRefused, RemoteJobService, SubmitOutcome as RemoteJobSubmitOutcome,
 };
 pub use scope_policy::{policy_rows, required_scope};
+pub use settings_change::SettingsTurn;
 pub use settings_store::{
     RUNTIME_FIELDS, RefusedSetting, diagnosed_settings, runtime_settings, service_switches,
     startup_settings,

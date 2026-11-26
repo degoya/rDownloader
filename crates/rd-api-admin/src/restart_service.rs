@@ -23,6 +23,7 @@ use std::sync::LazyLock;
 
 use rd_api_core::notify_notice::{Notice, announce};
 use rd_core::{AuditAction, Timestamp};
+use rd_notify::{Text, Words};
 use rd_update::restart::{DEFAULT_HEALTH_TIMEOUT_SECS, RestartHow, RestartPlan};
 
 use crate::audit::{AuditContext, AuditEvent};
@@ -216,7 +217,7 @@ pub async fn begin(
         &state.database,
         Notice::service_restarting(
             &Timestamp::now().to_rfc3339(),
-            &describe(&reasons),
+            describe(&reasons),
             automatic,
         ),
     )
@@ -268,23 +269,17 @@ fn plan(state: &AppState) -> anyhow::Result<RestartPlan> {
 }
 
 /// The reasons in words, for the notice: "Rapidgator 1.3.0, Example".
-fn describe(reasons: &[RestartReason]) -> String {
+fn describe(reasons: &[RestartReason]) -> Words {
     if reasons.is_empty() {
-        return "what waits for the next start".to_owned();
+        return Text::new("service_restarting.pending").into();
     }
-    reasons
-        .iter()
-        .map(|reason| {
-            let subject = reason
-                .name
-                .as_deref()
-                .or(reason.plugin_id.as_deref())
-                .unwrap_or("a plugin");
-            match reason.version.as_deref() {
-                Some(version) => format!("{subject} {version}"),
-                None => subject.to_owned(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(", ")
+    let named = |reason: &RestartReason| -> Words {
+        let name = reason.name.as_deref().or(reason.plugin_id.as_deref());
+        match (name, reason.version.as_deref()) {
+            (Some(name), Some(version)) => format!("{name} {version}").into(),
+            (Some(name), None) => name.into(),
+            (None, _) => Text::new("service_restarting.unnamed_plugin").into(),
+        }
+    };
+    Words::List(reasons.iter().map(named).collect())
 }

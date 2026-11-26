@@ -18,10 +18,8 @@
 //! no tool changes something irreversibly outside this machine -- which the owner confirmed for
 //! this tool on 2026-10-08: the tool always sends `at_provider: false`.
 
-use axum::{
-    Json,
-    extract::{Path as AxumPath, State},
-};
+use axum::extract::State;
+use rd_api_core::extract::{Json, Path as AxumPath};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 use super::{
@@ -124,7 +122,7 @@ impl RdMcpServer {
     }
 
     #[tool(
-        description = "Hand every link of a LinkGrabber package to one account's provider instead of the queue: a magnet, an http(s) address or an imported .torrent each becomes one remote job, through the same duplicate guard as submit_remote_job; the provider fetches the content on its side and the finished files come back into the LinkGrabber as links. Refused when the package or the account does not exist (package.not_found, remote_job.no_account) or no installed plugin runs remote jobs on the account's provider (collector.remote_job_not_remote_account). Otherwise answers `handed_over` (each link with its job; `already_running` true means the account already had that job and nothing was sent) and `stayed` (each link that could not go, with its code: refused by the provider, not claimed, a source no provider takes, hidden by a LinkFilter rule, a mirror that is not the chosen copy, being queued). The setting linkgrabber_hand_over_remove_links decides what becomes of the links handed over, never this call: on (default) they leave the LinkGrabber and a package left empty is deleted (`links_removed`, `package_removed`); off they stay marked `handed_over` and a second call sends nothing again. What stayed always stays."
+        description = "Hand every link of a LinkGrabber package to one account's provider instead of the queue: a magnet, an http(s) address, an imported .torrent or the document behind an NZB link (fetched from the indexer here, its address and API key never sent; an unchecked link in an indexer's form or at a configured indexer is treated as one) each becomes one remote job, through the same duplicate guard as submit_remote_job; the provider fetches the content and the finished files come back into the LinkGrabber as links. Refused with package.not_found, remote_job.no_account or, when no installed plugin runs remote jobs on the account's provider, collector.remote_job_not_remote_account. Otherwise answers `handed_over` (each link with its job; `already_running`: the account already had it and nothing was sent) and `stayed` (each link that could not go, with its code: refused by the provider, not claimed, a source no provider takes, an address that carries a login or an access key (collector.remote_job_secret_address), an NZB the provider does not take or the indexer refused (nzb.remote_job_no_nzb, collector.nzb_*), hidden by a LinkFilter rule, a mirror that is not the chosen copy, being queued). The setting linkgrabber_hand_over_remove_links decides what becomes of the links handed over, never this call: on (default) they leave the LinkGrabber and a package left empty is deleted (`links_removed`, `package_removed`); off they stay marked `handed_over` and a second call sends nothing again. What stayed always stays."
     )]
     pub async fn hand_over_collector_package(
         &self,

@@ -17,7 +17,7 @@ use crate::common::{self, post_capture};
 
 const PAGE: &str = "https://series.example/serie/show/";
 
-/// A two-stage rule for the page, as serienjunkies.org's is.
+/// A two-stage rule for the page, as a series page's is.
 fn rule() -> Rule {
     serde_json::from_value(serde_json::json!({
         "id": "series",

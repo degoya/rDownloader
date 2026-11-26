@@ -20,6 +20,7 @@ pub mod password_login_handlers;
 pub mod password_reset_handlers;
 pub mod session_handlers;
 pub mod setup_handlers;
+pub mod single_reads;
 
 // The modules of the crates below, at this crate's root, so that a module here names them as
 // `crate::…` exactly as it did while the HTTP surface was one crate (RD-160-06).

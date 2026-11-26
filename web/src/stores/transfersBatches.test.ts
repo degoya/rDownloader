@@ -110,7 +110,7 @@ describe('transfers store: the whole queue in one request', () => {
       '/api/v1/downloads/bulk',
       { body: { ids: [], action: 'pause', filter: { states: ['queued', 'retry_wait', 'resolving', 'downloading', 'verifying', 'repairing', 'extracting'] } } }
     ])
-    expect(store.notice).toBe('1145 transfers were paused.')
+    expect(store.notice).toBe('1,145 transfers were paused.')
     expect(store.error).toBeNull()
     expect(store.controlsBusy).toBe(false)
   })

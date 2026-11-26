@@ -22,7 +22,7 @@ use crate::siterules::{RuleOutcome, RuleRunner, SiteRules};
 
 const PAGE: &str = "https://series.example/serie/show/";
 
-/// A two-stage rule whose group asks for a captcha, as serienjunkies.org's does.
+/// A two-stage rule whose group asks for a captcha, as a series page's does.
 fn rule() -> Rule {
     serde_json::from_value(serde_json::json!({
         "id": "series",

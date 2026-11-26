@@ -186,7 +186,7 @@ if [[ "$hash_only" -eq 1 ]]; then
     exit 0
 fi
 
-# The key of the component cache in CI and the release (cache_key, lib/plugin-stamp.sh).
+# The key of the component cache in CI (cache_key, lib/plugin-stamp.sh).
 if [[ "$cache_key_only" -eq 1 ]]; then
     cache_key
     exit 0

@@ -51,7 +51,7 @@ fn unresolvable_at(address: &str) -> LinkCheckResult {
 ///
 /// Every one of them reached `collector.check_not_a_file`, and in none of them was the
 /// address the cause: the site rule had resolved and handed over an address with no
-/// resolver. `downmagaz.net` and `avxhm.se` are release pages, so they stand here through
+/// resolver. Two of the reported addresses are release pages, so they stand here through
 /// the two addresses they hand over to. What those addresses *are* differs -- ADR 0019
 /// found `icerbox.com` to be an unsupported hoster and `nfile.cc` and `dwp.la` to be
 /// affiliate cloakers -- and one message covers all of them precisely because it claims
@@ -61,7 +61,7 @@ const REPORTED_HOSTS: [&str; 5] = [
     "https://nfile.cc/abcdef123456",
     "https://dwp.la/abcdef123456",
     "https://icerbox.com/abcdef123456",
-    "https://vipergirls.to/threads/1234567-a-release",
+    "https://board.example/threads/1234567-a-release",
 ];
 
 fn map(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {

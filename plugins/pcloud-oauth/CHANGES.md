@@ -1,5 +1,9 @@
 # Changes
 
+## 0.1.18
+
+The package names its license, the GNU General Public License version 3 or later. French texts use French typography.
+
 ## 0.1.17
 
 Maintenance release: internal changes only, no change in behaviour.

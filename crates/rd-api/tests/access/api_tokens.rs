@@ -548,9 +548,9 @@ async fn re_scoping_is_idempotent_and_survives_a_restart() {
 async fn the_about_page_answers_a_read_token_and_nobody_signed_out() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
-
-    for uri in ["/api/v1/system/about", "/api/v1/system/about/licenses"] {
-        let (status, body) = get_json(&harness.router, uri).await;
+    for page in ["", "/licenses", "/notices"] {
+        let uri = format!("/api/v1/system/about{page}");
+        let (status, body) = get_json(&harness.router, &uri).await;
         assert_eq!(status, StatusCode::UNAUTHORIZED, "{uri} signed out: {body}");
     }
     let (status, body) = get_json(&harness.router, "/api/v1/health").await;
@@ -591,7 +591,7 @@ async fn the_about_page_answers_a_read_token_and_nobody_signed_out() {
     )
     .await;
     assert_eq!(status, StatusCode::OK, "{licenses}");
-    for ecosystem in ["rust", "npm"] {
+    for ecosystem in ["rust", "npm", "other"] {
         let entries = licenses[ecosystem].as_array().expect("a list");
         assert!(!entries.is_empty(), "{ecosystem} is empty");
         assert!(

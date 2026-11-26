@@ -93,7 +93,7 @@ describe('SettingsBackupDestinations', () => {
     mounted()
     const list = await screen.findByTestId('backup-destination-list')
     expect(list.textContent).toContain('/mnt/nas/rdownloader')
-    expect(list.textContent).toContain(en.retention.last.replace('{count}', '7'))
+    expect(list.textContent).toContain(en.retention.last.split(' | ')[1]!.replace('{count}', '7'))
     expect(list.textContent).toContain(en.archives.replace('{count}', '3'))
     expect(list.textContent).toContain(en.verify_state.passed)
   })

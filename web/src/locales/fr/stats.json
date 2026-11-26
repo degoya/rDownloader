@@ -1,7 +1,7 @@
 {
   "eyebrow": "Transferts",
   "title": "Statistiques",
-  "description": "Ce que le service a transféré : par heure ou par jour, par type et par fournisseur. Les chiffres survivent aux redémarrages et sont agrégés puis supprimés après le délai configuré.",
+  "description": "Ce que le service a transféré : par heure ou par jour, par type et par fournisseur. Les chiffres survivent aux redémarrages et sont agrégés puis supprimés après le délai configuré.",
   "ranges": {
     "label": "Période",
     "day": "24 heures",
@@ -21,7 +21,7 @@
     "turnaround": "Délai de traitement",
     "turnaround_hint": "moyenne de la création à la fin",
     "all_time": "Depuis le début",
-    "all_time_hint": "{completed} transferts, jamais réduits",
+    "all_time_hint": "{completed} transfert, jamais réduit | {completed} transferts, jamais réduits",
     "turnaround_under_second": "moins de 1 s"
   },
   "chart": {
@@ -44,9 +44,9 @@
   "metrics": {
     "eyebrow": "Prometheus",
     "title": "Collecter les métriques",
-    "description": "Le service expose ses métriques d’exploitation au format texte Prometheus. Un jeton doté du domaine « Métriques » atteint cette seule route et rien d’autre.",
+    "description": "Le service expose ses métriques d’exploitation au format texte Prometheus. Un jeton doté du domaine « Métriques » atteint cette seule route et rien d’autre.",
     "endpoint": "Adresse",
-    "scope_hint": "Créez le jeton sous Paramètres → API et MCP avec le domaine « Métriques »."
+    "scope_hint": "Créez le jeton dans Paramètres → Clients et API → API et MCP avec le domaine « Métriques »."
   },
   "retention": {
     "eyebrow": "Conservation",
@@ -59,9 +59,9 @@
   },
   "servers": {
     "title": "Trafic par serveur Usenet",
-    "description": "Données d'articles livrées par chaque serveur, telles que le fournisseur les mesure : encodées en yEnc, quelques pour cent au-dessus de la charge utile. Les jours sont comptés en UTC.",
+    "description": "Données d’articles livrées par chaque serveur, telles que le fournisseur les mesure : encodées en yEnc, quelques pour cent au-dessus de la charge utile. Les jours sont comptés en UTC.",
     "name": "Serveur",
-    "today": "Aujourd'hui",
+    "today": "Aujourd’hui",
     "week": "7 jours",
     "month": "30 jours",
     "year": "1 an",

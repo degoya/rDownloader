@@ -7,7 +7,8 @@
 # section of the release notes fail while released sections pass, and an entry no mention needs
 # any more fails too.
 #
-# Pure python3, git and bash: it runs in a second.
+# Pure python3, git and bash: it runs in a second. A names file takes the place of the built-in terms: the
+# release pages (RD-1480-23) are held that way.
 #
 #   scripts/tests/public-names.sh
 set -euo pipefail
@@ -22,6 +23,24 @@ trap 'rm -rf "$SCRATCH"' EXIT
 run_status python3 "$GUARD" "$ROOT" "$ROOT/scripts/public-exclude.txt" "$ROOT/scripts/public-names-allow.txt"
 expect_status "this checkout names it only where the allowlist says" 0
 [[ "$status" -eq 0 ]] || printf '%s\n' "$output"
+
+# The release pages (RD-1480-23): the list is left out of the public repository, where there is
+# nothing to read and the case is skipped.
+NAMES="$ROOT/scripts/release-site-names.txt"
+if [[ -f "$NAMES" ]]; then
+    run_status python3 "$GUARD" "$ROOT" "$ROOT/scripts/public-exclude.txt" \
+        "$ROOT/scripts/release-site-names-allow.txt" "$NAMES"
+    expect_status "this checkout names no release page outside its allowlist" 0
+    [[ "$status" -eq 0 ]] || printf '%s\n' "$output"
+    run_status python3 - "$ROOT/scripts/public-exclude.txt" <<'PY'
+import sys
+
+entries = open(sys.argv[1], encoding="utf-8").read().splitlines()
+wanted = ["scripts/release-site-names.txt", "scripts/release-site-names-allow.txt"]
+sys.exit(0 if all(name in entries for name in wanted) else 1)
+PY
+    expect_status "the list of release pages is left out of the public repository" 0
+fi
 
 TREE="$SCRATCH/tree"
 mkdir -p "$TREE/docs" "$TREE/src"
@@ -137,5 +156,27 @@ sed -i '$d' "$SCRATCH/allow.txt"
 
 guard
 expect_status "back to the passing tree" 0
+
+# A names file: its terms instead of the built-in ones, any case, in hand-written names.
+printf '# Invented.\n\nsome[.-]releases\n' > "$SCRATCH/names.txt"
+printf 'CHANGELOG.md | @released | history\n' > "$SCRATCH/names-allow.txt"
+# names_guard: runs the guard over the scratch tree with the names file.
+names_guard() {
+    git -C "$TREE" add -A
+    run_status python3 "$GUARD" "$TREE" "$SCRATCH/exclude.txt" "$SCRATCH/names-allow.txt" "$SCRATCH/names.txt"
+}
+sed -i 's/^- Grouping after JDownloader\.$/- Some-Releases pages./' "$TREE/CHANGELOG.md"
+names_guard
+expect_status "a names file passes the released history and reads only its own names" 0
+printf 'let page = "https://some.releases/x";\n' > "$TREE/src/page.rs"
+names_guard
+expect_status "a listed name outside the allowlist fails" 1
+expect_output "and is named" "src/page.rs:1: names some[.-]releases outside the allowlist"
+printf 'let page = "https://releases.example/x";\n' > "$TREE/src/page.rs"
+names_guard
+expect_status "an example host passes" 0
+printf '# Nothing.\n' > "$SCRATCH/names.txt"
+names_guard
+expect_status "an empty names file fails instead of passing everything" 1
 
 finish_tests public-names

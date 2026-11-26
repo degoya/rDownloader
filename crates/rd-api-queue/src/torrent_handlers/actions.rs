@@ -3,11 +3,8 @@
 
 use std::path::{Path as FsPath, PathBuf};
 
-use axum::{
-    Json,
-    extract::{Path, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
+use rd_api_core::extract::{Json, Path};
 use rd_core::{DownloadFile, DownloadId, DownloadKind, DownloadState, StorageRootId};
 use serde::Deserialize;
 use utoipa::ToSchema;

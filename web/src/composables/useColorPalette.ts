@@ -9,7 +9,7 @@ import { computed, watch } from 'vue'
  * Nuxt UI paints from `--ui-color-primary-*` and `--ui-color-neutral-*`, written once from the
  * build's `uiTheme.colors`. A palette other than the default sets those eleven shades each on
  * `<html>` itself, which outranks that stylesheet; `main.css` takes the light-mode accent from
- * shade 700 of whatever is set there, so the contrast rule holds for every palette
+ * shade 800 of whatever is set there, so the contrast rule holds for every palette
  * (`contrast.test.ts`). The default sets nothing and is the build's theme exactly.
  */
 export const COLOR_PALETTES = {
@@ -33,7 +33,9 @@ function current(): ColorPalette {
 }
 
 function apply(palette: ColorPalette): void {
-  const style = document.documentElement.style
+  const { style, dataset } = document.documentElement
+  // Named for the sheet: one theme's accent needs another shade in dark mode (`main.css`).
+  dataset.palette = palette
   const choice = COLOR_PALETTES[palette]
   for (const key of ['primary', 'neutral'] as const) {
     for (const shade of SHADES) {

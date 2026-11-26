@@ -8,7 +8,8 @@
 //! NZB documents of Usenet downloads and indexer hits (RD-1220-02); the ones the export could
 //! not fetch are listed in `failed`, each with its coded reason.
 
-use axum::{Json, extract::State};
+use axum::extract::State;
+use rd_api_core::extract::Json;
 use rmcp::{handler::server::wrapper::Parameters, schemars, tool, tool_router};
 use serde::{Deserialize, Serialize};
 

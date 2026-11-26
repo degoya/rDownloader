@@ -59,7 +59,7 @@
     "queue_done_title": "Download list finished",
     "queue_done_body": "No files finished. | {count} file finished. | {count} files finished.",
     "package_failed_title": "Downloads failed: {package}",
-    "package_failed_body": "{count} of {total} files could not be downloaded."
+    "package_failed_body": "{count} of {total} files could not be downloaded. | {count} of {total} files could not be downloaded."
   },
   "confirm": {
     "delete_package_title": "Delete package",
@@ -78,7 +78,7 @@
     "remove_download_completed": "Remove the entry from the download list? The finished file is kept.",
     "remove_download_partial": "Remove the entry from the download list? An existing incomplete file is deleted as well.",
     "delete_package_active": "“{name}” is still working. Remove it anyway? Its running downloads are cancelled and their incomplete files deleted; finished files stay in the destination folder.",
-    "delete_packages_active": "Remove {count} package(s), {busy} of which are still working? Running downloads are cancelled and their incomplete files deleted; finished files stay in the destination folder."
+    "delete_packages_active": "Remove {count} package, {busy} of them still working? Running downloads are cancelled and their incomplete files deleted; finished files stay in the destination folder. | Remove {count} packages, {busy} of them still working? Running downloads are cancelled and their incomplete files deleted; finished files stay in the destination folder."
   },
   "rename_file": {
     "title": "Rename file",
@@ -177,11 +177,11 @@
     "trial_staged": "Test with {name} v{version}",
     "sources": {
       "title": "Sources ({count})",
-      "pieces": "Checked in {count} pieces of {size} ({algorithm})",
+      "pieces": "Checked in {count} piece of {size} ({algorithm}) | Checked in {count} pieces of {size} ({algorithm})",
       "no_pieces": "No piece hashes; the whole-file hash is checked before completion when there is one.",
       "priority": "Priority {value}",
       "delivered": "{size} delivered",
-      "failures": "{count} failures",
+      "failures": "{count} failure | {count} failures",
       "retry_after": "again from {time}",
       "state": {
         "ready": "Ready",
@@ -339,7 +339,7 @@
   "free_download": "Free/Direct",
   "free_download_hint": "No provider account – the file is fetched as a free/direct download",
   "capacity": {
-    "title": "\"{name}\" is out of space",
+    "title": "“{name}” is out of space",
     "description": "{free} free, {required} required. Downloads for this destination are paused; every other destination keeps running.",
     "unknown_size": "The next transfer does not state a size, so the configured headroom applies.",
     "resume": "Resume",
@@ -354,7 +354,7 @@
     "confirm": "Reset"
   },
   "list": {
-    "aria": "Download queue, {count} rows"
+    "aria": "Download queue, {count} row | Download queue, {count} rows"
   },
   "collision": {
     "policies": {
@@ -540,7 +540,7 @@
   "schedule_pause": {
     "label": "Paused by schedule until {time}",
     "label_open": "Paused by schedule",
-    "title": "The bandwidth profile “{profile}” pauses downloads. Packages that ignore the schedule's pause go on; Settings › Bandwidth switches to another profile.",
+    "title": "The bandwidth profile “{profile}” pauses downloads. Packages that ignore the schedule's pause go on; Settings → Bandwidth switches to another profile.",
     "open_settings": "Switch profile"
   },
   "package_reset": {

@@ -21,7 +21,7 @@
     "turnaround": "Turnaround",
     "turnaround_hint": "mean from creation to completion",
     "all_time": "All time",
-    "all_time_hint": "{completed} transfers, never thinned",
+    "all_time_hint": "{completed} transfer, never thinned | {completed} transfers, never thinned",
     "turnaround_under_second": "under 1 s"
   },
   "chart": {
@@ -46,7 +46,7 @@
     "title": "Scraping the metrics",
     "description": "The service exposes its operational metrics in the Prometheus text format. A token with the “Metrics” area reaches this one route and nothing else.",
     "endpoint": "Endpoint",
-    "scope_hint": "Create the token under Settings → API & MCP with the “Metrics” area."
+    "scope_hint": "Create the token under Settings → Clients & API → API & MCP with the “Metrics” area."
   },
   "retention": {
     "eyebrow": "Retention",

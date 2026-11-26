@@ -49,7 +49,7 @@
   "selection_package": "{name} (selección)",
   "select_all_hint": "Seleccionar todas las entradas",
   "bulk": {
-    "enqueued": "{links} enlaces y {nzbs} importaciones NZB añadidos",
+    "enqueued": "Añadidos – enlaces: {links}, importaciones NZB: {nzbs}",
     "free_download": "{count} enlace se descargará sin cuenta (gratis/directo) | {count} enlaces se descargarán sin cuenta (gratis/directo)",
     "enqueue_failed": "{count} paquete no se pudo poner en cola | {count} paquetes no se pudieron poner en cola",
     "removing": "{done} de {total} eliminados …"
@@ -181,7 +181,7 @@
       "started": "«{name}» entregado a {provider}",
       "already_running": "{provider} ya está descargando «{name}»",
       "summary": "{done} de {total} NZB entregados a {provider}",
-      "summary_failed": "{failed} de {total} NZB no se pudieron entregar a {provider}: {reason}",
+      "summary_failed": "{failed} de {total} NZB no se pudo entregar a {provider}: {reason} | {failed} de {total} NZB no se pudieron entregar a {provider}: {reason}",
       "failed": "«{name}» no se pudo entregar",
       "provider_fallback": "un proveedor"
     }
@@ -193,7 +193,7 @@
     "torrent_duplicate_description": "«{name}» se marcó como duplicado y puede volver a cargarse de forma intencionada.",
     "torrent_failed": "La importación torrent ha fallado",
     "batch": "Importación de archivos finalizada",
-    "batch_description": "{created} importados, {duplicates} duplicados, {errors} errores.",
+    "batch_description": "Importados: {created}, duplicados: {duplicates}, errores: {errors}.",
     "container_imported": "Contenedor importado",
     "container_imported_description": "«{name}» añadió {count} enlace al LinkGrabber. | «{name}» añadió {count} enlaces al LinkGrabber.",
     "container_failed": "Error al importar el contenedor",
@@ -228,8 +228,8 @@
     "dissolve_mirror_description": "El enlace permanece en la lista; solo desaparece la agrupación. | Los {count} enlaces permanecen en la lista; solo desaparece la agrupación. Tampoco se volverán a agrupar más adelante."
   },
   "media": {
-    "badge": "Medios (yt-dlp)",
-    "variant": "Variante de medios",
+    "badge": "Multimedia (yt-dlp)",
+    "variant": "Variante multimedia",
     "mp3_hint": "Cambiar a audio MP3",
     "apply": "Usar este formato",
     "matched": "{matched} de {total} formatos coinciden",
@@ -373,7 +373,7 @@
       "automaticNamed": "Automático: {profile}",
       "automaticNone": "Automático: ningún perfil coincide",
       "none": "No enviar ninguna sesión",
-      "empty": "Ningún perfil de cookies cubre esta dirección. Añade uno en Ajustes → Autenticación."
+      "empty": "Ningún perfil de cookies cubre esta dirección. Añade uno en Ajustes → Cuentas → Inicios de sesión en sitios."
     },
     "unresolved_title": "Esta página no ofrece nada que elegir",
     "unresolved": {
@@ -490,7 +490,7 @@
     "reorder_filter_active": "El orden solo se puede cambiar sin ningún filtro activo; de lo contrario, los enlaces ocultos quedarían mal ordenados."
   },
   "list": {
-    "aria": "Enlaces recogidos, {count} filas"
+    "aria": "Enlaces recogidos, {count} fila | Enlaces recogidos, {count} filas"
   },
   "mirror": {
     "mirrors": "{count} espejo | {count} espejos",
@@ -526,13 +526,13 @@
   },
   "duplicates": {
     "queued": "{count} × ya en la cola",
-    "queued_hint": "La misma fuente ya está {count} vez/veces en la cola: reconocida por la dirección normalizada, el info-hash o el hoster.",
+    "queued_hint": "La misma fuente ya está {count} vez en la cola: reconocida por la dirección normalizada, el info-hash o el hoster. | La misma fuente ya está {count} veces en la cola: reconocida por la dirección normalizada, el info-hash o el hoster.",
     "history": "Ya descargado",
     "history_hint": "El mismo origen está en el historial de descargas: «{name}», terminado el {date}."
   },
   "sources": {
     "title": "Fuentes ({count})",
-    "badge": "{count} fuentes",
+    "badge": "{count} fuente | {count} fuentes",
     "priority": "Prioridad {value}",
     "hint": "Se prueban en este orden. Una dirección que apunta a tu propio equipo —o, en un documento que no has aportado tú mismo, a tu red local— no se consulta."
   },
@@ -570,7 +570,7 @@
       "category": "Categoría"
     },
     "unavailable": "Todavía no hay ningún indexador activado. Añade primero un indexador: las suscripciones a indexadores por sí solas no se buscan aquí.",
-    "unavailable_link": "Ajustes › Usenet › Indexadores",
+    "unavailable_link": "Ajustes → Usenet → Indexadores",
     "grab_one": "Añadir al LinkGrabber: {title}",
     "grab_one_done": "En el LinkGrabber: {title}",
     "grab_one_failed": "No añadido, inténtalo de nuevo: {title}",
@@ -590,7 +590,7 @@
     },
     "type_unsupported": "Ninguno de los indexadores elegidos ofrece esta búsqueda.",
     "torrent": "Torrent",
-    "swarm": "{seeders} semillas, {leechers} descargando",
+    "swarm": "Seeders: {seeders}, leechers: {leechers}",
     "grabbed_torrents": "Ningún torrent añadido | Un torrent añadido al LinkGrabber | {count} torrents añadidos al LinkGrabber",
     "open": "Buscar en indexadores",
     "drawer_hint": "Una petición por búsqueda; lo que tomes llega al LinkGrabber para revisarlo."

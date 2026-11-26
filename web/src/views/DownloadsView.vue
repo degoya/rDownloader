@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AccountTrafficNotice from '@/components/AccountTrafficNotice.vue'
 import BulkActionBar from '@/components/BulkActionBar.vue'
 import DirectAddModal from '@/components/DirectAddModal.vue'
 import NavbarAction from '@/components/NavbarAction.vue'
@@ -17,6 +18,7 @@ import PostprocessQueue from '@/components/PostprocessQueue.vue'
 import QueuePauseControl from '@/components/QueuePauseControl.vue'
 import QueueSummary from '@/components/QueueSummary.vue'
 import PowerCountdownAlert from '@/components/power/PowerCountdownAlert.vue'
+import SchedulePauseNotice from '@/components/SchedulePauseNotice.vue'
 import StorageCapacityAlert from '@/components/StorageCapacityAlert.vue'
 import TorrentKillSwitchAlert from '@/components/TorrentKillSwitchAlert.vue'
 import CollisionPromptsAlert from '@/components/storage/CollisionPromptsAlert.vue'
@@ -48,7 +50,7 @@ import { usePostprocessStore } from '@/stores/postprocess'
 import { useProxyProfiles } from '@/stores/proxyProfiles'
 import { usePublishedSelection } from '@/stores/selection'
 import { RESETTABLE_STATES, useTransfersStore } from '@/stores/transfers'
-import { DOWNLOADS_NAV_TITLE, DOWNLOADS_NAV_WIDE } from '@/utils/downloadsNavbar'
+import { DOWNLOADS_NAV_TITLE, DOWNLOADS_NAV_WIDE, DOWNLOADS_NOTICE_LINE } from '@/utils/downloadsNavbar'
 import { hasExtractable } from '@/utils/format'
 import { packageConnections } from '@/utils/usenetConnections'
 
@@ -167,7 +169,7 @@ const resettableSelection = computed(() => selection.selectedDownloads.value.fil
 const summarize = useSelectionSummary()
 const selectionSummary = computed(() => summarize(selection.parts.value))
 /** A red action's tooltip: its sentence, then what the figure on the button counts (RD-1260-07). */
-const countedTitle = (action: string, counts: string, count: number): string => `${t(action, { count }, count)}: ${t(counts, { count }, count)}`
+const countedTitle = (action: string, counts: string, count: number): string => t('common.text.labelled', { label: t(action, { count }, count), value: t(counts, { count }, count) })
 
 onMounted(() => {
   // `k` (RD-180-17): the same action as the menu item below, confirmation included.
@@ -213,6 +215,9 @@ function accountLabel(id: string | null | undefined): string | null {
           </div>
         </template>
       </UDashboardNavbar>
+      <div class="@container">
+        <div :class="DOWNLOADS_NOTICE_LINE" data-testid="downloads-notice-line"><SchedulePauseNotice /><AccountTrafficNotice /></div>
+      </div>
     </template>
 
     <template #body>
@@ -231,6 +236,7 @@ function accountLabel(id: string | null | undefined): string | null {
         <UAlert
           v-if="transfers.error"
           color="error"
+          role="alert"
           icon="i-lucide-circle-alert"
           :description="transfers.error"
           close

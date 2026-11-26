@@ -31,7 +31,7 @@
     "extension_connected": "La extensión del navegador está conectada: anuncia este captcha y abre {host} en una pestaña de tu navegador.",
     "extension_missing": "No hay ninguna extensión del navegador conectada. Sin ella, solo un servicio resolutor puede responder este captcha. Instala y vincula la extensión para responderlo tú mismo, en tu propio navegador.",
     "extension_setup": "Configurar la extensión del navegador",
-    "hint": "Conecta la extensión del navegador y responde el captcha en la pestaña que abre, configura un servicio resolutor en los ajustes de red, o rechaza este captcha y deja que la descarga falle. No hay otra vía: un widget está ligado al dominio del hoster y no puede mostrarse ni en esta interfaz ni en el agente de escritorio.",
+    "hint": "Conecta la extensión del navegador y responde el captcha en la pestaña que abre, configura un servicio resolutor en Ajustes → Captcha y resolutor, o rechaza este captcha y deja que la descarga falle. No hay otra vía: un widget está ligado al dominio del hoster y no puede mostrarse ni en esta interfaz ni en el agente de escritorio.",
     "configure": "Ajustes de captcha"
   },
   "settings": {
