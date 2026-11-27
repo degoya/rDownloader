@@ -127,3 +127,47 @@ async fn head_probe_reports_the_advertised_content_length() {
     let result = probe(&reqwest::Client::new(), url).await.expect("probe");
     assert_eq!(result.total_bytes, Some(PAYLOAD.len() as u64));
 }
+
+/// RD-1490-13: mega.nz never answers a `HEAD`. The probe asks with its ranged GET once the
+/// `HEAD` is past its deadline instead of waiting on it for good.
+#[tokio::test]
+async fn a_head_that_never_answers_falls_back_to_the_ranged_get() {
+    use axum::{
+        http::{Method, StatusCode, header},
+        response::IntoResponse,
+    };
+
+    let app = Router::new().fallback(|method: Method| async move {
+        if method == Method::HEAD {
+            std::future::pending::<()>().await;
+        }
+        (
+            StatusCode::PARTIAL_CONTENT,
+            [
+                (header::CONTENT_RANGE, "bytes 0-0/2069"),
+                (header::CONTENT_TYPE, "text/html"),
+            ],
+            "<",
+        )
+            .into_response()
+    });
+    let server = rd_testkit::serve(app).await;
+    let url: url::Url = format!("http://{}/file/AbCdEfGh", server.addr())
+        .parse()
+        .expect("URL");
+    let probed = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        super::probe_answer(
+            &reqwest::Client::new(),
+            url,
+            &[],
+            std::time::Duration::from_millis(200),
+        ),
+    )
+    .await
+    .expect("the probe ends after the HEAD's deadline")
+    .expect("the GET answered");
+    assert_eq!(probed.0.total_bytes, Some(2069));
+    assert!(!probed.0.looks_downloadable(), "a page, not a file");
+    assert!(probed.1.is_none(), "the range was honoured");
+}

@@ -1,0 +1,39 @@
+name: CI cache prune
+
+# One generation per cache (RD-1490-02 Nr. 24). A new Cargo.lock, toolchain or pnpm lock file saves
+# a new key beside the old one, which GitHub keeps until it has gone unread for seven days: on
+# 2026-11-25 two generations of the Rust caches held 11.24 GB against the 9 GB meant to stay.
+# After every run of the two workflows that save — CI on a push to `main` or `development`, Soak
+# from its nightly run on `main` — this deletes, on that ref, every cache older than the newest of
+# its family (scripts/ci-cache.sh says what a family is). A run after the whole workflow, so no
+# job's post step saves after it, and a workflow of its own: ci.yml stays at 500 lines.
+on:
+  workflow_run:
+    workflows: [CI, Soak]
+    types: [completed]
+    branches: [main, development]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    # A pull request whose branch is called `main` matches `branches` too; it saves nothing.
+    if: github.event.workflow_run.event != 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Delete the older generations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: scripts/ci-cache.sh prune "$GITHUB_REPOSITORY" "refs/heads/${BRANCH}"

@@ -452,7 +452,9 @@ that only an event can change is announced by one and never polled.
   of itself — the ground of a `soft` or `subtle` badge, button and notice — in both modes and every
   palette; a solid button's label on it as well, and the focus ring, drawn in the full accent, passes
   3:1. The light shades stand in `main.css` under `:root:not(.dark)`, never a bare `:root`, which
-  would paint them in dark mode too. `contrast.test.ts` works the ratios out from the style sheets,
+  would paint them in dark mode too. A field's border (`border-accented`, grey 500) passes 3:1 and
+  its placeholder (`text-dimmed`, the shade of `text-muted`) 4.5:1 on every ground, in both modes
+  (RD-1490-09). `contrast.test.ts` works the ratios out from the style sheets,
   so a new palette or a changed shade joins only when it passes.
 
 Queue rows and the LinkGrabber's link rows share one responsive grid of nine named cells. Below

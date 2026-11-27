@@ -11,8 +11,8 @@ name: Installers
 #   rpm in a Fedora container: dnf install, the service run as a user
 #   deb and rpm alike: the menu entry installed (the deb's checked by desktop-file-validate) and removed
 #   both for x86_64 on ubuntu-24.04 and for aarch64 on ubuntu-24.04-arm, each natively (RD-190-12)
-#   MSI on Windows Server 2025: msiexec /qn per user, AUTOSTART=1, a second build as the upgrade,
-#     a German build installed and removed (RD-1120-20)
+#   MSI on Windows Server 2025: msiexec /qn per user, AUTOSTART=1, a second build as the upgrade
+#     (one entry under installed programs after it), a German build installed and removed (RD-1120-20)
 #   the capture agent's MSI (RD-1390-04): AUTOSTART=1 and without, the switches, the uninstall, an
 #     upgrade that keeps a removed autostart removed, the full MSI refused by it and replacing it
 #   macOS: `rdownloader-capture scheme install|remove` against Launch Services, the helper app
@@ -268,8 +268,7 @@ jobs:
           scripts/release-assets.sh fetch-plugins "${GITHUB_REPOSITORY}" stage/plugins
       - name: Install WiX
         uses: ./.github/actions/install-wix
-      # Two builds of one version: each gets a product code of its own, so the second installs as
-      # the major upgrade of the first, as a release does over the one before it.
+      # Two builds of one version, each with its own product code: the second is the first's major upgrade.
       - name: Build the MSI twice, and once in German; the capture agent's twice
         shell: bash
         run: |
@@ -289,15 +288,15 @@ jobs:
           $db = Join-Path $home_ 'data\rdownloader.sqlite3'
           $menu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\rDownloader'
           $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          $arp = 'HKCU', 'HKLM' | ForEach-Object { "${_}:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" }
           function Msi($arguments, $log) {
             $process = Start-Process msiexec.exe -ArgumentList "$arguments /qn /l*v $log" -Wait -PassThru
             if ($process.ExitCode -ne 0) { Get-Content $log -Tail 80; throw "msiexec $arguments exited with $($process.ExitCode)" }
           }
           function Serve([switch]$ByAutostart) {
             $env:RDOWNLOADER_NO_PAUSE = '1'
-            # -ByAutostart: what the service's Run value starts (RD-1400-07), the agent, which starts the
-            # service without a window. Not piped: the service would inherit the pipe and hold the step
-            # open; WaitForExit waits for the agent alone, which ends once the service is started.
+            # -ByAutostart: what the Run value starts (RD-1400-07), the agent, which starts the service
+            # windowless. Not piped, or the service would hold the step open; WaitForExit waits for the agent.
             if ($ByAutostart) { $p = Start-Process "$program\rdownloader-capture.exe" start-service -PassThru; $null = $p.Handle; $p.WaitForExit(); $code = $p.ExitCode }
             else { & "$program\start-rdownloader.bat" server; $code = $LASTEXITCODE }
             if ($code -ne 0) { throw "the service's start failed (exit $code)" }
@@ -327,8 +326,10 @@ jobs:
           $sendToLink = Join-Path ([Environment]::GetFolderPath('SendTo')) 'rDownloader.lnk'
           $verb = "$classes\SystemFileAssociations\.dlc\shell\rDownloader.Import\command"
           $offered = "$classes\Applications\rdownloader-capture.exe"
-          # The upgrade stops the running service itself (the old version's StopRunning).
+          # The upgrade stops the running service itself (StopRunning) and replaces it under installed programs.
           Msi '/i installers\second\rdownloader-windows-x86_64.msi AUTOSTART=1 ASSOCIATION=1 DROPSHORTCUT=1 SENDTO=1' second.log
+          $entries = @(Get-ItemProperty $arp -ErrorAction Ignore | Where-Object DisplayName -eq 'rDownloader')
+          if ($entries.Count -ne 1) { throw "the upgrade left $($entries.Count) entries under installed programs, not one (RD-1260-01)" }
           if (Get-Process rdownloader -ErrorAction SilentlyContinue) { throw "the upgrade left the old service running" }
           $autostart = (Get-ItemProperty $run -Name 'rDownloader Service' -ErrorAction SilentlyContinue).'rDownloader Service'
           if (-not $autostart) { throw "AUTOSTART=1 registered no autostart" }
@@ -407,8 +408,7 @@ jobs:
             if (Test-Path -LiteralPath $left) { throw "the uninstall left $left behind" }
           }
           if (-not (Test-Path $db)) { throw "the capture uninstall took the data with it" }
-          # Without AUTOSTART=1 no autostart; with it, then switched off, an upgrade keeps it off
-          # and starts no agent.
+          # Without AUTOSTART=1 no autostart; with it, then switched off, an upgrade keeps it off, no agent.
           Msi "/i $first" capture-plain.log
           if (Autostart) { throw "an install without AUTOSTART=1 registered the autostart" }
           Msi "/x $first" capture-plain-remove.log

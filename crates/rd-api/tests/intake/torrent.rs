@@ -25,7 +25,7 @@ fn bstr(value: &str) -> Vec<u8> {
 }
 
 /// A three-file torrent, enough to exercise folders and selection.
-fn multi_file_torrent() -> Vec<u8> {
+pub(super) fn multi_file_torrent() -> Vec<u8> {
     let files: [(&[&str], u64); 3] = [
         (&["movie.mkv"], 4_096),
         (&["extras", "behind.nfo"], 32),
@@ -954,7 +954,7 @@ async fn a_category_override_sits_between_the_global_settings_and_the_torrent() 
 // --- RD-120-68: a removed torrent stays removed ------------------------------------------
 
 /// The info hash of the fixture torrent.
-fn fixture_hash() -> String {
+pub(super) fn fixture_hash() -> String {
     rd_torrent::parse_torrent(&multi_file_torrent())
         .expect("fixture")
         .info_hash
@@ -1176,7 +1176,7 @@ async fn torrent_server(
 
 /// Adds `link` to the LinkGrabber and waits until the check has named its package after
 /// the torrent. Returns the collector packages.
-async fn add_rerouted(router: &Router, link: &str) -> serde_json::Value {
+pub(super) async fn add_rerouted(router: &Router, link: &str) -> serde_json::Value {
     let (status, body) = send(
         router,
         json_request(
@@ -1270,7 +1270,7 @@ async fn only_candidate(router: &Router) -> String {
 }
 
 /// Enqueues the first collector package and returns the source of the row it became.
-async fn enqueue_source(router: &Router, packages: &serde_json::Value) -> url::Url {
+pub(super) async fn enqueue_source(router: &Router, packages: &serde_json::Value) -> url::Url {
     let package = packages[0]["id"].as_str().expect("package id");
     let (status, body) = send(
         router,

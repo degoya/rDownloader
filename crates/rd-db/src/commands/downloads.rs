@@ -37,6 +37,7 @@ impl TorrentStateEdit {
 pub(crate) enum DownloadsCommand {
     CreatePackage {
         package: NewPackage,
+        kind: rd_core::DownloadKind,
         reply: Reply<rd_core::DownloadPackage>,
     },
     CreateDownload {

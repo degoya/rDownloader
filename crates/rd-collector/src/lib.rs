@@ -16,6 +16,11 @@ mod rdlinks;
 mod rsdf;
 mod textlist;
 
+#[cfg(test)]
+mod link_filter_proptests;
+#[cfg(test)]
+mod nzb_proptests;
+
 pub use categories::{CategoryContext, CategoryRules, select_category};
 pub use container::ContainerFormat;
 pub use crawljob::{Crawljob, MAX_CRAWLJOB_BYTES, read_crawljob, write_crawljob};

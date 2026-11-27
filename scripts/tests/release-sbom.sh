@@ -32,10 +32,10 @@ run_status "$ROOT/scripts/release-sbom.sh" --help me
 expect_status "an option is refused" 2
 
 real="$SCRATCH/real.spdx.json"
-run_status env SOURCE_DATE_EPOCH=1764028800 "$ROOT/scripts/release-sbom.sh" "$real"
-expect_status "this checkout's SBOM passes its floors" 0
 # A branch that moved a lock file has a stale list until the generators run (integrate.sh starts
-# them after this test), and what moved is then missing here.
+# them after this test), and what moved is then missing here: a warning, where the release stops.
+run_status env RD_SBOM_STALE_LIST=warn SOURCE_DATE_EPOCH=1764028800 "$ROOT/scripts/release-sbom.sh" "$real"
+expect_status "this checkout's SBOM passes its floors" 0
 if [[ "$output" != *"renews the list"* ]]; then
     expect "the crates the service is made of are in it" "True" \
         "$(of "$real" 'all(name in p for name in ("tokio", "axum", "sqlx", "wasmtime", "vue", "@nuxt/ui"))')"
@@ -47,7 +47,8 @@ expect "every package but the application depends from it, once" "True" \
 expect "every third-party package has its checksum" "True" \
     "$(of "$real" 'all("checksums" in each for each in d["packages"] if each["name"] != "rdownloader")')"
 expect "the time is SOURCE_DATE_EPOCH" "2025-11-25T00:00:00Z" "$(of "$real" 'd["creationInfo"]["created"]')"
-env SOURCE_DATE_EPOCH=1764028800 "$ROOT/scripts/release-sbom.sh" "$SCRATCH/again.spdx.json" > /dev/null
+env RD_SBOM_STALE_LIST=warn SOURCE_DATE_EPOCH=1764028800 "$ROOT/scripts/release-sbom.sh" \
+    "$SCRATCH/again.spdx.json" > /dev/null 2>&1
 expect_true "the same checkout gives the same bytes" 'cmp -s "$real" "$SCRATCH/again.spdx.json"'
 
 tree="$SCRATCH/tree"
@@ -129,10 +130,14 @@ expect_status "a list that lost its content is refused" 1
 expect_output "with the count it found" "the SBOM names 2 cargo packages, at least 500 expected"
 expect_true "and nothing is written" '[[ ! -e "$small" ]]'
 
-run_status python3 -I "$ROOT/scripts/lib/release-sbom.py" "$tree" "$small" 0 1 3
-expect_status "the npm half has a floor of its own" 1
-expect_output "a listed package that left the lock file is named" "gone@1.0.0 is listed but not in web/pnpm-lock.yaml"
 run_status python3 -I "$ROOT/scripts/lib/release-sbom.py" "$tree" "$small" 0 1 2
+expect_status "a listed package that left the lock file stops the release" 1
+expect_output "it is named as an error" "::error::gone@1.0.0 is listed but not in web/pnpm-lock.yaml"
+expect_true "and nothing is written" '[[ ! -e "$small" ]]'
+run_status env RD_SBOM_STALE_LIST=warn python3 -I "$ROOT/scripts/lib/release-sbom.py" "$tree" "$small" 0 1 3
+expect_status "the npm half has a floor of its own" 1
+expect_output "a preflight only warns about it" "release-sbom: gone@1.0.0 is listed but not in web/pnpm-lock.yaml"
+run_status env RD_SBOM_STALE_LIST=warn python3 -I "$ROOT/scripts/lib/release-sbom.py" "$tree" "$small" 0 1 2
 expect_status "the scratch checkout above its floors" 0
 expect "what ships, and what the licence list does not know" \
     "['@scope/name', 'rdownloader', 'slashed', 'unlisted', 'vue']" "$(of "$small" 'sorted(p)')"
@@ -146,8 +151,9 @@ expect "npm's integrity becomes a hexadecimal checksum" "SHA512 fffefd" \
 expect "the document names the version it describes" "rdownloader-9.8.7 9.8.7" \
     "$(of "$small" 'd["name"] + " " + p["rdownloader"]["versionInfo"]')"
 
-# The release runs it, and before the checksums that cover it.
+# The release runs it, strict, and before the checksums that cover it.
 release_yml="$ROOT/.github/workflows/release.yml"
+expect "release.yml never relaxes the stale list" "0" "$(grep -c RD_SBOM_STALE_LIST "$release_yml" || true)"
 expect "release.yml writes it before SHA256SUMS" "release-sbom.sh release-assets.sh sums" \
     "$(grep -oE 'scripts/(release-sbom\.sh|release-assets\.sh sums)' "$release_yml" | sed 's#^scripts/##' | paste -sd' ')"
 

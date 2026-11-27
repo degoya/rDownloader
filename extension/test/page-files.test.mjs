@@ -207,7 +207,8 @@ function page() {
     window,
     location: { origin: `https://${HOST}` },
     document: { createElement: () => new HTMLAnchorElement() },
-    crypto: { randomUUID: () => `id-${++next}` },
+    // What a page that is no secure context has (plain http): no `randomUUID` (RD-1490-13).
+    crypto: { getRandomValues: (array) => array.fill(++next) },
     btoa,
     setTimeout: () => 0,
     clearTimeout: () => {}
@@ -260,6 +261,19 @@ test('refused, the browser gets the same file from a fresh address', async () =>
   assert.equal(await fake.live.get(fake.downloads[0].url).text(), 'dlc-bytes')
   fake.answer(fake.posted[0].id, false)
   assert.equal(fake.downloads.length, 1, 'a second answer changes nothing')
+})
+
+test('on a page without randomUUID each held file gets its own id (RD-1490-13)', async () => {
+  const fake = page()
+  siteDownload(fake, 'One.dlc', new Blob(['one']))
+  siteDownload(fake, 'Two.dlc', new Blob(['two']), { connected: false })
+  await settle()
+  assert.equal(fake.posted.length, 2)
+  const [first, second] = fake.posted.map((message) => message.id)
+  assert.match(first, /^[0-9a-f]{32}$/)
+  assert.notEqual(first, second)
+  fake.answer(second, false)
+  assert.deepEqual(fake.downloads.map(({ name }) => name), ['Two.dlc'], 'an answer reaches its own file only')
 })
 
 test('other blob downloads are left alone, a browser-only type is held by its type alone', async () => {

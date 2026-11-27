@@ -165,7 +165,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.48.0"
+version = "1.49.0"
 authors = ["Alexander Herling / DEGOYA.digital"]
 edition = "2024"
 rust-version = "1.100"
@@ -279,6 +279,10 @@ percent-encoding = "2.3"
 # Decodes the capture agent's tray icon; replaces `image`, which wrapped this same crate. On macOS
 # `tray-icon` and `muda` link it anyway.
 png = "0.18"
+# Property tests of the parsers that read what a stranger wrote (RD-1490-04): NZB, yEnc, archive
+# volume names, user regex rules. A dev-dependency only, never in a shipped build; without the
+# default `fork` and `timeout`, which would start the test binary again for every case.
+proptest = { version = "1.12", default-features = false, features = ["std"] }
 # Mozilla's Public Suffix List, compiled in: an imported cookie for `com` or `co.uk` is refused
 # (RD-120-49). No runtime fetch; a list update is a dependency update.
 psl = "2.1"
@@ -301,7 +305,7 @@ rustls-native-certs = "0.8"
 rustls-platform-verifier = "0.7"
 rust-par2 = "0.2"
 russh = "0.65"
-russh-sftp = "3"
+russh-sftp = "4"
 secrecy = { version = "0.10", features = ["serde"] }
 security-framework = "3.7.0"
 subtle = "2.6"
@@ -317,7 +321,7 @@ sqlx = { version = "0.9", default-features = false, features = ["macros", "migra
 # `deprecated` still gates `connect_secure_implicit` in 13 (RD-1450-02), i.e. implicit FTPS on port 990.
 # It is deprecated as a protocol, not as an API, and RD-060-01 requires it.
 suppaftp = { version = "13", default-features = false, features = ["tokio", "tokio-rustls-aws-lc-rs", "deprecated"] }
-tao = "0.37.0"
+tao = "0.38.0"
 tar = { version = "0.4", default-features = false }
 tempfile = "3"
 thiserror = "2"
@@ -330,7 +334,7 @@ tower = "0.5"
 tower-http = { version = "0.7", features = ["cors", "limit", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-tray-icon = "0.26"
+tray-icon = "0.27"
 unicode-normalization = "0.1"
 url = { version = "2", features = ["serde"] }
 # `chrono` and `jiff_0_2` only teach the derive type names (no dependency): a field typed
@@ -339,12 +343,12 @@ url = { version = "2", features = ["serde"] }
 # (RD-1470-01); jiff 1's `ZonedDateTime` is not among them, and no DTO carries one.
 utoipa = { version = "6", features = ["axum_extras", "jiff_0_2", "uuid"] }
 uuid = { version = "1", features = ["serde", "v7"] }
-# The version wasmtime brings (wasmtime 50: 0.261), so the pre-validation adds no second copy;
+# The version wasmtime brings (wasmtime 51: 0.263), so the pre-validation adds no second copy;
 # raise it together with wasmtime (RD-150-21).
-wasmparser = "0.261"
+wasmparser = "0.263"
 # `cache` keeps compiled plugins on disk between starts and `parallel-compilation` spreads the
 # compile a cache miss still costs over the cores (RD-130-06; `rd-plugin-host/src/compile_cache.rs`).
-wasmtime = { version = "50.0.1", default-features = false, features = ["anyhow", "async", "cache", "component-model", "component-model-async", "cranelift", "parallel-compilation", "runtime", "std"] }
+wasmtime = { version = "51.0.0", default-features = false, features = ["anyhow", "async", "cache", "component-model", "component-model-async", "cranelift", "parallel-compilation", "runtime", "std"] }
 webauthn-rs = "0.6.1-dev"
 # Test-only: a software authenticator, so the passkey ceremonies can be driven end to end
 # rather than mocked. Pinned to the same line as webauthn-rs so the two share their

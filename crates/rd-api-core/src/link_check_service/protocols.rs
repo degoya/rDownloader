@@ -30,7 +30,7 @@ impl LinkCheckService {
     ) {
         // A direct manifest is classified first: whether it is protected, and whether it is
         // live, decides where it goes before the extractor is asked anything.
-        if self.classify_manifest(&candidate, true, guard).await {
+        if self.classify_manifest(&candidate, guard).await {
             return;
         }
         // With the link's cookie profile, as the download will use it (RD-1320-02).

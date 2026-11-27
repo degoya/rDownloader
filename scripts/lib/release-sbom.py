@@ -1,12 +1,15 @@
 """The SPDX document of scripts/release-sbom.sh, which documents it.
 
     release-sbom.py <checkout> <output> <epoch> <minimum crates> <minimum npm packages>
+
+RD_SBOM_STALE_LIST=warn lets a listed npm package that left the lock file through with a warning.
 """
 
 import base64
 import datetime
 import hashlib
 import json
+import os
 import pathlib
 import re
 import sys
@@ -72,13 +75,13 @@ def npm_integrities(root):
     return found
 
 
-def npm(root, listed):
+def npm(root, listed, stale):
+    """The listed npm packages of the lock file; those it no longer holds go to `stale`."""
     integrities = npm_integrities(root)
     for (name, version), licence in listed.items():
         integrity = integrities.get((name, version))
         if integrity is None:
-            print(f"release-sbom: {name}@{version} is listed but not in web/pnpm-lock.yaml; "
-                  "scripts/licenses.sh renews the list", file=sys.stderr)
+            stale.append(f"{name}@{version}")
             continue
         algorithm, digest = integrity.split("-", 1)
         bare = name.rsplit("/", 1)[-1]
@@ -165,8 +168,15 @@ def main(argv):
     def listed(key):
         return {(each["name"], each["version"]): each["license"] for each in third_party[key]}
 
+    stale = []
     entries = [*crates(root, listed("rust"), set(third_party["rust_not_shipped"])),
-               *npm(root, listed("npm"))]
+               *npm(root, listed("npm"), stale)]
+    # A stale list leaves packages out of the SBOM: the release stops (RD-1490-10). A wave's
+    # preflight runs before the generators that renew the list, and only warns.
+    warn = os.environ.get("RD_SBOM_STALE_LIST") == "warn"
+    for each in stale:
+        print(f"{'release-sbom: ' if warn else '::error::'}{each} is listed but not in "
+              "web/pnpm-lock.yaml; scripts/licenses.sh renews the list", file=sys.stderr)
     for kind, minimum in least.items():
         count = sum(entry["kind"] == kind for entry in entries)
         if count < minimum:
@@ -174,6 +184,8 @@ def main(argv):
                   file=sys.stderr)
             return 1
         print(f"release-sbom: {count} {kind} packages")
+    if stale and not warn:
+        return 1
     output.write_text(json.dumps(document(root, epoch, entries), indent=2) + "\n", encoding="utf-8")
     return 0
 

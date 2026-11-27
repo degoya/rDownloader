@@ -34,6 +34,14 @@ RD_ACTIONLINT_SHA256="8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b3
 RD_SEVEN_ZIP_VERSION="25.01"
 # shellcheck disable=SC2034
 RD_SEVEN_ZIP_SHA256="4ca3b7c6f2f67866b92622818b58233dc70367be2f36b498eb0bdeaaa44b53f4"
+# The unrar of rd-postprocess' live RAR test (scripts/ci-tools.sh unrar, RD-1490-05): Debian 13's
+# non-free package, the version its archive carries; the test run's only, never image or package.
+# shellcheck disable=SC2034
+RD_UNRAR_DEBIAN_VERSION="7.1.8-1"
+# shellcheck disable=SC2034
+RD_UNRAR_DEBIAN_SNAPSHOT="20250627T143139Z"
+# shellcheck disable=SC2034
+RD_UNRAR_SHA256="ad50191c24ef8334ce4f12ac8a11c30faa773651215966d868c3b7c24e1f73f6"
 
 # The Rust toolchain checkout $1 pins: rust-toolchain.toml's `channel`.
 rd_rust_version() {

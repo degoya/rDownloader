@@ -1,5 +1,5 @@
 {
-  "name": "Debrid-Link sign-in",
+  "name": "Inicio de sesión de Debrid-Link",
   "description": "Inicia sesión en una cuenta de Debrid-Link en el proveedor, sin escribir aquí una clave de API.",
   "codes": {
     "debridlink_auth.consent_denied": "El proveedor rechazó el inicio de sesión de esta cuenta.",

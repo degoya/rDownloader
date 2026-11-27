@@ -13,10 +13,16 @@
 //! whole afterwards, which costs a second request only where the server could have told the
 //! torrent apart by its content type and did not. One that ignores the range is read as before:
 //! the sniff, then the connection is dropped.
+//!
+//! [`probe_keeping_answer`] keeps the probe's own fallback GET for that reading (RD-1490-02): an
+//! indexer proxy such as Prowlarr refuses the `HEAD`, ignores the one-byte range, sends the
+//! whole file and counts that answer as a grab. Dropping it and asking again was a grab more.
 
 use futures_util::StreamExt;
 use reqwest::{Client, StatusCode, header};
 use url::Url;
+
+use crate::{HttpDownloadError, ProbeResult};
 
 /// What [`fetch_sniffed`] read.
 #[derive(Clone, Debug)]
@@ -25,6 +31,45 @@ pub struct SniffedBody {
     pub bytes: Vec<u8>,
     /// Whether `bytes` is the entire response body.
     pub complete: bool,
+}
+
+/// The whole entity a server sent to the probe's one-byte range, still unread (RD-1490-02).
+#[derive(Debug)]
+pub struct WholeAnswer(reqwest::Response);
+
+impl WholeAnswer {
+    /// The headers it came with — an indexer names its release in them.
+    #[must_use]
+    pub fn headers(&self) -> &header::HeaderMap {
+        self.0.headers()
+    }
+
+    /// Reads it the way [`fetch_sniffed`] reads its own answer: the first `prefix` bytes, and on
+    /// to the limit `read_on` names for that beginning, `None` stopping at the sniff.
+    pub async fn read(
+        self,
+        prefix: usize,
+        read_on: impl Fn(&[u8]) -> Option<usize>,
+    ) -> Option<SniffedBody> {
+        read_sniffed(self.0, prefix, read_on).await
+    }
+}
+
+/// Probes like [`crate::probe_with_headers`] and hands back the fallback GET's answer when the
+/// server ignored its range and sent the whole entity; `None` after a `HEAD` that answered or a
+/// range that was honoured.
+///
+/// # Errors
+///
+/// Those of [`crate::probe_with_headers`].
+pub async fn probe_keeping_answer(
+    client: &Client,
+    url: Url,
+    headers: &[(String, String)],
+) -> Result<(ProbeResult, Option<WholeAnswer>), HttpDownloadError> {
+    let (probe, response) =
+        crate::probe::probe_answer(client, url, headers, crate::probe::HEAD_DEADLINE).await?;
+    Ok((probe, response.map(WholeAnswer)))
 }
 
 /// Reads the first `prefix` bytes of a GET, and the rest of the same response up to `limit`
@@ -53,6 +98,15 @@ pub async fn fetch_sniffed(
     if !response.status().is_success() {
         return None;
     }
+    read_sniffed(response, prefix, |head| read_on(head).then_some(limit)).await
+}
+
+/// The reading both share: the first `prefix` bytes, then on to the limit `read_on` names.
+async fn read_sniffed(
+    response: reqwest::Response,
+    prefix: usize,
+    read_on: impl Fn(&[u8]) -> Option<usize>,
+) -> Option<SniffedBody> {
     // The entity's whole length when the server sent only the range asked for: the body is
     // complete only if that length fits in it. `None` for a full body.
     let ranged_total = (response.status() == StatusCode::PARTIAL_CONTENT).then(|| {
@@ -63,7 +117,8 @@ pub async fn fetch_sniffed(
             .and_then(crate::probe::parse_content_range_total)
     });
     let mut collected = Vec::new();
-    let mut reading_on = false;
+    // Set once the beginning was accepted: how far to read on.
+    let mut reading_on: Option<usize> = None;
     let mut stream = response.bytes_stream();
     loop {
         let chunk = match stream.next().await {
@@ -76,17 +131,17 @@ pub async fn fetch_sniffed(
                 });
             }
             Some(Ok(chunk)) => chunk,
-            Some(Err(_)) if reading_on => break,
+            Some(Err(_)) if reading_on.is_some() => break,
             Some(Err(_)) => return None,
         };
         collected.extend_from_slice(&chunk);
-        if !reading_on && collected.len() >= prefix {
-            if !read_on(&collected[..prefix]) {
+        if reading_on.is_none() && collected.len() >= prefix {
+            let Some(limit) = read_on(&collected[..prefix]) else {
                 break;
-            }
-            reading_on = true;
+            };
+            reading_on = Some(limit);
         }
-        if collected.len() > limit {
+        if reading_on.is_some_and(|limit| collected.len() > limit) {
             break;
         }
     }
@@ -188,5 +243,97 @@ mod tests {
             .expect("read");
         assert!(short.complete);
         assert_eq!(short.bytes, b"d1:");
+    }
+}
+
+/// RD-1490-02: the probe's own answer is kept when it came back whole, so a server that counts
+/// every GET — an indexer proxy behind its download link — is asked once.
+#[cfg(test)]
+mod probe_tests {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    use axum::{
+        Router,
+        http::{Method, StatusCode, header},
+        response::IntoResponse,
+    };
+
+    use super::probe_keeping_answer;
+
+    const DOCUMENT: &[u8] = b"d8:announce and everything after it";
+
+    /// Refuses `HEAD` like Prowlarr does, or answers it, and sends the whole document to every
+    /// GET whatever its range. Counts the GETs.
+    async fn indexer(head_allowed: bool) -> (rd_testkit::TestServer, url::Url, Arc<AtomicUsize>) {
+        let gets = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&gets);
+        let app = Router::new().fallback(move |method: Method| {
+            let counter = Arc::clone(&counter);
+            async move {
+                if method == Method::HEAD {
+                    return if head_allowed {
+                        let length = DOCUMENT.len().to_string();
+                        (StatusCode::OK, [(header::CONTENT_LENGTH, length)]).into_response()
+                    } else {
+                        StatusCode::METHOD_NOT_ALLOWED.into_response()
+                    };
+                }
+                counter.fetch_add(1, Ordering::SeqCst);
+                (StatusCode::OK, DOCUMENT.to_vec()).into_response()
+            }
+        });
+        let server = rd_testkit::serve(app).await;
+        let address = server.addr();
+        let url = format!("http://{address}/download?id=1")
+            .parse()
+            .expect("URL");
+        (server, url, gets)
+    }
+
+    #[tokio::test]
+    async fn an_answer_sent_whole_is_kept_from_the_probe_itself() {
+        let (_server, url, gets) = indexer(false).await;
+        let client = reqwest::Client::new();
+
+        let (probe, answer) = probe_keeping_answer(&client, url.clone(), &[])
+            .await
+            .expect("probe");
+        assert_eq!(probe.total_bytes, Some(DOCUMENT.len() as u64));
+        let answer = answer.expect("the answer was kept");
+        assert_eq!(
+            answer
+                .headers()
+                .get(header::CONTENT_LENGTH)
+                .and_then(|value| value.to_str().ok()),
+            Some(DOCUMENT.len().to_string().as_str())
+        );
+        let body = answer
+            .read(4, |head| (head == b"d8:a").then_some(1024))
+            .await
+            .expect("read");
+        assert!(body.complete);
+        assert_eq!(body.bytes, DOCUMENT);
+        assert_eq!(gets.load(Ordering::SeqCst), 1, "one GET, the probe's own");
+
+        let (_, answer) = probe_keeping_answer(&client, url, &[])
+            .await
+            .expect("probe");
+        let sniff = answer.expect("kept").read(4, |_| None).await.expect("read");
+        assert!(!sniff.complete);
+        assert_eq!(sniff.bytes, b"d8:a");
+    }
+
+    #[tokio::test]
+    async fn a_head_that_answers_sends_no_get() {
+        let (_server, url, gets) = indexer(true).await;
+        let (probe, answer) = probe_keeping_answer(&reqwest::Client::new(), url, &[])
+            .await
+            .expect("probe");
+        assert!(answer.is_none());
+        assert_eq!(probe.total_bytes, Some(DOCUMENT.len() as u64));
+        assert_eq!(gets.load(Ordering::SeqCst), 0);
     }
 }

@@ -408,7 +408,7 @@ function controlPackage(): void {
         </div>
         <span class="queue-cell-size min-w-0 text-right">
           <span class="numeric block truncate text-xs text-muted">{{ formatByteProgress(committed, total) }}</span>
-          <span v-if="props.packageRate > 0" class="numeric block truncate text-2xs font-medium text-primary" :aria-label="t('downloads.package.rate_aria', { rate: formatRate(props.packageRate) })">{{ formatRate(props.packageRate) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.package.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
+          <span v-if="props.packageRate > 0" class="numeric block truncate text-2xs font-medium text-primary"><span role="img" :aria-label="t('downloads.package.rate_aria', { rate: formatRate(props.packageRate) })" data-testid="package-rate">{{ formatRate(props.packageRate) }}</span><span v-if="etaLabel" class="text-toned" role="img" :aria-label="t('downloads.package.eta_aria', { duration: etaLabel })" data-testid="package-eta"> · {{ etaLabel }}</span></span>
         </span>
         <div class="queue-cell-meta min-w-0 items-center gap-1">
           <!-- The category stays editable after the download: changing it moves the package's

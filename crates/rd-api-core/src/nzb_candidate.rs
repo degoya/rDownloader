@@ -32,11 +32,17 @@ pub struct NzbRelease {
 /// # Errors
 ///
 /// Those of [`fetch_nzb`]; `collector.nzb_internal_address` names the candidate.
+///
+/// The NZB the online check already read whole is taken instead of fetched (RD-1490-02): an
+/// indexer proxy counts every answer as a grab.
 pub async fn fetch_nzb_candidate(
     state: &AppState,
     candidate: &LinkCandidate,
     reach: Option<bool>,
 ) -> Result<FetchedNzb, ApiError> {
+    if let Some(fetched) = state.intake.link_check.take_kept_nzb(candidate) {
+        return judge_nzb(fetched);
+    }
     fetch_nzb(state, &candidate.url, candidate.auth_profile, reach)
         .await
         .map_err(|error| {
@@ -102,6 +108,11 @@ pub async fn fetch_nzb(
         ApiError::bad_gateway("collector.nzb_fetch_failed", reason.clone())
             .with_param("reason", reason)
     })?;
+    judge_nzb(fetched)
+}
+
+/// Refuses an indexer's refusal and parses the answer, fetched now or kept by the check.
+fn judge_nzb(fetched: rd_http::FetchedDocument) -> Result<FetchedNzb, ApiError> {
     // An indexer refuses inside a `200 OK`: the API limit is reached, the key is wrong, the
     // release is gone. Without this the body fails to parse and the user is told the NZB is
     // invalid, which sends them looking in the wrong place.

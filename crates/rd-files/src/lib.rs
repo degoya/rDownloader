@@ -27,7 +27,11 @@ mod url_names;
 mod verified_move;
 
 #[cfg(test)]
+mod archive_names_proptests;
+#[cfg(test)]
 mod sort_tests;
+#[cfg(test)]
+mod tidy_regex_proptests;
 
 pub use archive_names::{ArchiveKind, ArchiveVolume, parse_archive_volume, strip_password_marker};
 pub use capacity::{

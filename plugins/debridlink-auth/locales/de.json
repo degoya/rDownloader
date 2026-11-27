@@ -1,5 +1,5 @@
 {
-  "name": "Debrid-Link sign-in",
+  "name": "Debrid-Link-Anmeldung",
   "description": "Meldet ein Debrid-Link-Konto beim Anbieter an, ohne dass hier ein API-Schlüssel eingegeben wird.",
   "codes": {
     "debridlink_auth.consent_denied": "Der Anbieter hat die Anmeldung für dieses Konto abgelehnt.",

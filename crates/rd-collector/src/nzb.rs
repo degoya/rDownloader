@@ -121,8 +121,10 @@ pub fn parse_nzb(input: &[u8]) -> Result<NzbDocument> {
         bail!("{TOO_LARGE}");
     }
 
+    // Not trimmed by the reader: an entity splits a text into pieces, and trimming each piece
+    // dropped the spaces around it (`a &amp; b` became `a&b`). The whole text is trimmed once,
+    // where it ends.
     let mut reader = Reader::from_reader(input);
-    reader.config_mut().trim_text(true);
     let mut parser = NzbParser::default();
     loop {
         match reader.read_event()? {
@@ -153,11 +155,18 @@ struct NzbParser {
     in_head: bool,
     /// The text of a `<meta type="password">` while it is open.
     password_meta: Option<String>,
+    /// The text of the open `<group>` or `<segment>`, gathered from every piece of it.
+    ///
+    /// The reader hands an entity over as an event of its own, between two texts; taking the
+    /// first text as the whole value cut `a&amp;b@example` to `a` (RD-1490-04, found by the
+    /// round-trip property).
+    element_text: String,
 }
 
 impl NzbParser {
     fn start(&mut self, start: BytesStart<'_>) -> Result<()> {
         self.current_element = start.name().as_ref().to_owned();
+        self.element_text.clear();
         match start.name().as_ref() {
             "head" => self.in_head = true,
             "meta" if self.in_head => {
@@ -177,48 +186,49 @@ impl NzbParser {
         Ok(())
     }
 
-    fn text(&mut self, text: BytesText<'_>) -> Result<()> {
-        let value = quick_xml::escape::unescape(&text)?.into_owned();
+    /// Whether the open element is one whose text becomes a value.
+    fn collects_text(&self) -> bool {
+        matches!(self.current_element.as_str(), "group" | "segment")
+    }
+
+    /// One piece of text, handed to the password and the open value it belongs to.
+    fn collect(&mut self, value: &str) {
         if let Some(password) = &mut self.password_meta {
-            password.push_str(&value);
+            password.push_str(value);
         }
-        match self.current_element.as_str() {
-            "group" => {
-                if let Some(file) = &mut self.current_file {
-                    file.groups.push(value);
-                }
-            }
-            "segment" => {
-                if let (Some(file), Some((number, bytes))) =
-                    (&mut self.current_file, self.current_segment.take())
-                {
-                    file.segments.push(NzbSegment {
-                        number,
-                        bytes,
-                        message_id: value.trim_matches(['<', '>']).to_owned(),
-                    });
-                }
-            }
-            _ => {}
+        if self.collects_text() {
+            self.element_text.push_str(value);
         }
+    }
+
+    fn text(&mut self, text: BytesText<'_>) -> Result<()> {
+        let value = quick_xml::escape::unescape(&text)?;
+        self.collect(&value);
         Ok(())
     }
 
     fn cdata(&mut self, text: BytesCData<'_>) {
-        if let Some(password) = &mut self.password_meta {
-            password.push_str(&text);
-        }
+        self.collect(&text);
     }
 
     fn general_ref(&mut self, reference: BytesRef<'_>) -> Result<()> {
-        if let Some(password) = &mut self.password_meta {
-            if let Some(character) = reference.resolve_char_ref()? {
-                password.push(character);
-            } else {
-                let value = quick_xml::escape::resolve_xml_entity(&reference)
-                    .context("NZB password contains an unknown XML entity")?;
-                password.push_str(value);
-            }
+        if self.password_meta.is_none() && !self.collects_text() {
+            return Ok(());
+        }
+        // A broken character reference fails a password, as before; in a group or a message id
+        // it is left out, as it was when the text around it was cut there.
+        let character = match reference.resolve_char_ref() {
+            Ok(character) => character,
+            Err(error) if self.password_meta.is_some() => return Err(error.into()),
+            Err(_) => return Ok(()),
+        };
+        if let Some(character) = character {
+            let mut buffer = [0_u8; 4];
+            self.collect(character.encode_utf8(&mut buffer));
+        } else if let Some(value) = quick_xml::escape::resolve_xml_entity(&reference) {
+            self.collect(value);
+        } else if self.password_meta.is_some() {
+            bail!("NZB password contains an unknown XML entity");
         }
         Ok(())
     }
@@ -231,6 +241,29 @@ impl NzbParser {
                 }
             }
             "head" => self.in_head = false,
+            "group" => {
+                let group = std::mem::take(&mut self.element_text);
+                let group = group.trim();
+                if let Some(file) = &mut self.current_file
+                    && !group.is_empty()
+                {
+                    file.groups.push(group.to_owned());
+                }
+            }
+            "segment" => {
+                let text = std::mem::take(&mut self.element_text);
+                let text = text.trim();
+                if let (Some(file), Some((number, bytes))) =
+                    (&mut self.current_file, self.current_segment.take())
+                    && !text.is_empty()
+                {
+                    file.segments.push(NzbSegment {
+                        number,
+                        bytes,
+                        message_id: text.trim_matches(['<', '>']).to_owned(),
+                    });
+                }
+            }
             "file" => {
                 if let Some(file) = self.current_file.take() {
                     self.document.files.push(finished_file(file));

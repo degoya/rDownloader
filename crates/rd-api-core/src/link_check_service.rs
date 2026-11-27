@@ -9,12 +9,16 @@ use rd_scheduler::SchedulerHandle;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-use crate::{hosters, link_check_cache, link_check_probe::probe_direct};
+use crate::{
+    hosters, link_check_cache,
+    link_check_probe::{DirectProbe, probe_direct_kept},
+};
 
 pub use completed::CompletedBatches;
 
 mod completed;
 mod documents;
+mod kept_nzbs;
 mod process;
 mod protocols;
 mod record;
@@ -37,6 +41,8 @@ struct Inner {
     object_storage: rd_object_storage::ObjectStorageService,
     /// Keeps a re-routed torrent the check read for its download (RD-130-18).
     torrent: rd_torrent::TorrentService,
+    /// Keeps an NZB the check read whole for its enqueue (RD-1490-02).
+    kept_nzbs: kept_nzbs::KeptNzbs,
     jobs: mpsc::Sender<CheckJob>,
     /// Announces a finished batch check. Lets a caller act on the outcome — the subscription
     /// auto-queue does — without the check service having to know who is waiting.
@@ -54,7 +60,11 @@ struct Inner {
     cache_checkers: std::sync::OnceLock<crate::remote_job_service::RemoteJobService>,
 }
 
-/// Cloneable handle; checks run sequentially on one background task.
+/// How many check jobs run at once (RD-1490-13). They ran one after the other, and a link
+/// that never answered held every link added after it.
+const CONCURRENT_JOBS: usize = 4;
+
+/// Cloneable handle; check jobs run on background tasks, [`CONCURRENT_JOBS`] at a time.
 #[derive(Clone)]
 pub struct LinkCheckService {
     inner: Arc<Inner>,
@@ -84,6 +94,7 @@ impl LinkCheckService {
                 sftp,
                 object_storage,
                 torrent,
+                kept_nzbs: kept_nzbs::KeptNzbs::default(),
                 jobs: sender,
                 completed: completed::Completed::new(),
                 cancellation: CancellationToken::new(),
@@ -95,6 +106,14 @@ impl LinkCheckService {
         };
         tokio::spawn(service.clone().run(receiver));
         service
+    }
+
+    /// The NZB the check of `candidate` already read, handed out once so the enqueue does not
+    /// grab it again (RD-1490-02); `None` when there is none, or it was read from another
+    /// address.
+    #[must_use]
+    pub fn take_kept_nzb(&self, candidate: &LinkCandidate) -> Option<rd_http::FetchedDocument> {
+        self.inner.kept_nzbs.take(candidate.id, &candidate.url)
     }
 
     /// Checks the given candidates (ignored while the service is shutting down).
@@ -131,6 +150,7 @@ impl LinkCheckService {
     }
 
     async fn run(self, mut receiver: mpsc::Receiver<CheckJob>) {
+        let slots = Arc::new(tokio::sync::Semaphore::new(CONCURRENT_JOBS));
         loop {
             let job = tokio::select! {
                 () = self.inner.cancellation.cancelled() => return,
@@ -139,19 +159,36 @@ impl LinkCheckService {
                     None => return,
                 },
             };
-            let batch = match &job {
-                CheckJob::Batch(id) => Some(*id),
-                CheckJob::Candidates(_) => None,
+            // Taken in the order the jobs came: a job waits for a free slot, never for the
+            // job before it. A candidate is claimed once, so two jobs naming it check it once.
+            let permit = tokio::select! {
+                () = self.inner.cancellation.cancelled() => return,
+                permit = Arc::clone(&slots).acquire_owned() => match permit {
+                    Ok(permit) => permit,
+                    Err(_) => return,
+                },
             };
-            if let Err(error) = self.process(job).await {
-                tracing::warn!(%error, "link check failed");
-            }
-            // Announced even when the check failed: the candidates have reached a final state
-            // either way, and a waiter that never hears back is worse than one that finds
-            // nothing enqueueable.
-            if let Some(batch) = batch {
-                self.inner.completed.announce(batch);
-            }
+            let service = self.clone();
+            tokio::spawn(async move {
+                let _permit = permit;
+                service.run_job(job).await;
+            });
+        }
+    }
+
+    async fn run_job(&self, job: CheckJob) {
+        let batch = match &job {
+            CheckJob::Batch(id) => Some(*id),
+            CheckJob::Candidates(_) => None,
+        };
+        if let Err(error) = self.process(job).await {
+            tracing::warn!(%error, "link check failed");
+        }
+        // Announced even when the check failed: the candidates have reached a final state
+        // either way, and a waiter that never hears back is worse than one that finds
+        // nothing enqueueable.
+        if let Some(batch) = batch {
+            self.inner.completed.announce(batch);
         }
     }
 }

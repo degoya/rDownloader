@@ -43,6 +43,7 @@ function bucketClass(percent: number): string {
       <div
         v-if="buckets.length"
         class="flex h-4 w-full gap-px overflow-hidden border border-muted"
+        role="img"
         :aria-label="t('torrent.pieces.title')"
       >
         <span

@@ -39,7 +39,10 @@ pub trait Fetcher: Send + Sync {
 
 /// The production fetcher: `reqwest`, https at every hop.
 pub struct HttpFetcher {
-    client: reqwest::Client,
+    /// The reason when no client could be built — a machine without CA certificates
+    /// (RD-1490-13): every update request then fails with it, instead of the start panicking
+    /// in `Client::default()`.
+    client: std::result::Result<reqwest::Client, String>,
 }
 
 impl HttpFetcher {
@@ -63,14 +66,22 @@ impl HttpFetcher {
                 .redirect(redirects)
                 .https_only(true)
                 .build()
-                .unwrap_or_default(),
+                .map_err(|error| {
+                    // With its causes: reqwest's own message is only "builder error".
+                    let error = format!("{:#}", anyhow::Error::new(error));
+                    tracing::error!(%error, "the update client could not be built");
+                    format!("the update client could not be built: {error}")
+                }),
         }
     }
 
     async fn get(&self, url: &url::Url) -> Result<Option<reqwest::Response>> {
         ensure!(url.scheme() == "https", "{url} is not https");
-        let response = self
+        let client = self
             .client
+            .as_ref()
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+        let response = client
             .get(url.clone())
             .header(
                 reqwest::header::ACCEPT,

@@ -10,8 +10,12 @@ impl Writer {
     /// Applies the commands this module owns; see the module documentation for which.
     pub(super) async fn handle_downloads(&mut self, command: DownloadsCommand) {
         match command {
-            DownloadsCommand::CreatePackage { package, reply } => {
-                send(reply, self.create_package(package).await);
+            DownloadsCommand::CreatePackage {
+                package,
+                kind,
+                reply,
+            } => {
+                send(reply, self.create_package(package, kind).await);
             }
             DownloadsCommand::CreateDownload {
                 download,

@@ -107,6 +107,10 @@ pub fn parse_archive_volume(file_name: &str) -> Option<ArchiveVolume> {
             if extension.len() == 3 && extension.chars().all(|c| c.is_ascii_digit()) {
                 let number: u32 = extension.parse().ok()?;
                 let (inner_stem, inner_extension) = stem.rsplit_once('.')?;
+                // `.7z.001` has no name before its extensions, like `.rar` (RD-1490-04).
+                if inner_stem.is_empty() {
+                    return None;
+                }
                 let kind = match inner_extension {
                     "7z" => ArchiveKind::SevenZip,
                     "zip" => ArchiveKind::Zip,
@@ -230,6 +234,10 @@ mod tests {
         assert!(parse_archive_volume(".rar").is_none());
         assert!(parse_archive_volume("file.r").is_none());
         assert!(parse_archive_volume("file.001").is_none());
+        // Found by the properties (RD-1490-04): a numbered split volume without a name came
+        // back with an empty base, which `.rar` alone already refused.
+        assert!(parse_archive_volume(".7z.001").is_none());
+        assert!(parse_archive_volume(".ZIP.002").is_none());
     }
 
     #[test]

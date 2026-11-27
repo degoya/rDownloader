@@ -123,9 +123,9 @@ impl Tray {
         let menu_proxy = proxy.clone();
         let health_proxy = proxy.clone();
         let hotkey_proxy = proxy.clone();
-        MenuEvent::set_event_handler(Some(move |event| {
+        MenuEvent::set_event_handler(Some(std::sync::Arc::new(move |event: MenuEvent| {
             let _ = menu_proxy.send_event(UserEvent::Menu(event));
-        }));
+        })));
         // Only the press: a shortcut held down is one command, not two.
         GlobalHotKeyEvent::set_event_handler(Some(move |event: GlobalHotKeyEvent| {
             if event.state == HotKeyState::Pressed {

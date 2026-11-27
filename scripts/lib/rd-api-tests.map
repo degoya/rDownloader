@@ -89,8 +89,8 @@
 ^crates/rd-api(-[a-z]+)?/src/(capture_fetch|capture_file|nzb_zip)(\.rs$|/)                    capture_file capture_container capture_fetch_network
 ^crates/rd-api(-[a-z]+)?/src/capture_click_and_load(\.rs$|/)                                 capture_click_and_load
 ^crates/rd-api(-[a-z]+)?/src/(collector_[a-z_]+|routes/collector)(\.rs$|/)                    capture_intake capture_boundary containers container_json enqueue_cancellation indexers media_cookie_profile media_manifest mirrors nzb_paused reorder replay_consent replay_restart service_switches storage_capacity torrent api_tokens source_sets git_releases collector_pages capture_pick address_rule candidate_routes
-^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions(\.rs$|/)   compat_qbittorrent compat_arr compat_arr_live
-^crates/rd-api-compat/src/(lib\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr compat_arr_live history
+^crates/rd-api-compat/src/(lib\.rs|qbittorrent/)|^crates/rd-api-core/src/qbittorrent_sessions(\.rs$|/)   compat_qbittorrent compat_arr compat_arr_live compat_shared_category
+^crates/rd-api-compat/src/(lib\.rs|sabnzbd/)                                              compat_sabnzbd compat_arr compat_arr_live history compat_shared_category
 ^crates/rd-api-compat/src/(lib\.rs|aria2/)                                                compat_aria2 scope_matrix scope_matrix_compat
 ^crates/rd-api(-[a-z]+)?/src/(container_handlers|container_upload|dlc_import)(\.rs$|/)        containers container_json dlc capture_file capture_container package_export package_export_nzb
 # Exporting packages as a link file, taking one back in, and re-resolving (RD-1210-01).
@@ -99,7 +99,7 @@
 # The client a check goes out with: the candidate's own profile, WebDAV's headers (RD-1320-04).
 ^crates/rd-scheduler/src/(network|worker_client)\.rs$|^crates/rd-webdav/src/                   + check_auth_profile reresolve_now
 ^crates/rd-db/src/writer_pins(_tests)?\.rs$                                                   + reresolve_now package_export
-^crates/rd-api(-[a-z]+)?/src/nzb_candidate(\.rs$|/)                                          nzb_paused package_export_nzb indexers
+^crates/rd-api(-[a-z]+)?/src/nzb_candidate(\.rs$|/)                                          nzb_paused package_export_nzb indexers indexer_grabs
 ^crates/rd-api(-[a-z]+)?/src/(lifecycle_handlers|pre_update_service|local_control|routes/lifecycle)(\.rs$|/)   service_lifecycle oidc password_reset
 ^crates/rd-api(-[a-z]+)?/src/data_reset_handlers(\.rs$|/)                                     data_reset storage_clear history system_cleanup
 # The clean-up of update backups, the plugin cache (RD-1240-34) and the database (RD-1240-35).
@@ -184,7 +184,8 @@
 ^crates/rd-api(-[a-z]+)?/src/plugin_live(\.rs$|/)                                             plugin_enabled plugin_bundled plugin_bundled_removal plugin_bundled_repository plugin_versions plugin_repositories plugin_auto_updates
 ^crates/rd-api(-[a-z]+)?/src/destination(\.rs$|/)                                             storage_roots storage_capacity protected_roots category_move_and_reset unique_names capture_intake compat_sabnzbd torrent hotfolder_poll automations stream_schedules
 ^crates/rd-api(-[a-z]+)?/src/hosters(\.rs$|/)                                                 canaries mirrors mcp
-^crates/rd-api(-[a-z]+)?/src/link_check_[a-z_]+(\.rs$|/)                                      capture_intake capture_boundary containers container_json dlc mirrors media_manifest source_sets subscriptions torrent hotfolder_poll nzb_remote_job address_rule check_auth_profile
+^crates/rd-api(-[a-z]+)?/src/link_check_[a-z_]+(\.rs$|/)                                      capture_intake capture_boundary containers container_json dlc mirrors media_manifest source_sets subscriptions torrent hotfolder_poll nzb_remote_job address_rule check_auth_profile indexer_grabs
+^crates/rd-api(-[a-z]+)?/src/link_check_[a-z_]+(\.rs$|/)                                      link_check_deadline
 ^crates/rd-api(-[a-z]+)?/src/notify_notice(\.rs$|/)                                           notifications updates plugin_repositories full_backup update_auto_install notification_templates
 ^crates/rd-api(-[a-z]+)?/src/postprocess_handlers(\.rs$|/)                                    api_tokens candidate_routes
 ^crates/rd-api(-[a-z]+)?/src/malware_scanner_handlers\.rs$                                    malware_scanner

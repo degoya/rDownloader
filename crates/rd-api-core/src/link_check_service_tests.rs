@@ -354,7 +354,7 @@ async fn the_recorded_controlc_response_reports_the_missing_resolver() {
     );
     let server = rd_testkit::serve(page).await;
     let address = server.addr();
-    let probed = super::probe_direct(
+    let probed = crate::link_check_probe::probe_direct(
         &reqwest::Client::new(),
         &[],
         format!("http://{address}/1a2b3c4d").parse().expect("URL"),

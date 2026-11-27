@@ -211,7 +211,7 @@ function submit(): void {
           <p class="eyebrow">{{ testerTitle }}</p>
           <div class="mt-2 space-y-2">
             <div v-for="(sample, index) in samples" :key="index" class="flex items-start gap-2">
-              <UIcon :name="sampleIcon(index).name" :class="sampleIcon(index).class" :aria-label="sampleIcon(index).label" class="mt-2 size-4 shrink-0" />
+              <UIcon :name="sampleIcon(index).name" :class="sampleIcon(index).class" role="img" aria-hidden="false" :aria-label="sampleIcon(index).label" class="mt-2 size-4 shrink-0" />
               <div class="min-w-0 flex-1">
                 <UInput v-model="samples[index]" class="w-full font-mono" :placeholder="samplePlaceholder" />
                 <p v-if="sampleParts(index)" class="mt-1 truncate font-mono text-2xs text-muted">{{ sampleParts(index)!.before }}<span class="bg-primary/20 text-primary">{{ sampleParts(index)!.match }}</span>{{ sampleParts(index)!.after }}</p>

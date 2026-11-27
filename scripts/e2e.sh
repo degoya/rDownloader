@@ -2,10 +2,11 @@
 #
 # The end-to-end runs of RD-180-12 on this machine, the same files `.github/workflows/e2e.yml`
 # runs: the Chrome extension in Chromium against a fresh service (web/e2e/extension.e2e.mjs, and
-# Click'n'Load through it, web/e2e/click-and-load.e2e.mjs), the web interface in Chromium
-# (web/e2e/web-ui.e2e.mjs), the extension in Firefox where Firefox and geckodriver are installed
-# (web/e2e/firefox.e2e.mjs) and the capture agent (web/e2e/capture.e2e.mjs). Each starts its own
-# throwaway service; nothing here touches a running installation.
+# Click'n'Load and a DLC from an allowed page through it, web/e2e/click-and-load.e2e.mjs), the web
+# interface in Chromium (web/e2e/web-ui.e2e.mjs), the extension in Firefox where Firefox and
+# geckodriver are installed (web/e2e/firefox.e2e.mjs) and the capture agent
+# (web/e2e/capture.e2e.mjs). Each starts its own throwaway service; nothing here touches a running
+# installation.
 #
 # Usage:
 #   scripts/e2e.sh                     # all, with the newest binaries found (see below)

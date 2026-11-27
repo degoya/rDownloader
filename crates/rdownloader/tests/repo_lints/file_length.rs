@@ -100,7 +100,6 @@ const BASELINE: &[(&str, usize)] = &[
     ("crates/rd-scheduler/src/control_tests.rs", 678),
     ("crates/rd-scheduler/tests/crash_restart.rs", 552),
     ("crates/rd-scheduler/tests/provider_transfer_credential.rs", 571),
-    ("crates/rd-sftp/tests/transfer.rs", 572),
     ("crates/rd-tools/tests/managed_tools.rs", 804),
     ("crates/rd-usenet/src/hopeless_tests.rs", 511),
     ("crates/rd-usenet/src/test_support.rs", 737),

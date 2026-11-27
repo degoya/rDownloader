@@ -40,9 +40,11 @@ async fn list(state: &AppState) -> Response {
     let Ok(removed) = state.database.list_compat_history().await else {
         return error("history unavailable");
     };
+    // Usenet only, in both halves: SABnzbd knows NZB jobs, and a torrent listed here too was
+    // imported a second time by a client that shares its category with qBittorrent (RD-1490-13).
     let mut slots: Vec<serde_json::Value> = packages
         .iter()
-        .filter(|package| map::is_history(package))
+        .filter(|package| in_history(package))
         .enumerate()
         .map(|(index, package)| {
             slot(
@@ -56,10 +58,9 @@ async fn list(state: &AppState) -> Response {
     // The packages that left the queue, newest first after the ones still in it.
     let present: std::collections::HashSet<rd_core::PackageId> =
         packages.iter().map(|package| package.id).collect();
-    for entry in removed
-        .iter()
-        .filter(|entry| !present.contains(&entry.package_id))
-    {
+    for entry in removed.iter().filter(|entry| {
+        entry.kind == rd_core::DownloadKind::Usenet && !present.contains(&entry.package_id)
+    }) {
         slots.push(entry_slot(slots.len(), entry));
     }
     let total: u64 = slots.iter().filter_map(|slot| slot["bytes"].as_u64()).sum();
@@ -76,6 +77,11 @@ async fn list(state: &AppState) -> Response {
             "slots": slots,
         }
     }))
+}
+
+/// A Usenet package that reached an end state: a slot of this history.
+fn in_history(package: &DownloadPackage) -> bool {
+    map::is_usenet(package) && map::is_history(package)
 }
 
 fn slot(index: usize, package: &DownloadPackage, category: &str, bytes: u64) -> serde_json::Value {
@@ -198,17 +204,22 @@ async fn delete(state: &AppState, query: &SabQuery) -> Response {
         match state.database.list_packages().await {
             Ok(packages) => packages
                 .iter()
-                .filter(|package| map::is_history(package))
+                .filter(|package| in_history(package))
                 .map(|package| package.id)
                 .collect(),
             Err(_) => return error("history unavailable"),
         }
     } else {
-        // Only the ones still in the queue: a removed package has nothing left to remove.
+        // Only the ones still in the queue: a removed package has nothing left to remove. And
+        // only Usenet ones: a torrent's id is no job of this client's (RD-1490-13).
         match state.database.list_packages().await {
             Ok(packages) => named
                 .into_iter()
-                .filter(|id| packages.iter().any(|package| package.id == *id))
+                .filter(|id| {
+                    packages
+                        .iter()
+                        .any(|package| package.id == *id && map::is_usenet(package))
+                })
                 .collect(),
             Err(_) => return error("history unavailable"),
         }

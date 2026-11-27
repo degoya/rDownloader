@@ -1,5 +1,9 @@
 # Changes
 
+## 0.9.19
+
+The plugin's name appears in German, Spanish and French as well.
+
 ## 0.9.18
 
 The package names its license, the GNU General Public License version 3 or later. French texts use French typography.

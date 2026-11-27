@@ -29,6 +29,8 @@ usage_of() {
 usage_of check-capture-linux-tree.sh 0 "Usage:" --help
 usage_of check-plugin-imports.sh 2 "usage: scripts/check-plugin-imports.sh"
 usage_of ci-platform-smoke.sh 2 "usage: scripts/ci-platform-smoke.sh"
+usage_of ci-cache.sh 2 "usage: scripts/ci-cache.sh"
+usage_of ci-cache.sh 2 "usage: scripts/ci-cache.sh prune" prune
 usage_of ci-package-repo.sh 2 "usage: scripts/ci-package-repo.sh"
 usage_of ci-package-repo.sh 2 "usage: scripts/ci-package-repo.sh" apt remove
 usage_of ci-plugins.sh 2 "usage: scripts/ci-plugins.sh"

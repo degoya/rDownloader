@@ -13,7 +13,10 @@
 # SOURCE_DATE_EPOCH, else the commit's.
 #
 # Exit 1 with fewer packages than the floors below: an SBOM that lost its content stops the
-# release instead of being published. Runs in release.yml's `publish`. Left out: the container
+# release instead of being published. Exit 1 too when the licence list names an npm package the
+# lock file no longer holds (RD-1490-10): the list is stale and the SBOM would miss what replaced
+# it. RD_SBOM_STALE_LIST=warn makes that a warning, for a wave's preflight, which runs before the
+# generators that renew the list (scripts/tests/release-sbom.sh). Runs in release.yml's `publish`. Left out: the container
 # image's Debian and Python packages (BuildKit's own SBOM on the image) and the programs a user
 # puts into the vendor folder.
 #

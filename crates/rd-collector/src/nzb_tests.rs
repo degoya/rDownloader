@@ -80,6 +80,28 @@ fn reads_the_archive_password_from_the_nzb_head() {
     assert_eq!(parsed.password.as_deref(), Some("hunter&2"));
 }
 
+/// The cases the round-trip property found (RD-1490-04): an entity in a message id or a group
+/// cut the value at it, since the reader hands an entity over between two texts, and trimming
+/// each text dropped the spaces around one in a password.
+#[test]
+fn an_entity_keeps_the_whole_value_around_it() {
+    let input = BODY
+        .replacen(
+            "<nzb xmlns=\"http://www.newzbin.com/DTD/2003/nzb\">",
+            "<nzb xmlns=\"http://www.newzbin.com/DTD/2003/nzb\"><head>\
+                 <meta type=\"password\">pass &amp; word</meta></head>",
+            1,
+        )
+        .replace("<group>alt.binaries.test", "<group>alt.binaries.a&amp;b")
+        .replace(">message-id@example<", ">part&amp;1&#39;x@example<");
+    let parsed = parse_nzb(input.as_bytes()).expect("NZB with entities");
+
+    assert_eq!(parsed.password.as_deref(), Some("pass & word"));
+    assert_eq!(parsed.files[0].groups, ["alt.binaries.a&b"]);
+    assert_eq!(parsed.files[0].segments.len(), 1);
+    assert_eq!(parsed.files[0].segments[0].message_id, "part&1'x@example");
+}
+
 #[test]
 fn parses_the_legal_sabnzbd_fixture() {
     let input = include_bytes!("../../../testfile/sabnzbd-test-download-100MB.nzb");

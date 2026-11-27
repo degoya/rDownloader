@@ -145,6 +145,8 @@ const detailsLabel = computed(() =>
           v-if="locked"
           name="i-lucide-lock"
           class="size-3"
+          role="img"
+          aria-hidden="false"
           :aria-label="t('subscriptions.items.password_protected')"
         />{{ size }}
       </UBadge>

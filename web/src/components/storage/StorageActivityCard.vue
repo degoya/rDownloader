@@ -131,7 +131,7 @@ onMounted(() => void load())
         <UTable :data="reuse" :columns="reuseColumns" :ui="{ th: 'px-0 py-1 pr-3 text-xs font-normal text-muted', td: 'px-0 py-1 pr-3 text-xs' }">
           <template #kind-cell="{ row }"><span class="font-medium">{{ t(`settings.storage.activity.runner.${row.original.kind}`) }}</span></template>
           <template v-for="field in REUSE_FIELDS" :key="field" #[`${field}-cell`]="{ row }">
-            <UIcon :name="row.original.capability[field] ? 'i-lucide-check' : 'i-lucide-minus'" :class="row.original.capability[field] ? 'text-success' : 'text-muted'" :aria-label="row.original.capability[field] ? t('settings.storage.activity.yes') : t('settings.storage.activity.no')" />
+            <UIcon :name="row.original.capability[field] ? 'i-lucide-check' : 'i-lucide-minus'" :class="row.original.capability[field] ? 'text-success' : 'text-muted'" role="img" aria-hidden="false" :aria-label="row.original.capability[field] ? t('settings.storage.activity.yes') : t('settings.storage.activity.no')" />
           </template>
         </UTable>
       </div>

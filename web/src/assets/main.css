@@ -67,6 +67,27 @@
   --ui-text-muted: var(--ui-color-neutral-600);
 }
 
+/*
+ * A field's border and its placeholder (WCAG 2.2, 1.4.11 and 1.4.3, RD-1490-09), in both modes.
+ *
+ * Nuxt UI rings a field — input, select, text area, checkbox, radio — in `border-accented`, grey
+ * 300 in light mode and 700 in dark: 1.34 to 1.49:1 against the field and the card around it in
+ * light mode, about 1.4 to 1.7:1 in dark, where a control's outline needs 3:1. Shade 500 is at
+ * least 4.35:1 in light mode and 3.07:1 in dark, in every colour theme; 400 reaches no more than
+ * 2.63:1 in light mode.
+ *
+ * The placeholder, and the icons inside a field, are `text-dimmed`: grey 400 in light mode
+ * (2.37 to 2.63:1) and 500 in dark (3.07 to 3.74:1). No shade between it and `text-muted` reaches
+ * 4.5:1 on every ground in both modes (500 is 4.35:1 on an elevated card in light mode), so it is
+ * `text-muted`'s shade; the value typed is `text-highlighted`, which keeps the two apart.
+ *
+ * A bare `:root` on purpose: the same in both modes, so it may beat Nuxt UI's `.dark`.
+ */
+:root {
+  --ui-border-accented: var(--ui-color-neutral-500);
+  --ui-text-dimmed: var(--ui-text-muted);
+}
+
 /* The one accent whose shade 400 falls short on its own tint over a card, at 4.48:1. */
 :root.dark[data-palette="violet"] {
   --ui-primary: var(--ui-color-primary-300);

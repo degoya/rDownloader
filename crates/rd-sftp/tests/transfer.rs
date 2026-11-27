@@ -1,192 +1,17 @@
 //! End-to-end tests of the SFTP runner against the in-process SSH fixture.
 
 mod fixture_server;
+mod support;
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use fixture_server::{Behaviour, Fixture, RemoteFile};
-use rd_core::{
-    DownloadKind, DownloadState, PackageId, RemoteAuthMode, RemoteProtocol, RemoteTarget,
-};
-use rd_db::{Database, NewDownload, NewPackage, NewRemoteCredential};
+use rd_core::{RemoteAuthMode, RemoteProtocol, RemoteTarget};
+use rd_db::NewRemoteCredential;
 use rd_scheduler::{ExternalRunner, RunOutcome};
-use rd_sftp::{SftpRunner, SftpService};
-use russh::keys::PrivateKey;
-use tokio::sync::RwLock;
+use support::{HOST_KEY_A, Harness, other_host_key, payload, run_limits};
 use tokio_util::sync::CancellationToken;
-
-/// Unlimited pacing plus one request slot; the queue supplies these in production.
-fn run_limits() -> rd_scheduler::RunLimits {
-    rd_scheduler::RunLimits {
-        max_parallel_requests: 1,
-        bandwidth: rd_limits::ScopedLimiter::unlimited(),
-        address_policy: None,
-    }
-}
-
-fn payload() -> Vec<u8> {
-    (0..200_000u32).map(|index| (index % 251) as u8).collect()
-}
-
-/// Two fixed ed25519 identities, so "the server was rebuilt with a different host key" is
-/// an explicit swap between two known keys rather than a random draw. They are test
-/// fixtures with no access to anything and are deliberately checked in.
-const HOST_KEY_A: &str = include_str!("fixtures/host_key_a");
-const HOST_KEY_B: &str = include_str!("fixtures/host_key_b");
-
-fn host_key() -> PrivateKey {
-    parse_host_key(HOST_KEY_A)
-}
-
-fn other_host_key() -> PrivateKey {
-    parse_host_key(HOST_KEY_B)
-}
-
-fn parse_host_key(pem: &str) -> PrivateKey {
-    russh::keys::decode_secret_key(pem, None).expect("fixture host key")
-}
-
-struct Harness {
-    _directory: tempfile::TempDir,
-    database: Database,
-    service: SftpService,
-    fixture: Fixture,
-    destination: std::path::PathBuf,
-    settings: Arc<RwLock<rd_core::RemoteSettings>>,
-}
-
-impl Harness {
-    async fn start() -> Self {
-        Self::start_with(Fixture::start(host_key()).await).await
-    }
-
-    async fn start_with(fixture: Fixture) -> Self {
-        let directory = tempfile::tempdir().expect("tempdir");
-        let database = Database::open(directory.path().join("sftp.sqlite3"))
-            .await
-            .expect("database");
-        let secrets = rd_secrets::SecretStore::open(directory.path().join("secrets"))
-            .await
-            .expect("secrets");
-        let settings = Arc::new(RwLock::new(rd_core::RemoteSettings::default()));
-        let service = SftpService::new(database.clone(), secrets, settings.clone());
-        let destination = directory.path().join("downloads");
-        tokio::fs::create_dir_all(&destination).await.expect("dir");
-        Self {
-            _directory: directory,
-            database,
-            service,
-            fixture,
-            destination,
-            settings,
-        }
-    }
-
-    /// Turns on first-use trust, which is off by default.
-    async fn allow_first_use_trust(&self) {
-        self.settings.write().await.remote_ssh_auto_trust = true;
-    }
-
-    async fn credential(&self) -> rd_core::RemoteCredentialId {
-        self.database
-            .create_remote_credential(NewRemoteCredential {
-                name: "fixture".to_owned(),
-                protocol: RemoteProtocol::Sftp,
-                host: "127.0.0.1".to_owned(),
-                port: self.fixture.port,
-                username: Some("tester".to_owned()),
-                auth_mode: RemoteAuthMode::Password,
-                passive: true,
-                enabled: true,
-                secret_ref: None,
-                key_ref: None,
-                passphrase_ref: None,
-            })
-            .await
-            .expect("credential")
-            .id
-    }
-
-    async fn queue(&self, remote_path: &str, name: &str) -> rd_core::DownloadFile {
-        let package_id = PackageId::new();
-        self.database
-            .create_package(NewPackage {
-                id: package_id,
-                name: "sftp".to_owned(),
-                destination: self.destination.to_string_lossy().into_owned(),
-                category_id: None,
-                priority: rd_core::DownloadPriority::Normal,
-                postprocess_level: None,
-                script: None,
-                enrichment: Vec::new(),
-            })
-            .await
-            .expect("package");
-        let source = format!("sftp://127.0.0.1:{}{remote_path}", self.fixture.port);
-        self.database
-            .create_download(NewDownload {
-                id: rd_core::DownloadId::new(),
-                package_id,
-                source: source.parse().expect("url"),
-                file_name: name.to_owned(),
-                total_bytes: None,
-                expected_checksum: None,
-                account_id: None,
-                proxy_profile_id: None,
-                auth_profile: rd_core::AuthProfileSelection::Auto,
-                initial_state: DownloadState::Queued,
-                kind: DownloadKind::Sftp,
-                media: None,
-                remote_credential_id: Some(self.credential().await),
-                mirror_group: None,
-                replay: None,
-                enrichment: Vec::new(),
-                secret_fragment: None,
-            })
-            .await
-            .expect("download")
-    }
-
-    fn runner(&self) -> SftpRunner {
-        SftpRunner::new(self.service.clone())
-    }
-
-    async fn package_of(&self, file: &rd_core::DownloadFile) -> rd_core::DownloadPackage {
-        self.database
-            .list_packages()
-            .await
-            .expect("packages")
-            .into_iter()
-            .find(|package| package.id == file.package_id)
-            .expect("package")
-    }
-
-    async fn run(&self, file: &rd_core::DownloadFile) -> RunOutcome {
-        self.runner()
-            .run(
-                file,
-                &self.package_of(file).await,
-                CancellationToken::new(),
-                run_limits(),
-            )
-            .await
-            .expect("run")
-    }
-
-    async fn reload(&self, file: &rd_core::DownloadFile) -> rd_core::DownloadFile {
-        self.database
-            .get_download(file.id)
-            .await
-            .expect("reload")
-            .expect("row")
-    }
-
-    fn part_path(&self, file: &rd_core::DownloadFile) -> std::path::PathBuf {
-        self.destination
-            .join(".rdownloader")
-            .join(format!("{}.part", file.id))
-    }
-}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn an_unknown_host_key_blocks_the_transfer_and_reports_its_fingerprint() {
@@ -323,6 +148,61 @@ async fn an_interrupted_transfer_resumes_from_the_partial_file() {
         .await
         .expect("final file");
     // The whole payload, not the tail appended to a restarted download.
+    assert_eq!(written, payload());
+}
+
+/// RD-1490-07: a transfer the queue stops while a read is outstanding ends as stopped, not
+/// failed, keeps its partial file with the row at its length, and the next run continues it.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_stopped_transfer_keeps_its_partial_and_resumes() {
+    let harness = Harness::start().await;
+    harness.allow_first_use_trust().await;
+    harness
+        .fixture
+        .put("/srv/movie.bin", RemoteFile::new(payload()));
+    let file = harness.queue("/srv/movie.bin", "movie.bin").await;
+    harness.fixture.set_behaviour(Behaviour {
+        stall_after: Some(50_000),
+        ..Behaviour::default()
+    });
+
+    let cancellation = CancellationToken::new();
+    let package = harness.package_of(&file).await;
+    let runner = harness.runner();
+    let part = harness.part_path(&file);
+    let stop = async {
+        // Stop once everything before the stall is on disk and the next read hangs.
+        tokio::time::timeout(Duration::from_secs(20), async {
+            while !tokio::fs::metadata(&part)
+                .await
+                .is_ok_and(|metadata| metadata.len() == 50_000)
+            {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("the transfer never reached the stall");
+        cancellation.cancel();
+    };
+    let (stopped, ()) = tokio::join!(
+        runner.run(&file, &package, cancellation.clone(), run_limits()),
+        stop
+    );
+    let stopped = stopped.expect("run");
+    assert!(matches!(stopped, RunOutcome::Stopped), "{stopped:?}");
+    let row = harness.reload(&file).await;
+    assert_eq!(row.committed_bytes.get(), 50_000);
+    assert!(!harness.destination.join("movie.bin").exists());
+
+    harness.fixture.set_behaviour(Behaviour::default());
+    let resumed = harness.run(&row).await;
+    assert!(
+        matches!(resumed, RunOutcome::Completed { .. }),
+        "{resumed:?}"
+    );
+    let written = tokio::fs::read(harness.destination.join("movie.bin"))
+        .await
+        .expect("final file");
     assert_eq!(written, payload());
 }
 

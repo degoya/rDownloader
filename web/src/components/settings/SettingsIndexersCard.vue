@@ -271,7 +271,7 @@ async function remove(indexer: Indexer): Promise<void> {
                 <UBadge v-if="editingId === indexer.id" color="primary" variant="subtle">{{ t('common.editing') }}</UBadge>
                 <UBadge v-if="!indexer.enabled" color="neutral" variant="subtle">{{ t('usenet.indexers.disabled') }}</UBadge>
                 <UBadge v-if="indexer.list_style === 'detailed'" color="neutral" variant="outline" icon="i-lucide-image" data-testid="indexer-detailed">{{ t('usenet.indexers.list_styles.detailed') }}</UBadge>
-                <UIcon v-if="indexer.has_secret" name="i-lucide-key-round" class="text-primary" :aria-label="t('usenet.indexers.has_key')" />
+                <UIcon v-if="indexer.has_secret" name="i-lucide-key-round" class="text-primary" role="img" aria-hidden="false" :aria-label="t('usenet.indexers.has_key')" />
                 <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-plug-zap" :label="t('common.actions.test')" :loading="testingId === indexer.id" :data-testid="`indexer-test-${indexer.id}`" @click="test(indexer)" />
                 <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" :aria-label="t('usenet.indexers.edit')" :title="t('usenet.indexers.edit')" @click="edit(indexer)" />
                 <UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="t('usenet.indexers.delete.action')" :title="t('usenet.indexers.delete.action')" :loading="deletingId === indexer.id" @click="remove(indexer)" />

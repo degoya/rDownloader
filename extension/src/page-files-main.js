@@ -87,8 +87,14 @@
     return btoa(binary)
   }
 
+  // Not `crypto.randomUUID`: a page that is no secure context, any allowed site on plain http,
+  // has none, and the click was lost to the exception (RD-1490-13). `getRandomValues` every page has.
+  function newId() {
+    return Array.from(crypto.getRandomValues(new Uint32Array(4)), (part) => part.toString(16).padStart(8, '0')).join('')
+  }
+
   function hold(found) {
-    const id = crypto.randomUUID()
+    const id = newId()
     found.timer = setTimeout(() => release(id, false), ANSWER_WAIT_MS)
     waiting.set(id, found)
     found.blob.arrayBuffer().then(

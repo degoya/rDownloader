@@ -23,8 +23,10 @@
 # Usage:
 #   scripts/archive-jobs.sh                   # move what is due
 #   scripts/archive-jobs.sh --check           # name what is due, any open job lying in archive/
-#                                             # and any miscounted Job Inventory row; exit 1 if
-#                                             # there is any of them (check.sh)
+#                                             # any miscounted Job Inventory row and any open box
+#                                             # of archive/ without `→ offen in RD-<id>` or a
+#                                             # strike (RD-1490-01); exit 1 if there is any of
+#                                             # them (check.sh)
 #   scripts/archive-jobs.sh --check --due-ok  # the same, but what is due only named: the release
 #                                             # chain's form before its archive-jobs step
 #   scripts/archive-jobs.sh --release 1.4.0   # also treat 1.4.0 as tagged (the pipeline's form)

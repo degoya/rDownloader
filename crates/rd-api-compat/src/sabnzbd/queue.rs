@@ -33,19 +33,13 @@ async fn list(state: &AppState) -> Response {
     let mut left = 0_u64;
     let slots: Vec<serde_json::Value> = packages
         .iter()
-        .filter(|package| !map::is_history(package))
+        .filter(|package| in_queue(package))
         .enumerate()
         .map(|(index, package)| {
-            let (bytes, done) = totals.get(&package.id).copied().unwrap_or_default();
-            total += bytes;
-            left += bytes.saturating_sub(done);
-            slot(
-                index,
-                package,
-                map::category(package, &categories),
-                bytes,
-                done,
-            )
+            let counted = totals.get(&package.id).copied().unwrap_or_default();
+            total += counted.bytes;
+            left += counted.bytes.saturating_sub(counted.done);
+            slot(index, package, map::category(package, &categories), counted)
         })
         .collect();
     json(serde_json::json!({
@@ -80,18 +74,33 @@ async fn list(state: &AppState) -> Response {
     }))
 }
 
+/// A Usenet package that has not reached an end state: a slot of this queue.
+fn in_queue(package: &DownloadPackage) -> bool {
+    map::is_usenet(package) && !map::is_history(package)
+}
+
 fn slot(
     index: usize,
     package: &DownloadPackage,
     category: &str,
-    bytes: u64,
-    done: u64,
+    totals: Totals,
 ) -> serde_json::Value {
+    let Totals { bytes, done, .. } = totals;
     let left = bytes.saturating_sub(done);
     let percentage = if bytes == 0 {
         0
     } else {
         ((done as f64 / bytes as f64) * 100.0).round() as u64
+    };
+    // A job added with `priority=-2`, or paused since, waits with nothing left to start: SABnzbd
+    // calls that `Paused`, and a client would otherwise wait for a download that is not coming.
+    let status = if package.state == rd_core::PackageState::Queued
+        && totals.paused > 0
+        && totals.open == 0
+    {
+        "Paused"
+    } else {
+        map::queue_status(package)
     };
     serde_json::json!({
         "index": index,
@@ -99,10 +108,10 @@ fn slot(
         "filename": package.name,
         "nzbname": package.name,
         "cat": category,
-        "priority": "Normal",
+        "priority": map::priority_word(package.priority),
         "script": package.script.clone().unwrap_or_else(|| "None".to_owned()),
         "unpackopts": "3",
-        "status": map::queue_status(package),
+        "status": status,
         "mb": map::megabytes(bytes),
         "mbleft": map::megabytes(left),
         "size": map::human_size(bytes),
@@ -116,6 +125,19 @@ fn slot(
     })
 }
 
+/// What [`totals`] counts for one package.
+#[derive(Clone, Copy, Default)]
+struct Totals {
+    /// How many bytes it is.
+    bytes: u64,
+    /// How many of them are committed.
+    done: u64,
+    /// Files paused.
+    paused: usize,
+    /// Files queued or under way.
+    open: usize,
+}
+
 /// Byte totals of every package: how much it is, and how much is committed.
 ///
 /// One pass over the downloads, keyed by package (audit 1.9.1, API-03): summing per package
@@ -124,15 +146,18 @@ fn slot(
 /// A row standing by is left out of both sums. A mirror that stood down and a PAR2 recovery
 /// volume held back until a repair asks for it (RD-107-04) are bytes nobody is going to
 /// fetch, and counting them would report a package as permanently short of its own size.
-fn totals(downloads: &[DownloadFile]) -> HashMap<rd_core::PackageId, (u64, u64)> {
-    let mut totals: HashMap<rd_core::PackageId, (u64, u64)> = HashMap::new();
-    for file in downloads
-        .iter()
-        .filter(|file| file.state != rd_core::DownloadState::Skipped)
-    {
-        let (total, done) = totals.entry(file.package_id).or_default();
-        *total += file.total_bytes.map_or(0, rd_core::ByteCount::get);
-        *done += file.committed_bytes.get();
+fn totals(downloads: &[DownloadFile]) -> HashMap<rd_core::PackageId, Totals> {
+    use rd_core::DownloadState::{Downloading, Paused, Queued, Resolving, RetryWait, Skipped};
+    let mut totals: HashMap<rd_core::PackageId, Totals> = HashMap::new();
+    for file in downloads.iter().filter(|file| file.state != Skipped) {
+        let entry = totals.entry(file.package_id).or_default();
+        entry.bytes += file.total_bytes.map_or(0, rd_core::ByteCount::get);
+        entry.done += file.committed_bytes.get();
+        match file.state {
+            Paused => entry.paused += 1,
+            Queued | Resolving | Downloading | RetryWait => entry.open += 1,
+            _ => {}
+        }
     }
     totals
 }
@@ -141,7 +166,20 @@ async fn act(state: &AppState, query: &SabQuery, action: DownloadBulkAction) -> 
     let Some(id) = query.value.as_deref().and_then(map::package_id) else {
         return error("nzo_id not found");
     };
-    apply_to_package(state, &[id], action).await
+    match usenet_job(state, id).await {
+        Ok(true) => apply_to_package(state, &[id], action).await,
+        Ok(false) => error("nzo_id not found"),
+        Err(_) => error("queue unavailable"),
+    }
+}
+
+/// Whether `id` names a Usenet package. One of another kind -- a torrent the qBittorrent
+/// adapter added -- is no job of this client's, whatever id it sends (RD-1490-13).
+async fn usenet_job(state: &AppState, id: rd_core::PackageId) -> anyhow::Result<bool> {
+    let packages = state.database.list_packages().await?;
+    Ok(packages
+        .iter()
+        .any(|package| package.id == id && map::is_usenet(package)))
 }
 
 async fn delete(state: &AppState, query: &SabQuery) -> Response {
@@ -154,15 +192,19 @@ async fn delete(state: &AppState, query: &SabQuery) -> Response {
         match state.database.list_packages().await {
             Ok(packages) => packages
                 .iter()
-                .filter(|package| !map::is_history(package))
+                .filter(|package| in_queue(package))
                 .map(|package| package.id)
                 .collect(),
             Err(_) => return error("queue unavailable"),
         }
     } else {
-        match map::package_id(value) {
-            Some(id) => vec![id],
-            None => return error("nzo_id not found"),
+        let Some(id) = map::package_id(value) else {
+            return error("nzo_id not found");
+        };
+        match usenet_job(state, id).await {
+            Ok(true) => vec![id],
+            Ok(false) => return error("nzo_id not found"),
+            Err(_) => return error("queue unavailable"),
         }
     };
     if ids.is_empty() {
@@ -210,14 +252,15 @@ pub(crate) async fn resume_all(state: &AppState) -> Response {
     all(state, DownloadBulkAction::Resume).await
 }
 
-/// Pauses or resumes every package that has not reached an end state.
+/// Pauses or resumes every Usenet package that has not reached an end state; the torrents
+/// and links of the other clients are not this one's to stop.
 async fn all(state: &AppState, action: DownloadBulkAction) -> Response {
     let Ok(packages) = state.database.list_packages().await else {
         return error("queue unavailable");
     };
     let ids: Vec<rd_core::PackageId> = packages
         .iter()
-        .filter(|package| !map::is_history(package))
+        .filter(|package| in_queue(package))
         .map(|package| package.id)
         .collect();
     apply_to_package(state, &ids, action).await

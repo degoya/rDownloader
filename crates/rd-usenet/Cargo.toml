@@ -46,6 +46,8 @@ rd-testkit = { path = "../rd-testkit" }
 rd-crash-points = { path = "../rd-crash-points" }
 rd-extract = { path = "../rd-extract" }
 rd-limits = { path = "../rd-limits" }
+# The yEnc decoder's properties (RD-1490-04).
+proptest.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 zip.workspace = true

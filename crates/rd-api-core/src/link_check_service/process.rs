@@ -2,6 +2,11 @@
 
 use super::*;
 
+/// The most one direct link's check may take, every step together (RD-1490-13). Each step has
+/// its own deadline (`link_check_probe::Deadlines`); this one ends a chain of them that adds up,
+/// so the check of a host that answers slowly at every step ends too.
+pub(super) const DIRECT_CHECK_DEADLINE: std::time::Duration = std::time::Duration::from_secs(120);
+
 /// The claimed candidates of one job, sorted by the way each of them is checked.
 struct Routes {
     by_account: HashMap<rd_core::AccountId, Vec<(LinkCandidate, bool)>>,
@@ -178,65 +183,117 @@ impl LinkCheckService {
 
     /// Probes the direct links, four at a time, and reroutes the ones that turn out to be a
     /// document.
+    ///
+    /// Each link is checked and recorded on its own task, within [`DIRECT_CHECK_DEADLINE`]: a
+    /// host that never answers, or stalls its answer, ends as inconclusive and holds none of the
+    /// links beside it (RD-1490-13). They used to be recorded in order, and the reclassification
+    /// asked a host that had not answered the probe again, with no deadline at all.
     async fn check_direct(
         &self,
         direct: Vec<LinkCandidate>,
         guards: &HashMap<CandidateId, rd_http::AddressPolicy>,
     ) -> Result<()> {
-        if !direct.is_empty() {
-            let semaphore = Arc::new(tokio::sync::Semaphore::new(4));
-            let mut tasks = Vec::with_capacity(direct.len());
-            for candidate in direct {
-                let permit = Arc::clone(&semaphore).acquire_owned().await?;
-                let scheduler = self.inner.scheduler.clone();
-                let guard = guards.get(&candidate.id).cloned();
-                tasks.push(tokio::spawn(async move {
-                    let _permit = permit;
-                    let selection = candidate.auth_profile;
-                    let network = match guard {
-                        Some(policy) => {
-                            scheduler
-                                .guarded_client(&candidate.url, selection, policy)
-                                .await
-                        }
-                        None => scheduler.direct_client(&candidate.url, selection).await,
-                    };
-                    let result = match network {
-                        Ok(network) => Some(
-                            probe_direct(&network.client, &network.headers, candidate.url.clone())
-                                .await,
-                        ),
-                        Err(_) => None,
-                    };
-                    (candidate, result)
-                }));
-            }
-            for task in tasks {
-                if let Ok((candidate, result)) = task.await {
-                    // An indexer link often hides the extension behind a query — NZBHydra
-                    // and Prowlarr both do — so the declared content type is what identifies
-                    // it (RD-080-11). Asked first since RD-130-18: a torrent served as
-                    // `application/octet-stream` is plausible as a manifest too, and reading
-                    // it for one would be a grab of its own.
-                    let guard = guards.get(&candidate.id);
-                    let rerouted = self.reclassify_document(&candidate, guard).await;
-                    // A manifest does not have to announce itself in its address: a signed
-                    // CDN link has no extension and is often served as `text/plain`
-                    // (RD-080-06). Reclassifying here is what keeps it from being queued as
-                    // a text file.
-                    if matches!(rerouted, Rerouted::No)
-                        && result.is_some()
-                        && self.classify_manifest(&candidate, false, guard).await
-                    {
-                        continue;
-                    }
-                    let result = rerouted_document(&rerouted, result);
-                    let message = direct_message(result.as_ref());
-                    self.record(&candidate, result, message).await;
-                }
+        let slots = Arc::new(tokio::sync::Semaphore::new(4));
+        let mut tasks = tokio::task::JoinSet::new();
+        for candidate in direct {
+            let permit = Arc::clone(&slots).acquire_owned().await?;
+            let service = self.clone();
+            let guard = guards.get(&candidate.id).cloned();
+            tasks.spawn(async move {
+                let _permit = permit;
+                service.check_one_direct(candidate, guard).await;
+            });
+        }
+        while let Some(joined) = tasks.join_next().await {
+            if let Err(error) = joined {
+                tracing::warn!(%error, "a direct link check ended without its result");
             }
         }
         Ok(())
+    }
+
+    /// Checks one direct link and records the outcome.
+    async fn check_one_direct(
+        &self,
+        candidate: LinkCandidate,
+        guard: Option<rd_http::AddressPolicy>,
+    ) {
+        let checked = tokio::time::timeout(
+            DIRECT_CHECK_DEADLINE,
+            self.probe_direct_link(&candidate, guard.as_ref()),
+        )
+        .await;
+        let (result, message) = match checked {
+            Ok(Some(outcome)) => outcome,
+            // Recorded where it was classified: a protected or a live manifest.
+            Ok(None) => return,
+            Err(_) => {
+                tracing::warn!(
+                    candidate_id = %candidate.id,
+                    url = %rd_core::redact_url(&candidate.url),
+                    "a direct link check ran out of time"
+                );
+                let result = LinkCheckResult {
+                    url: candidate.url.clone(),
+                    status: LinkStatus::Unknown,
+                    file_name: None,
+                    size: None,
+                    media: None,
+                };
+                let message = direct_message(Some(&result));
+                (Some(result), message)
+            }
+        };
+        self.record(&candidate, result, message).await;
+    }
+
+    /// The probe of one direct link and what it turned out to be; `None` when the manifest
+    /// classification recorded it already.
+    async fn probe_direct_link(
+        &self,
+        candidate: &LinkCandidate,
+        guard: Option<&rd_http::AddressPolicy>,
+    ) -> Option<(Option<LinkCheckResult>, Option<rd_core::CandidateMessage>)> {
+        let (result, probed) = match self
+            .client_for(&candidate.url, candidate.auth_profile, guard)
+            .await
+        {
+            Ok(network) => {
+                let url = candidate.url.clone();
+                let (result, probed) =
+                    probe_direct_kept(&network.client, &network.headers, url).await;
+                (Some(result), probed)
+            }
+            Err(_) => (None, DirectProbe::Unasked),
+        };
+        // Only an address that answered, kept answering and could be serving a manifest is read
+        // for one; the probe's own headers decide that, so it is not asked a second time.
+        let plausible = match &probed {
+            DirectProbe::Answered(probed) => {
+                let probe = &probed.probe;
+                !probed.stalled
+                    && manifest_plausible(probe.content_type.as_deref(), probe.total_bytes)
+            }
+            DirectProbe::Unasked | DirectProbe::Failed => false,
+        };
+        // An indexer link often hides the extension behind a query — NZBHydra and Prowlarr
+        // both do — so the declared content type is what identifies it (RD-080-11). Asked
+        // first since RD-130-18: a torrent served as `application/octet-stream` is plausible
+        // as a manifest too, and reading it for one would be a grab of its own. Handed the
+        // probe since RD-1490-02, so the address is asked once.
+        let rerouted = self.reclassify_document(candidate, guard, probed).await;
+        // A manifest does not have to announce itself in its address: a signed CDN link has
+        // no extension and is often served as `text/plain` (RD-080-06). Reclassifying here is
+        // what keeps it from being queued as a text file.
+        if matches!(rerouted, Rerouted::No)
+            && plausible
+            && self.classify_manifest(candidate, guard).await
+        {
+            return None;
+        }
+        let result = rerouted_document(&rerouted, result);
+        let message = direct_message(result.as_ref());
+        Some((result, message))
     }
 
     /// Records the links that pass without a probe: galleries, torrents, NZBs and recordings.

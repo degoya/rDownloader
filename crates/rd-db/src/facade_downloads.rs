@@ -11,10 +11,22 @@ use crate::{
 };
 
 impl Database {
-    /// Creates an empty package.
+    /// Creates an empty package of HTTP downloads.
     pub async fn create_package(&self, package: NewPackage) -> Result<DownloadPackage> {
+        self.create_package_of_kind(package, rd_core::DownloadKind::Http)
+            .await
+    }
+
+    /// Creates an empty package whose files are of `kind` (RD-1490-13): a torrent package is
+    /// one, which post-processing and the history read off the package row.
+    pub async fn create_package_of_kind(
+        &self,
+        package: NewPackage,
+        kind: rd_core::DownloadKind,
+    ) -> Result<DownloadPackage> {
         writer::request(&self.writer, |reply| DownloadsCommand::CreatePackage {
             package,
+            kind,
             reply,
         })
         .await

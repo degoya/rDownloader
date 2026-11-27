@@ -37,7 +37,11 @@ Job Inventory row whose numbers the catalogs do not bear out and every job file,
 archive/, whose status line is missing or starts with a word that is not one of STATUS_WORDS
 (RD-120-14: `Done` is not one), and every counted status line (`gezählt: <n> offen, <m>
 abgehakt`, archive_jobs_counts.py, RD-1270-17) its file's checkboxes do not bear out - which a
-plain run rewrites - and exits 1 when there is any of the six. A status word of the index
+plain run rewrites - and every open box `- [ ]` of an archived file whose paragraph (the box line
+and its indented lines) carries no `→ offen in RD-<id>` and whose text is not struck `~~…~~`,
+named `file:line: text`, and every such mark that names no job file (archive_jobs_refs.py,
+RD-1490-01; a `Blocked/No-Go` file is exempt from the boxes, a working file without a status is
+not), and exits 1 when there is any of the seven. A status word of the index
 that is not its file's (archive_jobs_words.py, RD-1480-24) is named and written by the next run, but
 no failure. With --due-ok a
 due file is named but does not count: the release chain's checks before its archive-jobs step
@@ -60,6 +64,7 @@ import sys
 sys.dont_write_bytecode = True
 from archive_jobs_counts import stale_counts  # noqa: E402
 from archive_jobs_links import rewrite_references  # noqa: E402
+from archive_jobs_refs import archive_ref_problems  # noqa: E402
 from archive_jobs_words import stale_words  # noqa: E402
 from archive_jobs_rows import row_problems, row_target  # noqa: E402
 from archive_jobs_status import (  # noqa: E402
@@ -337,6 +342,14 @@ def main(argv):
         bad = bad_status_files(repo)
         for path, problem in bad:
             print(f"status: {path}: {problem} (docs/roadmap/jobs/README.md, Rules)")
+        # Every open box of the archive says where its rest went or is struck (RD-1490-01).
+        refs = archive_ref_problems(repo)
+        for problem in refs:
+            print(problem)
+        if refs:
+            print(f"{len(refs)} archive reference problem(s): mark each open box `→ offen in RD-<id>` "
+                  "under it or strike its text `~~…~~`, and name job files that exist "
+                  "(docs/roadmap/jobs/README.md, Rules)")
         for name, reason in due:
             hint = "the release's archive-jobs step moves it" if due_ok else "run scripts/archive-jobs.sh"
             print(f"due: {JOBS}/{name} ({reason}) — {hint}")
@@ -344,7 +357,7 @@ def main(argv):
             print(f"miscounted: {JOBS}/README.md Job Inventory has `{line[0]}`, the catalogs say "
                   f"`{line[1]}` — run scripts/archive-jobs.sh")
         print(f"{len(due)} job file(s) due for {ARCHIVE}/" if due else "nothing to archive")
-        return 1 if (due and not due_ok) or misplaced or stale or bad or listed or counts else 0
+        return 1 if (due and not due_ok) or misplaced or stale or bad or listed or counts or refs else 0
     if not due:
         if stale:
             index_path = os.path.join(repo, JOBS, "README.md")

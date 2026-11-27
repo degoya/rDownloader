@@ -13,6 +13,7 @@ mod compat_arr;
 mod compat_arr_live;
 mod compat_qbittorrent;
 mod compat_sabnzbd;
+mod compat_shared_category;
 mod feeds;
 mod git_releases;
 mod indexer_search;

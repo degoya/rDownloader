@@ -27,6 +27,7 @@ pub struct SystemChecksInput {
 const HELPERS: &str = "download helpers";
 const PROXY: &str = "Reverse proxy";
 const DATA: &str = "Data directory";
+const TLS: &str = "TLS";
 
 /// The helper binaries looked up by name, in the order `doctor` always printed them.
 const TOOLS: [&str; 8] = [
@@ -82,6 +83,7 @@ pub async fn system_checks(input: &SystemChecksInput) -> Vec<Check> {
             "yt-dlp needs ffprobe next to ffmpeg to merge video and audio streams.",
         ));
     }
+    checks.push(trust_check(rd_http::platform_trust_problem()));
     checks.extend(proxy_checks(input));
     if let Some(directory) = &input.data_directory {
         checks.push(data_directory_check(directory.clone()).await);
@@ -128,6 +130,24 @@ async fn tool_check(tool: &str, found: &rd_core::ResolvedTool, input: &SystemChe
         );
     }
     check
+}
+
+/// Whether the system's CA certificates can verify a server (RD-1490-13). A container without
+/// them used to stop the service at its start; it now starts, and every HTTPS and TLS
+/// connection fails with a certificate error, which is what this line explains.
+fn trust_check(problem: Option<&str>) -> Check {
+    match problem {
+        None => Check::new(
+            TLS,
+            "CA certificates",
+            CheckStatus::Ok,
+            "the system's certificate store is readable",
+        ),
+        Some(problem) => Check::new(TLS, "CA certificates", CheckStatus::Missing, problem)
+            .note("Every HTTPS and TLS connection fails until the system's CA certificates")
+            .note("are installed (the ca-certificates package); a custom CA in the network")
+            .note("settings is trusted on its own."),
+    }
 }
 
 /// The two archive tools whose version floor guards extraction.
@@ -242,7 +262,15 @@ fn proxy_checks(input: &SystemChecksInput) -> Vec<Check> {
 mod tests {
     use rd_diagnostics::CheckStatus;
 
-    use super::{SystemChecksInput, tool_check};
+    use super::{SystemChecksInput, tool_check, trust_check};
+
+    #[test]
+    fn missing_ca_certificates_are_named() {
+        assert_eq!(trust_check(None).status, CheckStatus::Ok);
+        let missing = trust_check(Some("No CA certificates were loaded from the system"));
+        assert_eq!(missing.status, CheckStatus::Missing);
+        assert!(missing.detail.contains("No CA certificates"), "{missing:?}");
+    }
 
     fn unreadable(tool: &str) -> rd_core::ResolvedTool {
         rd_core::ResolvedTool {

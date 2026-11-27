@@ -9,7 +9,9 @@
 #                 — and the wiki images taken by hand, each with its reason
 #   seed.mjs      the demo data through the REST API; mock.py the origin the demo downloads from,
 #                 behind a proxy profile so the queue shows example.* hosts, and on a second port
-#                 nntp_mock.py, the news server of the `usenet` group behind a SOCKS5 profile
+#                 nntp_mock.py, the news server of the `usenet` group behind a SOCKS5 profile;
+#                 through the same proxy remote_mock.py, a provider API over TLS with a throwaway
+#                 CA of its own in <work>/tls/, for the remote-jobs view (seed_remote.mjs)
 #   capture.mjs   takes views into <work>/out/<scale>x/; deliver.py copies them to the targets;
 #                 alts.py writes the wiki's alt texts from alts.json, which name no numbers
 #
@@ -22,7 +24,8 @@
 #
 # Steps, in the order given; a failed step skips the ones after it, but a later `stop` still runs
 # when this run ran `start` (steps.sh), and the exit status is non-zero:
-#   fresh     a new work directory's service data, demo roots and password; refuses leftovers
+#   fresh     a new work directory's service data, demo roots and password, no demo CA left;
+#             refuses leftovers and a running service or mock
 #   start     the mock and the service (`<pkg>/rdownloader serve`), by their PID files
 #   seed      the demo data (restarts the service once, after installing the bundled plugins)
 #   capture   every group with a view in --views (all views without it): main, pause, restart,
@@ -38,7 +41,8 @@
 # port, with its own data directory.
 #
 # Environment:
-#   RD_SHOTS_WORK        the work directory: service/, demo/, out/, logs/, the password, the cookie
+#   RD_SHOTS_WORK        the work directory: service/, demo/, out/, logs/, tls/ (the mock's CA and
+#                        certificate, made at its start), the password, the cookie
 #                        (default: /var/tmp/rdownloader-shots-<uid>)
 #   RD_SHOTS_PORT        the service's port (18790); RD_SHOTS_MOCK_PORT the mock's (18791),
 #                        RD_SHOTS_NNTP_PORT its news server's (18792)
@@ -81,6 +85,7 @@ alive() { [[ -f "$1" ]] && kill -0 "$(cat "$1")" 2> /dev/null; }
 
 step_fresh() {
     alive "$LOGS/serve.pid" && { echo "the demo service is still running (stop first)" >&2; return 1; }
+    alive "$LOGS/mock.pid" && { echo "the mock is still running (stop first)" >&2; return 1; }
     # Never reused and never deleted here: a leftover is moved aside by hand.
     if [[ -e "$WORK/service" || -e "$WORK/demo" ]]; then
         echo "$WORK/service or $WORK/demo exists; move it aside first" >&2
@@ -88,6 +93,8 @@ step_fresh() {
     fi
     mkdir -p "$WORK/service" "$WORK/demo/downloads" "$LOGS"
     rm -f "$WORK/cookie.txt" "$WORK/more-music" "$WORK/usenet-before.json"
+    # The mock makes a new throwaway CA at its next start.
+    rm -rf "$WORK/tls"
     (umask 077 && python3 -c 'import secrets; print(secrets.token_urlsafe(18))' > "$WORK/password")
     echo "fresh: $WORK"
 }
@@ -160,6 +167,7 @@ step_seed() {
     seed big || return 1
     seed grab || return 1
     seed windows || return 1
+    seed remote || return 1
     seed state
     # The throttled transfers show progress and a rate.
     sleep 60

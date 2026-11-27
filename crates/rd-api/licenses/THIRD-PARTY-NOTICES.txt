@@ -68,8 +68,8 @@ aligned-vec 0.6.4 (MIT)
     source: https://crates.io/crates/aligned-vec/0.6.4
     text:   [9025449d] LICENSE
 
-allocator-api2 0.2.21 (MIT OR Apache-2.0)
-    source: https://crates.io/crates/allocator-api2/0.2.21
+allocator-api2 0.2.22 (MIT OR Apache-2.0)
+    source: https://crates.io/crates/allocator-api2/0.2.22
     text:   [59d8f0ba] LICENSE-APACHE
     text:   [fe2a9817] LICENSE-MIT
 
@@ -122,11 +122,6 @@ arc-swap 1.9.5 (MIT OR Apache-2.0)
     source: https://crates.io/crates/arc-swap/1.9.5
     text:   [0ffddef9] LICENSE-APACHE
     text:   [55ac58e6] LICENSE-MIT
-
-argon2 0.5.3 (MIT OR Apache-2.0)
-    source: https://crates.io/crates/argon2/0.5.3
-    text:   [0ffddef9] LICENSE-APACHE
-    text:   [e55c8327] LICENSE-MIT
 
 argon2 0.6.0 (MIT OR Apache-2.0)
     source: https://crates.io/crates/argon2/0.6.0
@@ -276,11 +271,6 @@ bitflags 2.13.2 (MIT OR Apache-2.0)
 bitvec 1.1.1 (MIT)
     source: https://crates.io/crates/bitvec/1.1.1
     text:   [d6c8b00c] LICENSE.txt
-
-blake2 0.10.6 (MIT OR Apache-2.0)
-    source: https://crates.io/crates/blake2/0.10.6
-    text:   [0ffddef9] LICENSE-APACHE
-    text:   [ad41844f] LICENSE-MIT
 
 blake2 0.11.0 (MIT OR Apache-2.0)
     source: https://crates.io/crates/blake2/0.11.0
@@ -558,45 +548,45 @@ cpufeatures 0.3.1 (MIT OR Apache-2.0)
     text:   [0ffddef9] LICENSE-APACHE
     text:   [192e528a] LICENSE-MIT
 
-cranelift-assembler-x64 0.137.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/cranelift-assembler-x64/0.137.3
+cranelift-assembler-x64 0.138.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/cranelift-assembler-x64/0.138.0
     The package carries no licence file; the standard text of what it declares applies.
     text:   [0ffddef9] Apache-2.0
     text:   [453a29d2] LLVM-exception
 
-cranelift-bforest 0.137.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/cranelift-bforest/0.137.3
+cranelift-bforest 0.138.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/cranelift-bforest/0.138.0
     text:   [f42a00ac] LICENSE
 
-cranelift-bitset 0.137.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/cranelift-bitset/0.137.3
+cranelift-bitset 0.138.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/cranelift-bitset/0.138.0
     The package carries no licence file; the standard text of what it declares applies.
     Authors its manifest names: The Cranelift Project Developers
     text:   [0ffddef9] Apache-2.0
     text:   [453a29d2] LLVM-exception
 
-cranelift-codegen 0.137.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/cranelift-codegen/0.137.3
+cranelift-codegen 0.138.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/cranelift-codegen/0.138.0
     text:   [f42a00ac] LICENSE
 
-cranelift-codegen-shared 0.137.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/cranelift-codegen-shared/0.137.3
+cranelift-codegen-shared 0.138.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/cranelift-codegen-shared/0.138.0
     text:   [f42a00ac] LICENSE
 
-cranelift-control 0.137.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/cranelift-control/0.137.3
+cranelift-control 0.138.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/cranelift-control/0.138.0
     text:   [f42a00ac] LICENSE
 
-cranelift-entity 0.137.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/cranelift-entity/0.137.3
+cranelift-entity 0.138.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/cranelift-entity/0.138.0
     text:   [f42a00ac] LICENSE
 
-cranelift-frontend 0.137.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/cranelift-frontend/0.137.3
+cranelift-frontend 0.138.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/cranelift-frontend/0.138.0
     text:   [f42a00ac] LICENSE
 
-cranelift-native 0.137.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/cranelift-native/0.137.3
+cranelift-native 0.138.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/cranelift-native/0.138.0
     text:   [f42a00ac] LICENSE
 
 crc 3.4.0 (MIT OR Apache-2.0)
@@ -619,8 +609,8 @@ crc32fast 1.5.6 (MIT OR Apache-2.0)
     text:   [958e28cd] LICENSE-APACHE
     text:   [05c28b49] LICENSE-MIT
 
-croner 5.0.0 (MIT)
-    source: https://crates.io/crates/croner/5.0.0
+croner 5.0.1 (MIT)
+    source: https://crates.io/crates/croner/5.0.1
     text:   [8aa90bdb] LICENSE.md
 
 crossbeam-channel 0.5.17 (MIT OR Apache-2.0)
@@ -664,8 +654,8 @@ crypto-common 0.2.2 (MIT OR Apache-2.0)
     text:   [0ffddef9] LICENSE-APACHE
     text:   [3842af12] LICENSE-MIT
 
-crypto-glue 0.2.2 (MPL-2.0)
-    source: https://crates.io/crates/crypto-glue/0.2.2
+crypto-glue 0.2.3 (MPL-2.0)
+    source: https://crates.io/crates/crypto-glue/0.2.3
     The package carries no licence file; the standard text of what it declares applies.
     Authors its manifest names: William Brown
     text:   [e8ba82e6] MPL-2.0
@@ -737,18 +727,8 @@ directories 6.0.0 (MIT OR Apache-2.0)
     text:   [09ae9bf1] LICENSE-APACHE
     text:   [187186c1] LICENSE-MIT
 
-directories-next 2.0.0 (MIT OR Apache-2.0)
-    source: https://crates.io/crates/directories-next/2.0.0
-    text:   [09ae9bf1] LICENSE-APACHE
-    text:   [187186c1] LICENSE-MIT
-
 dirs-sys 0.5.0 (MIT OR Apache-2.0)
     source: https://crates.io/crates/dirs-sys/0.5.0
-    text:   [09ae9bf1] LICENSE-APACHE
-    text:   [c7c54642] LICENSE-MIT
-
-dirs-sys-next 0.1.2 (MIT OR Apache-2.0)
-    source: https://crates.io/crates/dirs-sys-next/0.1.2
     text:   [09ae9bf1] LICENSE-APACHE
     text:   [c7c54642] LICENSE-MIT
 
@@ -1015,10 +995,6 @@ generic-array 0.12.4 (MIT)
 
 generic-array 0.14.7 (MIT)
     source: https://crates.io/crates/generic-array/0.14.7
-    text:   [2f1ac698] LICENSE
-
-generic-array 1.4.5 (MIT)
-    source: https://crates.io/crates/generic-array/1.4.5
     text:   [2f1ac698] LICENSE
 
 gethostname 1.1.0 (Apache-2.0)
@@ -1558,8 +1534,8 @@ module-lattice 0.2.4 (Apache-2.0 OR MIT)
     text:   [0ffddef9] LICENSE-APACHE
     text:   [c9a2fe7c] LICENSE-MIT
 
-muda 0.21.2 (Apache-2.0 OR MIT)
-    source: https://crates.io/crates/muda/0.21.2
+muda 0.22.0 (Apache-2.0 OR MIT)
+    source: https://crates.io/crates/muda/0.22.0
     text:   [0ffddef9] LICENSE-APACHE
     text:   [74881d76] LICENSE-MIT
     text:   [0a315c2e] LICENSE.spdx
@@ -1848,11 +1824,6 @@ parking_lot_core 0.9.12 (MIT OR Apache-2.0)
     text:   [0ffddef9] LICENSE-APACHE
     text:   [2810737f] LICENSE-MIT
 
-password-hash 0.5.0 (MIT OR Apache-2.0)
-    source: https://crates.io/crates/password-hash/0.5.0
-    text:   [0ffddef9] LICENSE-APACHE
-    text:   [95df82be] LICENSE-MIT
-
 password-hash 0.6.1 (MIT OR Apache-2.0)
     source: https://crates.io/crates/password-hash/0.6.1
     text:   [0ffddef9] LICENSE-APACHE
@@ -1917,10 +1888,10 @@ pkcs1 0.7.5 (Apache-2.0 OR MIT)
     text:   [0ffddef9] LICENSE-APACHE
     text:   [d1db8882] LICENSE-MIT
 
-pkcs1 0.8.0-rc.4 (Apache-2.0 OR MIT)
-    source: https://crates.io/crates/pkcs1/0.8.0-rc.4
+pkcs1 0.8.0 (Apache-2.0 OR MIT)
+    source: https://crates.io/crates/pkcs1/0.8.0
     text:   [0ffddef9] LICENSE-APACHE
-    text:   [e2ec6948] LICENSE-MIT
+    text:   [84d7eea5] LICENSE-MIT
 
 pkcs5 0.8.1 (Apache-2.0 OR MIT)
     source: https://crates.io/crates/pkcs5/0.8.1
@@ -2001,8 +1972,8 @@ proc-macro2 1.0.107 (MIT OR Apache-2.0)
     text:   [59d8f0ba] LICENSE-APACHE
     text:   [fe2a9817] LICENSE-MIT
 
-psl 2.1.263 (MIT/Apache-2.0)
-    source: https://crates.io/crates/psl/2.1.263
+psl 2.1.265 (MIT/Apache-2.0)
+    source: https://crates.io/crates/psl/2.1.265
     text:   [cbc6e69f] LICENSE
 
 psl-types 2.0.11 (MIT/Apache-2.0)
@@ -2015,8 +1986,8 @@ publicsuffix 2.3.0 (MIT/Apache-2.0)
     text:   [cbc6e69f] LICENSE
     text:   [0ffddef9] LICENSE-APACHE
 
-pulley-interpreter 50.0.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/pulley-interpreter/50.0.3
+pulley-interpreter 51.0.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/pulley-interpreter/51.0.0
     The package carries no licence file; the standard text of what it declares applies.
     Authors its manifest names: The Pulley Project Developers
     text:   [0ffddef9] Apache-2.0
@@ -2175,12 +2146,12 @@ rlimit 0.11.0 (MIT)
     source: https://crates.io/crates/rlimit/0.11.0
     text:   [4782db0b] LICENSE
 
-rmcp 3.11.0 (Apache-2.0)
-    source: https://crates.io/crates/rmcp/3.11.0
+rmcp 3.12.0 (Apache-2.0)
+    source: https://crates.io/crates/rmcp/3.12.0
     text:   [60d92b4e] LICENSE
 
-rsa 0.10.0-rc.18 (MIT OR Apache-2.0)
-    source: https://crates.io/crates/rsa/0.10.0-rc.18
+rsa 0.10.0 (MIT OR Apache-2.0)
+    source: https://crates.io/crates/rsa/0.10.0
     text:   [0ffddef9] LICENSE-APACHE
     text:   [fe2a9817] LICENSE-MIT
 
@@ -2189,8 +2160,8 @@ rsa 0.9.10 (MIT OR Apache-2.0)
     text:   [0ffddef9] LICENSE-APACHE
     text:   [fe2a9817] LICENSE-MIT
 
-russh 0.65.1 (Apache-2.0)
-    source: https://crates.io/crates/russh/0.65.1
+russh 0.65.4 (Apache-2.0)
+    source: https://crates.io/crates/russh/0.65.4
     The package carries no licence file; the standard text of what it declares applies.
     Authors its manifest names: Pierre-Étienne Meunier
     text:   [0ffddef9] Apache-2.0
@@ -2201,8 +2172,8 @@ russh-cryptovec 0.62.0 (Apache-2.0)
     Authors its manifest names: Pierre-Étienne Meunier, Eugeny
     text:   [0ffddef9] Apache-2.0
 
-russh-sftp 3.0.1 (Apache-2.0)
-    source: https://crates.io/crates/russh-sftp/3.0.1
+russh-sftp 4.0.0 (Apache-2.0)
+    source: https://crates.io/crates/russh-sftp/4.0.0
     text:   [0ffddef9] LICENSE
 
 russh-util 0.52.0 (Apache-2.0)
@@ -2409,8 +2380,8 @@ sha2 0.10.9 (MIT OR Apache-2.0)
     text:   [0ffddef9] LICENSE-APACHE
     text:   [5327d3e7] LICENSE-MIT
 
-sha2 0.11.1 (MIT OR Apache-2.0)
-    source: https://crates.io/crates/sha2/0.11.1
+sha2 0.11.2 (MIT OR Apache-2.0)
+    source: https://crates.io/crates/sha2/0.11.2
     text:   [0ffddef9] LICENSE-APACHE
     text:   [3278167e] LICENSE-MIT
 
@@ -2542,8 +2513,8 @@ ssh-encoding 0.3.0 (Apache-2.0 OR MIT)
     text:   [0ffddef9] LICENSE-APACHE
     text:   [84d7eea5] LICENSE-MIT
 
-ssh-key 0.7.0-rc.11 (Apache-2.0 OR MIT)
-    source: https://crates.io/crates/ssh-key/0.7.0-rc.11
+ssh-key 0.7.0-rc.12 (Apache-2.0 OR MIT)
+    source: https://crates.io/crates/ssh-key/0.7.0-rc.12
     text:   [0ffddef9] LICENSE-APACHE
     text:   [84d7eea5] LICENSE-MIT
 
@@ -2592,8 +2563,8 @@ tag_ptr 0.1.0 (Unlicense OR MIT)
     text:   [2069c208] Unlicense
     text:   [c9638796] MIT
 
-tao 0.37.3 (Apache-2.0)
-    source: https://crates.io/crates/tao/0.37.3
+tao 0.38.0 (Apache-2.0)
+    source: https://crates.io/crates/tao/0.38.0
     text:   [958e28cd] LICENSE
     text:   [f988594d] LICENSE.spdx
 
@@ -2745,8 +2716,8 @@ tracing-subscriber 0.3.23 (MIT)
     source: https://crates.io/crates/tracing-subscriber/0.3.23
     text:   [ef44c1fd] LICENSE
 
-tray-icon 0.26.1 (MIT OR Apache-2.0)
-    source: https://crates.io/crates/tray-icon/0.26.1
+tray-icon 0.27.0 (MIT OR Apache-2.0)
+    source: https://crates.io/crates/tray-icon/0.27.0
     text:   [0ffddef9] LICENSE-APACHE
     text:   [74881d76] LICENSE-MIT
     text:   [16c769b6] LICENSE.spdx
@@ -2867,67 +2838,67 @@ want 0.3.2 (MIT)
     source: https://crates.io/crates/want/0.3.2
     text:   [d3ed37e8] LICENSE
 
-wasm-encoder 0.261.0 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT)
-    source: https://crates.io/crates/wasm-encoder/0.261.0
+wasm-encoder 0.263.0 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT)
+    source: https://crates.io/crates/wasm-encoder/0.263.0
     text:   [0ffddef9] LICENSE-APACHE
     text:   [f42a00ac] LICENSE-Apache-2.0_WITH_LLVM-exception
     text:   [fe2a9817] LICENSE-MIT
 
-wasmparser 0.261.0 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT)
-    source: https://crates.io/crates/wasmparser/0.261.0
+wasmparser 0.263.0 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT)
+    source: https://crates.io/crates/wasmparser/0.263.0
     text:   [0ffddef9] LICENSE-APACHE
     text:   [f42a00ac] LICENSE-Apache-2.0_WITH_LLVM-exception
     text:   [fe2a9817] LICENSE-MIT
 
-wasmprinter 0.261.0 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT)
-    source: https://crates.io/crates/wasmprinter/0.261.0
+wasmprinter 0.263.0 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT)
+    source: https://crates.io/crates/wasmprinter/0.263.0
     text:   [0ffddef9] LICENSE-APACHE
     text:   [f42a00ac] LICENSE-Apache-2.0_WITH_LLVM-exception
     text:   [fe2a9817] LICENSE-MIT
 
-wasmtime 50.0.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/wasmtime/50.0.3
+wasmtime 51.0.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/wasmtime/51.0.0
     text:   [f42a00ac] LICENSE
 
-wasmtime-environ 50.0.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/wasmtime-environ/50.0.3
+wasmtime-environ 51.0.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/wasmtime-environ/51.0.0
     text:   [f42a00ac] LICENSE
 
-wasmtime-internal-cache 50.0.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/wasmtime-internal-cache/50.0.3
+wasmtime-internal-cache 51.0.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/wasmtime-internal-cache/51.0.0
     text:   [f42a00ac] LICENSE
 
-wasmtime-internal-component-util 50.0.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/wasmtime-internal-component-util/50.0.3
+wasmtime-internal-component-util 51.0.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/wasmtime-internal-component-util/51.0.0
     The package carries no licence file; the standard text of what it declares applies.
     Authors its manifest names: The Wasmtime Project Developers
     text:   [0ffddef9] Apache-2.0
     text:   [453a29d2] LLVM-exception
 
-wasmtime-internal-core 50.0.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/wasmtime-internal-core/50.0.3
+wasmtime-internal-core 51.0.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/wasmtime-internal-core/51.0.0
     The package carries no licence file; the standard text of what it declares applies.
     Authors its manifest names: The Wasmtime Project Developers
     text:   [0ffddef9] Apache-2.0
     text:   [453a29d2] LLVM-exception
 
-wasmtime-internal-cranelift 50.0.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/wasmtime-internal-cranelift/50.0.3
+wasmtime-internal-cranelift 51.0.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/wasmtime-internal-cranelift/51.0.0
     text:   [f42a00ac] LICENSE
 
-wasmtime-internal-fiber 50.0.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/wasmtime-internal-fiber/50.0.3
+wasmtime-internal-fiber 51.0.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/wasmtime-internal-fiber/51.0.0
     text:   [f42a00ac] LICENSE
 
-wasmtime-internal-jit-icache-coherence 50.0.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/wasmtime-internal-jit-icache-coherence/50.0.3
+wasmtime-internal-jit-icache-coherence 51.0.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/wasmtime-internal-jit-icache-coherence/51.0.0
     The package carries no licence file; the standard text of what it declares applies.
     Authors its manifest names: The Wasmtime Project Developers
     text:   [0ffddef9] Apache-2.0
     text:   [453a29d2] LLVM-exception
 
-wasmtime-internal-unwinder 50.0.3 (Apache-2.0 WITH LLVM-exception)
-    source: https://crates.io/crates/wasmtime-internal-unwinder/50.0.3
+wasmtime-internal-unwinder 51.0.0 (Apache-2.0 WITH LLVM-exception)
+    source: https://crates.io/crates/wasmtime-internal-unwinder/51.0.0
     text:   [f42a00ac] LICENSE
 
 wayland-backend 0.3.17 (MIT)
@@ -3163,8 +3134,8 @@ zcheapstr 1.4.0 (MIT)
     source: https://crates.io/crates/zcheapstr/1.4.0
     text:   [3d4b1769] LICENSE
 
-zerocopy 0.8.65 (BSD-2-Clause OR Apache-2.0 OR MIT)
-    source: https://crates.io/crates/zerocopy/0.8.65
+zerocopy 0.8.66 (BSD-2-Clause OR Apache-2.0 OR MIT)
+    source: https://crates.io/crates/zerocopy/0.8.66
     text:   [534e8240] LICENSE-APACHE
     text:   [25c95a7b] LICENSE-BSD
     text:   [bc6715c4] LICENSE-MIT
@@ -3202,12 +3173,12 @@ zopfli 0.8.4 (Apache-2.0)
     source: https://crates.io/crates/zopfli/0.8.4
     text:   [ee1be5bf] COPYING
 
-zstd 0.13.6 (BSD-3-Clause)
-    source: https://crates.io/crates/zstd/0.13.6
+zstd 0.14.5 (BSD-3-Clause)
+    source: https://crates.io/crates/zstd/0.14.5
     text:   [61472f3a] LICENSE
 
-zstd-safe 7.4.2 (BSD-3-Clause)
-    source: https://crates.io/crates/zstd-safe/7.4.2
+zstd-safe 8.4.0 (BSD-3-Clause)
+    source: https://crates.io/crates/zstd-safe/8.4.0
     text:   [61472f3a] LICENSE
 
 zstd-sys 2.2.0+zstd.1.6.0 (BSD-3-Clause AND BSD-2-Clause)
@@ -4054,12 +4025,12 @@ contains the part of them it uses.
     source: https://www.npmjs.com/package/@fontsource-variable/jetbrains-mono/v/5.3.0
     text:   [24c53c7f] LICENSE
 
-@iconify-json/lucide 1.2.159 (ISC)
-    source: https://www.npmjs.com/package/@iconify-json/lucide/v/1.2.159
+@iconify-json/lucide 1.2.160 (ISC)
+    source: https://www.npmjs.com/package/@iconify-json/lucide/v/1.2.160
     text:   [aa7719fb] LICENSE of the Lucide project
 
-@iconify/collections 1.0.769 (MIT)
-    source: https://www.npmjs.com/package/@iconify/collections/v/1.0.769
+@iconify/collections 1.0.770 (MIT)
+    source: https://www.npmjs.com/package/@iconify/collections/v/1.0.770
     The package carries no licence file; the standard text of what it declares applies.
     text:   [c9638796] MIT
 
@@ -4083,20 +4054,20 @@ contains the part of them it uses.
     source: https://www.npmjs.com/package/@internationalized/number/v/3.6.9
     text:   [c9e2aef7] LICENSE
 
-@intlify/core-base 11.4.23 (MIT)
-    source: https://www.npmjs.com/package/@intlify/core-base/v/11.4.23
+@intlify/core-base 11.4.24 (MIT)
+    source: https://www.npmjs.com/package/@intlify/core-base/v/11.4.24
     text:   [4cba88ae] LICENSE
 
-@intlify/devtools-types 11.4.23 (MIT)
-    source: https://www.npmjs.com/package/@intlify/devtools-types/v/11.4.23
+@intlify/devtools-types 11.4.24 (MIT)
+    source: https://www.npmjs.com/package/@intlify/devtools-types/v/11.4.24
     text:   [ff1b6dc4] LICENSE
 
-@intlify/message-compiler 11.4.23 (MIT)
-    source: https://www.npmjs.com/package/@intlify/message-compiler/v/11.4.23
+@intlify/message-compiler 11.4.24 (MIT)
+    source: https://www.npmjs.com/package/@intlify/message-compiler/v/11.4.24
     text:   [4cba88ae] LICENSE
 
-@intlify/shared 11.4.23 (MIT)
-    source: https://www.npmjs.com/package/@intlify/shared/v/11.4.23
+@intlify/shared 11.4.24 (MIT)
+    source: https://www.npmjs.com/package/@intlify/shared/v/11.4.24
     text:   [4cba88ae] LICENSE
 
 @jridgewell/gen-mapping 0.3.13 (MIT)
@@ -4119,12 +4090,12 @@ contains the part of them it uses.
     source: https://www.npmjs.com/package/@jridgewell/trace-mapping/v/0.3.31
     text:   [acb519d7] LICENSE
 
-@nuxt/devtools-kit 4.2.0 (MIT)
-    source: https://www.npmjs.com/package/@nuxt/devtools-kit/v/4.2.0
+@nuxt/devtools-kit 4.2.1 (MIT)
+    source: https://www.npmjs.com/package/@nuxt/devtools-kit/v/4.2.1
     text:   [640f4b38] LICENSE
 
-@nuxt/fonts 1.2.0 (MIT)
-    source: https://www.npmjs.com/package/@nuxt/fonts/v/1.2.0
+@nuxt/fonts 1.2.1 (MIT)
+    source: https://www.npmjs.com/package/@nuxt/fonts/v/1.2.1
     text:   [bcede6cd] LICENSE
 
 @nuxt/icon 2.6.3 (MIT)
@@ -4348,8 +4319,8 @@ contains the part of them it uses.
     source: https://www.npmjs.com/package/@tiptap/y-tiptap/v/3.3.1
     text:   [485fccda] LICENSE
 
-@types/estree 1.0.10 (MIT)
-    source: https://www.npmjs.com/package/@types/estree/v/1.0.10
+@types/estree 1.0.11 (MIT)
+    source: https://www.npmjs.com/package/@types/estree/v/1.0.11
     text:   [1f17794e] LICENSE
 
 @types/web-bluetooth 0.0.20 (MIT)
@@ -4364,12 +4335,12 @@ contains the part of them it uses.
     source: https://www.npmjs.com/package/@types/web-bluetooth/v/0.0.22
     text:   [1f17794e] LICENSE
 
-@unhead/bundler 3.5.2 (MIT)
-    source: https://www.npmjs.com/package/@unhead/bundler/v/3.5.2
+@unhead/bundler 3.5.3 (MIT)
+    source: https://www.npmjs.com/package/@unhead/bundler/v/3.5.3
     text:   [03f57fe7] LICENSE
 
-@unhead/vue 3.5.2 (MIT)
-    source: https://www.npmjs.com/package/@unhead/vue/v/3.5.2
+@unhead/vue 3.5.3 (MIT)
+    source: https://www.npmjs.com/package/@unhead/vue/v/3.5.3
     text:   [03f57fe7] LICENSE
 
 @vue-macros/common 3.1.4 (MIT)
@@ -4659,16 +4630,16 @@ fnv1a-64 0.1.2 (MIT)
     source: https://www.npmjs.com/package/fnv1a-64/v/0.1.2
     text:   [6447a46a] LICENCE
 
-fontaine 1.0.3 (MIT)
-    source: https://www.npmjs.com/package/fontaine/v/1.0.3
+fontaine 1.1.0 (MIT)
+    source: https://www.npmjs.com/package/fontaine/v/1.1.0
     text:   [a254b01b] LICENCE
 
 fontkitten 1.0.3 (MIT)
     source: https://www.npmjs.com/package/fontkitten/v/1.0.3
     text:   [d6bf6520] LICENSE
 
-fontless 1.3.4 (MIT)
-    source: https://www.npmjs.com/package/fontless/v/1.3.4
+fontless 1.4.0 (MIT)
+    source: https://www.npmjs.com/package/fontless/v/1.4.0
     text:   [a254b01b] LICENCE
 
 framer-motion 14.14.0 (MIT)
@@ -4704,8 +4675,8 @@ hookable 6.1.2 (MIT)
     source: https://www.npmjs.com/package/hookable/v/6.1.2
     text:   [32ee936a] LICENSE.md
 
-ignore 7.0.16 (MIT)
-    source: https://www.npmjs.com/package/ignore/v/7.0.16
+ignore 7.0.17 (MIT)
+    source: https://www.npmjs.com/package/ignore/v/7.0.17
     text:   [c8d2fcb9] LICENSE-MIT
 
 import-meta-resolve 4.2.0 (MIT)
@@ -5034,8 +5005,8 @@ tiny-inflate 1.0.3 (MIT)
     source: https://www.npmjs.com/package/tiny-inflate/v/1.0.3
     text:   [4ec6a238] LICENSE
 
-tinyexec 1.3.1 (MIT)
-    source: https://www.npmjs.com/package/tinyexec/v/1.3.1
+tinyexec 1.4.0 (MIT)
+    source: https://www.npmjs.com/package/tinyexec/v/1.4.0
     text:   [e30eede1] LICENSE
 
 tinyglobby 0.2.17 (MIT)
@@ -5074,8 +5045,8 @@ undici 8.13.1 (MIT)
     text:   [2d8402c5] lib/milo/LICENSE.md
     text:   [c31ed0d5] lib/web/fetch/LICENSE
 
-unhead 3.5.2 (MIT)
-    source: https://www.npmjs.com/package/unhead/v/3.5.2
+unhead 3.5.3 (MIT)
+    source: https://www.npmjs.com/package/unhead/v/3.5.3
     text:   [03f57fe7] LICENSE
     text:   [28428b06] THIRD-PARTY-NOTICES
 
@@ -5136,8 +5107,8 @@ vue-demi 0.14.10 (MIT)
     source: https://www.npmjs.com/package/vue-demi/v/0.14.10
     text:   [96f9070b] LICENSE
 
-vue-i18n 11.4.23 (MIT)
-    source: https://www.npmjs.com/package/vue-i18n/v/11.4.23
+vue-i18n 11.4.24 (MIT)
+    source: https://www.npmjs.com/package/vue-i18n/v/11.4.24
     text:   [4cba88ae] LICENSE
 
 vue-router 5.5.1 (MIT)
@@ -25023,7 +24994,7 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
 --------------------------------------------------------------------------------------------------
-[95df82be] LICENSE-MIT of password-hash
+[95df82be] LICENSE-MIT of primeorder
 --------------------------------------------------------------------------------------------------
 
 Copyright (c) 2020-2023 RustCrypto Developers
@@ -27241,37 +27212,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 """
-
---------------------------------------------------------------------------------------------------
-[ad41844f] LICENSE-MIT of blake2
---------------------------------------------------------------------------------------------------
-
-Copyright (c) 2015-2016 The blake2-rfc Developers, Cesar Barros
-Copyright (c) 2017 Artyom Pavlov
-
-Permission is hereby granted, free of charge, to any
-person obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without
-limitation the rights to use, copy, modify, merge,
-publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software
-is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice
-shall be included in all copies or substantial portions
-of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
 
 --------------------------------------------------------------------------------------------------
 [ad90af82] LICENSE-Apache of powerfmt
@@ -31315,36 +31255,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
---------------------------------------------------------------------------------------------------
-[e55c8327] LICENSE-MIT of argon2
---------------------------------------------------------------------------------------------------
-
-Copyright (c) 2021-2024 The RustCrypto Project Developers
-
-Permission is hereby granted, free of charge, to any
-person obtaining a copy of this software and associated
-documentation files (the "Software"), to deal in the
-Software without restriction, including without
-limitation the rights to use, copy, modify, merge,
-publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software
-is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice
-shall be included in all copies or substantial portions
-of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
-ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
-TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
-SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
-IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-DEALINGS IN THE SOFTWARE.
 
 --------------------------------------------------------------------------------------------------
 [e725d090] LICENSE-APACHE of http

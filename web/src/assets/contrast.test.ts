@@ -10,6 +10,10 @@
  * The ratios are checked against the AA threshold rather than pinned to exact values: an edit
  * that quietly drops a colour below 4.5:1 is exactly the change this is here to catch.
  */
+import { readdirSync, readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
+
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 
@@ -81,7 +85,30 @@ describe.each(['light', 'dark'])('%s mode', (mode) => {
         expect(contrast(token('primary'), token(ground)), ground).toBeGreaterThanOrEqual(AA_GRAPHIC)
       }
     })
+
+    // RD-1490-09: the field's own fill is `bg` (outline) or `bg-elevated` (subtle), the card
+    // around it any of the three.
+    it('a field\'s border stands out from its fill and from the card around it', () => {
+      for (const ground of GROUNDS) {
+        expect(contrast(token('border-accented'), token(ground)), ground).toBeGreaterThanOrEqual(AA_GRAPHIC)
+      }
+    })
+
+    it('a placeholder is readable in its field', () => {
+      for (const ground of GROUNDS) {
+        expect(contrast(token('text-dimmed'), token(ground)), ground).toBeGreaterThanOrEqual(AA_TEXT)
+      }
+    })
   })
+})
+
+it('a field is still drawn in the two tokens measured above', () => {
+  // The ratios hold only while Nuxt UI rings a field in `ring-accented` and writes its placeholder
+  // in `text-dimmed`; a Nuxt UI update that renames either fails here instead of passing unseen.
+  const shared = join(dirname(createRequire(import.meta.url).resolve('@nuxt/ui/runtime/index.css')), '..', 'shared')
+  const themes = readdirSync(shared).filter(file => file.endsWith('.mjs')).map(file => readFileSync(join(shared, file), 'utf8')).join('\n')
+  expect(themes).toMatch(/outline: "text-highlighted bg-default ring ring-inset ring-accented"/)
+  expect(themes).toMatch(/base: \["w-full rounded-md border-0 appearance-none placeholder:text-dimmed /)
 })
 
 it('a focused control is outlined in the full accent, not a quarter of it', () => {

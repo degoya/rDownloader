@@ -2,12 +2,13 @@
 #
 # The pinned downloads of ci.yml's `scripts`, `supply-chain` and `clamav-live` jobs, each checked
 # against its SHA-256 before it runs (RD-1101-07 moved the steps out of the workflow as they were).
-# The linters' and 7-Zip's versions and checksums are scripts/lib/tool-versions.sh's (RD-1280-12),
+# The linters', 7-Zip's and unrar's versions and checksums are scripts/lib/tool-versions.sh's (RD-1280-12),
 # gitleaks' stay in the workflow's step environment. CI only, Linux x86_64.
 #
 #   scripts/ci-tools.sh linters    # shellcheck and actionlint into $RUNNER_TEMP/lint-bin, on PATH
 #   scripts/ci-tools.sh gitleaks   # gitleaks over the checkout, findings fail
 #   scripts/ci-tools.sh seven-zip  # 7-Zip as $RUNNER_TEMP/seven-zip/7zz, for RD_TEST_7Z
+#   scripts/ci-tools.sh unrar      # unrar as $RUNNER_TEMP/unrar/unrar, for RD_TEST_UNRAR
 #
 # `linters` appends to GITHUB_PATH; `gitleaks` reads GITLEAKS_VERSION and GITLEAKS_SHA256.
 set -euo pipefail
@@ -53,9 +54,27 @@ seven_zip() {
     tar -xJf "${archive}" -C "${directory}" 7zz
 }
 
+# For the RAR test of rd-postprocess (RD-1490-05): Debian 13's `unrar` (non-free), the program a
+# Debian user installs. Ubuntu's runner carries none, and the package is not installed: its one
+# binary is unpacked into the runner's temporary directory, so nothing reaches the image, a package
+# or the SBOM. The pool drops a version a point release replaces; the snapshot archive keeps it.
+unrar() {
+    local directory="${RUNNER_TEMP}/unrar" archive="${RUNNER_TEMP}/unrar.deb"
+    local file="pool/non-free/u/unrar-nonfree/unrar_${RD_UNRAR_DEBIAN_VERSION}_amd64.deb"
+    mkdir -p "${directory}"
+    curl -fsSL --retry 3 -o "${archive}" "https://deb.debian.org/debian/${file}" ||
+        curl -fsSL --retry 3 -o "${archive}" \
+            "https://snapshot.debian.org/archive/debian/${RD_UNRAR_DEBIAN_SNAPSHOT}/${file}"
+    echo "${RD_UNRAR_SHA256}  ${archive}" | sha256sum --check --strict
+    dpkg-deb --fsys-tarfile "${archive}" | tar -xO ./usr/bin/unrar-nonfree > "${directory}/unrar"
+    chmod +x "${directory}/unrar"
+    "${directory}/unrar" | sed -n 2p
+}
+
 case "${1:-}" in
     linters) linters ;;
     gitleaks) gitleaks ;;
     seven-zip) seven_zip ;;
-    *) echo "usage: scripts/ci-tools.sh linters|gitleaks|seven-zip" >&2; exit 2 ;;
+    unrar) unrar ;;
+    *) echo "usage: scripts/ci-tools.sh linters|gitleaks|seven-zip|unrar" >&2; exit 2 ;;
 esac

@@ -145,17 +145,25 @@ async fn write_package(
 ) -> Result<(DownloadPackage, Vec<DownloadFile>)> {
     let package_id = PackageId::new();
     let destination = rd_files::package_directory(&spec.destination, &spec.name);
+    // The files' kind when they share one (RD-1490-13): a torrent package used to be `http`.
+    let kind = match files.split_first() {
+        Some((first, rest)) if rest.iter().all(|file| file.kind == first.kind) => first.kind,
+        _ => rd_core::DownloadKind::Http,
+    };
     let package = database
-        .create_package(NewPackage {
-            id: package_id,
-            name: spec.name,
-            destination: destination.to_string_lossy().into_owned(),
-            category_id: spec.category_id,
-            priority: spec.priority,
-            postprocess_level: spec.postprocess_level,
-            script: spec.script,
-            enrichment: spec.enrichment,
-        })
+        .create_package_of_kind(
+            NewPackage {
+                id: package_id,
+                name: spec.name,
+                destination: destination.to_string_lossy().into_owned(),
+                category_id: spec.category_id,
+                priority: spec.priority,
+                postprocess_level: spec.postprocess_level,
+                script: spec.script,
+                enrichment: spec.enrichment,
+            },
+            kind,
+        )
         .await?;
     // The package row is written before its first file, and there is no way round that: a
     // download row needs a package to belong to. A stop in the window between the two is

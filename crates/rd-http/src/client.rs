@@ -25,24 +25,33 @@ pub enum ClientPurpose {
 
 /// A client builder with the service's user agent, [`CLIENT_CONNECT_TIMEOUT`] and the proxy
 /// rule of `purpose`.
+///
+/// On a machine whose platform store holds no CA certificate the builder trusts only the roots
+/// a caller adds — a custom CA — and none without one (RD-1490-13): `build()` would otherwise
+/// fail there, and the callers that fall back to `Client::default()` panicked at the start.
 pub fn client_builder(purpose: ClientPurpose) -> reqwest::ClientBuilder {
-    let builder = reqwest::Client::builder()
-        .user_agent(rd_core::user_agent!())
-        .connect_timeout(CLIENT_CONNECT_TIMEOUT);
+    let builder = with_platform_trust(
+        reqwest::Client::builder()
+            .user_agent(rd_core::user_agent!())
+            .connect_timeout(CLIENT_CONNECT_TIMEOUT),
+        crate::platform_trust_problem().is_none(),
+    );
     match purpose {
         ClientPurpose::Service => builder,
         ClientPurpose::Direct => builder.no_proxy(),
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{ClientPurpose, client_builder};
-
-    #[test]
-    fn both_purposes_build_a_client() {
-        for purpose in [ClientPurpose::Service, ClientPurpose::Direct] {
-            assert!(client_builder(purpose).build().is_ok(), "{purpose:?}");
-        }
+/// `builder` as it is where the platform store can verify a server, else trusting only the
+/// roots added to it afterwards.
+fn with_platform_trust(builder: reqwest::ClientBuilder, available: bool) -> reqwest::ClientBuilder {
+    if available {
+        builder
+    } else {
+        builder.tls_certs_only(Vec::<reqwest::Certificate>::new())
     }
 }
+
+#[cfg(test)]
+#[path = "client_tests.rs"]
+mod tests;

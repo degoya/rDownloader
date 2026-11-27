@@ -61,6 +61,8 @@ mod traffic_tests;
 mod transient_tests;
 #[cfg(test)]
 mod worker_tests;
+#[cfg(test)]
+mod yenc_proptests;
 
 pub use config::{
     OrderedServers, connection_fingerprint, enabled_server_configs, order_by_quota, server_config,

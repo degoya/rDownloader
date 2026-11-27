@@ -352,12 +352,12 @@ jobs:
       - uses: ./.github/actions/rust-tests-cache
       - name: Build the live clamd tests
         run: cargo nextest run --locked --no-run -p rd-extract --test clamd_live
-      # `#[ignore]` as well (RD-1480-14, TST-11): without the program it passed unrun everywhere.
-      - name: Archive passwords through a real 7-Zip
+      # `#[ignore]` as well; without the program each passed unrun (RD-1480-14, TST-11; RD-1490-05).
+      - name: Archive passwords and a RAR through a real 7-Zip and unrar
         run: |
-          scripts/ci-tools.sh seven-zip
-          RD_TEST_7Z="${RUNNER_TEMP}/seven-zip/7zz" cargo nextest run --locked -p rd-postprocess --lib \
-            --run-ignored only --no-tests fail -E 'test(/a_real_seven_zip/)'
+          scripts/ci-tools.sh seven-zip && scripts/ci-tools.sh unrar
+          RD_TEST_7Z="${RUNNER_TEMP}/seven-zip/7zz" RD_TEST_UNRAR="${RUNNER_TEMP}/unrar/unrar" cargo nextest run \
+            --locked -p rd-postprocess --lib --run-ignored only --no-tests fail -E 'test(/a_real_(seven_zip|unrar)/)'
       - name: Wait for clamd
         shell: bash
         run: scripts/ci-services.sh clamd-ready "${{ job.services.clamav.id }}"

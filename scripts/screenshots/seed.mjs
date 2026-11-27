@@ -16,6 +16,8 @@
 //   categories  one category kept out of the hand pickers
 //   accounts    provider accounts from <RD_SHOTS_WORK>/accounts.json (CreateAccountRequest bodies,
 //               placeholders only), when that file exists
+//   remote      the remote-jobs view: the mock's CA trusted, a demo Real-Debrid account, five
+//               jobs at the mock's provider API (seed_remote.mjs)
 //   state       prints the queue
 //   poll        polls every subscription now
 //   pause-on|pause-off       the schedule pauses downloads now / as before
@@ -26,11 +28,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { api, login, sleep, DEMO, MOCK, WORK } from './lib.mjs'
+import { seedRemoteJobs } from './seed_remote.mjs'
 
 const DATA = DEMO
 const F = 'http://files.example.org'
 const M = 'http://mirror.example.net'
-const PHASES = ['login', 'plugins', 'base', 'ntfy', 'small', 'big', 'grab', 'windows', 'categories', 'accounts', 'state', 'poll',
+const PHASES = ['login', 'plugins', 'base', 'ntfy', 'small', 'big', 'grab', 'windows', 'categories', 'accounts', 'remote', 'state', 'poll',
   'pause-on', 'pause-off', 'restart-on', 'restart-off', 'usenet-on', 'usenet-off']
 const phase = process.argv[2]
 if (!PHASES.includes(phase)) {
@@ -218,6 +221,8 @@ if (phase === 'grab') {
   await api('PUT', '/api/v1/collector/mirror-preference', { quality: pref.quality ?? null, language: pref.language ?? null, hoster: pref.hoster ?? null, hidden_hosters: ['media.example.com'] })
   await batch([`${F}/docs/Open-Data-Handbook-2026.pdf`, `${F}/datasets/city-weather-2025.parquet`, `${F}/datasets/missing-archive-2019.zip`], 'Open data bundle', 'api', 'Home dashboard')
 }
+
+if (phase === 'remote') await seedRemoteJobs(patchSettings)
 
 if (phase === 'state') {
   const list = await api('GET', '/api/v1/downloads')

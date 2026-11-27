@@ -24,6 +24,7 @@ pub(crate) async fn add_file(
         .nzbname
         .clone()
         .unwrap_or_else(|| "import.nzb".to_owned());
+    let mut priority = query.priority.clone();
     loop {
         match multipart.next_field().await {
             Ok(Some(field)) => {
@@ -48,11 +49,14 @@ pub(crate) async fn add_file(
                         }
                         Err(failure) => return error(&failure.to_string()),
                     }
-                } else if field_name == "nzbname"
+                } else if matches!(field_name.as_str(), "nzbname" | "priority")
                     && let Ok(text) = field.text().await
-                    && !text.trim().is_empty()
                 {
-                    name = text.trim().to_owned();
+                    if field_name == "priority" {
+                        priority = Some(text);
+                    } else if !text.trim().is_empty() {
+                        name = text.trim().to_owned();
+                    }
                 }
             }
             Ok(None) => break,
@@ -65,7 +69,7 @@ pub(crate) async fn add_file(
     if content.len() > rd_collector::MAX_NZB_BYTES {
         return error("nzb too large");
     }
-    queue_nzb(state, &content, &name, query).await
+    queue_nzb(state, &content, &name, query, priority.as_deref()).await
 }
 
 /// `addurl` fetches the NZB itself in SABnzbd. This adapter does not.
@@ -77,7 +81,13 @@ pub(crate) async fn add_url(_state: &AppState, _query: &SabQuery) -> Response {
     error("addurl is not supported; send the NZB with mode=addfile")
 }
 
-async fn queue_nzb(state: &AppState, content: &[u8], name: &str, query: &SabQuery) -> Response {
+async fn queue_nzb(
+    state: &AppState,
+    content: &[u8],
+    name: &str,
+    query: &SabQuery,
+    priority: Option<&str>,
+) -> Response {
     let Ok(category_id) = resolve_category(state, query.cat.as_deref()).await else {
         return error("categories unavailable");
     };
@@ -108,15 +118,12 @@ async fn queue_nzb(state: &AppState, content: &[u8], name: &str, query: &SabQuer
         Ok(destination) => destination,
         Err(failure) => return error(failure.message()),
     };
+    // `priority=-2` is SABnzbd's "paused": the job is queued and waits to be started, rather
+    // than starting and, for a small one, being done at once (RD-1490-13).
+    let (priority, paused) = map::add_priority(priority);
     match state
         .database
-        // SABnzbd's paused priority is not mapped yet; this path always starts the job.
-        .enqueue_nzb_import(
-            import.id,
-            destination,
-            rd_core::DownloadPriority::Normal,
-            false,
-        )
+        .enqueue_nzb_import(import.id, destination, priority, paused)
         .await
     {
         Ok(package) => json(serde_json::json!({

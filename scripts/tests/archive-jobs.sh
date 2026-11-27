@@ -8,7 +8,8 @@
 # to refuse a miscounted Job Inventory row that a plain run recounts (RD-140-24), a job that is
 # open again but still lies in the archive, and last every status line that is missing or not one
 # of the five words (RD-120-14, moved here from a Rust test by RD-191-09), and a status line that
-# counts its file's checkboxes (RD-1270-17).
+# counts its file's checkboxes (RD-1270-17), and finally the open boxes of the archive: marked
+# `→ offen in RD-<id>`, struck or exempt, and every mark naming a job file (RD-1490-01).
 #
 # Pure python3, bash and git: it runs in a second. check.sh runs it when scripts/lib/ or
 # scripts/tests/ change, and under --full.
@@ -230,5 +231,78 @@ expect_true "and into Open Work, with the note behind it" 'has "$JOBS/README.md"
 expect_true "a right word keeps what follows it" 'has "$JOBS/README.md" "(./140-02-open.md) — Open (bleibt) — Audit"'
 run --check
 expect_true "check after the run names no word" '! has "$SCRATCH/out" "another status"'
+
+# The open boxes of the archive (RD-1490-01): each carries `→ offen in RD-<id>` in its paragraph
+# (the box line and its indented lines) or is struck through; `Blocked/No-Go` is exempt, a
+# working file without a status is not, and every mark names a job file that exists.
+ARC="$JOBS/archive"
+cat > "$ARC/140-11-referenced.md" <<'EOF'
+# RD-140-11 — Referenced
+
+- **Status:** Implemented
+
+- [ ] Left open by a wave, marked the way scripts/job-evidence.sh marks it
+  → offen in RD-140-02
+- [ ] A box whose mark sits on its third line
+      with a continuation line
+      and the mark at its end → offen in RD-140-01.
+EOF
+cat > "$ARC/140-12-struck.md" <<'EOF'
+# RD-140-12 — Struck
+
+- **Status:** Implemented
+
+- [ ] ~~Lapsed with the plan,
+      over two lines~~ — verfallen (PLAN-8)
+
+The rule quotes its form, `→ offen in RD-…` or `→ offen in RD-<id>`, and names no job.
+EOF
+cat > "$ARC/140-13-unreferenced.md" <<'EOF'
+# RD-140-13 — Unreferenced
+
+- **Status:** Implemented
+
+- [ ] Still open
+  with a second line
+- [ ] The next box, which holds the mark
+  → offen in RD-140-02
+- [ ] Struck only ~~in part~~
+```text
+- [ ] a box in a code fence
+```
+EOF
+cat > "$ARC/140-14-blocked.md" <<'EOF'
+# RD-140-14 — Blocked
+
+- **Status:** Blocked/No-Go (never built)
+
+- [ ] Open, because the job was never built
+EOF
+cat > "$ARC/150-00-release-koordination.md" <<'EOF'
+# Release 1.5.0
+
+- [ ] A box of a working file without a status line
+EOF
+cat > "$ARC/140-15-dangling.md" <<'EOF'
+# RD-140-15 — Dangling
+
+- **Status:** Implemented
+
+- [ ] Marked, but towards no job
+  → offen in RD-999-99
+EOF
+run --check
+expect_true "check refuses an unreferenced box and names it file:line: text" '[[ $status -eq 1 ]] && has "$SCRATCH/out" "unreferenced: docs/roadmap/jobs/archive/140-13-unreferenced.md:5: Still open"'
+expect_true "a box partly struck is not struck" 'has "$SCRATCH/out" "140-13-unreferenced.md:9: Struck only ~~in part~~"'
+expect_true "a mark belongs to the box above it, a fenced box is no box" '! has "$SCRATCH/out" "140-13-unreferenced.md:7:" && ! has "$SCRATCH/out" "140-13-unreferenced.md:11:"'
+expect_true "a marked box passes, also with the mark on a continuation line" '! has "$SCRATCH/out" "140-11-referenced.md"'
+expect_true "a struck box passes, and prose quoting the mark's form is no reference" '! has "$SCRATCH/out" "140-12-struck.md"'
+expect_true "a Blocked/No-Go file is exempt" '! has "$SCRATCH/out" "140-14-blocked.md"'
+expect_true "a working file without a status is checked" 'has "$SCRATCH/out" "unreferenced: docs/roadmap/jobs/archive/150-00-release-koordination.md:3: A box of a working file"'
+expect_true "a mark that names no job file is refused" 'has "$SCRATCH/out" "dangling: docs/roadmap/jobs/archive/140-15-dangling.md:6: \`→ offen in RD-999-99\` names no job file"'
+expect_true "the run counts them" 'has "$SCRATCH/out" "4 archive reference problem(s)"'
+rm "$ARC/140-13-unreferenced.md" "$ARC/150-00-release-koordination.md" "$ARC/140-15-dangling.md"
+run --check
+expect_true "check with every box referenced, struck or exempt exits 0" '[[ $status -eq 0 ]] && ! has "$SCRATCH/out" "archive reference"'
 
 finish_tests archive-jobs

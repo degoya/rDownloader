@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use futures_util::StreamExt;
 use reqwest::{Client, StatusCode, header};
 use url::Url;
@@ -95,16 +97,31 @@ pub async fn probe_with_headers(
     url: Url,
     headers: &[(String, String)],
 ) -> Result<ProbeResult, HttpDownloadError> {
-    let head = apply_headers(client.head(url.clone()), headers)
-        .send()
-        .await;
+    Ok(probe_answer(client, url, headers, HEAD_DEADLINE).await?.0)
+}
+
+/// How long a `HEAD` may go unanswered before the probe asks with its ranged GET instead:
+/// mega.nz never answers one, and a link check waited on it with no end (RD-1490-13).
+pub(crate) const HEAD_DEADLINE: Duration = Duration::from_secs(8);
+
+/// The probe, and the fallback GET's response when the server ignored its range: a `200`
+/// carries the whole entity, which a caller may read instead of asking again (RD-1490-02). A
+/// `HEAD` unanswered after `head_deadline` counts as refused.
+pub(crate) async fn probe_answer(
+    client: &Client,
+    url: Url,
+    headers: &[(String, String)],
+    head_deadline: Duration,
+) -> Result<(ProbeResult, Option<reqwest::Response>), HttpDownloadError> {
+    let head = apply_headers(client.head(url.clone()), headers).send();
+    let head = tokio::time::timeout(head_deadline, head).await;
     // `Response::content_length()` reflects the body size hint, which is always zero for
     // HEAD responses; the advertised entity length lives in the Content-Length header.
-    if let Ok(response) = head
+    if let Ok(Ok(response)) = head
         && response.status().is_success()
         && let Some(total) = header_content_length(response.headers())
     {
-        return Ok(from_response(&response, Some(total), false));
+        return Ok((from_response(&response, Some(total), false), None));
     }
 
     let response = apply_headers(client.get(url), headers)
@@ -125,7 +142,8 @@ pub async fn probe_with_headers(
     } else {
         header_content_length(response.headers())
     };
-    Ok(from_response(&response, total, ranged))
+    let result = from_response(&response, total, ranged);
+    Ok((result, (!ranged).then_some(response)))
 }
 
 /// Reads the beginning of a non-file response so the hoster's own wording ("you have to

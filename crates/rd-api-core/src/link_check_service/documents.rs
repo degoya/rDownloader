@@ -11,12 +11,15 @@ impl LinkCheckService {
     /// Returns `true` when the candidate has been dealt with here — refused as DRM, or
     /// routed to the recorder as a live stream — and `false` when it is an ordinary VOD the
     /// yt-dlp probe should describe as usual.
-    /// `force` skips the cheap gate below, for a link whose address already ends in
-    /// `.m3u8`/`.mpd` and is therefore worth reading in full.
+    ///
+    /// Reading the body of every direct link to see whether it might be a playlist would mean
+    /// downloading a slice of every file in the queue, so a direct link is handed here only when
+    /// its probe's headers could be one ([`manifest_plausible`]); a media link whose address
+    /// ends in `.m3u8`/`.mpd` always is. The read has the check's deadlines, so a server that
+    /// stops answering ends the classification instead of the check (RD-1490-13).
     pub(super) async fn classify_manifest(
         &self,
         candidate: &LinkCandidate,
-        force: bool,
         guard: Option<&rd_http::AddressPolicy>,
     ) -> bool {
         let Ok(network) = self
@@ -25,22 +28,7 @@ impl LinkCheckService {
         else {
             return false;
         };
-        // Reading the body of every direct link to see whether it might be a playlist would
-        // mean downloading a slice of every file in the queue. A HEAD first keeps that to
-        // the responses that could plausibly be one: a manifest media type, or something
-        // text-ish and small enough to be a document rather than a video.
-        if !force {
-            let probed = rd_http::probe_with_headers(
-                &network.client,
-                candidate.url.clone(),
-                &network.headers,
-            )
-            .await;
-            let Ok(probed) = probed else { return false };
-            if !manifest_plausible(probed.content_type.as_deref(), probed.total_bytes) {
-                return false;
-            }
-        }
+        let deadlines = crate::link_check_probe::Deadlines::CHECK;
         // Verbatim, not `peek_body_text`: that one strips tags and collapses whitespace to
         // summarise a hoster's HTML error page, which would leave a playlist as one line and
         // an MPD as nothing at all.
@@ -49,9 +37,11 @@ impl LinkCheckService {
             candidate.url.clone(),
             &network.headers,
             rd_media::MAX_MANIFEST_BYTES,
-        )
-        .await;
-        let Some(body) = body else { return false };
+        );
+        let Ok(Some(body)) = tokio::time::timeout(deadlines.probe + deadlines.read, body).await
+        else {
+            return false;
+        };
         let Some(kind) =
             rd_media::detect_manifest(&body.final_url, body.content_type.as_deref(), &body.text)
         else {
@@ -144,10 +134,15 @@ impl LinkCheckService {
     /// the address it came from ends in whatever token the site hands out. The file tree is
     /// stored on the candidate the way an uploaded `.torrent` stores it, so the review and
     /// the info hash exist before the row does.
+    ///
+    /// `probed` is what the direct probe already learnt (RD-1490-02): the address is asked no
+    /// second time, and a container its answer carried whole is not fetched again — an NZB is
+    /// kept for the enqueue the way a torrent is kept for its download.
     pub(super) async fn reclassify_document(
         &self,
         candidate: &LinkCandidate,
         guard: Option<&rd_http::AddressPolicy>,
+        probed: DirectProbe,
     ) -> Rerouted {
         let Ok(network) = self
             .client_for(&candidate.url, candidate.auth_profile, guard)
@@ -155,38 +150,53 @@ impl LinkCheckService {
         else {
             return Rerouted::No;
         };
-        let Ok(probed) =
-            rd_http::probe_with_headers(&network.client, candidate.url.clone(), &network.headers)
-                .await
-        else {
-            return Rerouted::No;
+        let probed = match probed {
+            DirectProbe::Answered(probed) => *probed,
+            DirectProbe::Failed => return Rerouted::No,
+            DirectProbe::Unasked => match crate::link_check_probe::probe_sniffed(
+                &network.client,
+                &network.headers,
+                &candidate.url,
+            )
+            .await
+            {
+                Some(probed) => probed,
+                None => return Rerouted::No,
+            },
         };
-        let essence = probed
-            .content_type
-            .as_deref()
-            .map(|value| {
-                value
-                    .split(';')
-                    .next()
-                    .unwrap_or(value)
-                    .trim()
-                    .to_ascii_lowercase()
-            })
-            .unwrap_or_default();
+        let stalled = probed.stalled;
+        let essence =
+            crate::link_check_probe::content_essence(probed.probe.content_type.as_deref());
+        let (body, answered) = probed.body.unzip();
+        let whole =
+            |body: Option<rd_http::SniffedBody>| body.filter(|b| b.complete).map(|b| b.bytes);
         let mut sniffed_torrent = None;
+        let mut whole_nzb = None;
         let provider = if rd_core::NZB_CONTENT_TYPES.contains(&essence.as_str()) {
+            whole_nzb = whole(body);
             rd_core::NZB_PROVIDER
         } else if rd_core::TORRENT_CONTENT_TYPES.contains(&essence.as_str()) {
+            sniffed_torrent = whole(body);
             rd_core::TORRENT_PROVIDER
-        } else if let Some(sniffed) = crate::link_check_probe::sniff_document(
-            &network.client,
-            &network.headers,
-            &candidate.url,
-        )
-        .await
-        {
+        } else if let Some(sniffed) = match body {
+            // The probe's answer already holds the beginning a sniff would ask for.
+            Some(body) => crate::link_check_probe::sniffed_kind(body),
+            // An answer that stalled is not asked a second time (RD-1490-13).
+            None if stalled => None,
+            None => {
+                crate::link_check_probe::sniff_document(
+                    &network.client,
+                    &network.headers,
+                    &candidate.url,
+                )
+                .await
+            }
+        } {
             match sniffed {
-                crate::link_check_probe::Sniffed::Nzb => rd_core::NZB_PROVIDER,
+                crate::link_check_probe::Sniffed::Nzb(bytes) => {
+                    whole_nzb = bytes;
+                    rd_core::NZB_PROVIDER
+                }
                 crate::link_check_probe::Sniffed::Torrent(bytes) => {
                     sniffed_torrent = bytes;
                     rd_core::TORRENT_PROVIDER
@@ -208,6 +218,14 @@ impl LinkCheckService {
             provider,
             "link re-routed to its import path"
         );
+        // Kept before the route is stored: an enqueue that sees the route finds the copy.
+        if let (Some(bytes), Some(headers)) = (whole_nzb, answered) {
+            self.inner.kept_nzbs.keep(
+                candidate.id,
+                &candidate.url,
+                rd_http::FetchedDocument { bytes, headers },
+            );
+        }
         if let Err(error) = self
             .inner
             .database

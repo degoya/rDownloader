@@ -58,7 +58,7 @@ pub use probe::{
 };
 pub use range_source::{RangeReader, RangeSource, RangeTransport};
 pub use redirect::{RedirectGate, ReplayScope, is_approved, origin_of, with_redirect_gate};
-pub use sniff::{SniffedBody, fetch_sniffed};
-pub use tls::{client_config as tls_client_config, tool_trust_bundle};
+pub use sniff::{SniffedBody, WholeAnswer, fetch_sniffed, probe_keeping_answer};
+pub use tls::{client_config as tls_client_config, platform_trust_problem, tool_trust_bundle};
 pub use transform::{MacWalker, ResumePlan, StreamTransform, TransformCheckpoint, plan_resume};
 pub use tunnel_refusal::{CODE_TUNNEL_REFUSED, TunnelRefused, tunnel_failure, tunnel_refusal};

@@ -33,6 +33,8 @@ uuid.workspace = true
 rd-win32 = { path = "../rd-win32" }
 
 [dev-dependencies]
+# Archive volume names and the package-name regex rules as properties (RD-1490-04).
+proptest.workspace = true
 tempfile.workspace = true
 
 [lints]

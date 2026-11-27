@@ -11,7 +11,7 @@ use russh::keys::PrivateKey;
 use russh::server::{Auth, Msg, Server as _, Session};
 use russh::{Channel, ChannelId};
 use russh_sftp::protocol::{
-    Attrs, File as SftpFile, FileAttributes, Handle, Name, Status, StatusCode, Version,
+    Attrs, File as SftpFile, FileAttributes, Handle, Name, SftpHandle, Status, StatusCode, Version,
 };
 use tokio::net::TcpListener;
 
@@ -41,6 +41,9 @@ impl RemoteFile {
 pub struct Behaviour {
     /// Stop serving a file after this many bytes, simulating a dropped transfer.
     pub truncate_after: Option<usize>,
+    /// Never answer a read at or past this many bytes, simulating a transfer that hangs until
+    /// the queue stops it.
+    pub stall_after: Option<usize>,
     /// Reject every password, to exercise the auth failure path.
     pub reject_password: bool,
 }
@@ -245,7 +248,8 @@ enum Opened {
 
 struct SftpHandler {
     fixture: Fixture,
-    handles: HashMap<String, Opened>,
+    /// Keyed by the opaque handle russh-sftp 4 hands out as bytes (`SftpHandle`).
+    handles: HashMap<SftpHandle, Opened>,
 }
 
 impl SftpHandler {
@@ -322,7 +326,7 @@ impl russh_sftp::server::Handler for SftpHandler {
         if self.fixture.file(&path).is_none() {
             return Err(StatusCode::NoSuchFile);
         }
-        let handle = format!("f{id}");
+        let handle = SftpHandle::from(format!("f{id}"));
         self.handles.insert(handle.clone(), Opened::File(path));
         Ok(Handle { id, handle })
     }
@@ -330,7 +334,7 @@ impl russh_sftp::server::Handler for SftpHandler {
     async fn read(
         &mut self,
         id: u32,
-        handle: String,
+        handle: SftpHandle,
         offset: u64,
         len: u32,
     ) -> Result<russh_sftp::protocol::Data, Self::Error> {
@@ -338,16 +342,17 @@ impl russh_sftp::server::Handler for SftpHandler {
             return Err(StatusCode::Failure);
         };
         let file = self.fixture.file(path).ok_or(StatusCode::NoSuchFile)?;
-        // A truncating fixture stops handing out bytes past the limit, which the client
-        // sees as a short file rather than as an error.
-        let available = self
-            .fixture
-            .behaviour
-            .lock()
-            .expect("behaviour")
-            .truncate_after
-            .map_or(file.content.len(), |limit| limit.min(file.content.len()));
+        let behaviour = self.fixture.behaviour.lock().expect("behaviour").clone();
         let start = offset as usize;
+        if behaviour.stall_after.is_some_and(|limit| start >= limit) {
+            return std::future::pending().await;
+        }
+        // A truncating fixture stops handing out bytes past the limit, which the client
+        // sees as a short file rather than as an error; a stalling one serves up to its limit.
+        let available = [behaviour.truncate_after, behaviour.stall_after]
+            .into_iter()
+            .flatten()
+            .fold(file.content.len(), usize::min);
         if start >= available {
             return Err(StatusCode::Eof);
         }
@@ -358,7 +363,7 @@ impl russh_sftp::server::Handler for SftpHandler {
         })
     }
 
-    async fn close(&mut self, id: u32, handle: String) -> Result<Status, Self::Error> {
+    async fn close(&mut self, id: u32, handle: SftpHandle) -> Result<Status, Self::Error> {
         self.handles.remove(&handle);
         Ok(Status {
             id,
@@ -373,7 +378,7 @@ impl russh_sftp::server::Handler for SftpHandler {
         if !self.fixture.is_directory(&path) {
             return Err(StatusCode::NoSuchFile);
         }
-        let handle = format!("d{id}");
+        let handle = SftpHandle::from(format!("d{id}"));
         self.handles.insert(
             handle.clone(),
             Opened::Dir {
@@ -384,7 +389,7 @@ impl russh_sftp::server::Handler for SftpHandler {
         Ok(Handle { id, handle })
     }
 
-    async fn readdir(&mut self, id: u32, handle: String) -> Result<Name, Self::Error> {
+    async fn readdir(&mut self, id: u32, handle: SftpHandle) -> Result<Name, Self::Error> {
         let Some(Opened::Dir { path, drained }) = self.handles.get_mut(&handle) else {
             return Err(StatusCode::Failure);
         };

@@ -1,5 +1,5 @@
 {
-  "name": "Debrid-Link sign-in",
+  "name": "Connexion Debrid-Link",
   "description": "Connecte un compte Debrid-Link chez le fournisseur, sans saisir de clé d’API ici.",
   "codes": {
     "debridlink_auth.consent_denied": "Le fournisseur a refusé la connexion pour ce compte.",

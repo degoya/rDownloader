@@ -245,7 +245,8 @@ jobs:
           RD_E2E_EXTENSION: ${{ runner.temp }}/chrome-extension
           RD_E2E_WORK: ${{ runner.temp }}/e2e-extension
         run: node --test --test-reporter=spec web/e2e/extension.e2e.mjs
-      # RD-1260-10: Click'n'Load through the extension, without an agent and beside one.
+      # RD-1260-10: Click'n'Load through the extension, without an agent and beside one; RD-1490-13:
+      # a DLC from an allowed page, built by it and behind a link, into the LinkGrabber.
       - name: Click'n'Load through the Chrome extension
         if: runner.os == 'Linux'
         env:

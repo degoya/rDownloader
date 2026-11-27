@@ -436,8 +436,9 @@ const HELLO_RAR: [u8; 80] = [
 /// A real `unrar` extracts into a folder with a space through `-op`. It needs the program, which
 /// the build machines do not carry: `RD_TEST_UNRAR` names it (the vendor `unrar` of a package
 /// build), otherwise `unrar` on `PATH`. `#[ignore]`, and a failure without either (RD-1480-14): it
-/// used to say so and pass. No CI job runs it; by hand: `RD_TEST_UNRAR=<unrar> cargo nextest run
-/// -p rd-postprocess --lib --run-ignored only -E 'test(/a_real_unrar/)'`.
+/// used to say so and pass. CI's `clamav-live` runs it with Debian's unrar (RD-1490-05); by hand:
+/// `RD_TEST_UNRAR=<unrar> cargo nextest run -p rd-postprocess --lib --run-ignored only
+/// -E 'test(/a_real_unrar/)'`.
 #[tokio::test]
 #[ignore = "needs unrar, named by RD_TEST_UNRAR or on PATH"]
 async fn a_real_unrar_extracts_into_a_folder_with_a_space() {

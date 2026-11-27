@@ -46,6 +46,9 @@ pub(crate) struct SabQuery {
     pub cat: Option<String>,
     #[serde(default)]
     pub nzbname: Option<String>,
+    /// `addfile`'s priority; `-2` adds the job paused (`map::add_priority`).
+    #[serde(default)]
+    pub priority: Option<String>,
     /// The API key, when the client cannot send `X-Api-Key`.
     ///
     /// Kept because real SABnzbd clients send it here, and redacted from this service's request

@@ -1,7 +1,11 @@
 // Click'n'Load through the browser extension, end to end in Chromium (RD-1260-10): a hoster page
 // with a Click'n'Load form shows its button although no agent listens on 127.0.0.1:9666, and a
 // click brings its links, package name and password into the LinkGrabber of a fresh service. Then
-// a stand-in agent takes the port, and the extension stays out of its way.
+// a stand-in agent takes the port, and the extension stays out of its way. Since RD-1490-13 also a
+// DLC from an allowed page, the whole way into the LinkGrabber (RD-1260-11): once built by the page
+// as a `blob:` download, which goes over as its bytes, and once behind a link and a login, which
+// goes over as its address with the session's cookies — both decrypted by a local stand-in for the
+// decryption service.
 //
 //   RD_E2E_SERVER=…/rdownloader RD_E2E_EXTENSION=artifacts/browser-extensions/chrome \
 //     node --test web/e2e/click-and-load.e2e.mjs
@@ -11,6 +15,9 @@
 // run loads a copy of the extension whose manifest grants `*://hoster.test/*` at install, and
 // records the consent in storage as the popup would. Everything else is the shipped build.
 // Firefox's half is firefox.e2e.mjs.
+//
+// The linked DLC's site is this machine under its private IPv4 address: the service fetches a
+// handed-over address itself and refuses loopback, and it cannot resolve `hoster.test`.
 import assert from 'node:assert/strict'
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -20,6 +27,7 @@ import { after, before, test } from 'node:test'
 import { chromium } from 'playwright'
 
 import { CNL_PORT, encrypt, hosterPage, startAgent, startHoster } from './lib/click-and-load.mjs'
+import { blobPage, dlcContainer, privateAddress, startDlcService, startDlcSite } from './lib/dlc.mjs'
 import { BUDGET_MS, Session, assertPortFree, marker, startService, stop, within } from './lib/service.mjs'
 
 const SERVER = process.env.RD_E2E_SERVER
@@ -33,15 +41,22 @@ let context
 let extensionId
 let hoster
 let agent
+let dlcService
+let dlcSite
 const problems = []
 
-/** The shipped Chrome build, granted the test hoster at install. */
-function extensionCopy() {
+/**
+ * The shipped Chrome build, granted at install what allowing the test sites in the popup grants:
+ * each host, and `cookies` (`sitePermissions` in `src/files.js`).
+ */
+function extensionCopy(hosts) {
   const copy = join(WORK, 'extension')
   cpSync(EXTENSION, copy, { recursive: true })
   const manifestPath = join(copy, 'manifest.json')
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-  manifest.host_permissions = [...manifest.host_permissions, '*://hoster.test/*']
+  manifest.host_permissions = [...manifest.host_permissions, ...hosts.map((host) => `*://${host}/*`)]
+  manifest.permissions = [...manifest.permissions, 'cookies']
+  manifest.optional_permissions = (manifest.optional_permissions ?? []).filter((permission) => permission !== 'cookies')
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
   return copy
 }
@@ -70,7 +85,9 @@ before(async () => {
   session = new Session(service.base)
   await session.signIn(`e2e-${marker('pw')}`)
   hoster = await startHoster()
-  const extension = extensionCopy()
+  const siteAddress = privateAddress()
+  if (siteAddress) dlcSite = await startDlcSite(siteAddress)
+  const extension = extensionCopy(['hoster.test', ...(dlcSite ? [dlcSite.host] : [])])
   context = await chromium.launchPersistentContext(join(WORK, 'profile'), {
     channel: 'chromium',
     headless: process.env.RD_E2E_HEADED !== '1',
@@ -92,6 +109,8 @@ after(async () => {
   await context?.close()
   await agent?.close()
   await hoster?.close()
+  await dlcSite?.close()
+  await dlcService?.close()
   await stop(service?.child)
   console.log(`logs in ${WORK}`)
 })
@@ -143,6 +162,82 @@ test("a Click'n'Load page works without the agent, and the agent keeps the port 
     await new Promise((done) => setTimeout(done, 2_000))
     const candidates = await session.expect(200, 'GET', '/api/v1/collector/candidates')
     assert.ok(!candidates.some((candidate) => String(candidate.url).includes(id)), 'the extension handed the agent\'s links over too')
+    await page.close()
+  })
+
+  assert.deepEqual(problems, [], 'the extension reported errors')
+})
+
+/**
+ * Both links of a container reach the LinkGrabber, the container itself does not go there as a
+ * link, and the browser keeps no copy of it.
+ */
+async function assertImported(links, id, name) {
+  const { elapsedMs } = await session.awaitCandidate(id)
+  const { value: candidates } = await within(BUDGET_MS.linkArrival, `both links of ${name}`, async () => {
+    const candidates = await session.expect(200, 'GET', '/api/v1/collector/candidates')
+    return links.every((link) => candidates.some((candidate) => candidate.url === link)) && candidates
+  })
+  assert.ok(!candidates.some((candidate) => String(candidate.url).includes(name)), 'the container went over as a link')
+  await within(BUDGET_MS.linkArrival, `the browser keeping no copy of ${name}`, async () => {
+    const copies = await inExtension(
+      async (file) => (await chrome.downloads.search({})).filter((item) => `${item.url} ${item.filename}`.includes(file)).length,
+      name
+    )
+    return copies === 0
+  })
+  return elapsedMs
+}
+
+test('a DLC on an allowed page reaches the LinkGrabber through the extension (RD-1490-13)', { timeout: 180_000 }, async (t) => {
+  assert.ok(dlcSite, 'this machine has no private IPv4 address for the site with the linked DLC')
+  const bearer = await session.pairCapture('E2E DLC')
+  // DLC import is off by default and needs its service; the stand-in answers on loopback.
+  dlcService = await startDlcService()
+  const settings = await session.expect(200, 'GET', '/api/v1/settings')
+  await session.expect(200, 'PUT', '/api/v1/settings', {
+    ...settings,
+    dlc_service_enabled: true,
+    dlc_service_endpoint: dlcService.endpoint
+  })
+  const sites = ['hoster.test', dlcSite.host]
+  await inExtension((config) => chrome.storage.local.set(config), { server: service.base, token: bearer, fileSites: sites })
+  // The page script goes into an allowed site's pages from their start, once it is registered.
+  await within(BUDGET_MS.linkArrival, 'the page scripts for both allowed sites', async () => {
+    const scripts = await inExtension(() => chrome.scripting.getRegisteredContentScripts())
+    return scripts.length === 2 && scripts.every((script) => sites.every((host) => script.matches.includes(`*://${host}/*`)))
+  }, 500)
+
+  await t.test('a container the page builds goes over as its bytes', async () => {
+    const id = marker('blob')
+    const links = [`https://example.invalid/${id}.part1.rar`, `https://example.invalid/${id}.part2.rar`]
+    const dlc = dlcContainer(links, `E2E ${id}`)
+    dlcService.register(dlc)
+    const name = `${marker('built')}.dlc`
+    hoster.serve(blobPage(dlc.container, name))
+    const page = await context.newPage()
+    await page.goto('http://hoster.test/')
+    await page.click('#dlc')
+    const elapsedMs = await assertImported(links, id, name)
+    console.log(`DLC built by an allowed page in the LinkGrabber after ${elapsedMs} ms`)
+    await page.close()
+  })
+
+  await t.test('a linked container behind a login goes over as its address with the cookies', async () => {
+    const id = marker('link')
+    const links = [`https://example.invalid/${id}.part1.rar`, `https://example.invalid/${id}.part2.rar`]
+    const dlc = dlcContainer(links, `E2E ${id}`)
+    dlcService.register(dlc)
+    const name = `${marker('linked')}.dlc`
+    dlcSite.offer(name, dlc.container)
+    dlcSite.serve(`<!doctype html>\n<meta charset="utf-8"><title>DLC test</title>\n<a id="dlc" href="/${name}">${name}</a>`)
+    const page = await context.newPage()
+    await page.goto(`${dlcSite.origin}/`)
+    await page.click('#dlc')
+    const elapsedMs = await assertImported(links, id, name)
+    // Only the cookie opens the file: the service's fetch carried the browser's session.
+    assert.equal(dlcSite.refused(), 0, 'a request for the container came without the session cookie')
+    console.log(`DLC linked from an allowed page in the LinkGrabber after ${elapsedMs} ms`)
     await page.close()
   })
 

@@ -285,7 +285,7 @@ const dragTitle = computed(() => `${t('downloads.transfer.drag_title')} — ${t(
         </div>
         <span class="queue-cell-size min-w-0 text-right">
           <span class="numeric block truncate text-xs text-muted">{{ sizeLabel }}</span>
-          <span v-if="props.download.state === 'downloading'" class="numeric block truncate text-2xs font-medium text-primary" :aria-label="t('downloads.transfer.rate_aria', { rate: formatRate(props.bytesPerSecond) })">{{ formatRate(props.bytesPerSecond) }}<span v-if="etaLabel" class="text-toned" :aria-label="t('downloads.transfer.eta_aria', { duration: etaLabel })"> · {{ etaLabel }}</span></span>
+          <span v-if="props.download.state === 'downloading'" class="numeric block truncate text-2xs font-medium text-primary"><span role="img" :aria-label="t('downloads.transfer.rate_aria', { rate: formatRate(props.bytesPerSecond) })" data-testid="file-rate">{{ formatRate(props.bytesPerSecond) }}</span><span v-if="etaLabel" class="text-toned" role="img" :aria-label="t('downloads.transfer.eta_aria', { duration: etaLabel })" data-testid="file-eta"> · {{ etaLabel }}</span></span>
         </span>
         <span v-if="props.download.kind === 'usenet' && props.connections" class="queue-cell-meta min-w-0 text-xs">
           <UTooltip :text="t('downloads.transfer.connections_title', { count: props.connections }, props.connections)">

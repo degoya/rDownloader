@@ -6,11 +6,15 @@ can be pointed at it through a proxy profile and the queue shows neutral example
 Content is synthetic (repeating bytes); sizes come from CATALOG. Range requests are honoured.
 Also answers a tiny Newznab API (t=caps / t=search) and an RSS feed. The music search holds three
 more hits once <RD_SHOTS_WORK>/more-music exists (the `held` view). On a second port the news
-server of nntp_mock.py, whose NZB this serves at nntp_mock.NZB_PATH (the `usenet` group).
+server of nntp_mock.py, whose NZB this serves at nntp_mock.NZB_PATH (the `usenet` group). A proxy
+`CONNECT` to a host of remote_mock.HOSTS is answered over TLS with remote_mock's certificate and
+its provider API (the `16-remote-jobs` view); its magnets are at remote_mock.MAGNETS_PATH.
 Usage: mock.py <port> [<nntp-port>] (the NNTP port defaults to RD_SHOTS_NNTP_PORT, else 18792)
 """
 import os
 import hashlib
+import json
+import ssl
 import sys
 import threading
 import time
@@ -22,6 +26,7 @@ from email.utils import formatdate
 
 sys.dont_write_bytecode = True  # no __pycache__ in the tree for the module beside this file
 import nntp_mock  # noqa: E402
+import remote_mock  # noqa: E402
 
 MB = 1024 * 1024
 GB = 1024 * MB
@@ -174,6 +179,8 @@ def nzb_doc(name):
 
 
 CHUNK = bytes(range(256)) * 256  # 64 KiB
+# The context a CONNECT tunnel to remote_mock.HOSTS is wrapped in; None without openssl.
+TLS = None
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -199,8 +206,53 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         self.do_GET()
 
+    def do_CONNECT(self):
+        """A tunnel to the provider's API host, the mock's own certificate on its far end."""
+        host = self.path.rpartition(':')[0]
+        if TLS is None or host not in remote_mock.HOSTS:
+            self.close_connection = True
+            return self._text(f'no tunnel to {self.path}', 'text/plain', 502)
+        self.send_response(200, 'Connection established')
+        self.end_headers()
+        try:
+            tls = TLS.wrap_socket(self.connection, server_side=True)
+        except (ssl.SSLError, OSError) as failure:
+            self.log_message('TLS for %s refused: %s', host, failure)
+            self.close_connection = True
+            return
+        # The requests on the tunnel are read and answered by this handler's loop as before.
+        self.connection = tls
+        self.rfile = tls.makefile('rb')
+        self.wfile = remote_mock.Writer(tls)
+        self.close_connection = False
+
+    def _remote(self, path):
+        length = int(self.headers.get('Content-Length') or 0)
+        body = self.rfile.read(length) if length else b''
+        status, document = remote_mock.answer(self.command, path, body, self.headers.get('Authorization'))
+        data = remote_mock.encode(document)
+        self.send_response(status)
+        if document is not None:
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        if self.command != 'HEAD':
+            self.wfile.write(data)
+
+    def do_POST(self):
+        host, path, _ = self._target()
+        if host.partition(':')[0] in remote_mock.HOSTS:
+            return self._remote(path)
+        return self._text('method not allowed', 'text/plain', 405)
+
+    do_PUT = do_DELETE = do_POST
+
     def do_GET(self):
         host, path, query = self._target()
+        if host.partition(':')[0] in remote_mock.HOSTS:
+            return self._remote(path)
+        if path == remote_mock.MAGNETS_PATH:
+            return self._text(json.dumps(remote_mock.MAGNETS), 'application/json')
         if path in ('/api', '/api/'):
             return self._text(newznab(query, host), 'application/rss+xml')
         if path == '/podcasts/feed.xml':
@@ -264,4 +316,6 @@ if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 18791
     nntp_port = int(sys.argv[2]) if len(sys.argv) > 2 else int(os.environ.get('RD_SHOTS_NNTP_PORT', '18792'))
     threading.Thread(target=nntp_mock.serve, args=(nntp_port,), daemon=True).start()
+    TLS, note = remote_mock.server_context(os.environ.get('RD_SHOTS_WORK'))
+    sys.stderr.write(note + '\n')
     ThreadingHTTPServer(('127.0.0.1', port), Handler).serve_forever()

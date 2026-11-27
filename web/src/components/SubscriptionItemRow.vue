@@ -213,9 +213,8 @@ const detailsLabel = computed(() =>
         v-if="props.item.password"
         class="flex max-w-40 shrink-0 items-center gap-1 text-warning"
         :title="t('subscriptions.items.password_protected')"
-        :aria-label="t('subscriptions.items.password_protected')"
       >
-        <UIcon name="i-lucide-key-round" class="size-3.5 shrink-0" />
+        <UIcon name="i-lucide-key-round" class="size-3.5 shrink-0" role="img" aria-hidden="false" :aria-label="t('subscriptions.items.password_protected')" />
         <span class="truncate font-mono text-xs">{{ props.item.password }}</span>
       </span>
       <UIcon
@@ -223,6 +222,8 @@ const detailsLabel = computed(() =>
         name="i-lucide-lock"
         class="size-3.5 shrink-0 text-muted"
         :title="t('subscriptions.items.password_protected')"
+        role="img"
+        aria-hidden="false"
         :aria-label="t('subscriptions.items.password_protected')"
       />
       <span v-if="size" class="numeric shrink-0 text-xs text-muted">{{ size }}</span>

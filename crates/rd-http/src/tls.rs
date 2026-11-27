@@ -5,25 +5,87 @@
 //! decision, or "custom CA" would mean something different depending on which protocol
 //! happened to be carrying the bytes. FTPS and the plugin transfer host both build their
 //! connector from here.
+//!
+//! A machine whose platform store holds no CA certificate at all — a container without the
+//! `ca-certificates` package — used to stop the service at its start: the first client built
+//! there panicked with "No CA certificates were loaded from the system" (RD-1490-13). Such a
+//! machine now gets clients and configurations that trust nothing, so every TLS handshake fails
+//! with a certificate error naming the cause, plain HTTP and local transfers keep working, and
+//! `rdownloader doctor` says what is missing ([`platform_trust_problem`]).
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use anyhow::{Context, Result};
 use rustls::{
     ClientConfig,
     client::WantsClientCert,
+    crypto::CryptoProvider,
     pki_types::{CertificateDer, pem::PemObject},
 };
-use rustls_platform_verifier::{ConfigVerifierExt, Verifier};
+use rustls_platform_verifier::Verifier;
+
+/// The crypto provider every configuration here is built with: the process default when one
+/// was installed, else aws-lc-rs, the one reqwest links.
+fn provider() -> Arc<CryptoProvider> {
+    CryptoProvider::get_default()
+        .cloned()
+        .unwrap_or_else(|| Arc::new(rustls::crypto::aws_lc_rs::default_provider()))
+}
+
+/// Why the platform trust store cannot verify a server, or `None` when it can.
+///
+/// Asked once per process and kept: the store is read when the first client is built, and a
+/// store that changes while the service runs is not followed — as reqwest does not follow it
+/// either. On Windows and macOS the platform verifier asks the system at every handshake and
+/// this is always `None`.
+#[must_use]
+pub fn platform_trust_problem() -> Option<&'static str> {
+    static PROBLEM: OnceLock<Option<String>> = OnceLock::new();
+    PROBLEM
+        .get_or_init(|| {
+            let problem = Verifier::new(provider())
+                .err()
+                .map(|error| error.to_string());
+            if let Some(problem) = &problem {
+                tracing::error!(
+                    %problem,
+                    "the system's CA certificates could not be read; every HTTPS and TLS \
+                     connection will fail until they are installed or a custom CA is set"
+                );
+            }
+            problem
+        })
+        .as_deref()
+}
+
+/// A configuration that trusts no issuer at all: what a machine without a platform store gets
+/// instead of a panic, so its handshakes fail closed with `UnknownIssuer`.
+fn trusting_nothing() -> Result<ClientConfig> {
+    Ok(ClientConfig::builder_with_provider(provider())
+        .with_safe_default_protocol_versions()
+        .context("no usable TLS protocol version")?
+        .with_root_certificates(rustls::RootCertStore::empty())
+        .with_no_client_auth())
+}
 
 /// Builds a client configuration trusting the platform store plus `custom_ca_pem`.
 ///
 /// `custom_ca_pem` holds the PEM bundles the settings layer already parsed, in the same
-/// `Vec<Vec<u8>>` shape [`crate::NetworkDefaults`] carries.
+/// `Vec<Vec<u8>>` shape [`crate::NetworkDefaults`] carries. Without a custom CA on a machine
+/// whose store is empty, the configuration trusts nothing ([`platform_trust_problem`]).
 pub fn client_config(custom_ca_pem: &[Vec<u8>]) -> Result<ClientConfig> {
     if custom_ca_pem.is_empty() {
-        return ClientConfig::with_platform_verifier()
-            .context("platform certificate verifier unavailable");
+        if platform_trust_problem().is_some() {
+            return trusting_nothing();
+        }
+        let verifier =
+            Verifier::new(provider()).context("platform certificate verifier unavailable")?;
+        return Ok(ClientConfig::builder_with_provider(provider())
+            .with_safe_default_protocol_versions()
+            .context("no usable TLS protocol version")?
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(verifier))
+            .with_no_client_auth());
     }
     // PEM parsing comes from `rustls-pki-types` rather than `rustls-pemfile`, which is
     // unmaintained and is itself only a thin wrapper around this (RUSTSEC-2025-0134).
@@ -40,9 +102,7 @@ pub fn client_config(custom_ca_pem: &[Vec<u8>]) -> Result<ClientConfig> {
         !extra_roots.is_empty(),
         "custom CA bundle contains no certificate"
     );
-    let provider = rustls::crypto::CryptoProvider::get_default()
-        .cloned()
-        .unwrap_or_else(|| Arc::new(rustls::crypto::aws_lc_rs::default_provider()));
+    let provider = provider();
     let verifier = Verifier::new_with_extra_roots(extra_roots, provider.clone())
         .context("build certificate verifier with the custom CA")?;
     let builder: rustls::ConfigBuilder<ClientConfig, WantsClientCert> =

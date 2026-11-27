@@ -97,9 +97,11 @@ async fn enqueue_torrent_package(
         TorrentName::Derived(name) => (name, true),
     };
     let clean = rd_files::sanitize_file_name(&name);
-    // Only the package is renamed: the row keeps the torrent's own name.
+    // Only the package is renamed: the row keeps the torrent's own name. A torrent of one file
+    // is named after that file, and its folder takes no `.mkv` from it (RD-1490-13).
     let package_name = if derived {
-        database.tidy_package_name(&clean, category_id).await?
+        let stem = rd_files::package_name_from_file_name(&clean);
+        database.tidy_package_name(&stem, category_id).await?
     } else {
         clean.clone()
     };
@@ -165,7 +167,10 @@ pub async fn add_torrent_to_collector(
         anyhow::anyhow!("stored torrent path is not absolute: {}", stored.display())
     })?;
     let display_name = rd_files::sanitize_file_name(&parsed.name);
-    let package_name = optional_text(package_name).unwrap_or_else(|| display_name.clone());
+    // The name of a one-file torrent is its file's; the package keeps no extension of it, as an
+    // NZB's does not (RD-1490-13).
+    let package_name = optional_text(package_name)
+        .unwrap_or_else(|| rd_files::package_name_from_file_name(&display_name));
     let intake = database
         .add_collector_batch(rd_db::NewCollectorBatch {
             package_hints: Vec::new(),
@@ -373,6 +378,23 @@ mod tests {
             .expect("file URL points at stored torrent");
         assert!(stored.is_absolute());
         assert!(stored.exists());
+
+        // Unnamed, a torrent of one file names the package after the file without its
+        // extension, so the package folder is no `movie.mkv` (RD-1490-13).
+        let (_, packages, candidates) = add_torrent_to_collector(
+            &database,
+            &torrent,
+            b"d4:infod6:lengthi1e4:name9:movie.mkv12:piece lengthi16384e6:pieces20:bbbbbbbbbbbbbbbbbbbbee",
+            rd_core::IngressSource::Api,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .expect("unnamed torrent intake");
+        assert_eq!(packages[0].name, "movie");
+        assert_eq!(candidates[0].file_name.as_deref(), Some("movie.mkv"));
         torrent.shutdown();
     }
 }

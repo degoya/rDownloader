@@ -43,6 +43,7 @@ impl Writer {
     pub(super) async fn create_package(
         &mut self,
         package: NewPackage,
+        kind: rd_core::DownloadKind,
     ) -> Result<rd_core::DownloadPackage> {
         let now = Timestamp::now();
         let position: i64 =
@@ -51,8 +52,8 @@ impl Writer {
                 .await?;
         sqlx::query(
             "INSERT INTO packages (id, name, state, destination, category_id, priority, position, \
-             postprocess_level, script, enrichment_json, created_at, updated_at) \
-             VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             postprocess_level, script, enrichment_json, kind, created_at, updated_at) \
+             VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(package.id.to_string())
         .bind(&package.name)
@@ -70,6 +71,7 @@ impl Writer {
         .bind(crate::package_store::encode_enrichment(
             &package.enrichment,
         )?)
+        .bind(crate::enum_string(kind)?)
         .bind(now)
         .bind(now)
         .execute(&mut self.connection)
@@ -86,7 +88,7 @@ impl Writer {
             position,
             has_password: false,
             password: None,
-            kind: rd_core::DownloadKind::Http,
+            kind,
             nzb_import_id: None,
             completed_at: None,
             postprocess_level: package.postprocess_level,

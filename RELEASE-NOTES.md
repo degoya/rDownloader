@@ -12,9 +12,20 @@ paths, no code, no internals (release pipeline, tests, refactoring). A version w
 user notices says only: Maintenance release: internal changes only, no change in behaviour.
 -->
 
-## 1.49.0
+## 1.50.0
 
 <!-- draft: the notes of the version in the making -->
+
+## 1.49.0
+
+- A torrent or NZB link from Prowlarr is fetched once from check to queue, so your indexer counts one grab instead of three.
+- Field borders and placeholders are easier to see in light and dark, and screen readers now hear the labels of icons, rates and time left.
+- NZB files with an ampersand in a message id, group or password, and yEnc files with spaces in their name, are read correctly.
+- Sonarr and Radarr no longer import twice when SABnzbd and qBittorrent share a category; a paused NZB stays paused.
+- A finished torrent keeps its files where they are for seeding: archives are unpacked but kept, and a one-file torrent's folder no longer carries the extension.
+- A link check no longer hangs on a host that ignores the first request, and several checks run side by side.
+- The browser extension hands over link containers that a plain http page builds, and rDownloader starts on a system without certificates.
+- Updated components: the plugin engine, the SFTP library and the tray menu move to new major versions; nothing changes in how they behave.
 
 ## 1.48.0
 

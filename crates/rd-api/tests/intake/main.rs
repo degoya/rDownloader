@@ -29,6 +29,8 @@ mod dlc;
 mod enqueue_cancellation;
 mod event_resume;
 mod hotfolder_poll;
+mod indexer_grabs;
+mod link_check_deadline;
 mod link_filter_order;
 mod media_manifest;
 mod mirrors;

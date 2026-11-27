@@ -33,22 +33,10 @@ ignore = [
   # and WebDAV recommends Ed25519 client keys, which need no RSA private key operation at all.
   { id = "RUSTSEC-2023-0071", reason = "rsa 0.9.10 via openidconnect, rsa 0.10 rc via russh; Marvin targets private-key operations, which signature, host key and ID-token verification do not perform. No safe upgrade is available." },
 
-  # proc-macro-error below, under the archived GTK3 bindings, is a graph artifact rather than a
-  # real dependency: nothing here ever compiles it. (The nine GTK3 advisories themselves no
-  # longer match since tray-icon 0.26 / muda 0.21 and were dropped with RD-1100-11.) rd-capture
-  # gates tao/tray-icon to `cfg(any(windows, target_os = "macos"))` because Linux stays
-  # headless, and GTK is in turn a Linux-only dependency of those two — a combination no
-  # single target produces. They only surface because `graph.targets` lists several targets
-  # and cargo-deny filters the graph edge by edge instead of path by path. Confirm with
-  # `cargo deny --target x86_64-unknown-linux-gnu check advisories`, which reports none of
-  # it. Drop it once tao and tray-icon move off GTK3.
-  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error via glib-macros and gtk3-macros; unreachable GTK3 stack, see above." },
-  # glib 0.18.5 (RUSTSEC-2024-0429, informational "unsound" in `VariantStrIter`) belongs to the
-  # same GTK3 stack: a Linux-only dependency of tao and tray-icon, which rd-capture builds on
-  # Windows and macOS only, so no shipped binary contains it, and nothing here iterates a
-  # GVariant. cargo-deny does not report it for that reason; cargo audit, which does not
-  # filter by target, does. Drop it together with RUSTSEC-2024-0370.
-  { id = "RUSTSEC-2024-0429", reason = "glib 0.18 via the GTK3 stack of tao and tray-icon, built for no shipped target; see above." },
+  # The GTK3 stack of tao and tray-icon (a Linux-only dependency of crates rd-capture builds on
+  # Windows and macOS only) needs no entry since tao 0.38 / tray-icon 0.27 (RD-1490-08): glib 0.22
+  # is patched against RUSTSEC-2024-0429, proc-macro-error (RUSTSEC-2024-0370) left the graph, and
+  # the gtk-rs GTK3 advisories were withdrawn on 2026-08-14 when the bindings were maintained again.
 
   # zbus_names, zvariant and zvariant_derive are unmaintained as standalone crates: zbus 6.0.0
   # (2026-10-16) took them in as modules. They come from zbus 5, which secret-service 5.2.0 (the
@@ -106,16 +94,12 @@ wildcards = "allow"
 skip = [
   # The previous RustCrypto generation (digest 0.10, rsa 0.9, rand 0.8). webauthn-rs 0.6.2 moved
   # to crypto-glue 0.2 (2026-11-01) and took about 35 duplicates with it; what stays is held by
-  # openidconnect 4.1 and its oauth2 5 (rd-authn, RD-190-15), argon2 0.5 inside crypto-glue 0.2,
-  # and webauthn-rs-core's own base64 0.21 and nom 7.
-  { crate = "argon2:0.5", reason = "crypto-glue 0.2 (webauthn-rs)" },
+  # openidconnect 4.1 and its oauth2 5 (rd-authn, RD-190-15) and webauthn-rs-core's own base64 0.21 and nom 7.
   { crate = "base64:0.21", reason = "webauthn-rs-core and webauthn-rs-proto 0.6.2" },
-  { crate = "blake2:0.10", reason = "argon2 0.5 (crypto-glue 0.2, webauthn-rs)" },
   { crate = "der:0.7", reason = "pkcs1 0.7, pkcs8 0.10, spki 0.7 via rsa 0.9 (openidconnect)" },
   { crate = "hmac:0.12", reason = "openidconnect 4.1" },
   { crate = "nom:7", reason = "webauthn-rs-core, x509-parser, der-parser, asn1-rs (webauthn-rs)" },
   { crate = "num-bigint:0.4", reason = "der-parser (webauthn-rs); num 0.4 (secret-service via keyring)" },
-  { crate = "password-hash:0.5", reason = "argon2 0.5 (crypto-glue 0.2, webauthn-rs)" },
   { crate = "pem-rfc7468:0.7", reason = "der 0.7 via rsa 0.9 (openidconnect)" },
   { crate = "pkcs1:0.7", reason = "rsa 0.9 (openidconnect)" },
   { crate = "pkcs8:0.10", reason = "rsa 0.9 (openidconnect)" },
@@ -125,18 +109,18 @@ skip = [
   { crate = "signature:2", reason = "rsa 0.9 (openidconnect)" },
   { crate = "spki:0.7", reason = "rsa 0.9 (openidconnect)" },
 
-  # The same generation, also held by wasmtime 50 / cranelift 0.137 (sha2 0.10), sqlx 0.9
+  # The same generation, also held by wasmtime 51 / cranelift 0.138 (sha2 0.10), sqlx 0.9
   # (sqlx-core: sha2 0.10) and object_store 0.14 (crc-fast: digest 0.10).
   { crate = "block-buffer:0.10", reason = "digest 0.10: openidconnect, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
   { crate = "const-oid:0.9", reason = "digest 0.10, der 0.7, rsa 0.9 (openidconnect)" },
-  { crate = "cpufeatures:0.2", reason = "sha2 0.10: wasmtime, cranelift, sqlx-core, openidconnect; argon2 0.5" },
+  { crate = "cpufeatures:0.2", reason = "sha2 0.10: wasmtime, cranelift, sqlx-core, openidconnect" },
   { crate = "crypto-common:0.1", reason = "digest 0.10: openidconnect, wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
-  { crate = "digest:0.10", reason = "openidconnect (hmac, rsa, sha2), wasmtime, cranelift, sqlx-core, crc-fast (object_store), blake2" },
-  { crate = "generic-array:0.14", reason = "digest 0.10 users as above; generic-array 1 (russh) re-exports it" },
-  { crate = "rand_core:0.6", reason = "rand 0.8 and rsa 0.9 (openidconnect), password-hash 0.5" },
+  { crate = "digest:0.10", reason = "openidconnect (hmac, rsa, sha2), wasmtime, cranelift, sqlx-core, crc-fast (object_store)" },
+  { crate = "generic-array:0.14", reason = "digest 0.10 users as above" },
+  { crate = "rand_core:0.6", reason = "rand 0.8 and rsa 0.9 (openidconnect)" },
   { crate = "sha2:0.10", reason = "openidconnect, oauth2, wasmtime-environ, wasmtime-internal-cache, cranelift-codegen, sqlx-core" },
   { crate = "base64:0.22", reason = "hyper-util 0.1 (axum, reqwest), sqlx-core, wasmtime-internal-cache" },
-  { crate = "getrandom:0.2", reason = "rand_core 0.6 (as above), oauth2 5, ring 0.17, redox_users" },
+  { crate = "getrandom:0.2", reason = "rand_core 0.6 (as above), oauth2 5, ring 0.17" },
 
   # rand 0.9 line: governor 0.10 (rd-limits), librqbit-utp 0.7 (librqbit); webauthn-rs-core 0.6.2
   # is on rand_chacha 0.10.
@@ -152,7 +136,7 @@ skip = [
   { crate = "num-rational:0.2", reason = "size_format 1.0 via num 0.2 (librqbit)" },
   { crate = "nix:0.30", reason = "librqbit 9.0.1" },
   { crate = "quick-xml:0.41", reason = "librqbit-upnp 9.0.1, object_store 0.14, wayland-scanner (arboard)" },
-  { crate = "thiserror:1", reason = "tokio-socks 0.5 (librqbit), webauthn-rs-core, asn1-rs, x509-parser, jni 0.21 (tao), glib 0.18, redox_users 0.4 (wasmtime cache)" },
+  { crate = "thiserror:1", reason = "tokio-socks 0.5 (librqbit), webauthn-rs-core, asn1-rs, x509-parser, jni 0.21 (tao)" },
   { crate = "thiserror-impl:1", reason = "thiserror 1, as above" },
 
   # leaky-bucket 1.1.3 (librqbit-dht) moved to parking_lot 0.13; the rest of the tree is on 0.12.
@@ -172,32 +156,21 @@ skip = [
   { crate = "foldhash:0.1", reason = "hashbrown 0.15 via petgraph 0.8 (arboard)" },
   { crate = "hashbrown:0.16", reason = "gimli 0.33 (wasmtime), sqlx-core and hashlink 0.11 (sqlx), governor 0.10" },
 
-  # wasmtime 50 / cranelift 0.137 (rd-plugin-host).
-  { crate = "itertools:0.14", reason = "wasmtime-internal-cranelift 50, openidconnect 4.1" },
-  # The wasm-tools line: wasmtime 50.0.1, the newest release (2026-10-29), is on 0.261, the
-  # wit-bindgen 0.63 proc macro the plugin crates compile with on 0.262 (RD-160-08). The service
-  # ships 0.261 only; 0.262 lives in the plugins' build. They leave when a wasmtime release moves
-  # to 0.262.
-  { crate = "wasmparser:0.261", reason = "wasmtime 50 (rd-plugin-host); wit-bindgen 0.63 uses 0.262" },
-  { crate = "wasm-encoder:0.261", reason = "wasmtime-environ 50; wit-bindgen 0.63 uses 0.262" },
-  { crate = "wasm-metadata:0.261", reason = "wit-component 0.261 (wasmtime 50); wit-bindgen 0.63 uses 0.262" },
-  { crate = "wit-component:0.261", reason = "wasmtime-internal-wit-bindgen 50; wit-bindgen 0.63 uses 0.262" },
-  { crate = "wit-parser:0.261", reason = "wasmtime-internal-wit-bindgen and -component-macro 50; wit-bindgen 0.63 uses 0.262" },
+  # wasmtime 51 / cranelift 0.138 (rd-plugin-host).
+  { crate = "itertools:0.14", reason = "wasmtime-internal-cranelift 51, openidconnect 4.1" },
+  # The wasm-tools line: wasmtime 51.0.0 is on 0.263, the wit-bindgen 0.63 proc macro the plugin
+  # crates compile with on 0.262 (RD-160-08). The service ships 0.263 only; 0.262 lives in the
+  # plugins' build. They leave when a wit-bindgen release moves to 0.263.
+  { crate = "wasmparser:0.262", reason = "wit-bindgen 0.63 (plugin crates); wasmtime 51 uses 0.263" },
+  { crate = "wasm-encoder:0.262", reason = "wit-bindgen 0.63 (plugin crates); wasmtime 51 uses 0.263" },
+  { crate = "wasm-metadata:0.262", reason = "wit-bindgen 0.63 (plugin crates); wasmtime 51 uses 0.263" },
+  { crate = "wit-component:0.262", reason = "wit-bindgen 0.63 (plugin crates); wasmtime 51 uses 0.263" },
+  { crate = "wit-parser:0.262", reason = "wit-bindgen 0.63 (plugin crates); wasmtime 51 uses 0.263" },
 
-  # tao 0.37 / tray-icon 0.25 / muda (rd-capture). The GTK3 stack is a Linux dependency of
-  # crates rd-capture only builds on Windows and macOS (see the advisories above): graph artefacts,
-  # compiled for no target we ship.
-  { crate = "heck:0.4", reason = "glib-macros 0.18 (GTK3 via tao, tray-icon)" },
-  { crate = "proc-macro-crate:1", reason = "gtk3-macros 0.18 (GTK3 via tao, tray-icon)" },
-  { crate = "proc-macro-crate:2", reason = "glib-macros 0.18 (GTK3 via tao, tray-icon)" },
-  { crate = "serde_spanned:0.6", reason = "system-deps 6, glib-macros 0.18 (GTK3 via tao, tray-icon)" },
-  { crate = "syn:1", reason = "proc-macro-error 1 (GTK3 via tao, tray-icon)" },
-  { crate = "target-lexicon:0.12", reason = "cfg-expr 0.15 via system-deps 6 (GTK3 via tao, tray-icon)" },
-  { crate = "toml:0.8", reason = "system-deps 6 (GTK3 via tao, tray-icon)" },
-  { crate = "toml_datetime:0.6", reason = "system-deps 6, glib-macros, gtk3-macros 0.18 (GTK3 via tao, tray-icon)" },
-  { crate = "toml_edit:0.19", reason = "gtk3-macros 0.18 via proc-macro-crate 1 (GTK3 via tao, tray-icon)" },
-  { crate = "toml_edit:0.20", reason = "glib-macros 0.18, system-deps 6 (GTK3 via tao, tray-icon)" },
-  { crate = "winnow:0.5", reason = "toml_edit 0.19/0.20 (GTK3 via tao, tray-icon)" },
+  # tao 0.38 / tray-icon 0.27 / muda 0.22 (rd-capture). The GTK3 stack is a Linux dependency of
+  # crates rd-capture only builds on Windows and macOS: a graph artefact, compiled for no target we
+  # ship.
+  { crate = "target-lexicon:0.12", reason = "cfg-expr 0.17 via system-deps 9 (GTK3 via tao, tray-icon)" },
   { crate = "miniz_oxide:0.8", reason = "png 0.18 (muda via tray-icon, rd-capture's tray icon); flate2 uses 0.9" },
 
   # windows-sys: one line per holder.

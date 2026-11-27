@@ -21,6 +21,10 @@ serde.workspace = true
 serde_json.workspace = true
 url.workspace = true
 
+[dev-dependencies]
+# The NZB parser and the LinkFilter name patterns as properties (RD-1490-04).
+proptest.workspace = true
+
 [lints]
 workspace = true
 

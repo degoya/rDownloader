@@ -5,6 +5,171 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.49.0] - 2026-11-27
+
+### Added
+
+- **Property tests for NZB, yEnc, archive volume names and user regex rules (RD-1490-04).**
+  `proptest` as a dev-dependency of `rd-usenet`, `rd-collector` and `rd-files`, deterministic
+  (fixed seed, no regression files in the tree): no panic on arbitrary input, the bounds a result
+  keeps, yEnc, NZB and volume-name round trips, a time budget for LinkFilter and package-name
+  patterns. What the properties found, fixed with a test each: a yEnc `name=` with spaces kept only
+  its first word; an entity in an NZB message id or group cut the value at it, and the spaces around
+  one in an NZB password were dropped; `.7z.001` came back as a volume with an empty name.
+
+- **A DLC from an allowed page in the Chrome end-to-end run (RD-1490-13).**
+  `web/e2e/click-and-load.e2e.mjs` takes a container from an allowed site into the LinkGrabber of a
+  fresh service: built by the page as a `blob:` download and handed over as its bytes, and behind a
+  link that only the page's session cookie opens, handed over as its address with that cookie.
+  Both links must arrive and the browser keeps no copy (`web/e2e/lib/dlc.mjs`: `blobPage`,
+  `startDlcSite`, `privateAddress`).
+
+- **Screenshot tool: a provider API over TLS for the remote-jobs view (RD-1490-13, from
+  RD-1120-02).** The mock answers a proxy `CONNECT` to `api.real-debrid.com` over TLS
+  (`scripts/screenshots/remote_mock.py`): it holds a certificate from a throwaway CA that `openssl`
+  makes at the mock's start in `<work>/tls/`, and it answers the `torrents/*`, `user` and
+  `hosts/domains` calls of the Real-Debrid plugins. A CONNECT to any other host is refused. The seed
+  phase `remote` (`seed_remote.mjs`) trusts that CA through the custom CA setting, adds a demo
+  Real-Debrid account with a placeholder token and submits five magnets, so `16-remote-jobs` shows
+  rows: two running, one queued, one finished, one failed. `fresh` discards the CA. Tested by
+  `scripts/tests/screenshots-tls.sh`.
+
+- **The archive's open boxes need a reference (RD-1490-01).** `scripts/archive-jobs.sh --check`,
+  and with it the preflight, fails on every open `- [ ]` of an archived job file whose paragraph
+  carries no `→ offen in RD-<id>` and whose text is not struck `~~…~~`, named `file:line: text`
+  (`Blocked/No-Go` files exempt, working files without a status checked), and on every such mark
+  that names no job file.
+
+### Changed
+
+- **Wasmtime 51 (RD-1490-06).** The plugin host moves to wasmtime 51.0.0 (cranelift 0.138, the
+  wasm-tools crates it links at 0.263, `wasmparser` with them; zstd 0.14 for the compile cache, and
+  `directories-next`, `dirs-sys-next` and `redox_users` leave the tree). The release fixes eight
+  advisories; three meet this build (a guest-caused abort without the `gc` and without the `threads`
+  feature, a panic on a stream copy cancelled from the wrong end under component-model-async).
+  Host limits unchanged; Wasmtime now caps a store's live fibers at 64 of its own accord, which a
+  plugin call does not near. wit-bindgen stays at 0.63, the newest, so no plugin component changes.
+  Compiled plugins are compiled anew once: Wasmtime's cache keeps each release in its own
+  `wasmtime-<version>` directory and checks the release in every artefact it loads, and `prune`
+  removes the old directory.
+
+- **`russh-sftp` 4 (RD-1490-07).** 3.0.1 → 4.0.0 on the same `russh` 0.65; the client API takes
+  the same paths, only the test fixture's server follows the byte handles (`SftpHandle`). The
+  release reads a file type exactly (a socket is no longer a directory), restarts its read-ahead
+  after a seek and closes a directory handle on a failed read. A new end-to-end test stops a
+  transfer while a read hangs and resumes it (`a_stopped_transfer_keeps_its_partial_and_resumes`);
+  the harness moved to `crates/rd-sftp/tests/support/`, which takes `transfer.rs` off the length
+  baseline.
+
+- **`tao` 0.38, `tray-icon` 0.27, `muda` 0.22 (RD-1490-08).** The capture agent's menu handler is
+  handed over as an `Arc`. The Linux-only GTK3 graph behind them moved to glib 0.22 and lost
+  `proc-macro-error`, so `deny.toml` drops the exceptions for RUSTSEC-2024-0429 and
+  RUSTSEC-2024-0370 and ten duplicate skips of that stack.
+
+- **CI runs the RAR test against a real unrar (RD-1490-05).** `clamav-live` unpacks Debian 13's
+  non-free `unrar` 7.1.8-1, pinned by SHA-256 in `scripts/lib/tool-versions.sh`, into the runner's
+  temporary directory (`scripts/ci-tools.sh unrar`) and runs rd-postprocess' `#[ignore]` test with
+  `RD_TEST_UNRAR`; nothing is installed, and nothing reaches the image, a package or the SBOM.
+
+- **A stale licence list stops the release's SBOM (RD-1490-10).** `scripts/release-sbom.sh` exits 1
+  when `third-party.json` names an npm package `web/pnpm-lock.yaml` no longer holds, instead of
+  leaving it out with a warning; `RD_SBOM_STALE_LIST=warn` keeps the warning for a wave's preflight,
+  which runs before the generators. The 1.49 SBOM (977 packages) passed `pyspdxtools` 0.8.3 once.
+
+- **One generation per CI cache (RD-1490-02, Nr. 24).** `.github/workflows/ci-cache-prune.yml` runs
+  after CI and Soak on `main` and `development` and deletes on that ref every Actions cache older
+  than the newest of its family (`scripts/ci-cache.sh`); a `Cargo.lock` change had left the old
+  Rust caches beside the new ones for seven days, 11.24 GB against the 9 GB budget.
+
+- **The installer run counts the entries under installed programs (RD-1490-03, Nr. 35).**
+  `installers.yml` fails when the MSI upgrade leaves anything but one `rDownloader` entry in the
+  per-user or per-machine uninstall keys (RD-1260-01).
+
+- **Acceptance evidence caught up (RD-1490-01).** RD-1120-24 carries the run ids of `release.yml`
+  and `release-plugins.yml` for the action pins of RD-1430-01 and the macOS and Windows runs for
+  `notify` 9, whose test count is corrected from 26 to 13; the archived job files without a
+  reference for their open boxes are reviewed and grouped in the job.
+
+- **Every open box of an archived job says where it went (RD-1490-01).** The 301 open boxes of
+  `docs/roadmap/jobs/archive/` outside `Blocked/No-Go` are ticked with their evidence (138), struck
+  with a reason (119) or marked `→ offen in RD-…` (44: RD-130-20, RD-191-01, RD-1120-24, RD-190-03);
+  RD-1120-24 takes one new check, the tab title of RD-106-07.
+
+- **Checks an agent could do (RD-1490-03).** Click'n'Load in Firefox and Chrome and a release chain
+  resumed after a red public CI are ticked with their runs; the DLC hand-over in Chrome, the real
+  captcha and the self-update across a plugin contract change stay open with the reason.
+
+- **Dependencies current before 1.49.0.** `cargo update` (rmcp 3.12, russh 0.65.4, rsa 0.10.0 and
+  pkcs1 0.8.0 final, ssh-key 0.7.0-rc.12, sha2 0.11.2, cc 1.12, croner 5.0.1, psl 2.1.265; argon2
+  0.5, blake2 0.10 and password-hash 0.5 leave the tree with crypto-glue 0.2.3, so `deny.toml`
+  drops their skips), `pnpm update` (vitest 5.1.2, vue-i18n 11.4.24, @types/node 26.6.11,
+  @iconify-json/lucide 1.2.160) and the container's Python tools (`scripts/docker-tools.sh
+  --bump`). No open Dependabot pull request; base images and Rust 1.100.0 are current. Left as
+  majors for the owner: TypeScript 7. `sha256-postprocess` 0.9.20
+
+- **Plugin versions.** The versions this release raises: `debridlink-auth` 0.9.19;
+  `sha256-postprocess` 0.9.20.
+
+### Fixed
+
+- **The SABnzbd adapter keeps to Usenet; torrent packages are `torrent` (RD-1490-13).** Its
+  `queue`, `history`, `pause`/`resume` and the id-addressed `delete`, `pause` and `resume` see
+  Usenet packages only, as the qBittorrent adapter sees torrents only: with one category on both
+  clients Sonarr imported a torrent twice and Radarr credited it to SABnzbd. `addfile` maps
+  `priority` (`-2` queues the job paused, its slot `Paused`; `-1` low, `1` and `2` high). A package
+  takes its files' kind when they share one (`create_package_of_kind`), so a torrent's history
+  entry is no longer `http` and the seeding guards of post-processing, which read the package
+  kind, apply. A one-file torrent's package folder drops the file's extension (`movie`, not
+  `movie.mkv`). Test: `crates/rd-api/tests/sources/compat_shared_category.rs`.
+
+- **`debridlink-auth` names itself in every language (RD-1490-12).** German, Spanish and French
+  catalogues carry the plugin's name ("Debrid-Link-Anmeldung", "Inicio de sesión de Debrid-Link",
+  "Connexion Debrid-Link"); version 0.9.19.
+
+- **Field borders, placeholders and labels a screen reader skipped (RD-1490-09).** A field's border
+  is grey 500 instead of 300 (light) or 700 (dark), at least 3:1, and its placeholder the shade of
+  `text-muted`, at least 4.5:1, in both modes and all six colour themes (`main.css`,
+  `contrast.test.ts`). The rate and time left in the queue rows, the lock, key and yes/no icons
+  and the torrent piece bar carry their `aria-label` with `role="img"`, and a labelled icon is no
+  longer hidden by Iconify's `aria-hidden` (`ariaLabels.test.ts`).
+
+- **An indexer link in the LinkGrabber is grabbed once (RD-1490-02).** Prowlarr refuses the
+  check's `HEAD`, ignores its one-byte range, sends the whole file and counts every GET as a grab:
+  the direct probe, the reclassification's second probe and the read of the torrent made three.
+  The check now probes once and hands the result on, reads a container the server sent whole from
+  that same answer (`rd_http::probe_keeping_answer`), and keeps an NZB read that way in memory for
+  the enqueue, package export or remote-job hand-over (`LinkCheckService::take_kept_nzb`, bounded
+  to 64 MiB and 24 h). Proved against a counting loopback proxy for a torrent with and without its
+  content type and for an NZB: one GET from check to queue.
+
+- **A link check ends within its deadline and holds no other link (RD-1490-13).** mega.nz never
+  answers a `HEAD`: the probe gave up after 15 s, the reclassification asked the host again with no
+  deadline, and every check job ran on one task, so a made-up `mega.nz/file/…` link stayed
+  "checking" for minutes with every link added after it. A `HEAD` unanswered after 8 s is now
+  asked as the ranged GET (`rd_http::probe`), a host that did not answer the probe or stalled its
+  answer is not asked again, the manifest read takes the probe's headers instead of a second
+  `HEAD` and has a deadline, and one direct link's check ends after 120 s at the latest. Each link
+  is recorded as soon as it is checked and four check jobs run at once. Tests: a silent host, one
+  that stalls after its headers and one like mega.nz, beside a link and a later batch that are
+  checked while those still wait (`intake::link_check_deadline`).
+
+- **No panic at the start without CA certificates (RD-1490-13).** In a container without
+  `ca-certificates` the first HTTP client panicked ("No CA certificates were loaded from the
+  system"), as did the plugin transfer runner's TLS setup. `rd_http::client_builder` and
+  `tls_client_config` now trust only a custom CA there, or nothing, so HTTPS fails with a
+  certificate error and the rest works; the update client reports the reason on each request;
+  `rdownloader doctor` and the diagnostic bundle name the missing store (`TLS / CA certificates`).
+
+- **A container a plain-http page builds went nowhere (RD-1490-13).** The extension's page script
+  named each held file with `crypto.randomUUID`, which a page that is no secure context does not
+  have: on an allowed `http://` site the click on a `blob:` container threw, the browser saved
+  nothing and rDownloader got nothing. It now uses `crypto.getRandomValues`
+  (`extension/src/page-files-main.js`); found by the new Chrome end-to-end step.
+
+- **The archive check reads only job ids as references (RD-1490-01).** `scripts/archive-jobs.sh
+  --check` took prose quoting the mark's form (`→ offen in RD-…`, `RD-<id>`) for a reference to a
+  missing job; the archived RD-1490-01, which describes the rule, failed `--full`'s job layout.
+
 ## [1.48.0] - 2026-11-25
 
 ### Added

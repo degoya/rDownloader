@@ -88,7 +88,8 @@ export const VIEWS = [
     await page.getByRole('button', { name: 'Details' }).nth(1).click()
     await page.waitForTimeout(2000)
   }),
-  view('main', '16-remote-jobs', '/remote-jobs'),
+  // The jobs under the hand-over form: the filters at the top, every row below them.
+  view('main', '16-remote-jobs', '/remote-jobs', page => center(page, 'text=All providers', 'start')),
   view('main', '17-automation', '/automation'),
   view('main', '18-statistics', '/stats'),
   view('main', '19-logs', '/logs', async (page) => {

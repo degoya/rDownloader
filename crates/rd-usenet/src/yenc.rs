@@ -26,11 +26,7 @@ pub fn decode_yenc(article: &[u8]) -> Result<DecodedArticle> {
         .find(|line| line.starts_with(b"=ybegin "))
         .context("missing =ybegin line")?;
     let begin_fields = parse_fields(begin)?;
-    let name = begin_fields
-        .iter()
-        .find_map(|(key, value)| (*key == "name").then_some(*value))
-        .context("missing yEnc name")?
-        .to_owned();
+    let name = begin_name(begin).context("missing yEnc name")?.to_owned();
     let declared_size = numeric(&begin_fields, "size")?;
 
     let mut part_begin = None;
@@ -128,6 +124,21 @@ fn parse_fields(line: &[u8]) -> Result<Vec<(&str, &str)>> {
         .collect())
 }
 
+/// The `name=` of a `=ybegin` line: the last field, running to the end of the line (yEnc 1.3).
+///
+/// Read like the other fields, split on whitespace, a name with spaces kept only its first word,
+/// and `My Movie (2024).mkv` arrived as `My` (RD-1490-04, found by the round-trip property).
+fn begin_name(line: &[u8]) -> Option<&str> {
+    let text = std::str::from_utf8(line).ok()?;
+    let start = text
+        .match_indices("name=")
+        .map(|(index, _)| index)
+        .find(|index| {
+            text[..*index].ends_with(|character: char| character.is_ascii_whitespace())
+        })?;
+    Some(text[start + "name=".len()..].trim_end())
+}
+
 fn numeric(fields: &[(&str, &str)], key: &str) -> Result<u64> {
     text(fields, key)
         .with_context(|| format!("missing yEnc {key}"))?
@@ -165,6 +176,18 @@ mod tests {
         article.extend(format!("\r\n=yend size=5 crc32={:08x}\r\n", hash(&payload)).as_bytes());
         let decoded = decode_yenc(&article).expect("decode article");
         assert_eq!(decoded.data, payload);
+    }
+
+    /// The case the round-trip property found (RD-1490-04): a name with spaces is kept whole.
+    #[test]
+    fn a_name_with_spaces_is_kept_whole() {
+        let article = format!(
+            "=ybegin line=128 size=1 name=My Movie (2024).mkv \r\n+\r\n=yend size=1 crc32={:08x}\r\n",
+            hash(&[1])
+        );
+        let decoded = decode_yenc(article.as_bytes()).expect("decode article");
+        assert_eq!(decoded.metadata.name, "My Movie (2024).mkv");
+        assert_eq!(decoded.data, [1]);
     }
 
     #[test]

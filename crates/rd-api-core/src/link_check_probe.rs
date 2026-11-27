@@ -1,8 +1,54 @@
 //! HEAD/range probe for direct HTTP links (no provider involved).
 
+use std::time::Duration;
+
 use rd_core::{ByteCount, FailureKind, LinkCheckResult, LinkStatus};
 use rd_http::HttpDownloadError;
 use url::Url;
+
+/// How many bytes identify a document that did not announce itself (RD-080-11).
+const SNIFF_BYTES: usize = 1024;
+
+/// How long each network step of a direct link's check may take (RD-1490-13). A step past its
+/// deadline ends the way a failed one does, so no check stays "checking" for good.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Deadlines {
+    /// The probe: connection, TLS, redirects and the answer's headers.
+    pub(crate) probe: Duration,
+    /// Reading an answer: the sniff, or a container on to its end.
+    pub(crate) read: Duration,
+}
+
+impl Deadlines {
+    /// The deadlines of the online check.
+    pub(crate) const CHECK: Self = Self {
+        probe: Duration::from_secs(15),
+        read: Duration::from_secs(30),
+    };
+}
+
+/// What the direct probe learnt, handed on so the rest of the check does not ask the address a
+/// second time (RD-1490-02): an indexer proxy counts every GET as a grab.
+pub(crate) enum DirectProbe {
+    /// Nothing was asked: there was no client. The reclassification probes for itself.
+    Unasked,
+    /// The address answered with an error, could not be reached or did not answer within the
+    /// probe's deadline. Asking it again would only wait as long a second time (RD-1490-13).
+    Failed,
+    Answered(Box<Probed>),
+}
+
+/// What a probe learnt about an address.
+pub(crate) struct Probed {
+    pub(crate) probe: rd_http::ProbeResult,
+    /// The probe's own answer as far as it was read, with its headers, when the server ignored
+    /// the one-byte range and sent the whole entity: to the end for a container, else the
+    /// sniff. `None` when nothing but the probe was asked for, or the answer stalled.
+    pub(crate) body: Option<(rd_http::SniffedBody, reqwest::header::HeaderMap)>,
+    /// The answer stopped sending within the read's deadline: nothing more is read from this
+    /// address, neither a sniff nor a manifest (RD-1490-13).
+    pub(crate) stalled: bool,
+}
 
 /// Probes one direct link; 404/410/451 mean offline, other failures stay unknown.
 pub async fn probe_direct(
@@ -10,34 +56,53 @@ pub async fn probe_direct(
     headers: &[(String, String)],
     url: Url,
 ) -> LinkCheckResult {
+    probe_direct_kept(client, headers, url).await.0
+}
+
+/// [`probe_direct`], keeping what the probe read for the reclassification.
+pub(crate) async fn probe_direct_kept(
+    client: &reqwest::Client,
+    headers: &[(String, String)],
+    url: Url,
+) -> (LinkCheckResult, DirectProbe) {
+    probe_direct_within(client, headers, url, Deadlines::CHECK).await
+}
+
+/// [`probe_direct_kept`] within the given deadlines.
+pub(crate) async fn probe_direct_within(
+    client: &reqwest::Client,
+    headers: &[(String, String)],
+    url: Url,
+    deadlines: Deadlines,
+) -> (LinkCheckResult, DirectProbe) {
     // Deliberately no fallback to the address's last segment: intake already stored that,
     // and a name recorded by the check is marked as one the *source* declared. A segment two
     // links happen to share — `/download`, or an indexer's `/api` — is no such name, and
     // mirror detection and package grouping both read that flag.
     let declared_name = |disposition: Option<&str>| disposition.and_then(disposition_file_name);
-    match tokio::time::timeout(
-        std::time::Duration::from_secs(15),
-        rd_http::probe_with_headers(client, url.clone(), headers),
+    let answer = tokio::time::timeout(
+        deadlines.probe,
+        rd_http::probe_keeping_answer(client, url.clone(), headers),
     )
-    .await
-    {
+    .await;
+    let result = match &answer {
         // The one judgement about "is this a file", asked rather than rebuilt: an address
         // that answers with markup, or with a text body too small to be the payload, is not
         // a download and must not be stored as one (RD-110-07). The very same function
         // decides it mid-transfer in `rd_http::engine`, which is why there is no second
         // opinion to drift from this one.
-        Ok(Ok(result)) if !result.looks_downloadable() => LinkCheckResult {
+        Ok(Ok((probe, _))) if !probe.looks_downloadable() => LinkCheckResult {
             url,
             status: LinkStatus::Unresolvable,
             file_name: None,
             size: None,
             media: None,
         },
-        Ok(Ok(result)) => LinkCheckResult {
+        Ok(Ok((probe, _))) => LinkCheckResult {
             url,
             status: LinkStatus::Online,
-            file_name: declared_name(result.content_disposition.as_deref()),
-            size: result
+            file_name: declared_name(probe.content_disposition.as_deref()),
+            size: probe
                 .total_bytes
                 .and_then(|value| ByteCount::new(value).ok()),
             media: None,
@@ -60,7 +125,82 @@ pub async fn probe_direct(
             size: None,
             media: None,
         },
+    };
+    let probe = match answer {
+        Ok(Ok((probe, answer))) => {
+            DirectProbe::Answered(Box::new(read_answer(probe, answer, deadlines.read).await))
+        }
+        Ok(Err(_)) | Err(_) => DirectProbe::Failed,
+    };
+    (result, probe)
+}
+
+/// The probe of a direct link, for a reclassification the direct probe did not ask; `None`
+/// for one that failed or ran out of time.
+pub(crate) async fn probe_sniffed(
+    client: &reqwest::Client,
+    headers: &[(String, String)],
+    url: &Url,
+) -> Option<Probed> {
+    let deadlines = Deadlines::CHECK;
+    let probed = rd_http::probe_keeping_answer(client, url.clone(), headers);
+    let (probe, answer) = tokio::time::timeout(deadlines.probe, probed)
+        .await
+        .ok()?
+        .ok()?;
+    Some(read_answer(probe, answer, deadlines.read).await)
+}
+
+/// Reads the probe's own answer when the server sent it whole: on to its end when it is a
+/// container — a torrent or an NZB, by its content type or its first bytes — else the sniff.
+/// Bounded in time like [`sniff_document`]; an answer that stalls is dropped and marked, and
+/// nothing more is read from the address.
+async fn read_answer(
+    probe: rd_http::ProbeResult,
+    answer: Option<rd_http::WholeAnswer>,
+    deadline: Duration,
+) -> Probed {
+    let Some(answer) = answer else {
+        return Probed {
+            probe,
+            body: None,
+            stalled: false,
+        };
+    };
+    let answered = answer.headers().clone();
+    let essence = content_essence(probe.content_type.as_deref());
+    let read = answer.read(SNIFF_BYTES, |head| {
+        if rd_core::TORRENT_CONTENT_TYPES.contains(&essence.as_str()) || looks_like_bencode(head) {
+            Some(rd_torrent::MAX_TORRENT_BYTES)
+        } else if rd_core::NZB_CONTENT_TYPES.contains(&essence.as_str()) || looks_like_nzb(head) {
+            Some(rd_collector::MAX_NZB_BYTES)
+        } else {
+            None
+        }
+    });
+    let (body, stalled) = match tokio::time::timeout(deadline, read).await {
+        Ok(body) => (body.map(|body| (body, answered)), false),
+        Err(_) => (None, true),
+    };
+    Probed {
+        probe,
+        body,
+        stalled,
     }
+}
+
+/// A content type's essence, lower-case and without its parameters; empty without one.
+pub(crate) fn content_essence(content_type: Option<&str>) -> String {
+    content_type
+        .map(|value| {
+            value
+                .split(';')
+                .next()
+                .unwrap_or(value)
+                .trim()
+                .to_ascii_lowercase()
+        })
+        .unwrap_or_default()
 }
 
 /// Reads a link that answered as a `.torrent`, for its name and file tree (RD-120-68).
@@ -100,7 +240,7 @@ async fn fetch_torrent(
     candidate: &rd_core::LinkCandidate,
 ) -> Option<Vec<u8>> {
     match tokio::time::timeout(
-        std::time::Duration::from_secs(30),
+        Deadlines::CHECK.read,
         rd_http::fetch_bytes(
             client,
             candidate.url.clone(),
@@ -121,7 +261,8 @@ async fn fetch_torrent(
 
 /// What the first bytes of a direct link say it is (RD-080-11).
 pub(crate) enum Sniffed {
-    Nzb,
+    /// An NZB, with the whole document when the read holds it complete (RD-1490-02).
+    Nzb(Option<Vec<u8>>),
     /// A torrent, with the whole file when the sniff could read it in the same response
     /// (RD-130-18).
     Torrent(Option<Vec<u8>>),
@@ -143,10 +284,8 @@ pub(crate) async fn sniff_document(
     headers: &[(String, String)],
     url: &url::Url,
 ) -> Option<Sniffed> {
-    const SNIFF_BYTES: usize = 1024;
-
     let body = tokio::time::timeout(
-        std::time::Duration::from_secs(30),
+        Deadlines::CHECK.read,
         rd_http::fetch_sniffed(
             client,
             url.clone(),
@@ -158,20 +297,37 @@ pub(crate) async fn sniff_document(
     )
     .await
     .ok()??;
+    sniffed_kind(body)
+}
+
+/// What a sniffed body says it is — one [`sniff_document`] read, or the probe's own answer
+/// when the server sent it whole (RD-1490-02).
+pub(crate) fn sniffed_kind(body: rd_http::SniffedBody) -> Option<Sniffed> {
     if body.complete && rd_torrent::parse_torrent(&body.bytes).is_ok() {
         return Some(Sniffed::Torrent(Some(body.bytes)));
     }
-    let head = String::from_utf8_lossy(&body.bytes[..body.bytes.len().min(SNIFF_BYTES)]);
-    let head = head.trim_start();
-    // A torrent is bencode and begins with a dictionary; the announce key follows almost
-    // immediately in every file a tracker hands out.
-    if head.starts_with("d8:announce") || head.starts_with("d7:comment") {
+    let (torrent, nzb) = {
+        let head = String::from_utf8_lossy(&body.bytes[..body.bytes.len().min(SNIFF_BYTES)]);
+        let head = head.trim_start();
+        // A torrent is bencode and begins with a dictionary; the announce key follows almost
+        // immediately in every file a tracker hands out.
+        (
+            head.starts_with("d8:announce") || head.starts_with("d7:comment"),
+            looks_like_nzb(head.as_bytes()),
+        )
+    };
+    if torrent {
         return Some(Sniffed::Torrent(None));
     }
-    // An NZB is XML whose root element is `<nzb>`; the doctype and the declaration above
-    // it are optional, so the element is what is looked for.
-    let lowercase = head.to_ascii_lowercase();
-    (lowercase.contains("<nzb") && lowercase.contains("xml")).then_some(Sniffed::Nzb)
+    nzb.then(|| Sniffed::Nzb(body.complete.then_some(body.bytes)))
+}
+
+/// Whether a document begins the way an NZB does. An NZB is XML whose root element is
+/// `<nzb>`; the doctype and the declaration above it are optional, so the element is what is
+/// looked for.
+fn looks_like_nzb(head: &[u8]) -> bool {
+    let lowercase = String::from_utf8_lossy(head).to_ascii_lowercase();
+    lowercase.contains("<nzb") && lowercase.contains("xml")
 }
 
 /// Whether a document begins the way a torrent does: a bencoded dictionary whose first key
@@ -188,6 +344,10 @@ fn looks_like_bencode(head: &[u8]) -> bool {
 /// Parses `filename*=UTF-8''…` (RFC 5987) or `filename="…"`; shared with the download
 /// worker, which names a file its address could not (RD-1240-33).
 pub use rd_files::disposition_file_name;
+
+#[cfg(test)]
+#[path = "link_check_probe_deadline_tests.rs"]
+mod deadline_tests;
 
 #[cfg(test)]
 mod tests {

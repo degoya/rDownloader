@@ -334,9 +334,11 @@ async fn add_nzb(router: &axum::Router, name: &str) -> String {
     payload["nzo_ids"][0].as_str().expect("nzo id").to_owned()
 }
 
-/// RD-120-68: a torrent job a client deletes leaves the engine session too.
+/// A torrent is no SABnzbd job (RD-1490-13): deleting it by the id this adapter would derive
+/// is refused, and the torrent keeps its row and its engine session. Its removal through the
+/// qBittorrent adapter takes both (RD-120-68, `compat_qbittorrent`).
 #[tokio::test]
-async fn a_deleted_torrent_job_leaves_the_engine_session() {
+async fn a_torrent_cannot_be_deleted_as_a_sabnzbd_job() {
     let directory = tempfile::tempdir().expect("tempdir");
     let harness = auth_harness(directory.path()).await;
     const HASH: &str = "89abcdef0123456789abcdef0123456789abcdef";
@@ -356,16 +358,18 @@ async fn a_deleted_torrent_job_leaves_the_engine_session() {
         &with_key(&format!("mode=queue&name=delete&value=rd_nzo_{package}")),
     )
     .await;
-    assert_eq!(deleted["status"], true, "{deleted}");
-    assert!(
+    assert_eq!(deleted["status"], false, "{deleted}");
+    assert_eq!(deleted["error"], "nzo_id not found", "{deleted}");
+    assert_eq!(
         harness
             .database
             .list_downloads()
             .await
             .expect("downloads")
-            .is_empty()
+            .len(),
+        1
     );
-    assert!(common::persisted_torrents(directory.path()).is_empty());
+    assert_eq!(common::persisted_torrents(directory.path()).len(), 1);
 }
 
 /// A token holding `api:intake`, `api:queue` and `api:read` is all the adapter needs -- not
