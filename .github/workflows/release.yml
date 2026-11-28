@@ -309,7 +309,7 @@ jobs:
       # application's.
       - name: Generate SHA-256 checksums
         run: scripts/release-assets.sh sums release-assets plugin-assets
-      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
       - name: Sign checksum manifests with Sigstore
         shell: bash
         run: |
@@ -495,6 +495,6 @@ jobs:
             index:org.opencontainers.image.licenses=GPL-3.0-or-later
           provenance: mode=max
           sbom: true
-      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
       - name: Sign multiarch image with Sigstore
         run: cosign sign --yes "${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}"
