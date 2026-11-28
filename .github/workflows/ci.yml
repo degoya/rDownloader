@@ -236,7 +236,7 @@ jobs:
       # cargo-binstall, which takes the signed build from cargo-quickinstall.
       - name: Install SQLx CLI
         if: runner.os == 'Linux'
-        uses: taiki-e/install-action@75a7c0f87bd666af3cdb75c5b9e9d03ab6044e6f # v2.90.6
+        uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: sqlx-cli@0.9.0
       - name: Check SQLx offline metadata
@@ -460,7 +460,7 @@ jobs:
       - name: Tool pins agree
         run: scripts/tool-versions.sh --check
       # A stale entry in deny.toml's duplicate skip list fails, so the list only shrinks (RD-150-21).
-      - uses: EmbarkStudios/cargo-deny-action@70f81531115945ba6eb6b941ec9d39d063438eb9 # v2.1.2
+      - uses: EmbarkStudios/cargo-deny-action@81891abc19297b21343b15ef67dc61e4aea74fda # v2.1.4
         with:
           command: check
           command-arguments: -D unmatched-skip -D unnecessary-skip
